@@ -1,0 +1,143 @@
+4-Card Golf – Complete Rules (4 Players, All Pair Matches Cancel)
+🎯 Objective
+Have the lowest total score after each player has taken exactly 4 turns. Create matching pairs to cancel out points anywhere in your 2×2 grid.
+
+🧩 Setup
+Use a standard 52-card deck (no jokers).
+
+
+Deal each player 4 cards face-down arranged in a 2×2 grid:
+
+ sql
+CopyEdit
+[ top-left     top-right ]
+[ bottom-left  bottom-right ]
+
+
+Each player may secretly look at their two bottom cards (bottom-left and bottom-right) at the start of the game — but must not show anyone and must not flip them over.
+
+
+The rest of the deck goes in the center as the draw pile.
+
+
+Turn the top card face-up to start the discard pile.
+
+
+
+🔁 Gameplay
+Play proceeds clockwise.
+
+
+Each player takes exactly 4 full turns in a round.
+
+
+On your turn, choose one action:
+
+➤ 1. Draw from the draw pile
+Look at the card.
+
+
+You may:
+
+
+Swap it with one of your face-down cards.
+
+
+That card is flipped face-up and locked in place.
+
+
+The card you replaced is placed face-up onto the discard pile.
+
+
+Or discard it directly if you don’t want it.
+
+
+
+➤ 2. Pick up the top card from the discard pile
+You must swap it with a face-down card from your grid.
+
+
+The new card is placed face-up.
+
+
+The replaced card is discarded face-up.
+
+
+
+🔒 Once a card in your grid is face-up, it cannot be changed again.
+ 👁️‍🗨️ You may never look at your face-down cards unless you're swapping them.
+
+🛑 End of Game
+After every player has taken 4 turns, the game ends immediately.
+
+
+All players then reveal their remaining face-down cards.
+
+
+Proceed to scoring.
+
+
+
+🧮 Scoring
+Card
+Score
+Ace (A)
+1 point
+2–10
+Face value
+Jack (J)
+0 ✅
+Queen (Q)
+10
+King (K)
+10
+
+
+➤ Matching Pair Cancel Rule
+Any two cards in your 2×2 grid that are the same rank cancel each other out and score 0 points.
+
+
+Canceled pairs can appear in:
+
+
+Rows (horizontal)
+
+
+Columns (vertical)
+
+
+Diagonals (e.g., top-left & bottom-right)
+
+
+⚠️ Only two matching cards cancel — if you have three-of-a-kind or four-of-a-kind, only one pair cancels.
+
+🧮 Example Grid:
+cpp
+CopyEdit
+[ 6♠   Q♠ ]
+[ J♣   6♦ ]
+→ 6♠ and 6♦ → pair → cancel to 0 pts
+→ Q = 10 pts, J = 0 pts
+→ Final score = 10
+
+Another example:
+cpp
+CopyEdit
+[ 7♦   5♠ ]
+[ 5♥   7♣ ]
+→ 7♦ & 7♣ → pair → cancel to 0
+→ 5♠ & 5♥ → pair → cancel to 0
+→ Final score = 0 ✅
+
+
+🧠 Strategy Tips
+Use your memory: only 2 cards are known!
+
+
+Target pairs across the whole grid — diagonals count.
+
+
+Avoid face cards unless you know they're part of a pair.
+
+
+Turns are limited — only 4 total per player, so don’t wait too long to act.
