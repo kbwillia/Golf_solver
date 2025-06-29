@@ -268,12 +268,19 @@ def get_game_state(game_id):
             'score': card.score()
         }
 
-    # Calculate scores if game is over
-    scores = None
+    # Always calculate scores (not just at game over)
+    scores = [game.calculate_score(p.grid) for p in game.players]
+    public_scores = [get_public_score(p) for p in game.players]
+    private_scores = [get_private_score(p) for p in game.players]
     winner = None
     if game_session['game_over']:
-        scores = [game.calculate_score(p.grid) for p in game.players]
         winner = scores.index(min(scores))
+
+    # Placeholder for probabilities/statistics (to be filled in from probabilities.py)
+    probabilities = {}
+    # Example: if you add get_probabilities(game) to probabilities.py, you can do:
+    # from probabilities import get_probabilities
+    # probabilities = get_probabilities(game)
 
     return {
         'players': players_data,
@@ -284,8 +291,11 @@ def get_game_state(game_id):
         'deck_size': len(game.deck),
         'game_over': game_session['game_over'],
         'scores': scores,
+        'public_scores': public_scores,
+        'private_scores': private_scores,
         'winner': winner,
-        'mode': game_session['mode']
+        'mode': game_session['mode'],
+        'probabilities': probabilities
     }
 
 @app.route('/get_available_actions/<game_id>')
@@ -326,6 +336,21 @@ def get_available_actions(game_id):
         })
 
     return jsonify({'actions': actions})
+
+def get_public_score(player):
+    # Only sum cards that are public (face-up to all)
+    return sum(card.score() for i, card in enumerate(player.grid) if card and player.known[i])
+
+def get_private_score(player):
+    # For human: sum cards that are public or privately visible
+    if player.agent_type == 'human':
+        return sum(
+            card.score()
+            for i, card in enumerate(player.grid)
+            if card and (player.known[i] or (hasattr(player, 'privately_visible') and player.privately_visible[i]))
+        )
+    else:
+        return None
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

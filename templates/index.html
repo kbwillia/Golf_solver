@@ -298,6 +298,17 @@
             opacity: 0.7;
             box-shadow: 0 0 10px #007bff;
         }
+        #drawnCardDisplay.playable {
+            outline: 3px solid #007bff;
+            box-shadow: 0 0 12px #007bff;
+            border-color: #007bff;
+        }
+        #discardCard.faded {
+            opacity: 0.4;
+            filter: grayscale(80%);
+            border-style: dashed;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -331,10 +342,6 @@
                     <div class="left-panel">
                         <div class="game-info" id="gameInfo"></div>
                         <div id="playerGrids"></div>
-                        <div class="actions" id="actions">
-                            <button onclick="takeDiscard()" class="btn btn-primary" id="takeDiscardBtn">Take from Discard</button>
-                            <button onclick="drawFromDeck()" class="btn btn-primary" id="drawDeckBtn">Draw from Deck</button>
-                        </div>
                     </div>
                     <div class="right-panel">
                         <div style="display: flex; flex-direction: row; align-items: flex-end;">
@@ -483,9 +490,6 @@
 
             // Update player grids
             updatePlayerGrids();
-
-            // Update action buttons
-            updateActionButtons();
         }
 
         function updatePlayerGrids() {
@@ -528,10 +532,14 @@
                     }
                     return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayText}</div>`;
                 }).join('');
+                // Show only the public score for each player, and private score for human
                 let scoreText = '';
-                if (currentGameState.game_over && currentGameState.scores) {
-                    scoreText = ` - Score: ${currentGameState.scores[index]}`;
-                    if (index === currentGameState.winner) {
+                if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
+                    scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
+                    if (isHuman && currentGameState.private_scores && typeof currentGameState.private_scores[index] !== 'undefined' && currentGameState.private_scores[index] !== null) {
+                        scoreText += ` (Private: ${currentGameState.private_scores[index]})`;
+                    }
+                    if (currentGameState.game_over && index === currentGameState.winner) {
                         scoreText += ' 🏆';
                     }
                 }
@@ -549,51 +557,6 @@
                         flipDrawnCardOnGrid(pos);
                     };
                 });
-            }
-        }
-
-        function updateActionButtons() {
-            const actionsDiv = document.getElementById('actions');
-            const takeDiscardBtn = document.getElementById('takeDiscardBtn');
-            const drawDeckBtn = document.getElementById('drawDeckBtn');
-            const deckCard = document.getElementById('deckCard');
-            const discardCard = document.getElementById('discardCard');
-
-            // Only show actions if it's human's turn and game isn't over
-            const isHumanTurn = currentGameState.current_turn === 0;
-            const gameNotOver = !currentGameState.game_over;
-
-            actionsDiv.style.display = (isHumanTurn && gameNotOver) ? 'block' : 'none';
-
-            if (isHumanTurn && gameNotOver) {
-                // Check if actions are available
-                const hasAvailablePositions = getAvailablePositions().length > 0;
-                const hasDiscard = currentGameState.discard_top !== null;
-                const hasDeck = currentGameState.deck_size > 0;
-
-                const canTakeDiscard = hasAvailablePositions && hasDiscard;
-                const canDrawDeck = hasAvailablePositions && hasDeck;
-
-                // Update buttons
-                takeDiscardBtn.disabled = !canTakeDiscard;
-                drawDeckBtn.disabled = !canDrawDeck;
-
-                // Update card visual states
-                if (canTakeDiscard) {
-                    discardCard.classList.remove('disabled');
-                } else {
-                    discardCard.classList.add('disabled');
-                }
-
-                if (canDrawDeck) {
-                    deckCard.classList.remove('disabled');
-                } else {
-                    deckCard.classList.add('disabled');
-                }
-            } else {
-                // Not human's turn - disable both cards
-                deckCard.classList.add('disabled');
-                discardCard.classList.add('disabled');
             }
         }
 
@@ -659,6 +622,12 @@
             area.style.display = 'flex';
             display.setAttribute('draggable', 'true');
             display.classList.remove('dragging');
+            display.classList.add('playable');
+            // Fade the discard card and make it unclickable
+            const discardCard = document.getElementById('discardCard');
+            discardCard.classList.add('faded');
+            discardCard.onclick = null;
+            discardCard.setAttribute('tabindex', '-1');
             window.flipDrawnMode = true; // Enable flip mode immediately
             updatePlayerGrids();
         }
@@ -667,6 +636,11 @@
             drawnCardData = null;
             drawnCardDragActive = false;
             document.getElementById('drawnCardArea').style.display = 'none';
+            document.getElementById('drawnCardDisplay').classList.remove('playable');
+            const discardCard = document.getElementById('discardCard');
+            discardCard.classList.remove('faded');
+            discardCard.onclick = takeDiscard;
+            discardCard.setAttribute('tabindex', '0');
             window.flipDrawnMode = false;
         }
 
