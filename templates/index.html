@@ -263,6 +263,41 @@
             background: white;
             border: 2px solid #333;
         }
+        /* Drag-and-drop highlight for grid cells */
+        .card.drop-target {
+            outline: 3px dashed #007bff;
+            box-shadow: 0 0 8px #007bff;
+        }
+        .card.not-droppable {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        /* Drawn card area */
+        #drawnCardArea {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 20px;
+        }
+        #drawnCardDisplay {
+            margin-bottom: 8px;
+            width: 70px;
+            height: 100px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: white;
+            font-weight: bold;
+            cursor: grab;
+            user-select: none;
+        }
+        #drawnCardDisplay.dragging {
+            opacity: 0.7;
+            box-shadow: 0 0 10px #007bff;
+        }
     </style>
 </head>
 <body>
@@ -302,19 +337,20 @@
                         </div>
                     </div>
                     <div class="right-panel">
-                        <div class="deck-discard-vertical">
-                            <div>
-                                <h4>Deck</h4>
-                                <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()">
-                                    <div class="card-layer-1"></div>
-                                    <div class="card-layer-2"></div>
-                                    ?
-                                </div>
-                                <div id="deckSize" style="text-align: center; margin-top: 5px; font-size: 12px;"></div>
+                        <div style="display: flex; flex-direction: row; align-items: flex-end;">
+                            <div id="drawnCardArea">
+                                <div id="drawnCardDisplay" draggable="true"></div>
                             </div>
-                            <div>
-                                <h4>Discard</h4>
-                                <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()"></div>
+                            <div class="deck-discard-vertical">
+                                <div>
+                                    <h4>Deck</h4>
+                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                    <div id="deckSize" style="text-align: center; margin-top: 5px; font-size: 12px;"></div>
+                                </div>
+                                <div>
+                                    <h4>Discard</h4>
+                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="legend">
@@ -347,24 +383,15 @@
         </div>
     </div>
 
-    <!-- Draw Decision Modal -->
-    <div id="drawModal" class="modal">
-        <div class="modal-content">
-            <h3>Drawn Card</h3>
-            <div id="drawnCard" class="card face-up" style="margin: 20px auto;"></div>
-            <p>Do you want to keep this card?</p>
-            <div class="position-buttons">
-                <button onclick="keepDrawnCard()" class="btn btn-primary">Keep</button>
-                <button onclick="discardDrawnCard()" class="btn btn-secondary">Discard</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentGameState = null;
         let gameId = null;
         let drawnCard = null;
         let currentAction = null;
+        let dragActive = false;
+        let draggedDiscardCard = null;
+        let drawnCardData = null;
+        let drawnCardDragActive = false;
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
@@ -464,21 +491,18 @@
         function updatePlayerGrids() {
             const container = document.getElementById('playerGrids');
             container.innerHTML = '';
-
             currentGameState.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'player-grid';
-
                 if (index === currentGameState.current_turn) {
                     playerDiv.classList.add('current-turn');
                 }
-
+                const isHuman = index === 0;
                 const gridHtml = player.grid.map((card, pos) => {
                     if (!card) return '<div class="card face-down">?</div>';
-
                     let cardClass = 'card';
                     let displayText = '?';
-
+                    let extraAttrs = '';
                     if (card.visible) {
                         if (card.public) {
                             cardClass += ' face-up public';
@@ -489,10 +513,21 @@
                     } else {
                         cardClass += ' face-down';
                     }
-
-                    return `<div class="${cardClass}" data-position="${pos}">${displayText}</div>`;
+                    // Drag-and-drop for human player
+                    if (isHuman && !card.public && currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                        // Accept drop from discard or drawn card
+                        extraAttrs += ' ondragover="event.preventDefault();this.classList.add(\'drop-target\');"';
+                        extraAttrs += ' ondragleave="this.classList.remove(\'drop-target\');"';
+                        extraAttrs += ` ondrop="handleDropOnGrid(${pos});this.classList.remove('drop-target');"`;
+                        // If in flip mode, add flippable class
+                        if (window.flipDrawnMode) {
+                            cardClass += ' drop-target flippable';
+                        }
+                    } else if (isHuman) {
+                        extraAttrs += ' class="card not-droppable"';
+                    }
+                    return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayText}</div>`;
                 }).join('');
-
                 let scoreText = '';
                 if (currentGameState.game_over && currentGameState.scores) {
                     scoreText = ` - Score: ${currentGameState.scores[index]}`;
@@ -500,14 +535,21 @@
                         scoreText += ' 🏆';
                     }
                 }
-
                 playerDiv.innerHTML = `
                     <h3>${player.name} (${player.agent_type})${scoreText}</h3>
                     <div class="grid-container">${gridHtml}</div>
                 `;
-
                 container.appendChild(playerDiv);
             });
+            // Attach click handler to flippable cards in flip mode
+            if (window.flipDrawnMode) {
+                document.querySelectorAll('.flippable').forEach(el => {
+                    el.onclick = function() {
+                        const pos = parseInt(this.getAttribute('data-position'));
+                        flipDrawnCardOnGrid(pos);
+                    };
+                });
+            }
         }
 
         function updateActionButtons() {
@@ -599,8 +641,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    drawnCard = data.drawn_card;
-                    showDrawModal();
+                    showDrawnCardArea(data.drawn_card);
                 } else {
                     alert('Error drawing card: ' + (data.error || 'Unknown error'));
                 }
@@ -610,28 +651,23 @@
             }
         }
 
-        function showDrawModal() {
-            const drawnCardElement = document.getElementById('drawnCard');
-            drawnCardElement.textContent = `${drawnCard.rank}${drawnCard.suit}`;
-            document.getElementById('drawModal').style.display = 'block';
+        function showDrawnCardArea(card) {
+            drawnCardData = card;
+            const area = document.getElementById('drawnCardArea');
+            const display = document.getElementById('drawnCardDisplay');
+            display.textContent = `${card.rank}${card.suit}`;
+            area.style.display = 'flex';
+            display.setAttribute('draggable', 'true');
+            display.classList.remove('dragging');
+            window.flipDrawnMode = true; // Enable flip mode immediately
+            updatePlayerGrids();
         }
 
-        function keepDrawnCard() {
-            document.getElementById('drawModal').style.display = 'none';
-            const availablePositions = getAvailablePositions();
-            showPositionModal('Keep Drawn Card', 'Choose position to place the drawn card:', availablePositions, 'draw_keep');
-        }
-
-        function discardDrawnCard() {
-            document.getElementById('drawModal').style.display = 'none';
-            const availablePositions = getAvailablePositions();
-
-            if (availablePositions.length === 1) {
-                // Auto-flip if only one position available
-                executeAction(availablePositions[0], 'draw_discard');
-            } else {
-                showPositionModal('Discard Drawn Card', 'Choose position to flip face-up:', availablePositions, 'draw_discard');
-            }
+        function hideDrawnCardArea() {
+            drawnCardData = null;
+            drawnCardDragActive = false;
+            document.getElementById('drawnCardArea').style.display = 'none';
+            window.flipDrawnMode = false;
         }
 
         function getAvailablePositions() {
@@ -810,6 +846,73 @@
                 refreshGameState();
             }
         }, 1000);
+
+        // Drawn card drag-and-drop logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const discardCard = document.getElementById('discardCard');
+            discardCard.addEventListener('dragstart', (e) => {
+                dragActive = true;
+                discardCard.classList.add('drop-target');
+                // Store the discard card value at drag start
+                if (currentGameState && currentGameState.discard_top) {
+                    draggedDiscardCard = {
+                        rank: currentGameState.discard_top.rank,
+                        suit: currentGameState.discard_top.suit
+                    };
+                } else {
+                    draggedDiscardCard = null;
+                }
+            });
+            discardCard.addEventListener('dragend', (e) => {
+                dragActive = false;
+                discardCard.classList.remove('drop-target');
+                draggedDiscardCard = null;
+                // Remove highlight from all grid cells
+                document.querySelectorAll('.card.drop-target').forEach(el => el.classList.remove('drop-target'));
+            });
+            // Drawn card drag logic
+            const display = document.getElementById('drawnCardDisplay');
+            display.addEventListener('dragstart', (e) => {
+                if (!drawnCardData) return e.preventDefault();
+                drawnCardDragActive = true;
+                display.classList.add('dragging');
+            });
+            display.addEventListener('dragend', (e) => {
+                drawnCardDragActive = false;
+                display.classList.remove('dragging');
+                document.querySelectorAll('.card.drop-target').forEach(el => el.classList.remove('drop-target'));
+            });
+        });
+
+        function handleDropOnGrid(pos) {
+            if (drawnCardDragActive && drawnCardData) {
+                // Keep the drawn card at this position
+                executeAction(pos, 'draw_keep');
+                hideDrawnCardArea();
+                return;
+            }
+            if (!dragActive) return;
+            if (currentGameState.current_turn !== 0 || currentGameState.game_over || !currentGameState.discard_top) return;
+            const card = currentGameState.players[0].grid[pos];
+            if (!card || card.public) return;
+            if (!draggedDiscardCard ||
+                currentGameState.discard_top.rank !== draggedDiscardCard.rank ||
+                currentGameState.discard_top.suit !== draggedDiscardCard.suit) {
+                alert('The discard card has changed. Please try again.');
+                return;
+            }
+            executeAction(pos, 'take_discard');
+        }
+
+        function flipDrawnCardOnGrid(pos) {
+            if (!window.flipDrawnMode || !drawnCardData) return;
+            // Only allow if the position is not public
+            const card = currentGameState.players[0].grid[pos];
+            if (!card || card.public) return;
+            // Discard the drawn card and flip this position
+            executeAction(pos, 'draw_discard');
+            hideDrawnCardArea();
+        }
     </script>
 </body>
 </html>
