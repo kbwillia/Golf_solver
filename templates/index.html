@@ -36,6 +36,34 @@
         .player-grid.current-turn {
             border-color: #007bff;
             background-color: #f8f9fa;
+            position: relative;
+        }
+        .player-grid.current-turn.turn-animate {
+            animation: pulse-border 2.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(0,123,255,0.1); }
+            100% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
+        }
+        .your-turn-badge {
+            position: absolute;
+            top: 10px;
+            right: 18px;
+            background: #007bff;
+            color: white;
+            padding: 4px 14px;
+            border-radius: 16px;
+            font-size: 1em;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.18);
+            z-index: 10;
+            animation: badge-pop 5.0s cubic-bezier(.68,-0.55,.27,1.55) both;
+        }
+        @keyframes badge-pop {
+            0% { transform: scale(0.7); opacity: 0; }
+            60% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
         }
         .grid-container {
             display: grid;
@@ -399,6 +427,8 @@
         let draggedDiscardCard = null;
         let drawnCardData = null;
         let drawnCardDragActive = false;
+        let turnAnimateTimeout = null;
+        let lastTurnIndex = null;
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
@@ -495,6 +525,15 @@
         function updatePlayerGrids() {
             const container = document.getElementById('playerGrids');
             container.innerHTML = '';
+            // Only clear timeout and remove animation if turn index changes
+            const currentTurnIndex = currentGameState.current_turn;
+            if (lastTurnIndex !== currentTurnIndex) {
+                if (turnAnimateTimeout) {
+                    clearTimeout(turnAnimateTimeout);
+                    turnAnimateTimeout = null;
+                }
+                document.querySelectorAll('.player-grid.current-turn').forEach(el => el.classList.remove('turn-animate'));
+            }
             currentGameState.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'player-grid';
@@ -534,21 +573,40 @@
                 }).join('');
                 // Show only the public score for each player, and private score for human
                 let scoreText = '';
+                let badgeHtml = '';
                 if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
-                    scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
+                    scoreText = ` - Public Score: ${currentGameState.public_scores[index]}`;
                     if (isHuman && currentGameState.private_scores && typeof currentGameState.private_scores[index] !== 'undefined' && currentGameState.private_scores[index] !== null) {
-                        scoreText += ` (Private: ${currentGameState.private_scores[index]})`;
+                        scoreText += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Private: ${currentGameState.private_scores[index]})`;
                     }
                     if (currentGameState.game_over && index === currentGameState.winner) {
                         scoreText += ' 🏆';
                     }
                 }
+                // Add animated badge for human's turn
+                if (isHuman && index === currentGameState.current_turn && !currentGameState.game_over) {
+                    badgeHtml = '<div class="your-turn-badge">Your Turn!</div>';
+                }
                 playerDiv.innerHTML = `
                     <h3>${player.name} (${player.agent_type})${scoreText}</h3>
+                    ${badgeHtml}
                     <div class="grid-container">${gridHtml}</div>
                 `;
                 container.appendChild(playerDiv);
             });
+            // Robust delayed turn animation for human
+            if (currentTurnIndex === 0 && !currentGameState.game_over && lastTurnIndex !== currentTurnIndex) {
+                turnAnimateTimeout = setTimeout(() => {
+                    // Only add animation if still human's turn
+                    if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                        const grids = document.querySelectorAll('.player-grid.current-turn');
+                        if (grids.length > 0) {
+                            grids[0].classList.add('turn-animate');
+                        }
+                    }
+                }, 2000);
+            }
+            lastTurnIndex = currentTurnIndex;
             // Attach click handler to flippable cards in flip mode
             if (window.flipDrawnMode) {
                 document.querySelectorAll('.flippable').forEach(el => {

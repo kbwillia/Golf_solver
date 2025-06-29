@@ -270,8 +270,8 @@ def get_game_state(game_id):
 
     # Always calculate scores (not just at game over)
     scores = [game.calculate_score(p.grid) for p in game.players]
-    public_scores = [get_public_score(p) for p in game.players]
-    private_scores = [get_private_score(p) for p in game.players]
+    public_scores = [get_public_score(p, game) for p in game.players]
+    private_scores = [get_private_score(p, game) for p in game.players]
     winner = None
     if game_session['game_over']:
         winner = scores.index(min(scores))
@@ -337,18 +337,20 @@ def get_available_actions(game_id):
 
     return jsonify({'actions': actions})
 
-def get_public_score(player):
-    # Only sum cards that are public (face-up to all)
-    return sum(card.score() for i, card in enumerate(player.grid) if card and player.known[i])
+def get_public_score(player, game):
+    # Only sum cards that are public (face-up to all), using calculate_score for pair cancellation
+    visible_grid = [card if (card and player.known[i]) else None for i, card in enumerate(player.grid)]
+    return game.calculate_score(visible_grid)
 
-def get_private_score(player):
-    # For human: sum cards that are public or privately visible
+def get_private_score(player, game):
+    # For human: use calculate_score, but only with visible cards (public or privately visible)
     if player.agent_type == 'human':
-        return sum(
-            card.score()
+        visible_grid = [
+            card if (card and (player.known[i] or (hasattr(player, 'privately_visible') and player.privately_visible[i])))
+            else None
             for i, card in enumerate(player.grid)
-            if card and (player.known[i] or (hasattr(player, 'privately_visible') and player.privately_visible[i]))
-        )
+        ]
+        return game.calculate_score(visible_grid)
     else:
         return None
 
