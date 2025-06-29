@@ -119,8 +119,14 @@ class HumanAgent:
                         # Show available positions for flipping
                         flip_positions = [i for i, known in enumerate(player.known) if not known]
                         print(f"Available positions to flip: {[i+1 for i in flip_positions]}")
-                        flip_pos = input(f"Enter position to flip {[i+1 for i in flip_positions]}: ").strip()
-                        flip_pos = int(flip_pos) - 1
+
+                        # If there's only one position available, automatically choose it
+                        if len(flip_positions) == 1:
+                            flip_pos = flip_positions[0]
+                            print(f"Automatically flipping position {flip_pos+1} (only option available).")
+                        else:
+                            flip_pos = input(f"Enter position to flip {[i+1 for i in flip_positions]}: ").strip()
+                            flip_pos = int(flip_pos) - 1
 
                         if flip_pos not in flip_positions:
                             print(f"Invalid position! Choose from {[i+1 for i in flip_positions]}")

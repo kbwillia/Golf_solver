@@ -33,6 +33,10 @@
             border: 2px solid #ddd;
             border-radius: 8px;
         }
+        .player-grid.current-turn {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
         .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -52,6 +56,8 @@
             font-weight: bold;
             margin: 5px;
             cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
         }
         .card.face-down {
             background: linear-gradient(45deg, #667eea, #764ba2);
@@ -64,6 +70,55 @@
         .card.privately-visible {
             background: linear-gradient(45deg, #f39c12, #e67e22);
             color: white;
+        }
+        .card.public {
+            border-color: #28a745;
+            box-shadow: 0 0 5px #28a745;
+        }
+        /* Layered deck effect */
+        .card.face-down#deckCard {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            box-shadow:
+                0 2px 4px rgba(0,0,0,0.3),
+                0 4px 8px rgba(0,0,0,0.2),
+                0 6px 12px rgba(0,0,0,0.1);
+            transform: translateZ(0);
+            width: 70px;
+            height: 100px;
+            font-size: 20px;
+        }
+
+        /* Discard card styling */
+        #discardCard {
+            width: 70px;
+            height: 100px;
+            font-size: 16px;
+        }
+        .card.face-down#deckCard::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: 2px solid #333;
+            border-radius: 6px;
+            z-index: -1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .card.face-down#deckCard::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: 2px solid #333;
+            border-radius: 4px;
+            z-index: -2;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         .actions {
             text-align: center;
@@ -88,6 +143,10 @@
         .btn:hover {
             opacity: 0.8;
         }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .game-info {
             background: #f8f9fa;
             border-radius: 10px;
@@ -95,7 +154,7 @@
             margin-bottom: 10px;
             font-size: 1.1em;
             font-weight: bold;
-            text-align: right;
+            text-align: center;
         }
         .modal {
             display: none;
@@ -121,6 +180,7 @@
             justify-content: center;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
         }
         .main-board {
             display: flex;
@@ -150,10 +210,37 @@
             opacity: 0.92;
             cursor: pointer;
         }
+        .card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .card.disabled:hover {
+            box-shadow: none;
+            opacity: 0.5;
+        }
         .setup-and-board {
             display: flex;
             flex-direction: column;
             gap: 30px;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-card {
+            width: 30px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #333;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -166,13 +253,13 @@
             <div class="game-setup" id="gameSetup">
                 <h2>Game Setup</h2>
                 <p>
-                    <label>Number of Players:</label>
-                    <select id="numPlayers">
-                        <option value="2">2 Players</option>
-                        <option value="4">4 Players</option>
+                    <label>Game Mode:</label>
+                    <select id="gameMode">
+                        <option value="1v1">1 vs 1 AI</option>
+                        <option value="1v3">1 vs 3 AI</option>
                     </select>
                 </p>
-                <p>
+                <p id="opponentSection">
                     <label>Opponent Type:</label>
                     <select id="opponentType">
                         <option value="random">Random AI</option>
@@ -186,13 +273,43 @@
             <div class="game-board" id="gameBoard">
                 <div class="main-board">
                     <div class="left-panel">
+                        <div class="game-info" id="gameInfo"></div>
                         <div id="playerGrids"></div>
+                        <div class="actions" id="actions">
+                            <button onclick="takeDiscard()" class="btn btn-primary" id="takeDiscardBtn">Take from Discard</button>
+                            <button onclick="drawFromDeck()" class="btn btn-primary" id="drawDeckBtn">Draw from Deck</button>
+                        </div>
                     </div>
                     <div class="right-panel">
-                        <div class="game-info" id="gameInfo"></div>
                         <div class="deck-discard-vertical">
-                            <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()">?</div>
-                            <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()"></div>
+                            <div>
+                                <h4>Deck</h4>
+                                <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()">
+                                    <div class="card-layer-1"></div>
+                                    <div class="card-layer-2"></div>
+                                    ?
+                                </div>
+                                <div id="deckSize" style="text-align: center; margin-top: 5px; font-size: 12px;"></div>
+                            </div>
+                            <div>
+                                <h4>Discard</h4>
+                                <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()"></div>
+                            </div>
+                        </div>
+                        <div class="legend">
+                            <h4>Card Legend:</h4>
+                            <div class="legend-item">
+                                <div class="legend-card face-down"></div>
+                                Face-down (unknown)
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-card privately-visible"></div>
+                                Privately visible to you
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-card face-up"></div>
+                                Public (known to all)
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -224,57 +341,102 @@
 
     <script>
         let currentGameState = null;
+        let gameId = null;
         let drawnCard = null;
         let currentAction = null;
 
+        // Hide opponent selection for 1v3 mode
+        document.getElementById('gameMode').addEventListener('change', function() {
+            const opponentSection = document.getElementById('opponentSection');
+            opponentSection.style.display = this.value === '1v1' ? 'block' : 'none';
+        });
+
         async function startGame() {
-            const numPlayers = document.getElementById('numPlayers').value;
+            const gameMode = document.getElementById('gameMode').value;
             const opponentType = document.getElementById('opponentType').value;
 
             try {
-                const response = await fetch('/start_game', {
+                const response = await fetch('/create_game', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        num_players: parseInt(numPlayers),
-                        opponent_type: opponentType
+                        mode: gameMode,
+                        opponent: opponentType
                     })
                 });
 
                 const data = await response.json();
                 if (data.success) {
+                    gameId = data.game_id;
                     currentGameState = data.game_state;
                     document.getElementById('gameSetup').style.display = 'none';
                     document.getElementById('gameBoard').style.display = 'block';
                     document.getElementById('restartBtn').style.display = 'inline-block';
                     updateGameDisplay();
+                } else {
+                    alert('Error starting game: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error starting game:', error);
+                alert('Error starting game. Please try again.');
+            }
+        }
+
+        async function refreshGameState() {
+            if (!gameId) return;
+
+            try {
+                const response = await fetch(`/game_state/${gameId}`);
+                const data = await response.json();
+                if (data && !data.error) {
+                    currentGameState = data;
+                    updateGameDisplay();
+
+                    if (data.game_over) {
+                        showGameOverModal();
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing game state:', error);
             }
         }
 
         function updateGameDisplay() {
             if (!currentGameState) return;
 
-            // Update turn indicator
-            const currentPlayer = currentGameState.players[currentGameState.turn];
-            const isHumanTurn = currentPlayer.agent_type === 'human';
-            document.getElementById('gameInfo').textContent =
-                `Round ${currentGameState.round} - ${isHumanTurn ? 'Your Turn' : `${currentPlayer.name}'s Turn`}`;
+            // Update game info
+            const currentPlayer = currentGameState.players[currentGameState.current_turn];
+            const isHumanTurn = currentPlayer && currentPlayer.is_human;
 
-            // Update deck and discard
-            document.getElementById('deckCard').textContent = '?';
-            const discard = currentGameState.discard_pile;
-            document.getElementById('discardCard').textContent = discard.length > 0 ? discard[discard.length - 1] : '?';
+            let infoText = `Round ${currentGameState.round}/${currentGameState.max_rounds}`;
+            if (currentGameState.game_over) {
+                infoText += ' - Game Over!';
+            } else if (isHumanTurn) {
+                infoText += ' - Your Turn';
+            } else if (currentPlayer) {
+                infoText += ` - ${currentPlayer.name}'s Turn`;
+            }
+
+            document.getElementById('gameInfo').textContent = infoText;
+
+            // Update deck size
+            document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
+
+            // Update discard pile
+            const discardCard = document.getElementById('discardCard');
+            if (currentGameState.discard_top) {
+                discardCard.textContent = `${currentGameState.discard_top.rank}${currentGameState.discard_top.suit}`;
+            } else {
+                discardCard.textContent = '?';
+            }
 
             // Update player grids
             updatePlayerGrids();
 
-            // Show/hide actions based on turn
-            document.getElementById('actions').style.display = isHumanTurn ? 'block' : 'none';
+            // Update action buttons
+            updateActionButtons();
         }
 
         function updatePlayerGrids() {
@@ -285,39 +447,107 @@
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'player-grid';
 
-                const isCurrentPlayer = index === currentGameState.turn;
-                const isHuman = player.agent_type === 'human';
+                if (index === currentGameState.current_turn) {
+                    playerDiv.classList.add('current-turn');
+                }
+
+                const gridHtml = player.grid.map((card, pos) => {
+                    if (!card) return '<div class="card face-down">?</div>';
+
+                    let cardClass = 'card';
+                    let displayText = '?';
+
+                    if (card.visible) {
+                        if (card.public) {
+                            cardClass += ' face-up public';
+                        } else {
+                            cardClass += ' privately-visible';
+                        }
+                        displayText = `${card.rank}${card.suit}`;
+                    } else {
+                        cardClass += ' face-down';
+                    }
+
+                    return `<div class="${cardClass}" data-position="${pos}">${displayText}</div>`;
+                }).join('');
+
+                let scoreText = '';
+                if (currentGameState.game_over && currentGameState.scores) {
+                    scoreText = ` - Score: ${currentGameState.scores[index]}`;
+                    if (index === currentGameState.winner) {
+                        scoreText += ' 🏆';
+                    }
+                }
 
                 playerDiv.innerHTML = `
-                    <h3>${player.name} (${player.agent_type}) ${isCurrentPlayer ? '👤' : ''}</h3>
-                    <div class="grid-container">
-                        ${player.grid.map((card, pos) => {
-                            let cardClass = 'card';
-                            let displayText = '?';
-
-                            if (player.known[pos]) {
-                                cardClass += ' face-up';
-                                displayText = card || '?';
-                            } else if (isHuman && player.privately_visible[pos]) {
-                                cardClass += ' privately-visible';
-                                displayText = card || '?';
-                            } else {
-                                cardClass += ' face-down';
-                            }
-
-                            return `<div class="${cardClass}" data-position="${pos}">${displayText}</div>`;
-                        }).join('')}
-                    </div>
+                    <h3>${player.name} (${player.agent_type})${scoreText}</h3>
+                    <div class="grid-container">${gridHtml}</div>
                 `;
 
                 container.appendChild(playerDiv);
             });
         }
 
+                function updateActionButtons() {
+            const actionsDiv = document.getElementById('actions');
+            const takeDiscardBtn = document.getElementById('takeDiscardBtn');
+            const drawDeckBtn = document.getElementById('drawDeckBtn');
+            const deckCard = document.getElementById('deckCard');
+            const discardCard = document.getElementById('discardCard');
+
+            // Only show actions if it's human's turn and game isn't over
+            const isHumanTurn = currentGameState.current_turn === 0;
+            const gameNotOver = !currentGameState.game_over;
+
+            actionsDiv.style.display = (isHumanTurn && gameNotOver) ? 'block' : 'none';
+
+            if (isHumanTurn && gameNotOver) {
+                // Check if actions are available
+                const hasAvailablePositions = getAvailablePositions().length > 0;
+                const hasDiscard = currentGameState.discard_top !== null;
+                const hasDeck = currentGameState.deck_size > 0;
+
+                const canTakeDiscard = hasAvailablePositions && hasDiscard;
+                const canDrawDeck = hasAvailablePositions && hasDeck;
+
+                // Update buttons
+                takeDiscardBtn.disabled = !canTakeDiscard;
+                drawDeckBtn.disabled = !canDrawDeck;
+
+                // Update card visual states
+                if (canTakeDiscard) {
+                    discardCard.classList.remove('disabled');
+                } else {
+                    discardCard.classList.add('disabled');
+                }
+
+                if (canDrawDeck) {
+                    deckCard.classList.remove('disabled');
+                } else {
+                    deckCard.classList.add('disabled');
+                }
+            } else {
+                // Not human's turn - disable both cards
+                deckCard.classList.add('disabled');
+                discardCard.classList.add('disabled');
+            }
+        }
+
         async function takeDiscard() {
+            // Check if the discard card is disabled
+            const discardCard = document.getElementById('discardCard');
+            if (discardCard.classList.contains('disabled')) {
+                return; // Do nothing if disabled
+            }
+
             const availablePositions = getAvailablePositions();
             if (availablePositions.length === 0) {
                 alert('No available positions!');
+                return;
+            }
+
+            if (!currentGameState.discard_top) {
+                alert('No discard pile available!');
                 return;
             }
 
@@ -325,21 +555,42 @@
         }
 
         async function drawFromDeck() {
+            // Check if the deck card is disabled
+            const deckCard = document.getElementById('deckCard');
+            if (deckCard.classList.contains('disabled')) {
+                return; // Do nothing if disabled
+            }
+
+            const availablePositions = getAvailablePositions();
+            if (availablePositions.length === 0) {
+                alert('No available positions!');
+                return;
+            }
+
+            if (currentGameState.deck_size === 0) {
+                alert('No cards left in deck!');
+                return;
+            }
+
             try {
-                const response = await fetch('/draw_card');
+                const response = await fetch(`/draw_card/${gameId}`);
                 const data = await response.json();
 
                 if (data.success) {
                     drawnCard = data.drawn_card;
                     showDrawModal();
+                } else {
+                    alert('Error drawing card: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error drawing card:', error);
+                alert('Error drawing card. Please try again.');
             }
         }
 
         function showDrawModal() {
-            document.getElementById('drawnCard').textContent = drawnCard;
+            const drawnCardElement = document.getElementById('drawnCard');
+            drawnCardElement.textContent = `${drawnCard.rank}${drawnCard.suit}`;
             document.getElementById('drawModal').style.display = 'block';
         }
 
@@ -352,12 +603,29 @@
         function discardDrawnCard() {
             document.getElementById('drawModal').style.display = 'none';
             const availablePositions = getAvailablePositions();
-            showPositionModal('Discard Drawn Card', 'Choose position to flip face-up:', availablePositions, 'draw_discard');
+
+            if (availablePositions.length === 1) {
+                // Auto-flip if only one position available
+                executeAction(availablePositions[0], 'draw_discard');
+            } else {
+                showPositionModal('Discard Drawn Card', 'Choose position to flip face-up:', availablePositions, 'draw_discard');
+            }
         }
 
         function getAvailablePositions() {
-            const currentPlayer = currentGameState.players[currentGameState.turn];
-            return currentPlayer.known.map((known, index) => !known ? index : null).filter(pos => pos !== null);
+            if (!currentGameState || currentGameState.current_turn !== 0) return [];
+
+            const humanPlayer = currentGameState.players[0];
+            const positions = [];
+
+            for (let i = 0; i < humanPlayer.grid.length; i++) {
+                const card = humanPlayer.grid[i];
+                if (card && !card.public) {  // Card exists but not publicly known
+                    positions.push(i);
+                }
+            }
+
+            return positions;
         }
 
         function showPositionModal(title, message, positions, actionType) {
@@ -372,27 +640,41 @@
                 const button = document.createElement('button');
                 button.className = 'btn btn-primary';
                 button.textContent = `Position ${pos + 1}`;
-                button.onclick = () => executeAction(pos);
+                button.onclick = () => executeAction(pos, actionType);
                 buttonsContainer.appendChild(button);
             });
 
             document.getElementById('positionModal').style.display = 'block';
         }
 
-        async function executeAction(position) {
-            console.log('Clicked position:', position, 'Current action:', currentAction);
+        async function executeAction(position, actionType = null) {
             document.getElementById('positionModal').style.display = 'none';
 
+            const action = {
+                game_id: gameId,
+                action: {
+                    type: actionType || currentAction,
+                    position: position
+                }
+            };
+
+            // Add extra fields based on action type
+            if (actionType === 'draw_keep' || currentAction === 'draw_keep') {
+                action.action.type = 'draw_deck';
+                action.action.keep = true;
+            } else if (actionType === 'draw_discard' || currentAction === 'draw_discard') {
+                action.action.type = 'draw_deck';
+                action.action.keep = false;
+                action.action.flip_position = position;
+            }
+
             try {
-                const response = await fetch('/take_action', {
+                const response = await fetch('/make_move', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        action_type: currentAction,
-                        position: position
-                    })
+                    body: JSON.stringify(action)
                 });
 
                 const data = await response.json();
@@ -400,19 +682,56 @@
                     currentGameState = data.game_state;
                     updateGameDisplay();
 
-                    // Check if game is over
-                    if (currentGameState.round > currentGameState.max_rounds) {
-                        alert('Game Over!');
-                        location.reload();
+                    if (data.game_state.game_over) {
+                        setTimeout(showGameOverModal, 500);  // Small delay to show final state
                     }
+                } else {
+                    console.error('Action failed:', data.error);
+                    alert('Action failed: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error executing action:', error);
+                alert('Error executing action. Please try again.');
             }
+        }
+
+        function showGameOverModal() {
+            if (!currentGameState || !currentGameState.scores) return;
+
+            const humanScore = currentGameState.scores[0];
+            let resultMessage = `Game Over!\n\nYour score: ${humanScore}\n`;
+
+            if (currentGameState.mode === '1v1') {
+                const aiScore = currentGameState.scores[1];
+                resultMessage += `AI score: ${aiScore}\n\n`;
+                if (humanScore < aiScore) {
+                    resultMessage += "🎉 YOU WIN! 🎉";
+                } else if (humanScore > aiScore) {
+                    resultMessage += "😔 AI wins 😔";
+                } else {
+                    resultMessage += "🤝 It's a tie! 🤝";
+                }
+            } else {
+                // 4-player game
+                const agentNames = ["Random AI", "Heuristic AI", "Q-Learning AI"];
+                for (let i = 1; i < currentGameState.scores.length; i++) {
+                    resultMessage += `${agentNames[i-1]} score: ${currentGameState.scores[i]}\n`;
+                }
+                resultMessage += "\n";
+
+                if (currentGameState.winner === 0) {
+                    resultMessage += "🎉 YOU WIN! 🎉";
+                } else {
+                    resultMessage += `😔 ${agentNames[currentGameState.winner - 1]} wins 😔`;
+                }
+            }
+
+            alert(resultMessage);
         }
 
         function restartGame() {
             currentGameState = null;
+            gameId = null;
             document.getElementById('gameBoard').style.display = 'none';
             document.getElementById('gameSetup').style.display = 'block';
             document.getElementById('restartBtn').style.display = 'none';
@@ -427,6 +746,13 @@
                 }
             }
         }
+
+        // Periodically refresh game state to catch AI moves
+        setInterval(() => {
+            if (gameId && currentGameState && !currentGameState.game_over) {
+                refreshGameState();
+            }
+        }, 1000);
     </script>
 </body>
 </html>

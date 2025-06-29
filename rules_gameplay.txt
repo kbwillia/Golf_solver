@@ -49,8 +49,9 @@ That card is flipped face-up and locked in place.
 The card you replaced is placed face-up onto the discard pile.
 
 
-Or discard it directly if you don’t want it.
+Or discard it directly if you don't want it.
 
+⚠️ HOUSE RULE: If you draw an Ace (A), you MUST keep it and swap it with one of your face-down cards. You cannot discard an Ace.
 
 
 ➤ 2. Pick up the top card from the discard pile
@@ -140,4 +141,4 @@ Target pairs across the whole grid — diagonals count.
 Avoid face cards unless you know they're part of a pair.
 
 
-Turns are limited — only 4 total per player, so don’t wait too long to act.
+Turns are limited — only 4 total per player, so don't wait too long to act.
