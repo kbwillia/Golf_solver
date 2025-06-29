@@ -7,29 +7,32 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            max-width: none;
+            margin: 0;
+            padding: 0;
             background-color: #f0f0f0;
         }
         .container {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 900px;
-            margin: 0 auto;
+            padding: 12px 18px 16px 18px;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+            max-width: none;
+            width: calc(100vw - 480px); /* leave space for the probabilities panel */
+            margin: 18px 0 18px 0;
+            min-height: 0;
         }
         .game-setup {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 18px;
         }
         .game-board {
             display: none;
+            margin-top: 0;
         }
         .player-grid {
-            margin: 20px 0;
-            padding: 15px;
+            margin: 8px 0 6px 0;
+            padding: 7px 6px 8px 6px;
             border: 2px solid #ddd;
             border-radius: 8px;
         }
@@ -224,23 +227,56 @@
             flex-direction: row;
             justify-content: flex-start;
             align-items: flex-start;
-            gap: 40px;
+            gap: 10px;
+            width: 100%;
+        }
+        .new-flex-layout {
+            gap: 18px;
+        }
+        .celebration-panel {
+            flex: 0 0 90px;
+            min-width: 90px;
+            max-width: 120px;
+            min-height: 350px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            position: relative;
+            background: transparent;
+            z-index: 2;
         }
         .left-panel {
             flex: 2;
+            min-width: 0;
+            margin-right: 0;
+            padding-right: 4px;
         }
-        .right-panel {
-            flex: 1;
+        .center-panel {
+            flex: 1.2;
+            min-width: 220px;
+            max-width: 680px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .right-panel.always-right-panel {
+            flex: 0 0 260px;
+            min-width: 240px;
+            max-width: 320px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 30px;
+            justify-content: flex-start;
+            position: relative;
+            z-index: 2;
+            margin-left: 0;
         }
         .deck-discard-vertical {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 7px;
         }
         .card:hover {
             box-shadow: 0 0 10px #007bff, 0 0 5px #764ba2;
@@ -258,11 +294,11 @@
         .setup-and-board {
             display: flex;
             flex-direction: column;
-            gap: 30px;
+            gap: 12px;
         }
         .legend {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 10px;
+            padding: 6px 8px;
             background: #f8f9fa;
             border-radius: 5px;
             font-size: 14px;
@@ -337,6 +373,25 @@
             border-style: dashed;
             cursor: not-allowed;
         }
+        #probabilitiesPanelContainer {
+            position: fixed;
+            top: 60px;
+            right: 40px;
+            z-index: 100;
+            min-width: 240px;
+            max-width: 340px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        #probabilitiesPanel {
+            margin-top: 0;
+            margin-right: 0;
+            min-width: 220px;
+            max-width: 320px;
+            align-self: flex-end;
+        }
     </style>
 </head>
 <body>
@@ -364,14 +419,16 @@
                 </p>
                 <button onclick="startGame()" class="btn btn-primary">Start Game</button>
                 <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
+                <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div>
             </div>
             <div class="game-board" id="gameBoard">
-                <div class="main-board">
+                <div class="main-board new-flex-layout">
+                    <div class="celebration-panel" id="celebrationPanel"></div>
                     <div class="left-panel">
                         <div class="game-info" id="gameInfo"></div>
                         <div id="playerGrids"></div>
                     </div>
-                    <div class="right-panel">
+                    <div class="center-panel">
                         <div style="display: flex; flex-direction: row; align-items: flex-end;">
                             <div id="drawnCardArea">
                                 <div id="drawnCardDisplay" draggable="true"></div>
@@ -404,6 +461,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="right-panel always-right-panel">
+                        <!-- Probabilities panel moved outside main container -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -418,6 +478,11 @@
         </div>
     </div>
 
+    <!-- Probabilities Panel: now outside main container for right alignment -->
+    <div id="probabilitiesPanelContainer">
+        <div id="probabilitiesPanel"></div>
+    </div>
+
     <script>
         let currentGameState = null;
         let gameId = null;
@@ -429,12 +494,26 @@
         let drawnCardDragActive = false;
         let turnAnimateTimeout = null;
         let lastTurnIndex = null;
+        let setupHideTimeout = null;
+        let setupCardsHidden = false;
+        const SETUP_VIEW_SECONDS = 111.3; // Change this value for how long to show bottom cards
+        let setupViewInterval = null;
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
             const opponentSection = document.getElementById('opponentSection');
             opponentSection.style.display = this.value === '1v1' ? 'block' : 'none';
         });
+
+        function showSetupViewTimer(seconds) {
+            const timerDiv = document.getElementById('setupViewTimer');
+            timerDiv.textContent = `Bottom two cards visible for: ${seconds} second${seconds !== 1 ? 's' : ''}`;
+        }
+
+        function hideSetupViewTimer() {
+            const timerDiv = document.getElementById('setupViewTimer');
+            timerDiv.textContent = '';
+        }
 
         async function startGame() {
             const gameMode = document.getElementById('gameMode').value;
@@ -459,6 +538,26 @@
                     document.getElementById('gameSetup').style.display = 'none';
                     document.getElementById('gameBoard').style.display = 'block';
                     document.getElementById('restartBtn').style.display = 'inline-block';
+                    setupCardsHidden = false;
+                    if (setupHideTimeout) clearTimeout(setupHideTimeout);
+                    if (setupViewInterval) clearInterval(setupViewInterval);
+                    let secondsLeft = SETUP_VIEW_SECONDS;
+                    showSetupViewTimer(secondsLeft);
+                    setupViewInterval = setInterval(() => {
+                        secondsLeft--;
+                        if (secondsLeft > 0) {
+                            showSetupViewTimer(secondsLeft);
+                        } else {
+                            hideSetupViewTimer();
+                            clearInterval(setupViewInterval);
+                        }
+                    }, 1000);
+                    setupHideTimeout = setTimeout(() => {
+                        setupCardsHidden = true;
+                        updateGameDisplay();
+                        hideSetupViewTimer();
+                        if (setupViewInterval) clearInterval(setupViewInterval);
+                    }, SETUP_VIEW_SECONDS * 1000);
                     updateGameDisplay();
                 } else {
                     alert('Error starting game: ' + (data.error || 'Unknown error'));
@@ -500,7 +599,7 @@
             if (currentGameState.game_over) {
                 infoText += ' - Game Over!';
             } else if (isHumanTurn) {
-                infoText += ' - Your Turn';
+                infoText += ' - Your Turn, draw from deck or discard';
             } else if (currentPlayer) {
                 infoText += ` - ${currentPlayer.name}'s Turn`;
             }
@@ -520,6 +619,8 @@
 
             // Update player grids
             updatePlayerGrids();
+            // Update probabilities panel
+            updateProbabilitiesPanel();
         }
 
         function updatePlayerGrids() {
@@ -546,7 +647,18 @@
                     let cardClass = 'card';
                     let displayText = '?';
                     let extraAttrs = '';
-                    if (card.visible) {
+                    if (isHuman && pos >= 2) {
+                        if (!setupCardsHidden) {
+                            cardClass += ' privately-visible';
+                            displayText = `${card.rank}${card.suit}`;
+                        } else if (card.public) {
+                            cardClass += ' face-up public';
+                            displayText = `${card.rank}${card.suit}`;
+                        } else {
+                            cardClass += ' face-down';
+                            displayText = '?';
+                        }
+                    } else if (card.visible) {
                         if (card.public) {
                             cardClass += ' face-up public';
                         } else {
@@ -860,6 +972,10 @@
             document.getElementById('gameBoard').style.display = 'none';
             document.getElementById('gameSetup').style.display = 'block';
             document.getElementById('restartBtn').style.display = 'none';
+            setupCardsHidden = false;
+            if (setupHideTimeout) clearTimeout(setupHideTimeout);
+            if (setupViewInterval) clearInterval(setupViewInterval);
+            showSetupViewTimer(SETUP_VIEW_SECONDS);
         }
 
         // Close modals when clicking outside
@@ -945,6 +1061,50 @@
             executeAction(pos, 'draw_discard');
             hideDrawnCardArea();
         }
+
+        function updateProbabilitiesPanel() {
+            const panel = document.getElementById('probabilitiesPanel');
+            if (!currentGameState || !currentGameState.probabilities) {
+                panel.innerHTML = '';
+                return;
+            }
+            const probs = currentGameState.probabilities;
+            let html = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
+            html += '<h4 style="margin-top:0;">Probabilities</h4>';
+            // Deck composition
+            if (probs.deck_counts) {
+                html += '<div><b>Deck Composition:</b><br><span style="font-size:13px;">';
+                for (const [rank, count] of Object.entries(probs.deck_counts)) {
+                    html += `${rank}: ${count} &nbsp; `;
+                }
+                html += '</span></div>';
+            }
+            // Probability of drawing lower than min faceup (for human)
+            if (probs.prob_draw_lower_than_min_faceup && probs.prob_draw_lower_than_min_faceup.length > 0) {
+                html += `<div style="margin-top:8px;">`;
+                html += `<b>Prob. next card lower than your lowest face-up:</b> <span style="color:#007bff;">${probs.prob_draw_lower_than_min_faceup[0]}</span>`;
+                html += '</div>';
+            }
+            // Probability of drawing a pair (for human)
+            if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
+                html += `<div style="margin-top:4px;">`;
+                html += `<b>Prob. next card matches your grid:</b> <span style="color:#007bff;">${probs.prob_draw_pair[0]}</span>`;
+                html += '</div>';
+            }
+            // Probability of drawing a card that improves your hand (for human)
+            if (probs.prob_improve_hand && probs.prob_improve_hand.length > 0) {
+                html += `<div style="margin-top:4px;">`;
+                html += `<b>Prob. next card improves your hand:</b> <span style="color:#007bff;">${probs.prob_improve_hand[0]}</span>`;
+                html += '</div>';
+            }
+            html += '</div>';
+            panel.innerHTML = html;
+        }
+
+        // Show timer on initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            showSetupViewTimer(SETUP_VIEW_SECONDS);
+        });
     </script>
 </body>
 </html>

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 import uuid
 import json
 from game import GolfGame
+from probabilities import get_probabilities
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -276,11 +277,8 @@ def get_game_state(game_id):
     if game_session['game_over']:
         winner = scores.index(min(scores))
 
-    # Placeholder for probabilities/statistics (to be filled in from probabilities.py)
-    probabilities = {}
-    # Example: if you add get_probabilities(game) to probabilities.py, you can do:
-    # from probabilities import get_probabilities
-    # probabilities = get_probabilities(game)
+    # Probabilities/statistics from probabilities.py
+    probabilities = get_probabilities(game)
 
     return {
         'players': players_data,
