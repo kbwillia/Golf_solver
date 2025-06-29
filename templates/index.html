@@ -168,19 +168,28 @@
         }
         .modal-content {
             background-color: white;
-            margin: 15% auto;
-            padding: 20px;
+            margin: 0 auto;
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            transform: translateX(-50%);
+            padding: 16px 20px;
             border-radius: 10px;
-            width: 80%;
-            max-width: 400px;
+            width: 320px;
+            max-width: 90vw;
             text-align: center;
+            z-index: 2000;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.18);
         }
         .position-buttons {
-            display: flex;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
             gap: 10px;
             margin-top: 15px;
             flex-wrap: wrap;
+            justify-items: center;
+            align-items: center;
         }
         .main-board {
             display: flex;
@@ -241,6 +250,18 @@
             margin-right: 10px;
             border: 1px solid #333;
             border-radius: 3px;
+        }
+        .legend-card.face-down {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: 2px solid #333;
+        }
+        .legend-card.privately-visible {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            border: 2px solid #b36b00;
+        }
+        .legend-card.face-up {
+            background: white;
+            border: 2px solid #333;
         }
     </style>
 </head>
@@ -410,7 +431,11 @@
             const currentPlayer = currentGameState.players[currentGameState.current_turn];
             const isHumanTurn = currentPlayer && currentPlayer.is_human;
 
-            let infoText = `Round ${currentGameState.round}/${currentGameState.max_rounds}`;
+            let roundDisplay = currentGameState.round;
+            if (currentGameState.game_over) {
+                roundDisplay = currentGameState.max_rounds;
+            }
+            let infoText = `Round ${roundDisplay}/${currentGameState.max_rounds}`;
             if (currentGameState.game_over) {
                 infoText += ' - Game Over!';
             } else if (isHumanTurn) {
@@ -488,7 +513,7 @@
             });
         }
 
-                function updateActionButtons() {
+        function updateActionButtons() {
             const actionsDiv = document.getElementById('actions');
             const takeDiscardBtn = document.getElementById('takeDiscardBtn');
             const drawDeckBtn = document.getElementById('drawDeckBtn');
@@ -636,15 +661,85 @@
             const buttonsContainer = document.getElementById('positionButtons');
             buttonsContainer.innerHTML = '';
 
-            positions.forEach(pos => {
-                const button = document.createElement('button');
-                button.className = 'btn btn-primary';
-                button.textContent = `Position ${pos + 1}`;
-                button.onclick = () => executeAction(pos, actionType);
-                buttonsContainer.appendChild(button);
-            });
+            // Get the human player's grid
+            const humanPlayer = currentGameState.players[0];
+
+            // Create a 2x2 grid of buttons (positions 0-3)
+            for (let row = 0; row < 2; row++) {
+                for (let col = 0; col < 2; col++) {
+                    const pos = row * 2 + col;
+                    if (positions.includes(pos)) {
+                        let cardLabel = '?';
+                        const card = humanPlayer.grid[pos];
+                        if (card) {
+                            if (card.visible) {
+                                cardLabel = `${card.rank}${card.suit}`;
+                            } else {
+                                cardLabel = '?';
+                            }
+                        }
+                        const button = document.createElement('button');
+                        button.className = 'btn btn-primary';
+                        button.textContent = cardLabel;
+                        button.onclick = () => {
+                            if (currentAction === 'take_discard') {
+                                animateDiscardToGrid(pos, () => executeAction(pos, currentAction));
+                            } else {
+                                executeAction(pos, currentAction);
+                            }
+                        };
+                        buttonsContainer.appendChild(button);
+                    } else {
+                        // Add an invisible placeholder to keep grid shape
+                        const placeholder = document.createElement('div');
+                        placeholder.style.visibility = 'hidden';
+                        buttonsContainer.appendChild(placeholder);
+                    }
+                }
+            }
 
             document.getElementById('positionModal').style.display = 'block';
+        }
+
+        // --- Discard Slide Animation ---
+        function animateDiscardToGrid(targetPos, callback) {
+            // Get DOM elements
+            const discardCard = document.getElementById('discardCard');
+            const playerGrids = document.getElementById('playerGrids');
+            const humanGrid = playerGrids.querySelector('.player-grid');
+            const gridCards = humanGrid.querySelectorAll('.grid-container .card');
+            const targetCard = gridCards[targetPos];
+
+            // Get bounding rects
+            const discardRect = discardCard.getBoundingClientRect();
+            const targetRect = targetCard.getBoundingClientRect();
+
+            // Create a flying discard card
+            const flying = discardCard.cloneNode(true);
+            flying.style.position = 'fixed';
+            flying.style.left = discardRect.left + 'px';
+            flying.style.top = discardRect.top + 'px';
+            flying.style.width = discardRect.width + 'px';
+            flying.style.height = discardRect.height + 'px';
+            flying.style.zIndex = 3000;
+            flying.style.pointerEvents = 'none';
+            flying.id = '';
+            document.body.appendChild(flying);
+
+            // Animate to target
+            requestAnimationFrame(() => {
+                flying.style.transition = 'all 0.5s cubic-bezier(.4,1.6,.4,1)';
+                flying.style.left = targetRect.left + 'px';
+                flying.style.top = targetRect.top + 'px';
+                flying.style.width = targetRect.width + 'px';
+                flying.style.height = targetRect.height + 'px';
+            });
+
+            // After animation, remove flying card and call callback
+            setTimeout(() => {
+                flying.remove();
+                callback();
+            }, 520);
         }
 
         async function executeAction(position, actionType = null) {
@@ -726,7 +821,19 @@
                 }
             }
 
-            alert(resultMessage);
+            // Show modal with Play Again button
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h3>Game Over</h3>
+                    <pre style="white-space: pre-line;">${resultMessage}</pre>
+                    <button onclick="restartGame();this.closest('.modal').remove();" class="btn btn-primary">Play Again</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.getElementById('restartBtn').style.display = 'inline-block';
         }
 
         function restartGame() {
