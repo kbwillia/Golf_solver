@@ -50,6 +50,27 @@ class GolfGame:
         # Start discard pile
         self.discard_pile.append(self.deck.pop())
 
+    def display_all_grids(self):
+        """Display all player grids showing what each player can see"""
+        print("\n=== CURRENT GRID STATE ===")
+        for i, player in enumerate(self.players):
+            print(f"{player.name} ({player.agent_type}):")
+            if player.agent_type == "human":
+                # Human player can see their own privately visible cards
+                print(player)
+            else:
+                # For AI players, show what the human player can see of them
+                def show_other(i):
+                    return str(player.grid[i]) if player.known[i] else '?'
+                other_display = f"[ {show_other(0)} | {show_other(1)} ]\n[ {show_other(2)} | {show_other(3)} ]"
+                print(other_display)
+            print()
+
+        # Show what just happened
+        if hasattr(self, 'last_action'):
+            print(f"Last action: {self.last_action}")
+            print()
+
     def play_turn(self, player, trajectory=None):
         agent = self.agents[self.turn]
         action = agent.choose_action(player, self, trajectory)
@@ -57,30 +78,44 @@ class GolfGame:
         if not action:
             return  # No moves left
 
+        # Track what action was taken
         if action['type'] == 'take_discard' and self.discard_pile:
             # Take from discard pile, swap with pos
             new_card = self.discard_pile.pop()
             old_card = player.grid[action['position']]
             player.grid[action['position']] = new_card
-            # Make the card visible to ALL players (public)
-            for p in self.players:
-                p.known[action['position']] = True
+            # Make the card visible to ALL players (public) - only for this player's grid
+            player.known[action['position']] = True
             player.add_to_discard_memory(old_card)
             self.discard_pile.append(old_card)
+            self.last_action = f"{player.name} took {new_card} from discard and placed it at position {action['position']+1}, discarding {old_card}"
         elif action['type'] == 'draw_deck' and self.deck:
             # Draw from deck
             new_card = self.deck.pop()
             if action.get('keep', True):
+                # Keep the drawn card and swap with position
                 old_card = player.grid[action['position']]
                 player.grid[action['position']] = new_card
-                # Make the card visible to ALL players (public)
-                for p in self.players:
-                    p.known[action['position']] = True
+                # Make the card visible to ALL players (public) - only for this player's grid
+                player.known[action['position']] = True
                 player.add_to_discard_memory(old_card)
                 self.discard_pile.append(old_card)
+                self.last_action = f"{player.name} drew {new_card} and kept it at position {action['position']+1}, discarding {old_card}"
             else:
+                # Discard the drawn card
                 player.add_to_discard_memory(new_card)
                 self.discard_pile.append(new_card)
+                self.last_action = f"{player.name} drew {new_card} and discarded it"
+
+                # If player chose to flip one of their own cards
+                if 'flip_position' in action:
+                    flip_pos = action['flip_position']
+                    # Make the card at flip_position visible to ALL players - only for this player's grid
+                    player.known[flip_pos] = True
+                    self.last_action += f", and flipped their card at position {flip_pos+1}"
+
+        # Display updated grids after the action
+        self.display_all_grids()
 
     def all_players_done(self):
         return all(all(p.known) for p in self.players)

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Card Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .game-setup {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .game-board {
+            display: none;
+        }
+        .player-grid {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 10px auto;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .card.face-down {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        .card.face-up {
+            background: white;
+            color: #333;
+        }
+        .card.privately-visible {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+        }
+        .actions {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .game-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-align: right;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .position-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .main-board {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 40px;
+        }
+        .left-panel {
+            flex: 2;
+        }
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 30px;
+        }
+        .deck-discard-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .card:hover {
+            box-shadow: 0 0 10px #007bff, 0 0 5px #764ba2;
+            opacity: 0.92;
+            cursor: pointer;
+        }
+        .setup-and-board {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏌️ Golf Card Game</h1>
+        </div>
+        <div class="setup-and-board">
+            <div class="game-setup" id="gameSetup">
+                <h2>Game Setup</h2>
+                <p>
+                    <label>Number of Players:</label>
+                    <select id="numPlayers">
+                        <option value="2">2 Players</option>
+                        <option value="4">4 Players</option>
+                    </select>
+                </p>
+                <p>
+                    <label>Opponent Type:</label>
+                    <select id="opponentType">
+                        <option value="random">Random AI</option>
+                        <option value="heuristic">Heuristic AI</option>
+                        <option value="qlearning">Q-Learning AI</option>
+                    </select>
+                </p>
+                <button onclick="startGame()" class="btn btn-primary">Start Game</button>
+                <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
+            </div>
+            <div class="game-board" id="gameBoard">
+                <div class="main-board">
+                    <div class="left-panel">
+                        <div id="playerGrids"></div>
+                    </div>
+                    <div class="right-panel">
+                        <div class="game-info" id="gameInfo"></div>
+                        <div class="deck-discard-vertical">
+                            <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()">?</div>
+                            <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Position Selection Modal -->
+    <div id="positionModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Select Position</h3>
+            <p id="modalMessage">Choose a position:</p>
+            <div id="positionButtons" class="position-buttons"></div>
+        </div>
+    </div>
+
+    <!-- Draw Decision Modal -->
+    <div id="drawModal" class="modal">
+        <div class="modal-content">
+            <h3>Drawn Card</h3>
+            <div id="drawnCard" class="card face-up" style="margin: 20px auto;"></div>
+            <p>Do you want to keep this card?</p>
+            <div class="position-buttons">
+                <button onclick="keepDrawnCard()" class="btn btn-primary">Keep</button>
+                <button onclick="discardDrawnCard()" class="btn btn-secondary">Discard</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentGameState = null;
+        let drawnCard = null;
+        let currentAction = null;
+
+        async function startGame() {
+            const numPlayers = document.getElementById('numPlayers').value;
+            const opponentType = document.getElementById('opponentType').value;
+
+            try {
+                const response = await fetch('/start_game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        num_players: parseInt(numPlayers),
+                        opponent_type: opponentType
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentGameState = data.game_state;
+                    document.getElementById('gameSetup').style.display = 'none';
+                    document.getElementById('gameBoard').style.display = 'block';
+                    document.getElementById('restartBtn').style.display = 'inline-block';
+                    updateGameDisplay();
+                }
+            } catch (error) {
+                console.error('Error starting game:', error);
+            }
+        }
+
+        function updateGameDisplay() {
+            if (!currentGameState) return;
+
+            // Update turn indicator
+            const currentPlayer = currentGameState.players[currentGameState.turn];
+            const isHumanTurn = currentPlayer.agent_type === 'human';
+            document.getElementById('gameInfo').textContent =
+                `Round ${currentGameState.round} - ${isHumanTurn ? 'Your Turn' : `${currentPlayer.name}'s Turn`}`;
+
+            // Update deck and discard
+            document.getElementById('deckCard').textContent = '?';
+            const discard = currentGameState.discard_pile;
+            document.getElementById('discardCard').textContent = discard.length > 0 ? discard[discard.length - 1] : '?';
+
+            // Update player grids
+            updatePlayerGrids();
+
+            // Show/hide actions based on turn
+            document.getElementById('actions').style.display = isHumanTurn ? 'block' : 'none';
+        }
+
+        function updatePlayerGrids() {
+            const container = document.getElementById('playerGrids');
+            container.innerHTML = '';
+
+            currentGameState.players.forEach((player, index) => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-grid';
+
+                const isCurrentPlayer = index === currentGameState.turn;
+                const isHuman = player.agent_type === 'human';
+
+                playerDiv.innerHTML = `
+                    <h3>${player.name} (${player.agent_type}) ${isCurrentPlayer ? '👤' : ''}</h3>
+                    <div class="grid-container">
+                        ${player.grid.map((card, pos) => {
+                            let cardClass = 'card';
+                            let displayText = '?';
+
+                            if (player.known[pos]) {
+                                cardClass += ' face-up';
+                                displayText = card || '?';
+                            } else if (isHuman && player.privately_visible[pos]) {
+                                cardClass += ' privately-visible';
+                                displayText = card || '?';
+                            } else {
+                                cardClass += ' face-down';
+                            }
+
+                            return `<div class="${cardClass}" data-position="${pos}">${displayText}</div>`;
+                        }).join('')}
+                    </div>
+                `;
+
+                container.appendChild(playerDiv);
+            });
+        }
+
+        async function takeDiscard() {
+            const availablePositions = getAvailablePositions();
+            if (availablePositions.length === 0) {
+                alert('No available positions!');
+                return;
+            }
+
+            showPositionModal('Take Discard Card', 'Choose position to place the discard card:', availablePositions, 'take_discard');
+        }
+
+        async function drawFromDeck() {
+            try {
+                const response = await fetch('/draw_card');
+                const data = await response.json();
+
+                if (data.success) {
+                    drawnCard = data.drawn_card;
+                    showDrawModal();
+                }
+            } catch (error) {
+                console.error('Error drawing card:', error);
+            }
+        }
+
+        function showDrawModal() {
+            document.getElementById('drawnCard').textContent = drawnCard;
+            document.getElementById('drawModal').style.display = 'block';
+        }
+
+        function keepDrawnCard() {
+            document.getElementById('drawModal').style.display = 'none';
+            const availablePositions = getAvailablePositions();
+            showPositionModal('Keep Drawn Card', 'Choose position to place the drawn card:', availablePositions, 'draw_keep');
+        }
+
+        function discardDrawnCard() {
+            document.getElementById('drawModal').style.display = 'none';
+            const availablePositions = getAvailablePositions();
+            showPositionModal('Discard Drawn Card', 'Choose position to flip face-up:', availablePositions, 'draw_discard');
+        }
+
+        function getAvailablePositions() {
+            const currentPlayer = currentGameState.players[currentGameState.turn];
+            return currentPlayer.known.map((known, index) => !known ? index : null).filter(pos => pos !== null);
+        }
+
+        function showPositionModal(title, message, positions, actionType) {
+            currentAction = actionType;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+
+            const buttonsContainer = document.getElementById('positionButtons');
+            buttonsContainer.innerHTML = '';
+
+            positions.forEach(pos => {
+                const button = document.createElement('button');
+                button.className = 'btn btn-primary';
+                button.textContent = `Position ${pos + 1}`;
+                button.onclick = () => executeAction(pos);
+                buttonsContainer.appendChild(button);
+            });
+
+            document.getElementById('positionModal').style.display = 'block';
+        }
+
+        async function executeAction(position) {
+            console.log('Clicked position:', position, 'Current action:', currentAction);
+            document.getElementById('positionModal').style.display = 'none';
+
+            try {
+                const response = await fetch('/take_action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action_type: currentAction,
+                        position: position
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentGameState = data.game_state;
+                    updateGameDisplay();
+
+                    // Check if game is over
+                    if (currentGameState.round > currentGameState.max_rounds) {
+                        alert('Game Over!');
+                        location.reload();
+                    }
+                }
+            } catch (error) {
+                console.error('Error executing action:', error);
+            }
+        }
+
+        function restartGame() {
+            currentGameState = null;
+            document.getElementById('gameBoard').style.display = 'none';
+            document.getElementById('gameSetup').style.display = 'block';
+            document.getElementById('restartBtn').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let modal of modals) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -3,7 +3,8 @@ from game import GolfGame
 def play_human_vs_ai():
     print("=== HUMAN vs AI GOLF GAME ===")
     print("You will play against AI agents to test the gameplay rules.")
-    print("Rules: All cards start face-down, each flip makes card public to all players\n")
+    print("Rules: All cards start face-down, each flip makes card public to all players")
+    print("Tip: Enter 'q' during your turn to quit the game early.\n")
 
     # Choose opponent
     print("Choose your opponent:")
@@ -37,23 +38,29 @@ def play_human_vs_ai():
     print("Game starting...\n")
 
     # Play the game
-    scores = game.play_game(verbose=True)
+    try:
+        scores = game.play_game(verbose=True)
 
-    print(f"\n=== GAME OVER ===")
-    print(f"Your score: {scores[0]}")
-    print(f"AI score: {scores[1]}")
+        print(f"\n=== GAME OVER ===")
+        print(f"Your score: {scores[0]}")
+        print(f"AI score: {scores[1]}")
 
-    if scores[0] < scores[1]:
-        print("🎉 YOU WIN! 🎉")
-    elif scores[0] > scores[1]:
-        print("😔 AI wins 😔")
-    else:
-        print("🤝 It's a tie! 🤝")
+        if scores[0] < scores[1]:
+            print("🎉 YOU WIN! 🎉")
+        elif scores[0] > scores[1]:
+            print("😔 AI wins 😔")
+        else:
+            print("🤝 It's a tie! 🤝")
+
+    except KeyboardInterrupt:
+        print(f"\n=== GAME QUIT ===")
+        print("Game was quit by player.")
 
 def play_human_vs_multiple_ai():
     print("=== HUMAN vs MULTIPLE AI GOLF GAME ===")
     print("You will play against multiple AI agents in a 4-player game.")
-    print("Rules: All cards start face-down, each flip makes card public to all players\n")
+    print("Rules: All cards start face-down, each flip makes card public to all players")
+    print("Tip: Enter 'q' during your turn to quit the game early.\n")
 
     # Create 4-player game with human and 3 AI agents
     agent_types = ["human", "random", "heuristic", "qlearning"]
@@ -64,19 +71,24 @@ def play_human_vs_multiple_ai():
     print("Game starting...\n")
 
     # Play the game
-    scores = game.play_game(verbose=True)
+    try:
+        scores = game.play_game(verbose=True)
 
-    print(f"\n=== GAME OVER ===")
-    print(f"Your score: {scores[0]}")
-    print(f"Random AI score: {scores[1]}")
-    print(f"Heuristic AI score: {scores[2]}")
-    print(f"Q-Learning AI score: {scores[3]}")
+        print(f"\n=== GAME OVER ===")
+        print(f"Your score: {scores[0]}")
+        print(f"Random AI score: {scores[1]}")
+        print(f"Heuristic AI score: {scores[2]}")
+        print(f"Q-Learning AI score: {scores[3]}")
 
-    winner_idx = scores.index(min(scores))
-    if winner_idx == 0:
-        print("🎉 YOU WIN! 🎉")
-    else:
-        print(f"😔 {agent_types[winner_idx].upper()} agent wins 😔")
+        winner_idx = scores.index(min(scores))
+        if winner_idx == 0:
+            print("🎉 YOU WIN! 🎉")
+        else:
+            print(f"😔 {agent_types[winner_idx].upper()} agent wins 😔")
+
+    except KeyboardInterrupt:
+        print(f"\n=== GAME QUIT ===")
+        print("Game was quit by player.")
 
 if __name__ == "__main__":
     print("Choose game mode:")

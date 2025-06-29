@@ -36,7 +36,8 @@ class Player:
         self.name = name
         self.agent_type = agent_type
         self.grid = [None] * 4  # 2x2 grid: [TL, TR, BL, BR]
-        self.known = [False, False, True, True]  # Bottom two cards privately visible to this player
+        self.known = [False, False, False, False]  # All cards start face-down, but bottom two are privately visible
+        self.privately_visible = [False, False, True, True]  # Bottom two cards privately visible to this player
         # Memory for tracking seen cards
         self.memory = {
             'all_seen_cards': [],
@@ -49,7 +50,12 @@ class Player:
 
     def __str__(self):
         def show(i):
-            return str(self.grid[i]) if self.known[i] else '?'
+            if self.known[i]:  # Face-up to all players
+                return str(self.grid[i])
+            elif self.privately_visible[i]:  # Privately visible to this player
+                return str(self.grid[i])
+            else:  # Face-down
+                return '?'
         return f"[ {show(0)} | {show(1)} ]\n[ {show(2)} | {show(3)} ]"
 
     def update_memory(self, new_cards):

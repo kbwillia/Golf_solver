@@ -23,37 +23,63 @@ class RandomAgent:
 class HumanAgent:
     """Human agent that allows manual input for testing gameplay"""
     def choose_action(self, player, game_state, trajectory=None):
+        # Available positions are those that are not face-up to all players
         positions = [i for i, known in enumerate(player.known) if not known]
         if not positions:
             print("No moves available - all cards are face-up!")
             return None
 
         print(f"\n=== YOUR TURN ===")
+
+        # Show current state of all grids first
+        print("=== CURRENT GAME STATE ===")
+        for i, p in enumerate(game_state.players):
+            print(f"{p.name} ({p.agent_type}):")
+            if p == player:
+                # Human player can see their own privately visible cards
+                print(p)
+            else:
+                # For AI players, show what the human player can see of them
+                def show_other(i):
+                    return str(p.grid[i]) if p.known[i] else '?'
+                other_display = f"[ {show_other(0)} | {show_other(1)} ]\n[ {show_other(2)} | {show_other(3)} ]"
+                print(other_display)
+            print()
+
         print(f"Your grid (you can see your bottom two cards):")
         print(player)
         print(f"Top of discard pile: {game_state.discard_pile[-1] if game_state.discard_pile else 'None'}")
         print(f"Available positions: {[i+1 for i in positions]} (1=top-left, 2=top-right, 3=bottom-left, 4=bottom-right)")
 
-        # Show what other players can see (including their private bottom two cards)
-        print(f"\nOther players see:")
+        # Show other players' grids (only face-up cards)
+        print(f"\nOther players' grids (face-up cards only):")
         for i, p in enumerate(game_state.players):
             if p != player:
-                print(f"  {p.name}: {p}")
+                # Create a display showing only face-up cards
+                def show_other(i):
+                    return str(p.grid[i]) if p.known[i] else '?'
+                other_display = f"[ {show_other(0)} | {show_other(1)} ]\n[ {show_other(2)} | {show_other(3)} ]"
+                print(f"  {p.name}: {other_display}")
 
         while True:
             try:
                 print(f"\nChoose your action:")
                 print("1. Take discard card")
                 print("2. Draw from deck")
+                print("q. Quit game")
 
-                choice = input("Enter 1 or 2: ").strip()
+                choice = input("Enter 1, 2, or q: ").strip().lower()
+
+                if choice == "q":
+                    print("Game quit by player.")
+                    raise KeyboardInterrupt  # This will exit the game
 
                 if choice == "1":
                     if not game_state.discard_pile:
                         print("No discard pile available!")
                         continue
 
-                    pos = input(f"Enter position to place card (1-4): ").strip()
+                    pos = input(f"Enter position to place card {[i+1 for i in positions]}: ").strip()
                     pos = int(pos) - 1  # Convert to 0-based index
 
                     if pos not in positions:
@@ -67,18 +93,43 @@ class HumanAgent:
                         print("No cards left in deck!")
                         continue
 
-                    pos = input(f"Enter position to place card (1-4): ").strip()
-                    pos = int(pos) - 1  # Convert to 0-based index
+                    # Draw the card and show it to the player
+                    drawn_card = game_state.deck[-1]  # Peek at the top card
+                    print(f"\nYou drew: {drawn_card}")
 
-                    if pos not in positions:
-                        print(f"Invalid position! Choose from {[i+1 for i in positions]}")
-                        continue
-
+                    # First decide: keep or discard
                     keep = input("Keep the drawn card? (y/n): ").strip().lower()
-                    return {'type': 'draw_deck', 'position': pos, 'keep': keep in ['y', 'yes']}
+
+                    if keep in ['y', 'yes']:
+                        # If keeping, choose position to swap
+                        pos = input(f"Enter position to place card {[i+1 for i in positions]}: ").strip()
+                        pos = int(pos) - 1  # Convert to 0-based index
+
+                        if pos not in positions:
+                            print(f"Invalid position! Choose from {[i+1 for i in positions]}")
+                            continue
+
+                        print(f"Current card at position {pos+1}: {player.grid[pos] if player.known[pos] else '?'}")
+                        return {'type': 'draw_deck', 'position': pos, 'keep': True}
+                    else:
+                        # If discarding, ask if they want to flip one of their own cards
+                        print(f"\nYou're discarding the {drawn_card}.")
+                        print("You must flip one of your own cards face-up.")
+
+                        # Show available positions for flipping
+                        flip_positions = [i for i, known in enumerate(player.known) if not known]
+                        print(f"Available positions to flip: {[i+1 for i in flip_positions]}")
+                        flip_pos = input(f"Enter position to flip {[i+1 for i in flip_positions]}: ").strip()
+                        flip_pos = int(flip_pos) - 1
+
+                        if flip_pos not in flip_positions:
+                            print(f"Invalid position! Choose from {[i+1 for i in flip_positions]}")
+                            continue
+
+                        return {'type': 'draw_deck', 'position': -1, 'keep': False, 'flip_position': flip_pos}
 
                 else:
-                    print("Invalid choice! Enter 1 or 2.")
+                    print("Invalid choice! Enter 1, 2, or q.")
 
             except (ValueError, IndexError):
                 print("Invalid input! Please try again.")
