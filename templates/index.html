@@ -431,10 +431,7 @@
             const currentPlayer = currentGameState.players[currentGameState.current_turn];
             const isHumanTurn = currentPlayer && currentPlayer.is_human;
 
-            let roundDisplay = currentGameState.round;
-            if (currentGameState.game_over) {
-                roundDisplay = currentGameState.max_rounds;
-            }
+            const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
             let infoText = `Round ${roundDisplay}/${currentGameState.max_rounds}`;
             if (currentGameState.game_over) {
                 infoText += ' - Game Over!';
@@ -681,13 +678,7 @@
                         const button = document.createElement('button');
                         button.className = 'btn btn-primary';
                         button.textContent = cardLabel;
-                        button.onclick = () => {
-                            if (currentAction === 'take_discard') {
-                                animateDiscardToGrid(pos, () => executeAction(pos, currentAction));
-                            } else {
-                                executeAction(pos, currentAction);
-                            }
-                        };
+                        button.onclick = () => executeAction(pos, actionType);
                         buttonsContainer.appendChild(button);
                     } else {
                         // Add an invisible placeholder to keep grid shape
@@ -699,47 +690,6 @@
             }
 
             document.getElementById('positionModal').style.display = 'block';
-        }
-
-        // --- Discard Slide Animation ---
-        function animateDiscardToGrid(targetPos, callback) {
-            // Get DOM elements
-            const discardCard = document.getElementById('discardCard');
-            const playerGrids = document.getElementById('playerGrids');
-            const humanGrid = playerGrids.querySelector('.player-grid');
-            const gridCards = humanGrid.querySelectorAll('.grid-container .card');
-            const targetCard = gridCards[targetPos];
-
-            // Get bounding rects
-            const discardRect = discardCard.getBoundingClientRect();
-            const targetRect = targetCard.getBoundingClientRect();
-
-            // Create a flying discard card
-            const flying = discardCard.cloneNode(true);
-            flying.style.position = 'fixed';
-            flying.style.left = discardRect.left + 'px';
-            flying.style.top = discardRect.top + 'px';
-            flying.style.width = discardRect.width + 'px';
-            flying.style.height = discardRect.height + 'px';
-            flying.style.zIndex = 3000;
-            flying.style.pointerEvents = 'none';
-            flying.id = '';
-            document.body.appendChild(flying);
-
-            // Animate to target
-            requestAnimationFrame(() => {
-                flying.style.transition = 'all 0.5s cubic-bezier(.4,1.6,.4,1)';
-                flying.style.left = targetRect.left + 'px';
-                flying.style.top = targetRect.top + 'px';
-                flying.style.width = targetRect.width + 'px';
-                flying.style.height = targetRect.height + 'px';
-            });
-
-            // After animation, remove flying card and call callback
-            setTimeout(() => {
-                flying.remove();
-                callback();
-            }, 520);
         }
 
         async function executeAction(position, actionType = null) {
