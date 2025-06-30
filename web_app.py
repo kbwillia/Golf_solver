@@ -1,3 +1,9 @@
+# Project file structure:
+#   /static/css/golf.css              # All CSS styles for the Golf Card Game UI
+#   /static/js/golf.js                # All JavaScript logic for the Golf Card Game UI
+#   /static/golf_celebration_gifs.json # Celebration GIFs data (downsized_medium URLs)
+#   /templates/index.html             # Main HTML template (structure only, links to CSS/JS)
+
 from flask import Flask, render_template, request, jsonify, session
 import uuid
 import json
