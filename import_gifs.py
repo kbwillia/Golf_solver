@@ -152,7 +152,7 @@ def update_gif_collection(search_term, filename=FILENAME, batch_size=50, max_req
 # Usage
 if __name__ == "__main__":
     filters = {
-        "lpga": 0.05,
+        "lpga": 0.01,
         "funny": 0.35,
         "basketball": 0,
     }

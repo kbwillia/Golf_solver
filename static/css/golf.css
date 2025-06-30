@@ -1,3 +1,4 @@
+/* Main page body styles */
 body {
     font-family: Arial, sans-serif;
     max-width: none;
@@ -5,6 +6,8 @@ body {
     padding: 0;
     background-color: #f0f0f0;
 }
+
+/* Main container for the game UI */
 .container {
     background: white;
     padding: 12px 18px 16px 18px;
@@ -15,39 +18,48 @@ body {
     margin: 18px auto 18px auto;
     min-height: 0;
 }
+
+/* Setup section at the top of the game */
 .game-setup {
     text-align: center;
     margin-bottom: 18px;
 }
+
+/* Main game board area (hidden until game starts) */
 .game-board {
     display: none;
     margin-top: 0;
 }
+
+/* Each player's grid container */
 .player-grid {
     margin: 8px 0 6px 0;
     padding: 7px 6px 8px 6px;
     border: 2px solid #ddd;
     border-radius: 8px;
 }
+
+/* 2x2 grid layout for 4 players */
 .four-player-grid {
     display: grid; /* 2x2 grid for 4 players */
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
+
+/* Highlight for the current player's turn */
 .player-grid.current-turn {
     border-color: #007bff; /* Highlight for current turn */
     background-color: #f8f9fa;
     position: relative;
 }
-.player-grid.current-turn.turn-animate {
-    animation: pulse-border 2.5s infinite; /* Border pulse animation */
-}
-@keyframes pulse-border {
-    0% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
-    70% { box-shadow: 0 0 0 8px rgba(0,123,255,0.1); }
-    100% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
+
+@keyframes glow-pulse {
+    0% { box-shadow: 0 0 5px #007bff, 0 0 10px #007bff, 0 0 15px #007bff; }
+    50% { box-shadow: 0 0 10px #007bff, 0 0 20px #007bff, 0 0 30px #007bff; }
+    100% { box-shadow: 0 0 5px #007bff, 0 0 10px #007bff, 0 0 15px #007bff; }
 }
 
+/* 2x2 grid for cards in a player's grid */
 .grid-container {
     display: grid; /* 2x2 grid for cards */
     grid-template-columns: repeat(2, 1fr);
@@ -55,6 +67,8 @@ body {
     max-width: 300px;
     margin: 10px auto;
 }
+
+/* Card appearance (base) */
 .card {
     width: 60px;
     height: 90px;
@@ -70,23 +84,32 @@ body {
     position: relative;
     transition: all 0.2s ease;
 }
+
+/* Face-down card style */
 .card.face-down {
     background: linear-gradient(45deg, #667eea, #764ba2); /* Blue gradient for face-down */
     color: white;
 }
+
+/* Face-up card style */
 .card.face-up {
     background: white;
     color: #333;
 }
+
+/* Privately visible card (for human) */
 .card.privately-visible {
     background: linear-gradient(45deg, #f39c12, #e67e22); /* Orange for private cards */
     color: white;
 }
+
+/* Publicly visible card (for all players) */
 .card.public {
     border-color: #28a745; /* Green border for public cards */
     box-shadow: 0 0 5px #28a745;
 }
-/* Layered deck effect */
+
+/* Deck card with layered effect */
 .card.face-down#deckCard {
     background: linear-gradient(45deg, #667eea, #764ba2);
     box-shadow:
@@ -99,12 +122,14 @@ body {
     font-size: 20px;
 }
 
-/* Discard card styling */
+/* Discard pile card styling */
 #discardCard {
     width: 70px;
     height: 100px;
     font-size: 16px;
 }
+
+/* Layered deck effect (middle layer) */
 .card.face-down#deckCard::before {
     content: '';
     position: absolute;
@@ -118,6 +143,8 @@ body {
     z-index: -1;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
+
+/* Layered deck effect (bottom layer) */
 .card.face-down#deckCard::after {
     content: '';
     position: absolute;
@@ -131,10 +158,14 @@ body {
     z-index: -2;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
+
+/* Action buttons container */
 .actions {
     text-align: center;
     margin: 20px 0;
 }
+
+/* Button base style */
 .btn {
     padding: 10px 20px;
     margin: 5px;
@@ -143,21 +174,31 @@ body {
     cursor: pointer;
     font-size: 16px;
 }
+
+/* Primary button style */
 .btn-primary {
     background: #007bff;
     color: white;
 }
+
+/* Secondary button style */
 .btn-secondary {
     background: #6c757d;
     color: white;
 }
+
+/* Button hover effect */
 .btn:hover {
     opacity: 0.8;
 }
+
+/* Disabled button style */
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Game info panel at the top */
 .game-info {
     background: #f8f9fa;
     border-radius: 10px;
@@ -167,6 +208,8 @@ body {
     font-weight: bold;
     text-align: center;
 }
+
+/* Modal overlay for popups */
 .modal {
     display: none;
     position: fixed;
@@ -177,6 +220,8 @@ body {
     height: 100%;
     background-color: rgba(0,0,0,0.5); /* Overlay for modals */
 }
+
+/* Modal content box */
 .modal-content {
     background-color: white;
     margin: 0 auto;
@@ -192,6 +237,8 @@ body {
     z-index: 2000;
     box-shadow: 0 2px 12px rgba(0,0,0,0.18);
 }
+
+/* 2x2 grid for position selection buttons in modal */
 .position-buttons {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -202,6 +249,8 @@ body {
     justify-items: center;
     align-items: center;
 }
+
+/* Main layout: left, center, right panels */
 .main-board {
     display: flex; /* Main layout: left, center, right panels */
     flex-direction: row;
@@ -210,15 +259,21 @@ body {
     gap: 10px;
     width: 100%;
 }
+
+/* Extra gap for new flex layout */
 .new-flex-layout {
     gap: 18px;
 }
+
+/* Left panel (celebration, match summary, etc.) */
 .left-panel {
     flex: 2;
     min-width: 120;
     margin-right: 0;
     padding-right: 4px;
 }
+
+/* Center panel (player grids) */
 .center-panel {
     flex: 1.2;
     min-width: 220px;
@@ -228,6 +283,8 @@ body {
     align-items: center;
     gap: 6px;
 }
+
+/* Right panel (deck, discard, probabilities) */
 .right-panel.always-right-panel {
     flex: 0 0 260px;
     min-width: 240px;
@@ -240,17 +297,23 @@ body {
     z-index: 2;
     margin-left: 0;
 }
+
+/* Deck and discard vertical stack */
 .deck-discard-vertical {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 7px;
 }
+
+/* Card hover effect */
 .card:hover {
     box-shadow: 0 0 10px #007bff, 0 0 5px #764ba2;
     opacity: 0.92;
     cursor: pointer;
 }
+
+/* Disabled card style */
 .card.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -259,28 +322,35 @@ body {
     box-shadow: none;
     opacity: 0.5;
 }
+
+/* Setup and board vertical layout */
 .setup-and-board {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-/* .legend { ... }  Legend styles commented out for now */
+
 /* Drag-and-drop highlight for grid cells */
 .card.drop-target {
     outline: 3px dashed #007bff; /* Highlight drop targets */
     box-shadow: 0 0 8px #007bff;
 }
+
+/* Not droppable card style */
 .card.not-droppable {
     cursor: not-allowed;
     opacity: 0.5;
 }
-/* Drawn card area */
+
+/* Drawn card area (shown when drawing from deck) */
 #drawnCardArea {
     display: none;
     flex-direction: column;
     align-items: center;
     margin-right: 20px;
 }
+
+/* Drawn card display style */
 #drawnCardDisplay {
     margin-bottom: 8px;
     width: 70px;
@@ -296,21 +366,29 @@ body {
     cursor: grab;
     user-select: none;
 }
+
+/* Drawn card drag effect */
 #drawnCardDisplay.dragging {
     opacity: 0.7;
     box-shadow: 0 0 10px #007bff;
 }
+
+/* Drawn card playable (ready to drop) */
 #drawnCardDisplay.playable {
     outline: 3px solid #007bff;
     box-shadow: 0 0 12px #007bff;
     border-color: #007bff;
 }
+
+/* Discard card faded (when not available) */
 #discardCard.faded {
     opacity: 0.4;
     filter: grayscale(80%);
     border-style: dashed;
     cursor: not-allowed;
 }
+
+/* Probabilities panel container (fixed right) */
 #probabilitiesPanelContainer {
     position: fixed; /* Always fixed to right */
     top: 40px;
@@ -323,6 +401,8 @@ body {
     flex-direction: column;
     align-items: flex-end;
 }
+
+/* Probabilities panel content */
 #probabilitiesPanel {
     margin-top: 0;
     margin-right: 0;
@@ -332,6 +412,8 @@ body {
     align-self: flex-end;
     padding: 18px 24px;
 }
+
+/* Game over modal inside content */
 .gameover-modal-inside {
     display: flex;
     align-items: center;
@@ -341,6 +423,8 @@ body {
     margin-top: 40px;
     z-index: 10;
 }
+
+/* Modal content inside game over modal */
 .modal-content-inside {
     background: white;
     border-radius: 12px;
@@ -350,6 +434,8 @@ body {
     max-width: 260px;
     text-align: center;
 }
+
+/* Celebration panel container (fixed left) */
 #celebrationPanelContainer {
     position: fixed;
     top: 40px;
@@ -362,6 +448,8 @@ body {
     flex-direction: column;
     align-items: flex-start;
 }
+
+/* Celebration panel content */
 #celebrationPanel {
     min-width: 380px;
     max-width: 560px;

@@ -17,40 +17,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 1.5  # seconds
-
-def run_until_human_or_gameover(game, game_session=None):
-    """Run AI turns until it's the human player's turn or game is over"""
-    if game_session:
-        game_session['ai_thinking'] = True
-
-    while (game.turn != 0 and game.round <= game.max_rounds):
-        player = game.players[game.turn]
-
-        # Check if player has any moves available
-        available_positions = [i for i, known in enumerate(player.known) if not known]
-        if available_positions:
-            # Use the actual game logic from game.py
-            game.play_turn(player)
-        else:
-            # Player has no moves (all cards face-up), but still counts as a turn
-            print(f"{player.name} has no moves available (all cards face-up)")
-        time.sleep(AI_TURN_DELAY)
-        print(f"AI turn delay: {AI_TURN_DELAY}")
-        game.next_player()
-
-    # Check if game is over
-    if game.round > game.max_rounds:
-        # Reveal all cards
-        for p in game.players:
-            p.reveal_all()
-        if game_session:
-            game_session['ai_thinking'] = False
-        return True
-
-    if game_session:
-        game_session['ai_thinking'] = False
-    return False
+AI_TURN_DELAY = 0.75  # seconds
 
 @app.route('/')
 def index():
@@ -81,12 +48,8 @@ def create_game():
     # Set the human player's name
     game.players[0].name = player_name
 
-    # Run AI turns if game doesn't start with human player
+    # No need to run AI turns here; handled by /run_ai_turn
     game_over = False
-    if game.turn != 0:
-        # Create a temporary game session for the initial AI turns
-        temp_session = {'ai_thinking': False}
-        game_over = run_until_human_or_gameover(game, temp_session)
 
     # Store game state, including cumulative scores and match info
     games[game_id] = {
@@ -181,39 +144,6 @@ def make_move():
 
         # Move to next player
         game.next_player()
-
-        # Run AI turns until it's human's turn again or game ends
-        game_over = run_until_human_or_gameover(game, game_session)
-        game_session['game_over'] = game_over
-
-        # After move, check if game is over
-        if game.round > game.max_rounds:
-            # Reveal all cards
-            for p in game.players:
-                p.reveal_all()
-            game_session['game_over'] = True
-            # Update cumulative scores
-            scores = [game.calculate_score(p.grid) for p in game.players]
-            for i, s in enumerate(scores):
-                game_session['cumulative_scores'][i] += s
-            # Check if more games remain
-            if game_session['current_game'] < game_session['num_games']:
-                # Start next game
-                game_session['current_game'] += 1
-                # Create new game instance, keep names/agents
-                agent_types = [p.agent_type for p in game.players]
-                new_game = GolfGame(num_players=len(game.players), agent_types=agent_types)
-                # Set names
-                for i, p in enumerate(new_game.players):
-                    p.name = game.players[i].name
-                game_session['game'] = new_game
-                game_session['game_over'] = False
-            else:
-                # Match is over, determine winner
-                min_score = min(game_session['cumulative_scores'])
-                winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
-                # If tie, all lowest scorers are winners
-                game_session['match_winner'] = winners
 
         return jsonify({
             'success': True,
@@ -424,6 +354,43 @@ def get_private_score(player, game):
         return game.calculate_score(visible_grid)
     else:
         return None
+
+@app.route('/run_ai_turn', methods=['POST'])
+def run_ai_turn():
+    data = request.json
+    game_id = data['game_id']
+    game_session = games[game_id]
+    game = game_session['game']
+
+    # Only run if it's an AI's turn and game not over
+    if game.turn != 0 and not game_session['game_over']:
+        game_session['ai_thinking'] = True
+        player = game.players[game.turn]
+        time.sleep(AI_TURN_DELAY)
+        print(f' ai turn delay 405: {AI_TURN_DELAY}')
+        game.play_turn(player)
+        time.sleep(AI_TURN_DELAY)
+        game.next_player()
+        # Check for game over, update state as needed
+        if game.round > game.max_rounds:
+            for p in game.players:
+                p.reveal_all()
+            game_session['game_over'] = True
+            # Update cumulative scores
+            scores = [game.calculate_score(p.grid) for p in game.players]
+            for i, s in enumerate(scores):
+                game_session['cumulative_scores'][i] += s
+            # If this is the last game, set match_winner
+            if game_session['current_game'] == game_session['num_games']:
+                min_score = min(game_session['cumulative_scores'])
+                winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
+                game_session['match_winner'] = winners
+        game_session['ai_thinking'] = False
+
+    return jsonify({
+        'success': True,
+        'game_state': get_game_state(game_id)
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

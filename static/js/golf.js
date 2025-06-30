@@ -12,7 +12,7 @@ let setupHideTimeout = null; // Timeout for hiding setup cards
 let setupCardsHidden = false; // Whether setup cards are hidden
 const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom cards
 let setupViewInterval = null; // Interval for setup view timer
-const SNAP_THRESHOLD = 110; // pixels
+const SNAP_THRESHOLD = 30; // pixels
 
 // Celebration GIFs for human win (now loaded from JSON)
 let celebrationGifs = [];
@@ -149,7 +149,7 @@ function updateGameDisplay() {
             if (celebrationGifs.length > 0) {
                 gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
             }
-            iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);object-fit:contain;background:#fff;" />` : '';
+            iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;object-fit:contain;background:transparent;border-radius:0;" />` : '';
         } else if (typeof currentGameState.winner === 'number') {
             iconHtml = '🏆'; // AI wins
         }
@@ -272,7 +272,7 @@ function updatePlayerGrids() {
                 scoreText += ` (Cumulative: ${currentGameState.cumulative_scores[index]})`;
             }
             if (currentGameState.game_over && index === currentGameState.winner) {
-                scoreText += ' 🏆';
+                scoreText += '';
             }
         }
         playerDiv.innerHTML = `
@@ -486,6 +486,10 @@ async function executeAction(position, actionType = null) {
             refreshGameState();
             if (data.game_state.game_over) {
                 // Game over - no modal needed
+            }
+            // If it's now an AI's turn, start polling for AI turns
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                pollAITurns();
             }
         } else {
             console.error('Action failed:', data.error);
@@ -811,3 +815,28 @@ function onDrop(card, slot) {
         // Return card to original position or handle as invalid drop
     }
 }
+
+async function pollAITurns() {
+    while (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+        const response = await fetch('/run_ai_turn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: gameId })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentGameState = data.game_state;
+            updateGameDisplay();
+        } else {
+            break; // error or game over
+        }
+        await new Promise(res => setTimeout(res, 100)); // small delay to avoid hammering server
+    }
+}
+
+// After a human move:
+if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+    pollAITurns();
+}
+
+console.log(currentGameState.match_winner, currentGameState.current_game, currentGameState.num_games);
