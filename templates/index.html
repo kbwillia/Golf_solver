@@ -430,6 +430,10 @@
             <div class="game-setup" id="gameSetup">
                 <h2>Game Setup</h2>
                 <p>
+                    <label for="playerName">Your Name:</label>
+                    <input type="text" id="playerName" placeholder="Enter your name" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" />
+                </p>
+                <p>
                     <label>Game Mode:</label>
                     <select id="gameMode">
                         <option value="1v1">1 vs 1 AI</option>
@@ -442,6 +446,16 @@
                         <option value="random">Random AI</option>
                         <option value="heuristic">Heuristic AI</option>
                         <option value="qlearning">Q-Learning AI</option>
+                    </select>
+                </p>
+                <p>
+                    <label for="numGames">Number of Games:</label>
+                    <select id="numGames" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;">
+                        <option value="1">1</option>
+                        <option value="3">3</option>
+                        <option value="6">6</option>
+                        <option value="9">9</option>
+                        <option value="18">18</option>
                     </select>
                 </p>
                 <button onclick="startGame()" class="btn btn-primary">Start Game</button>
@@ -557,6 +571,8 @@
         async function startGame() {
             const gameMode = document.getElementById('gameMode').value;
             const opponentType = document.getElementById('opponentType').value;
+            const playerName = document.getElementById('playerName').value || 'Human';
+            const numGames = parseInt(document.getElementById('numGames').value) || 1;
 
             try {
                 const response = await fetch('/create_game', {
@@ -566,7 +582,9 @@
                     },
                     body: JSON.stringify({
                         mode: gameMode,
-                        opponent: opponentType
+                        opponent: opponentType,
+                        player_name: playerName,
+                        num_games: numGames
                     })
                 });
 
@@ -629,12 +647,14 @@
         function updateGameDisplay() {
             if (!currentGameState) return;
 
-            // Update game info
+            // Get custom player names
+            const playerNames = currentGameState.players.map(p => p.name);
             const currentPlayer = currentGameState.players[currentGameState.current_turn];
             const isHumanTurn = currentPlayer && currentGameState.current_turn === 0;
 
+            // Show current game number and total games
             const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-            let infoText = `Round ${roundDisplay}/${currentGameState.max_rounds}`;
+            let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
             const celebrationPanel = document.getElementById('celebrationPanel');
             celebrationPanel.innerHTML = '';
             // Show AI thinking message if applicable
@@ -659,6 +679,25 @@
             }
 
             document.getElementById('gameInfo').textContent = infoText;
+
+            // Show match summary if match is over
+            if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
+                let summaryHtml = `<div style="background:#f8f9fa;padding:18px 24px;border-radius:12px;box-shadow:0 2px 12px #eee;margin-bottom:18px;max-width:480px;">
+                    <h2 style="text-align:center;">Match Summary</h2>`;
+                summaryHtml += `<div style="margin-bottom:10px;"><b>Final Cumulative Scores:</b></div><ul style="padding-left:18px;">`;
+                for (let i = 0; i < currentGameState.players.length; i++) {
+                    const winnerIcon = (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(i)) ? ' 🏆' : '';
+                    summaryHtml += `<li><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
+                }
+                summaryHtml += `</ul>`;
+                if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.length === 1) {
+                    summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
+                } else if (Array.isArray(currentGameState.match_winner)) {
+                    summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
+                }
+                summaryHtml += `</div>`;
+                celebrationPanel.innerHTML = summaryHtml + celebrationPanel.innerHTML;
+            }
 
             // Update deck size
             document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
@@ -742,6 +781,9 @@
                 let badgeHtml = '';
                 if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
                     scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
+                    if (currentGameState.cumulative_scores && typeof currentGameState.cumulative_scores[index] !== 'undefined') {
+                        scoreText += ` (Cumulative: ${currentGameState.cumulative_scores[index]})`;
+                    }
                     if (currentGameState.game_over && index === currentGameState.winner) {
                         scoreText += ' 🏆';
                     }

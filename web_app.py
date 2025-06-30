@@ -56,6 +56,8 @@ def create_game():
     data = request.json
     game_mode = data.get('mode', '1v1')  # '1v1' or '1v3'
     opponent = data.get('opponent', 'random')
+    player_name = data.get('player_name', 'Human')
+    num_games = int(data.get('num_games', 1))
 
     # Generate unique game ID
     game_id = str(uuid.uuid4())
@@ -70,6 +72,8 @@ def create_game():
 
     # Create the game
     game = GolfGame(num_players=num_players, agent_types=agent_types)
+    # Set the human player's name
+    game.players[0].name = player_name
 
     # Run AI turns if game doesn't start with human player
     game_over = False
@@ -78,11 +82,16 @@ def create_game():
         temp_session = {'ai_thinking': False}
         game_over = run_until_human_or_gameover(game, temp_session)
 
-    # Store game state
+    # Store game state, including cumulative scores and match info
     games[game_id] = {
         'game': game,
         'mode': game_mode,
-        'game_over': game_over
+        'game_over': game_over,
+        'player_name': player_name,
+        'num_games': num_games,
+        'current_game': 1,
+        'cumulative_scores': [0] * num_players,
+        'match_winner': None
     }
 
     return jsonify({
@@ -170,6 +179,35 @@ def make_move():
         # Run AI turns until it's human's turn again or game ends
         game_over = run_until_human_or_gameover(game, game_session)
         game_session['game_over'] = game_over
+
+        # After move, check if game is over
+        if game.round > game.max_rounds:
+            # Reveal all cards
+            for p in game.players:
+                p.reveal_all()
+            game_session['game_over'] = True
+            # Update cumulative scores
+            scores = [game.calculate_score(p.grid) for p in game.players]
+            for i, s in enumerate(scores):
+                game_session['cumulative_scores'][i] += s
+            # Check if more games remain
+            if game_session['current_game'] < game_session['num_games']:
+                # Start next game
+                game_session['current_game'] += 1
+                # Create new game instance, keep names/agents
+                agent_types = [p.agent_type for p in game.players]
+                new_game = GolfGame(num_players=len(game.players), agent_types=agent_types)
+                # Set names
+                for i, p in enumerate(new_game.players):
+                    p.name = game.players[i].name
+                game_session['game'] = new_game
+                game_session['game_over'] = False
+            else:
+                # Match is over, determine winner
+                min_score = min(game_session['cumulative_scores'])
+                winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
+                # If tie, all lowest scorers are winners
+                game_session['match_winner'] = winners
 
         return jsonify({
             'success': True,
@@ -293,7 +331,13 @@ def get_game_state(game_id):
     # Probabilities/statistics from probabilities.py
     probabilities = get_probabilities(game)
 
-    return {
+    # Add cumulative scores and match info
+    cumulative_scores = game_session.get('cumulative_scores')
+    current_game = game_session.get('current_game', 1)
+    num_games = game_session.get('num_games', 1)
+    match_winner = game_session.get('match_winner')
+
+    state = {
         'players': players_data,
         'current_turn': game.turn,
         'round': game.round,
@@ -307,8 +351,17 @@ def get_game_state(game_id):
         'winner': winner,
         'mode': game_session['mode'],
         'probabilities': probabilities,
-        'ai_thinking': game_session.get('ai_thinking', False)
+        'ai_thinking': game_session.get('ai_thinking', False),
+        'cumulative_scores': cumulative_scores,
+        'current_game': current_game,
+        'num_games': num_games,
+        'match_winner': match_winner
     }
+    # Set winner for current game if over
+    if game_session['game_over']:
+        scores = [game.calculate_score(p.grid) for p in game.players]
+        state['winner'] = scores.index(min(scores))
+    return state
 
 @app.route('/get_available_actions/<game_id>')
 def get_available_actions(game_id):
