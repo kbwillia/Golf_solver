@@ -3,6 +3,7 @@ import uuid
 import json
 from game import GolfGame
 from probabilities import get_probabilities
+import time
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -10,8 +11,13 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-def run_until_human_or_gameover(game):
+AI_TURN_DELAY = 1.5  # seconds
+
+def run_until_human_or_gameover(game, game_session=None):
     """Run AI turns until it's the human player's turn or game is over"""
+    if game_session:
+        game_session['ai_thinking'] = True
+
     while (game.turn != 0 and game.round <= game.max_rounds):
         player = game.players[game.turn]
 
@@ -23,7 +29,8 @@ def run_until_human_or_gameover(game):
         else:
             # Player has no moves (all cards face-up), but still counts as a turn
             print(f"{player.name} has no moves available (all cards face-up)")
-
+        time.sleep(AI_TURN_DELAY)
+        print(f"AI turn delay: {AI_TURN_DELAY}")
         game.next_player()
 
     # Check if game is over
@@ -31,8 +38,12 @@ def run_until_human_or_gameover(game):
         # Reveal all cards
         for p in game.players:
             p.reveal_all()
+        if game_session:
+            game_session['ai_thinking'] = False
         return True
 
+    if game_session:
+        game_session['ai_thinking'] = False
     return False
 
 @app.route('/')
@@ -63,7 +74,9 @@ def create_game():
     # Run AI turns if game doesn't start with human player
     game_over = False
     if game.turn != 0:
-        game_over = run_until_human_or_gameover(game)
+        # Create a temporary game session for the initial AI turns
+        temp_session = {'ai_thinking': False}
+        game_over = run_until_human_or_gameover(game, temp_session)
 
     # Store game state
     games[game_id] = {
@@ -155,7 +168,7 @@ def make_move():
         game.next_player()
 
         # Run AI turns until it's human's turn again or game ends
-        game_over = run_until_human_or_gameover(game)
+        game_over = run_until_human_or_gameover(game, game_session)
         game_session['game_over'] = game_over
 
         return jsonify({
@@ -293,7 +306,8 @@ def get_game_state(game_id):
         'private_scores': private_scores,
         'winner': winner,
         'mode': game_session['mode'],
-        'probabilities': probabilities
+        'probabilities': probabilities,
+        'ai_thinking': game_session.get('ai_thinking', False)
     }
 
 @app.route('/get_available_actions/<game_id>')

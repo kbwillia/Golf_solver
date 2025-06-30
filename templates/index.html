@@ -18,8 +18,8 @@
             border-radius: 14px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.10);
             max-width: none;
-            width: calc(100vw - 480px); /* leave space for the probabilities panel */
-            margin: 18px 0 18px 0;
+            width: calc(100vw - 880px); /* leave space for both side panels */
+            margin: 18px auto 18px auto;
             min-height: 0;
         }
         .game-setup {
@@ -233,18 +233,6 @@
         .new-flex-layout {
             gap: 18px;
         }
-        .celebration-panel {
-            flex: 0 0 90px;
-            min-width: 90px;
-            max-width: 120px;
-            min-height: 350px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            position: relative;
-            background: transparent;
-            z-index: 2;
-        }
         .left-panel {
             flex: 2;
             min-width: 0;
@@ -374,13 +362,13 @@
             cursor: not-allowed;
         }
         #probabilitiesPanelContainer {
-            position: fixed;
-            top: 60px;
-            right: 40px;
+            position: fixed; /* Always fixed to right */
+            top: 40px;
+            right: 20px;
             z-index: 100;
-            min-width: 240px;
-            max-width: 340px;
-            width: 320px;
+            min-width: 320px;
+            max-width: 480px;
+            width: 420px;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
@@ -388,9 +376,48 @@
         #probabilitiesPanel {
             margin-top: 0;
             margin-right: 0;
-            min-width: 220px;
-            max-width: 320px;
+            min-width: 300px;
+            max-width: 440px;
+            font-size: 1.15em;
             align-self: flex-end;
+            padding: 18px 24px;
+        }
+        .gameover-modal-inside {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 100%;
+            margin-top: 40px;
+            z-index: 10;
+        }
+        .modal-content-inside {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+            padding: 24px 18px 18px 18px;
+            width: 90%;
+            max-width: 260px;
+            text-align: center;
+        }
+        #celebrationPanelContainer {
+            position: fixed;
+            top: 40px;
+            left: 20px;
+            z-index: 100;
+            min-width: 320px;
+            max-width: 420px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #celebrationPanel {
+            min-width: 300px;
+            max-width: 400px;
+            font-size: 1.15em;
+            align-self: flex-start;
+            padding: 18px 24px;
         }
     </style>
 </head>
@@ -423,7 +450,6 @@
             </div>
             <div class="game-board" id="gameBoard">
                 <div class="main-board new-flex-layout">
-                    <div class="celebration-panel" id="celebrationPanel"></div>
                     <div class="left-panel">
                         <div class="game-info" id="gameInfo"></div>
                         <div id="playerGrids"></div>
@@ -478,26 +504,31 @@
         </div>
     </div>
 
+    <!-- Celebration Panel: now outside main container for left alignment -->
+    <div id="celebrationPanelContainer">
+        <div id="celebrationPanel"></div>
+    </div>
+
     <!-- Probabilities Panel: now outside main container for right alignment -->
     <div id="probabilitiesPanelContainer">
         <div id="probabilitiesPanel"></div>
     </div>
 
     <script>
-        let currentGameState = null;
-        let gameId = null;
-        let drawnCard = null;
-        let currentAction = null;
-        let dragActive = false;
-        let draggedDiscardCard = null;
-        let drawnCardData = null;
-        let drawnCardDragActive = false;
-        let turnAnimateTimeout = null;
-        let lastTurnIndex = null;
-        let setupHideTimeout = null;
-        let setupCardsHidden = false;
-        const SETUP_VIEW_SECONDS = 111.3; // Change this value for how long to show bottom cards
-        let setupViewInterval = null;
+        let currentGameState = null; // Holds the current game state from backend
+        let gameId = null; // Unique game session ID
+        let drawnCard = null; // Card drawn from deck
+        let currentAction = null; // Current action type
+        let dragActive = false; // Drag state for discard
+        let draggedDiscardCard = null; // Card being dragged from discard
+        let drawnCardData = null; // Data for the currently drawn card
+        let drawnCardDragActive = false; // Drag state for drawn card
+        let turnAnimateTimeout = null; // Timeout for turn animation
+        let lastTurnIndex = null; // Last turn index to detect turn changes
+        let setupHideTimeout = null; // Timeout for hiding setup cards
+        let setupCardsHidden = false; // Whether setup cards are hidden
+        const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom cards
+        let setupViewInterval = null; // Interval for setup view timer
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
@@ -592,16 +623,30 @@
 
             // Update game info
             const currentPlayer = currentGameState.players[currentGameState.current_turn];
-            const isHumanTurn = currentPlayer && currentPlayer.is_human;
+            const isHumanTurn = currentPlayer && currentGameState.current_turn === 0;
 
             const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
             let infoText = `Round ${roundDisplay}/${currentGameState.max_rounds}`;
+            const celebrationPanel = document.getElementById('celebrationPanel');
+            celebrationPanel.innerHTML = '';
+            // Show AI thinking message if applicable
+            if (currentGameState.ai_thinking) {
+                celebrationPanel.innerHTML = `<div style="font-size:1.15em;font-weight:bold;text-align:center;background:#28a745;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
+                    AI is lining up its shot...</div>`;
+            } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                celebrationPanel.innerHTML = `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
+                    Your Turn!</div>` + celebrationPanel.innerHTML;
+            }
             if (currentGameState.game_over) {
                 infoText += ' - Game Over!';
-            } else if (isHumanTurn) {
-                infoText += ' - Your Turn, draw from deck or discard';
-            } else if (currentPlayer) {
-                infoText += ` - ${currentPlayer.name}'s Turn`;
+                // Show celebratory icon in left panel
+                let icon = '🏆';
+                if (currentGameState.winner === 0) {
+                    icon = '🎉'; // Human wins
+                } else if (typeof currentGameState.winner === 'number') {
+                    icon = '🏆'; // AI wins
+                }
+                celebrationPanel.innerHTML += `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div><div style="font-size:4em;text-align:center;margin-top:20px;">${icon}</div>`;
             }
 
             document.getElementById('gameInfo').textContent = infoText;
@@ -639,23 +684,23 @@
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'player-grid';
                 if (index === currentGameState.current_turn) {
-                    playerDiv.classList.add('current-turn');
+                    playerDiv.classList.add('current-turn'); // Highlight current turn
                 }
-                const isHuman = index === 0;
+                const isHuman = index === 0; // Human is always player 0
                 const gridHtml = player.grid.map((card, pos) => {
-                    if (!card) return '<div class="card face-down">?</div>';
+                    if (!card) return '<div class="card face-down">?</div>'; // Empty slot
                     let cardClass = 'card';
                     let displayText = '?';
                     let extraAttrs = '';
                     if (isHuman && pos >= 2) {
                         if (!setupCardsHidden) {
-                            cardClass += ' privately-visible';
+                            cardClass += ' privately-visible'; // Show bottom cards at setup
                             displayText = `${card.rank}${card.suit}`;
                         } else if (card.public) {
-                            cardClass += ' face-up public';
+                            cardClass += ' face-up public'; // Show if made public
                             displayText = `${card.rank}${card.suit}`;
                         } else {
-                            cardClass += ' face-down';
+                            cardClass += ' face-down'; // Hide after setup
                             displayText = '?';
                         }
                     } else if (card.visible) {
@@ -688,16 +733,12 @@
                 let badgeHtml = '';
                 if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
                     scoreText = ` - Public Score: ${currentGameState.public_scores[index]}`;
-                    if (isHuman && currentGameState.private_scores && typeof currentGameState.private_scores[index] !== 'undefined' && currentGameState.private_scores[index] !== null) {
-                        scoreText += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Private: ${currentGameState.private_scores[index]})`;
-                    }
+                    // if (isHuman && currentGameState.private_scores && typeof currentGameState.private_scores[index] !== 'undefined' && currentGameState.private_scores[index] !== null) {
+                    //     scoreText += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Private: ${currentGameState.private_scores[index]})`;
+                    // }
                     if (currentGameState.game_over && index === currentGameState.winner) {
                         scoreText += ' 🏆';
                     }
-                }
-                // Add animated badge for human's turn
-                if (isHuman && index === currentGameState.current_turn && !currentGameState.game_over) {
-                    badgeHtml = '<div class="your-turn-badge">Your Turn!</div>';
                 }
                 playerDiv.innerHTML = `
                     <h3>${player.name} (${player.agent_type})${scoreText}</h3>
@@ -706,17 +747,17 @@
                 `;
                 container.appendChild(playerDiv);
             });
-            // Robust delayed turn animation for human
+            // Robust delayed turn animation for human (border pulse)
             if (currentTurnIndex === 0 && !currentGameState.game_over && lastTurnIndex !== currentTurnIndex) {
                 turnAnimateTimeout = setTimeout(() => {
                     // Only add animation if still human's turn
                     if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
                         const grids = document.querySelectorAll('.player-grid.current-turn');
                         if (grids.length > 0) {
-                            grids[0].classList.add('turn-animate');
+                            grids[0].classList.add('turn-animate'); // Border pulse
                         }
                     }
-                }, 2000);
+                }, 1); // Delay for border pulse (set to 1ms for instant)
             }
             lastTurnIndex = currentTurnIndex;
             // Attach click handler to flippable cards in flip mode
@@ -906,9 +947,10 @@
                 if (data.success) {
                     currentGameState = data.game_state;
                     updateGameDisplay();
-
+                    // Immediately refresh to catch any AI moves or turn changes
+                    refreshGameState();
                     if (data.game_state.game_over) {
-                        setTimeout(showGameOverModal, 500);  // Small delay to show final state
+                        setTimeout(showGameOverModal, 500);  // Small delay to show final state. todo could delay more for anticipation
                     }
                 } else {
                     console.error('Action failed:', data.error);
@@ -951,18 +993,22 @@
                 }
             }
 
-            // Show modal with Play Again button
+            // Show modal inside the left celebration panel
+            const celebrationPanel = document.getElementById('celebrationPanel');
             const modal = document.createElement('div');
-            modal.className = 'modal';
+            modal.className = 'gameover-modal-inside';
             modal.style.display = 'block';
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="modal-content-inside">
                     <h3>Game Over</h3>
                     <pre style="white-space: pre-line;">${resultMessage}</pre>
-                    <button onclick="restartGame();this.closest('.modal').remove();" class="btn btn-primary">Play Again</button>
+                    <button onclick="restartGame();this.closest('.gameover-modal-inside').remove();" class="btn btn-primary">Play Again</button>
                 </div>
             `;
-            document.body.appendChild(modal);
+            // Remove any previous modal
+            const prevModal = celebrationPanel.querySelector('.gameover-modal-inside');
+            if (prevModal) prevModal.remove();
+            celebrationPanel.appendChild(modal);
             document.getElementById('restartBtn').style.display = 'inline-block';
         }
 
@@ -976,6 +1022,9 @@
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
             showSetupViewTimer(SETUP_VIEW_SECONDS);
+            // Clear celebration panel on restart
+            const celebrationPanel = document.getElementById('celebrationPanel');
+            celebrationPanel.innerHTML = '';
         }
 
         // Close modals when clicking outside
@@ -1073,11 +1122,17 @@
             html += '<h4 style="margin-top:0;">Probabilities</h4>';
             // Deck composition
             if (probs.deck_counts) {
-                html += '<div><b>Deck Composition:</b><br><span style="font-size:13px;">';
-                for (const [rank, count] of Object.entries(probs.deck_counts)) {
-                    html += `${rank}: ${count} &nbsp; `;
+                // Desired order: J, A, 2-10, Q, K
+                const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
+                html += '<div><b>Deck Composition:</b>';
+                html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
+                html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
+                for (const rank of order) {
+                    if (probs.deck_counts[rank] !== undefined) {
+                        html += `<tr><td style="padding-right:10px;">${rank}</td><td>${probs.deck_counts[rank]}</td></tr>`;
+                    }
                 }
-                html += '</span></div>';
+                html += '</tbody></table></div>';
             }
             // Probability of drawing lower than min faceup (for human)
             if (probs.prob_draw_lower_than_min_faceup && probs.prob_draw_lower_than_min_faceup.length > 0) {
