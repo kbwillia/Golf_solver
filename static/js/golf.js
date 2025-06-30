@@ -14,6 +14,36 @@ const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom
 let setupViewInterval = null; // Interval for setup view timer
 const SNAP_THRESHOLD = 30; // pixels
 
+// Function to create card display content (SVG or fallback text)
+function getCardDisplayContent(card, faceDown = false) {
+    if (faceDown || !card) {
+        return ''; // Empty content for face-down cards - CSS handles the back design
+    }
+
+    // Map card values to file names
+    const rankMap = {
+        'A': 'A', '2': '2', '3': '3', '4': '4', '5': '5',
+        '6': '6', '7': '7', '8': '8', '9': '9', '10': 'T',
+        'J': 'J', 'Q': 'Q', 'K': 'K'
+    };
+
+    const suitMap = {
+        '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C',
+        'S': 'S', 'H': 'H', 'D': 'D', 'C': 'C',
+        'spades': 'S', 'hearts': 'H', 'diamonds': 'D', 'clubs': 'C'
+    };
+
+    const rank = rankMap[card.rank] || card.rank;
+    const suit = suitMap[card.suit] || card.suit;
+    const filename = `${rank}${suit}.svg`;
+    const cardPath = `/static/cards/${filename}`;
+
+    // Return an SVG image element
+    return `<svg viewBox="0 0 240 336" width="100%" height="100%" style="display: block;">
+        <image href="${cardPath}" width="240" height="336" x="0" y="0" />
+    </svg>`;
+}
+
 // Celebration GIFs for human win (now loaded from JSON)
 let celebrationGifs = [];
 fetch('/static/golf_celebration_gifs.json')
@@ -183,9 +213,10 @@ function updateGameDisplay() {
     // Update discard pile
     const discardCard = document.getElementById('discardCard');
     if (currentGameState.discard_top) {
-        discardCard.textContent = `${currentGameState.discard_top.rank}${currentGameState.discard_top.suit}`;
+        discardCard.innerHTML = getCardDisplayContent(currentGameState.discard_top, false);
     } else {
-        discardCard.textContent = '?';
+        discardCard.innerHTML = '';
+        discardCard.classList.add('face-down');
     }
 
     // Update player grids
@@ -223,20 +254,25 @@ function updatePlayerGrids() {
         }
         const isHuman = index === 0; // Human is always player 0
         const gridHtml = player.grid.map((card, pos) => {
-            if (!card) return '<div class="card face-down">?</div>'; // Empty slot
+            if (!card) return '<div class="card face-down"></div>'; // Empty slot
             let cardClass = 'card';
-            let displayText = '?';
+            let displayContent = '';
+            let isFaceDown = true;
             let extraAttrs = '';
+
             if (isHuman && pos >= 2) {
                 if (!setupCardsHidden) {
                     cardClass += ' privately-visible'; // Show bottom cards at setup
-                    displayText = `${card.rank}${card.suit}`;
+                    displayContent = getCardDisplayContent(card, false);
+                    isFaceDown = false;
                 } else if (card.public) {
                     cardClass += ' face-up public'; // Show if made public
-                    displayText = `${card.rank}${card.suit}`;
+                    displayContent = getCardDisplayContent(card, false);
+                    isFaceDown = false;
                 } else {
                     cardClass += ' face-down'; // Hide after setup
-                    displayText = '?';
+                    displayContent = '';
+                    isFaceDown = true;
                 }
             } else if (card.visible) {
                 if (card.public) {
@@ -244,24 +280,33 @@ function updatePlayerGrids() {
                 } else {
                     cardClass += ' privately-visible';
                 }
-                displayText = `${card.rank}${card.suit}`;
+                displayContent = getCardDisplayContent(card, false);
+                isFaceDown = false;
             } else {
                 cardClass += ' face-down';
+                displayContent = '';
+                isFaceDown = true;
             }
+
             // Drag-and-drop for human player
             if (isHuman && !card.public && currentGameState.current_turn === 0 && !currentGameState.game_over) {
-                // Accept drop from discard or drawn card
-                extraAttrs += ' ondragover="event.preventDefault();this.classList.add(\'drop-target\');"';
-                extraAttrs += ' ondragleave="this.classList.remove(\'drop-target\');"';
-                extraAttrs += ` ondrop="handleDropOnGrid(${pos});this.classList.remove('drop-target');"`;
-                // If in flip mode, add flippable class
+                // Accept drop from discard or drawn card - more lenient detection
+                extraAttrs += ' ondragover="event.preventDefault();this.classList.add(\'drop-target\');event.stopPropagation();"';
+                extraAttrs += ' ondragenter="event.preventDefault();this.classList.add(\'drop-target\');"';
+                extraAttrs += ' ondragleave="if(!event.relatedTarget || !this.contains(event.relatedTarget)) this.classList.remove(\'drop-target\');"';
+                extraAttrs += ` ondrop="handleDropOnGrid(${pos});this.classList.remove('drop-target');event.preventDefault();event.stopPropagation();"`;
+                // If in flip mode, add flippable class and different styling
                 if (window.flipDrawnMode) {
-                    cardClass += ' drop-target flippable';
+                    cardClass += ' flippable';
+                    // Don't add drop-target styling in flip mode unless actively dragging
+                    if (!drawnCardDragActive) {
+                        cardClass = cardClass.replace(' drop-target', '');
+                    }
                 }
             } else if (isHuman) {
                 extraAttrs += ' class="card not-droppable"';
             }
-            return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayText}</div>`;
+            return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
         }).join('');
         // Show only the public score for each player, and private score for human
         let scoreText = '';
@@ -334,12 +379,6 @@ async function drawFromDeck() {
         return; // Do nothing if disabled
     }
 
-    const availablePositions = getAvailablePositions();
-    if (availablePositions.length === 0) {
-        alert('No available positions!');
-        return;
-    }
-
     if (currentGameState.deck_size === 0) {
         alert('No cards left in deck!');
         return;
@@ -364,17 +403,33 @@ function showDrawnCardArea(card) {
     drawnCardData = card;
     const area = document.getElementById('drawnCardArea');
     const display = document.getElementById('drawnCardDisplay');
-    display.textContent = `${card.rank}${card.suit}`;
+    display.innerHTML = getCardDisplayContent(card, false);
     area.style.display = 'flex';
     display.setAttribute('draggable', 'true');
     display.classList.remove('dragging');
     display.classList.add('playable');
-    // Fade the discard card and make it unclickable
+
+    // Add drag event listeners for the drawn card
+    display.ondragstart = function(e) {
+        drawnCardDragActive = true;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    display.ondragend = function(e) {
+        drawnCardDragActive = false;
+        this.classList.remove('dragging');
+    };
+
+    // Disable deck and discard during drawn card interaction
+    const deckCard = document.getElementById('deckCard');
     const discardCard = document.getElementById('discardCard');
-    discardCard.classList.add('faded');
+    deckCard.classList.add('disabled');
+    deckCard.onclick = null;
+    discardCard.classList.add('disabled');
     discardCard.onclick = null;
-    discardCard.setAttribute('tabindex', '-1');
-    window.flipDrawnMode = true; // Enable flip mode immediately
+
+    window.flipDrawnMode = true; // Enable flip mode for clicking grid cards
     updatePlayerGrids();
 }
 
@@ -383,11 +438,17 @@ function hideDrawnCardArea() {
     drawnCardDragActive = false;
     document.getElementById('drawnCardArea').style.display = 'none';
     document.getElementById('drawnCardDisplay').classList.remove('playable');
+
+    // Re-enable deck and discard
+    const deckCard = document.getElementById('deckCard');
     const discardCard = document.getElementById('discardCard');
-    discardCard.classList.remove('faded');
+    deckCard.classList.remove('disabled');
+    deckCard.onclick = drawFromDeck;
+    discardCard.classList.remove('disabled');
     discardCard.onclick = takeDiscard;
-    discardCard.setAttribute('tabindex', '0');
+
     window.flipDrawnMode = false;
+    updatePlayerGrids(); // Refresh to remove flip indicators
 }
 
 function getAvailablePositions() {
@@ -538,7 +599,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const discardCard = document.getElementById('discardCard');
     discardCard.addEventListener('dragstart', (e) => {
         dragActive = true;
-        discardCard.classList.add('drop-target');
+        // DON'T add drop-target class to the discard card itself
+        // Add drag-active class to all potential drop targets (grid cards only)
+        document.querySelectorAll('.card:not(.public):not(.not-droppable)').forEach(el => {
+            if (el.classList.contains('drop-target')) {
+                el.classList.add('drag-active');
+            }
+        });
         // Store the discard card value at drag start
         if (currentGameState && currentGameState.discard_top) {
             draggedDiscardCard = {
@@ -551,10 +618,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     discardCard.addEventListener('dragend', (e) => {
         dragActive = false;
-        discardCard.classList.remove('drop-target');
+        // DON'T remove drop-target from discard card since we never added it
         draggedDiscardCard = null;
         // Remove highlight from all grid cells
-        document.querySelectorAll('.card.drop-target').forEach(el => el.classList.remove('drop-target'));
+        document.querySelectorAll('.card.drop-target').forEach(el => {
+            el.classList.remove('drop-target', 'drag-active');
+        });
     });
     // Drawn card drag logic
     const display = document.getElementById('drawnCardDisplay');
@@ -562,11 +631,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!drawnCardData) return e.preventDefault();
         drawnCardDragActive = true;
         display.classList.add('dragging');
+        // DON'T add drop-target class to the drawn card itself
+        // Add drag-active class to all potential drop targets (grid cards only)
+        document.querySelectorAll('.card:not(.public):not(.not-droppable)').forEach(el => {
+            if (el.classList.contains('drop-target')) {
+                el.classList.add('drag-active');
+            }
+        });
     });
     display.addEventListener('dragend', (e) => {
         drawnCardDragActive = false;
         display.classList.remove('dragging');
-        document.querySelectorAll('.card.drop-target').forEach(el => el.classList.remove('drop-target'));
+        document.querySelectorAll('.card.drop-target').forEach(el => {
+            el.classList.remove('drop-target', 'drag-active');
+        });
     });
 });
 
@@ -677,16 +755,43 @@ function updateProbabilitiesPanel() {
         html += '</div>';
     }
 
-    // Deck composition
+    // Deck composition with horizontal bar chart
     if (probs.deck_counts) {
         // Desired order: J, A, 2-10, Q, K
         const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
+        const maxCount = Math.max(...Object.values(probs.deck_counts));
+
         html += '<div><b>(Unknown Cards left):</b>';
-        html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:50%;border-collapse:collapse;">';
-        html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
+        html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
+        html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;width:150px;">Count</th></tr></thead><tbody>';
+
         for (const rank of order) {
             if (probs.deck_counts[rank] !== undefined) {
-                html += `<tr><td style="padding-right:0px;">${rank}</td><td>${probs.deck_counts[rank]}</td></tr>`;
+                const count = probs.deck_counts[rank];
+                const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+                // Color based on count: light green for low (0-1), yellow for medium (2-3), red for high (4)
+                let barColor;
+                if (count === 0) {
+                    barColor = '#dc3545'; // Red for 0 (cards are out)
+                } else if (count === 1) {
+                    barColor = '#ffc107'; // Yellow for 1 (low availability)
+                } else if (count <= 2) {
+                    barColor = '#fd7e14'; // Orange for 2 (medium-low)
+                } else if (count <= 3) {
+                    barColor = '#20c997'; // Teal for 3 (medium)
+                } else {
+                    barColor = '#28a745'; // Green for 4 (high availability)
+                }
+
+                html += `<tr><td style="padding-right:10px;padding:2px 0;">${rank}</td>`;
+                html += `<td style="padding:2px 0;">`;
+                html += `<div class="card-count-bar-container">`;
+                html += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
+                html += `<span class="card-count-text">${count}</span>`;
+                html += `</div>`;
+                html += `</div>`;
+                html += `</td></tr>`;
             }
         }
         html += '</tbody></table></div>';

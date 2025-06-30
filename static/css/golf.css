@@ -48,16 +48,37 @@ body {
 
 /* Highlight for the current player's turn */
 .player-grid.current-turn {
-    border-color: #007bff; /* Highlight for current turn */
+    border: 3.0px solid #007bff;
+    box-shadow: 0 0 0 0 #007bff;
+    animation: border-glow-pulse 8.2s ease-in-out infinite;
     background-color: #f8f9fa;
     position: relative;
 }
 
-@keyframes glow-pulse {
-    0% { box-shadow: 0 0 5px #007bff, 0 0 10px #007bff, 0 0 15px #007bff; }
-    50% { box-shadow: 0 0 10px #007bff, 0 0 20px #007bff, 0 0 30px #007bff; }
-    100% { box-shadow: 0 0 5px #007bff, 0 0 10px #007bff, 0 0 15px #007bff; }
-}
+@keyframes border-glow-pulse {
+    0% {
+      box-shadow: 0 0 0 2 rgba(0, 123, 255, 0);
+      border-color: #007bff;
+    }
+    25% {
+      box-shadow: 0 0 8px 2px rgba(0, 123, 255, 0.4);
+      border-color: #33bfff;
+    }
+    50% {
+      box-shadow: 0 0 16px 4px rgba(0, 123, 255, 0.7);
+      border-color: #66dfff;
+    }
+    75% {
+      box-shadow: 0 0 8px 2px rgba(0, 123, 255, 0.4);
+      border-color: #33bfff;
+    }
+    100% {
+      box-shadow: 0 0 0 2 rgba(0, 123, 255, 0);
+      border-color: #007bff;
+    }
+  }
+
+
 
 /* 2x2 grid for cards in a player's grid */
 .grid-container {
@@ -70,66 +91,138 @@ body {
 
 /* Card appearance (base) */
 .card {
-    width: 60px;
-    height: 90px;
+    width: 70px; /* Slightly bigger cards */
+    height: 105px; /* Maintain card proportions */
     border: 2px solid #333;
-    border-radius: 8px;
+    border-radius: 10px; /* More rounded corners like real cards */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 22px; /* Larger font for ranks */
     font-weight: bold;
-    margin: 5px;
+    margin: 8px; /* Increased margin for better spacing */
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
+    /* Add padding to the clickable area */
+    padding: 0; /* Remove padding for SVG cards */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Card shadow for depth */
+    overflow: hidden; /* Ensure SVG doesn't overflow rounded corners */
 }
 
-/* Face-down card style */
+/* Face-down card style - classic casino card back design */
 .card.face-down {
-    background: linear-gradient(45deg, #667eea, #764ba2); /* Blue gradient for face-down */
+    background: linear-gradient(45deg, #1a237e, #303f9f); /* Deep blue base */
     color: white;
+    position: relative;
+    border-color: #0d47a1;
+    overflow: hidden;
 }
 
-/* Face-up card style */
+/* Classic casino card back pattern */
+.card.face-down::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        /* Outer ornate border */
+        linear-gradient(0deg, #ffffff40 0%, transparent 8%, transparent 92%, #ffffff40 100%),
+        linear-gradient(90deg, #ffffff40 0%, transparent 8%, transparent 92%, #ffffff40 100%),
+        /* Diamond pattern */
+        repeating-conic-gradient(
+            from 45deg at 50% 50%,
+            #ffffff20 0deg 45deg,
+            transparent 45deg 90deg,
+            #ffffff15 90deg 135deg,
+            transparent 135deg 180deg
+        ),
+        /* Central ornament */
+        radial-gradient(
+            ellipse at center,
+            #ffffff30 20%,
+            transparent 25%,
+            transparent 30%,
+            #ffffff20 35%,
+            transparent 40%
+        );
+    background-size: 100% 100%, 100% 100%, 20px 20px, 100% 100%;
+    pointer-events: none;
+}
+
+/* Inner decorative frame */
+.card.face-down::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border: 1px solid #ffffff30;
+    border-radius: 4px;
+    background:
+        /* Corner decorations */
+        radial-gradient(circle at 10% 10%, #ffffff25 2px, transparent 3px),
+        radial-gradient(circle at 90% 10%, #ffffff25 2px, transparent 3px),
+        radial-gradient(circle at 10% 90%, #ffffff25 2px, transparent 3px),
+        radial-gradient(circle at 90% 90%, #ffffff25 2px, transparent 3px);
+    pointer-events: none;
+}
+
+/* Face-up card style - clean white background for SVG cards */
 .card.face-up {
     background: white;
     color: #333;
+    font-size: 24px; /* Even larger for face-up cards */
+    border-color: #ddd;
 }
 
-/* Privately visible card (for human) */
+/* SVG cards should fill the container */
+.card svg {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px; /* Match card border radius */
+    border: none; /* Remove any SVG borders */
+    outline: none; /* Remove any SVG outlines */
+}
+
+/* Privately visible card (for human) - SVG cards don't need background */
 .card.privately-visible {
-    background: linear-gradient(45deg, #f39c12, #e67e22); /* Orange for private cards */
+    background: white; /* White background for SVG cards */
     color: white;
+    font-size: 24px; /* Larger text for visibility */
 }
 
 /* Publicly visible card (for all players) */
 .card.public {
     border-color: #28a745; /* Green border for public cards */
-    box-shadow: 0 0 5px #28a745;
+    box-shadow: 0 0 8px #28a745, 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 24px; /* Larger text */
 }
 
-/* Deck card with layered effect */
+/* Deck card with layered effect - uses same back design as other face-down cards */
 .card.face-down#deckCard {
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    width: 80px; /* Slightly larger for deck */
+    height: 115px;
+    font-size: 24px;
     box-shadow:
         0 2px 4px rgba(0,0,0,0.3),
         0 4px 8px rgba(0,0,0,0.2),
         0 6px 12px rgba(0,0,0,0.1);
     transform: translateZ(0);
-    width: 70px;
-    height: 100px;
-    font-size: 20px;
+    /* Inherits the casino back design from .card.face-down */
 }
 
 /* Discard pile card styling */
 #discardCard {
-    width: 70px;
-    height: 100px;
-    font-size: 16px;
+    width: 80px; /* Match deck size */
+    height: 115px;
+    font-size: 20px;
 }
 
-/* Layered deck effect (middle layer) */
+/* Layered deck effect (middle layer) - creates depth behind the main card */
 .card.face-down#deckCard::before {
     content: '';
     position: absolute;
@@ -137,14 +230,37 @@ body {
     left: 2px;
     right: 2px;
     bottom: 2px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    border: 2px solid #333;
-    border-radius: 6px;
+    background: linear-gradient(45deg, #1a237e, #303f9f); /* Match main card background */
+    border: 2px solid #0d47a1;
+    border-radius: 8px;
     z-index: -1;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    /* Add the same casino pattern as regular face-down cards */
+    background-image:
+        /* Outer ornate border */
+        linear-gradient(0deg, #ffffff40 0%, transparent 8%, transparent 92%, #ffffff40 100%),
+        linear-gradient(90deg, #ffffff40 0%, transparent 8%, transparent 92%, #ffffff40 100%),
+        /* Diamond pattern */
+        repeating-conic-gradient(
+            from 45deg at 50% 50%,
+            #ffffff20 0deg 45deg,
+            transparent 45deg 90deg,
+            #ffffff15 90deg 135deg,
+            transparent 135deg 180deg
+        ),
+        /* Central ornament */
+        radial-gradient(
+            ellipse at center,
+            #ffffff30 20%,
+            transparent 25%,
+            transparent 30%,
+            #ffffff20 35%,
+            transparent 40%
+        );
+    background-size: 100% 100%, 100% 100%, 20px 20px, 100% 100%;
 }
 
-/* Layered deck effect (bottom layer) */
+/* Layered deck effect (bottom layer) - creates even more depth */
 .card.face-down#deckCard::after {
     content: '';
     position: absolute;
@@ -152,11 +268,34 @@ body {
     left: 4px;
     right: 4px;
     bottom: 4px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    border: 2px solid #333;
-    border-radius: 4px;
+    background: linear-gradient(45deg, #1a237e, #303f9f); /* Match main card background */
+    border: 2px solid #0d47a1;
+    border-radius: 6px;
     z-index: -2;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    /* Add the same casino pattern as regular face-down cards (slightly fainter) */
+    background-image:
+        /* Outer ornate border */
+        linear-gradient(0deg, #ffffff30 0%, transparent 8%, transparent 92%, #ffffff30 100%),
+        linear-gradient(90deg, #ffffff30 0%, transparent 8%, transparent 92%, #ffffff30 100%),
+        /* Diamond pattern */
+        repeating-conic-gradient(
+            from 45deg at 50% 50%,
+            #ffffff15 0deg 45deg,
+            transparent 45deg 90deg,
+            #ffffff10 90deg 135deg,
+            transparent 135deg 180deg
+        ),
+        /* Central ornament */
+        radial-gradient(
+            ellipse at center,
+            #ffffff20 20%,
+            transparent 25%,
+            transparent 30%,
+            #ffffff15 35%,
+            transparent 40%
+        );
+    background-size: 100% 100%, 100% 100%, 20px 20px, 100% 100%;
 }
 
 /* Action buttons container */
@@ -306,11 +445,25 @@ body {
     gap: 7px;
 }
 
-/* Card hover effect */
+/* Enhanced hover area for better interaction */
+.card::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    z-index: -1;
+    border-radius: 12px;
+    pointer-events: auto;
+}
+
+/* Card hover effect - now more responsive */
 .card:hover {
-    box-shadow: 0 0 10px #007bff, 0 0 5px #764ba2;
-    opacity: 0.92;
+    box-shadow: 0 0 12px #007bff, 0 0 6px #764ba2;
+    opacity: 0.95;
     cursor: pointer;
+    transform: scale(1.02); /* Slight scale on hover */
 }
 
 /* Disabled card style */
@@ -332,8 +485,34 @@ body {
 
 /* Drag-and-drop highlight for grid cells */
 .card.drop-target {
-    outline: 3px dashed #007bff; /* Highlight drop targets */
-    box-shadow: 0 0 8px #007bff;
+    outline: 3px dashed #007bff; /* Simple dashed outline */
+    outline-offset: 4px; /* Space between card and outline */
+    box-shadow: 0 0 12px #007bff, 0 0 4px #007bff; /* Stronger glow */
+    transform: scale(1.05); /* Slightly enlarge the card */
+    background-color: rgba(0, 123, 255, 0.1) !important; /* Light blue background */
+    transition: all 0.2s ease; /* Smooth transition */
+}
+
+/* Enhanced drop zone - create a larger invisible drop area */
+.card.drop-target::before {
+    content: '';
+    position: absolute;
+    top: -15px;
+    left: -15px;
+    right: -15px;
+    bottom: -15px;
+    z-index: 1;
+    pointer-events: auto;
+    border-radius: 12px;
+}
+
+/* When actively dragging, make all potential drop targets more obvious */
+.card.drop-target.drag-active {
+    outline: 4px solid #007bff; /* Solid border when actively dragging */
+    outline-offset: 5px;
+    box-shadow: 0 0 20px #007bff, 0 0 8px #007bff;
+    transform: scale(1.08);
+    background-color: rgba(0, 123, 255, 0.15) !important;
 }
 
 /* Not droppable card style */
@@ -347,37 +526,55 @@ body {
     display: none;
     flex-direction: column;
     align-items: center;
-    margin-right: 20px;
+    margin-right: 15px;
+    margin-bottom: 10px;
 }
 
 /* Drawn card display style */
 #drawnCardDisplay {
     margin-bottom: 8px;
-    width: 70px;
-    height: 100px;
-    font-size: 20px;
+    width: 80px; /* Larger for better visibility */
+    height: 115px;
+    font-size: 24px; /* Larger text */
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px solid #333;
-    border-radius: 8px;
+    border-radius: 10px; /* Match card style */
     background: white;
     font-weight: bold;
     cursor: grab;
     user-select: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Card shadow */
+    position: relative; /* Ensure it stays in normal flow */
+    overflow: hidden; /* Ensure SVG doesn't overflow */
 }
 
 /* Drawn card drag effect */
 #drawnCardDisplay.dragging {
     opacity: 0.7;
-    box-shadow: 0 0 10px #007bff;
+    box-shadow: 0 0 10px #007bff, 0 2px 4px rgba(0,0,0,0.1);
 }
 
 /* Drawn card playable (ready to drop) */
 #drawnCardDisplay.playable {
     outline: 3px solid #007bff;
-    box-shadow: 0 0 12px #007bff;
+    box-shadow: 0 0 12px #007bff, 0 2px 4px rgba(0,0,0,0.1);
     border-color: #007bff;
+}
+
+/* Flippable cards in flip mode - show they can be clicked */
+.card.flippable {
+    cursor: pointer;
+    border-color: #28a745 !important;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.3) !important;
+    transition: all 0.2s ease;
+}
+
+.card.flippable:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(40, 167, 69, 0.5) !important;
+    border-color: #20c997 !important;
 }
 
 /* Discard card faded (when not available) */
@@ -456,4 +653,35 @@ body {
     font-size: 1.15em;
     align-self: flex-start;
     padding: 24px 32px;
+}
+
+/* Card count bar chart styles */
+.card-count-bar-container {
+    width: 120px;
+    height: 18px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-count-bar {
+    height: 100%;
+    border-radius: 2px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 8%;
+    transition: all 0.3s ease;
+}
+
+.card-count-text {
+    color: white;
+    font-weight: bold;
+    font-size: 11px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    position: absolute;
+    z-index: 1;
 }
