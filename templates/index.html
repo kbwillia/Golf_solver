@@ -1,3 +1,4 @@
+<!-- Main HTML for Golf Card Game UI -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,8 +19,8 @@
             padding: 12px 18px 16px 18px;
             border-radius: 14px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.10);
-            max-width: none;
-            width: calc(100vw - 880px); /* leave space for both side panels */
+            width: 60%; /* 100% of the parent container */
+            max-width: 900px;
             margin: 18px auto 18px auto;
             min-height: 0;
         }
@@ -37,6 +38,11 @@
             border: 2px solid #ddd;
             border-radius: 8px;
         }
+        .four-player-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
         .player-grid.current-turn {
             border-color: #007bff;
             background-color: #f8f9fa;
@@ -50,25 +56,8 @@
             70% { box-shadow: 0 0 0 8px rgba(0,123,255,0.1); }
             100% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
         }
-        /* .your-turn-badge {
-            position: absolute;
-            top: 10px;
-            right: 18px;
-            background: #007bff;
-            color: white;
-            padding: 4px 14px;
-            border-radius: 16px;
-            font-size: 1em;
-            font-weight: bold;
-            box-shadow: 0 2px 8px rgba(0,123,255,0.18);
-            z-index: 10;
-            animation: badge-pop 5.0s cubic-bezier(.68,-0.55,.27,1.55) both;
-        } */
-        @keyframes badge-pop {
-            0% { transform: scale(0.7); opacity: 0; }
-            60% { transform: scale(1.15); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+
+
         .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -243,7 +232,7 @@
         .center-panel {
             flex: 1.2;
             min-width: 220px;
-            max-width: 600px;
+            max-width: 300px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -285,7 +274,7 @@
             flex-direction: column;
             gap: 12px;
         }
-        .legend {
+        /* .legend {
             margin-top: 10px;
             padding: 6px 8px;
             background: #f8f9fa;
@@ -315,7 +304,7 @@
         .legend-card.face-up {
             background: white;
             border: 2px solid #333;
-        }
+        } */
         /* Drag-and-drop highlight for grid cells */
         .card.drop-target {
             outline: 3px dashed #007bff;
@@ -423,17 +412,23 @@
     </style>
 </head>
 <body>
+    <!-- Main container for the entire app -->
     <div class="container">
+        <!-- Header Section (Title) -->
         <div class="header">
             <h1>🏌️ Golf Card Game</h1>
         </div>
+        <!-- Setup and Game Board Wrapper -->
         <div class="setup-and-board">
+            <!-- Game Setup Panel (shown before game starts) -->
             <div class="game-setup" id="gameSetup">
                 <h2>Game Setup</h2>
+                <!-- Player Name Input -->
                 <p>
                     <label for="playerName">Your Name:</label>
                     <input type="text" id="playerName" placeholder="Enter your name" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" />
                 </p>
+                <!-- Game Mode Dropdown -->
                 <p>
                     <label>Game Mode:</label>
                     <select id="gameMode">
@@ -441,6 +436,7 @@
                         <option value="1v3">1 vs 3 AI</option>
                     </select>
                 </p>
+                <!-- Opponent Type Dropdown (hidden for 1v3) -->
                 <p id="opponentSection">
                     <label>Opponent Type:</label>
                     <select id="opponentType">
@@ -449,6 +445,7 @@
                         <option value="qlearning">Q-Learning AI</option>
                     </select>
                 </p>
+                <!-- Number of Holes Dropdown -->
                 <p>
                     <label for="numGames">Number of Holes:</label>
                     <select id="numGames" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;">
@@ -459,21 +456,31 @@
                         <option value="18">18</option>
                     </select>
                 </p>
+                <!-- Start/Restart Buttons -->
                 <button onclick="startGame()" class="btn btn-primary">Start Game</button>
                 <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
+                <!-- Setup View Timer (shows how long bottom cards are visible) -->
                 <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div>
             </div>
+            <!-- Main Game Board (shown after game starts) -->
             <div class="game-board" id="gameBoard">
+                <!-- Main Board Layout: Left, Center, Right Panels -->
                 <div class="main-board new-flex-layout">
+                    <!-- Left Panel: Game Info, Player Grids, Celebration GIFs, Match Summary -->
                     <div class="left-panel">
+                        <!-- Game Info (current game, round, etc.) -->
                         <div class="game-info" id="gameInfo"></div>
+                        <!-- Player Grids (all players' cards) -->
                         <div id="playerGrids"></div>
                     </div>
+                    <!-- Center Panel: Deck, Discard, Drawn Card Area -->
                     <div class="center-panel">
                         <div style="display: flex; flex-direction: row; align-items: flex-end;">
+                            <!-- Drawn Card Area (shows card drawn from deck) -->
                             <div id="drawnCardArea">
                                 <div id="drawnCardDisplay" draggable="true"></div>
                             </div>
+                            <!-- Deck and Discard Pile (vertical layout) -->
                             <div class="deck-discard-vertical">
                                 <div>
                                     <h4>Deck</h4>
@@ -486,25 +493,13 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="legend">
-                            <h4>Card Legend:</h4>
-                            <div class="legend-item">
-                                <div class="legend-card face-down"></div>
-                                Face-down (unknown)
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-card privately-visible"></div>
-                                Privately visible to you
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-card face-up"></div>
-                                Public (known to all)
-                            </div>
-                        </div>
                     </div>
+                    <!-- Right Panel: Probabilities Panel, Cumulative Score Chart -->
                     <div class="right-panel always-right-panel">
                         <div id="probabilitiesPanelContainer" style="width:100%;margin-top:auto;">
+                            <!-- Probabilities Panel (deck composition, odds, etc.) -->
                             <div id="probabilitiesPanel"></div>
+                            <!-- Cumulative Score Chart (line chart per round) -->
                             <div style="margin-top:32px;">
                                 <canvas id="cumulativeScoreChart" height="180"></canvas>
                             </div>
@@ -515,7 +510,7 @@
         </div>
     </div>
 
-    <!-- Position Selection Modal -->
+    <!-- Position Selection Modal (for choosing where to place a card) -->
     <div id="positionModal" class="modal">
         <div class="modal-content">
             <h3 id="modalTitle">Select Position</h3>
@@ -524,11 +519,12 @@
         </div>
     </div>
 
-    <!-- Celebration Panel: now outside main container for left alignment -->
+    <!-- Celebration Panel (shows GIFs and match summary, left side, outside main container) -->
     <div id="celebrationPanelContainer">
         <div id="celebrationPanel"></div>
     </div>
 
+    <!-- Main JavaScript for all UI/game logic -->
     <script>
         let currentGameState = null; // Holds the current game state from backend
         let gameId = null; // Unique game session ID
@@ -638,7 +634,7 @@
                     updateGameDisplay();
 
                     if (data.game_over) {
-                        showGameOverModal();
+                        // Game over - no modal needed
                     }
                 }
             } catch (error) {
@@ -724,6 +720,12 @@
         function updatePlayerGrids() {
             const container = document.getElementById('playerGrids');
             container.innerHTML = '';
+            // Add or remove four-player-grid class
+            if (currentGameState.players.length === 4) {
+                container.classList.add('four-player-grid');
+            } else {
+                container.classList.remove('four-player-grid');
+            }
             // Only clear timeout and remove animation if turn index changes
             const currentTurnIndex = currentGameState.current_turn;
             if (lastTurnIndex !== currentTurnIndex) {
@@ -1003,7 +1005,7 @@
                     // Immediately refresh to catch any AI moves or turn changes
                     refreshGameState();
                     if (data.game_state.game_over) {
-                        setTimeout(showGameOverModal, 500);  // Small delay to show final state. todo could delay more for anticipation
+                        // Game over - no modal needed
                     }
                 } else {
                     console.error('Action failed:', data.error);
@@ -1013,56 +1015,6 @@
                 console.error('Error executing action:', error);
                 alert('Error executing action. Please try again.');
             }
-        }
-
-        function showGameOverModal() {
-            if (!currentGameState || !currentGameState.scores) return;
-
-            const humanScore = currentGameState.scores[0];
-            let resultMessage = `Game Over!\n\nYour score: ${humanScore}\n`;
-
-            if (currentGameState.mode === '1v1') {
-                const aiScore = currentGameState.scores[1];
-                resultMessage += `AI score: ${aiScore}\n\n`;
-                if (humanScore < aiScore) {
-                    resultMessage += "🎉 YOU WIN! 🎉";
-                } else if (humanScore > aiScore) {
-                    resultMessage += "😔 AI wins 😔";
-                } else {
-                    resultMessage += "🤝 It's a tie! 🤝";
-                }
-            } else {
-                // 4-player game
-                const agentNames = ["Random AI", "Logic AI", "Q-Learning AI"];
-                for (let i = 1; i < currentGameState.scores.length; i++) {
-                    resultMessage += `${agentNames[i-1]} score: ${currentGameState.scores[i]}\n`;
-                }
-                resultMessage += "\n";
-
-                if (currentGameState.winner === 0) {
-                    resultMessage += "🎉 YOU WIN! 🎉";
-                } else {
-                    resultMessage += `😔 ${agentNames[currentGameState.winner - 1]} wins 😔`;
-                }
-            }
-
-            // Show modal inside the left celebration panel
-            const celebrationPanel = document.getElementById('celebrationPanel');
-            const modal = document.createElement('div');
-            modal.className = 'gameover-modal-inside';
-            modal.style.display = 'block';
-            modal.innerHTML = `
-                <div class="modal-content-inside">
-                    <h3>Game Over</h3>
-                    <pre style="white-space: pre-line;">${resultMessage}</pre>
-                    <button onclick="restartGame();this.closest('.gameover-modal-inside').remove();" class="btn btn-primary">Play Again</button>
-                </div>
-            `;
-            // Remove any previous modal
-            const prevModal = celebrationPanel.querySelector('.gameover-modal-inside');
-            if (prevModal) prevModal.remove();
-            celebrationPanel.appendChild(modal);
-            document.getElementById('restartBtn').style.display = 'inline-block';
         }
 
         function restartGame() {
@@ -1227,11 +1179,25 @@
             const probs = currentGameState.probabilities;
             let html = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
             html += '<h4 style="margin-top:0;">Probabilities</h4>';
+
+            // Expected Value Comparison (most important - show first)
+            if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                const ev = probs.expected_value_draw_vs_discard;
+                html += '<div style="margin-bottom:12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:4px solid #007bff;">';
+                html += '<div style="font-weight:bold;color:#007bff;margin-bottom:4px;">🎯 Strategic Recommendation:</div>';
+                html += `<div style="font-size:14px;margin-bottom:2px;"><b>${ev.recommendation}</b></div>`;
+                html += `<div style="font-size:12px;color:#666;">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
+                if (ev.discard_card) {
+                    html += `<div style="font-size:12px;color:#666;">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
+                }
+                html += '</div>';
+            }
+
             // Deck composition
             if (probs.deck_counts) {
                 // Desired order: J, A, 2-10, Q, K
                 const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
-                html += '<div><b>Deck Composition:</b>';
+                html += '<div><b>(Unknown Cards left):</b>';
                 html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:50%;border-collapse:collapse;">';
                 html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
                 for (const rank of order) {

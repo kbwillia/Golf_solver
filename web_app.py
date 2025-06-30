@@ -11,7 +11,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 1.0  # seconds
+AI_TURN_DELAY = 2.5  # seconds
 
 def run_until_human_or_gameover(game, game_session=None):
     """Run AI turns until it's the human player's turn or game is over"""
