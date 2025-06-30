@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golf Card Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -449,7 +450,7 @@
                     </select>
                 </p>
                 <p>
-                    <label for="numGames">Number of Games:</label>
+                    <label for="numGames">Number of Holes:</label>
                     <select id="numGames" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;">
                         <option value="1">1</option>
                         <option value="3">3</option>
@@ -502,7 +503,12 @@
                         </div>
                     </div>
                     <div class="right-panel always-right-panel">
-                        <!-- Probabilities panel moved outside main container -->
+                        <div id="probabilitiesPanelContainer" style="width:100%;margin-top:auto;">
+                            <div id="probabilitiesPanel"></div>
+                            <div style="margin-top:32px;">
+                                <canvas id="cumulativeScoreChart" height="180"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -521,11 +527,6 @@
     <!-- Celebration Panel: now outside main container for left alignment -->
     <div id="celebrationPanelContainer">
         <div id="celebrationPanel"></div>
-    </div>
-
-    <!-- Probabilities Panel: now outside main container for right alignment -->
-    <div id="probabilitiesPanelContainer">
-        <div id="probabilitiesPanel"></div>
     </div>
 
     <script>
@@ -589,7 +590,7 @@
                 });
 
                 const data = await response.json();
-                if (data.success) {
+                if (data.success && data.game_state && data.game_state.players) {
                     gameId = data.game_id;
                     currentGameState = data.game_state;
                     document.getElementById('gameSetup').style.display = 'none';
@@ -617,7 +618,8 @@
                     }, SETUP_VIEW_SECONDS * 1000);
                     updateGameDisplay();
                 } else {
-                    alert('Error starting game: ' + (data.error || 'Unknown error'));
+                    console.error('Game start error:', data);
+                    alert('Error starting game: ' + (data.error || 'Unexpected response from server. See console for details.'));
                 }
             } catch (error) {
                 console.error('Error starting game:', error);
@@ -714,6 +716,9 @@
             updatePlayerGrids();
             // Update probabilities panel
             updateProbabilitiesPanel();
+
+            // Update cumulative score chart
+            updateCumulativeScoreChart();
         }
 
         function updatePlayerGrids() {
@@ -1236,12 +1241,7 @@
                 }
                 html += '</tbody></table></div>';
             }
-            // Probability of drawing lower than min faceup (for human)
-            if (probs.prob_draw_lower_than_min_faceup && probs.prob_draw_lower_than_min_faceup.length > 0) {
-                html += `<div style="margin-top:8px;">`;
-                html += `<b>Prob. next card lower than your lowest face-up:</b> <span style="color:#007bff;">${probs.prob_draw_lower_than_min_faceup[0]}</span>`;
-                html += '</div>';
-            }
+
             // Probability of drawing a pair (for human)
             if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
                 html += `<div style="margin-top:4px;">`;
@@ -1256,6 +1256,90 @@
             }
             html += '</div>';
             panel.innerHTML = html;
+        }
+
+        // Draw a line chart of cumulative scores for all players
+        let cumulativeScoreChart = null;
+        let lastChartGameId = null;
+        let lastChartRound = null;
+        function updateCumulativeScoreChart() {
+            const ctx = document.getElementById('cumulativeScoreChart').getContext('2d');
+            if (!currentGameState || !currentGameState.cumulative_scores || !currentGameState.current_game) return;
+            // Build score history for each player, per round
+            if (!window.cumulativeScoreHistory || lastChartGameId !== gameId) {
+                // Reset history if new game session
+                window.cumulativeScoreHistory = [];
+                for (let i = 0; i < currentGameState.players.length; i++) {
+                    window.cumulativeScoreHistory.push([]);
+                }
+                window.cumulativeScoreLabels = [];
+                lastChartGameId = gameId;
+                lastChartRound = null;
+            }
+            // Always add a point for the first round of the first game if not present
+            if (window.cumulativeScoreLabels.length === 0 && currentGameState.round === 1) {
+                for (let i = 0; i < currentGameState.players.length; i++) {
+                    window.cumulativeScoreHistory[i].push(currentGameState.cumulative_scores[i]);
+                }
+                window.cumulativeScoreLabels.push('G1R1');
+                lastChartRound = 'G1R1';
+            }
+            // Only update if new round or game over
+            const roundKey = `G${currentGameState.current_game}R${currentGameState.round}`;
+            if (window.cumulativeScoreLabels[window.cumulativeScoreLabels.length - 1] !== roundKey && (currentGameState.round > 1 || currentGameState.current_game > 1 || currentGameState.game_over)) {
+                for (let i = 0; i < currentGameState.players.length; i++) {
+                    window.cumulativeScoreHistory[i].push(currentGameState.cumulative_scores[i]);
+                }
+                window.cumulativeScoreLabels.push(roundKey);
+                lastChartRound = roundKey;
+            } else if (window.cumulativeScoreLabels[window.cumulativeScoreLabels.length - 1] === roundKey) {
+                // No new round, don't update chart
+                return;
+            }
+            // X axis: per round (G1R1, G1R2, ...)
+            const labels = window.cumulativeScoreLabels;
+            // Colors for each player
+            const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2', '#f39c12', '#e74c3c'];
+            const datasets = currentGameState.players.map((player, i) => ({
+                label: player.name,
+                data: window.cumulativeScoreHistory[i],
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length],
+                fill: false,
+                tension: 0.2,
+                pointRadius: 1,
+                pointHoverRadius: 5
+            }));
+            if (cumulativeScoreChart) {
+                cumulativeScoreChart.data.labels = labels;
+                cumulativeScoreChart.data.datasets = datasets;
+                cumulativeScoreChart.update();
+            } else {
+                cumulativeScoreChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true, position: 'bottom' },
+                            title: { display: true, text: 'Cumulative Scores by Round' }
+                        },
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Game & Round' },
+                                ticks: { autoSkip: false }
+                            },
+                            y: {
+                                title: { display: true, text: 'Score' },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         // Show timer on initial load
