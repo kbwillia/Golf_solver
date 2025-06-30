@@ -59,56 +59,60 @@
                 <!-- Setup View Timer (shows how long bottom cards are visible) -->
                 <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div>
             </div>
-            <!-- Main Game Board (shown after game starts) -->
+            <!-- REDESIGNED: Modern responsive game board layout -->
             <div class="game-board" id="gameBoard">
-                <!-- Main Board Layout: Left, Center, Right Panels -->
-                <div class="main-board new-flex-layout">
-                    <!-- Left Panel: Game Info, Player Grids, Celebration GIFs, Match Summary -->
-                    <div class="left-panel">
-                        <!-- Game Info (current game, round, etc.) -->
+                <!-- MODERN LAYOUT: CSS Grid for perfect positioning and no overlap -->
+                <div class="game-grid-container">
+                    <!-- TOP: Game Info Bar (spans full width) -->
+                    <div class="game-info-bar">
                         <div class="game-info" id="gameInfo"></div>
-                        <!-- Player Grids (all players' cards) -->
-                        <div id="playerGrids"></div> <!-- Where all player grids are rendered -->
                     </div>
-                    <!-- Center Panel: Deck, Discard, Drawn Card Area -->
-                    <div class="center-panel">
-                        <div style="display: flex; flex-direction: row; align-items: flex-end;">
-                            <!-- Drawn Card Area (shows card drawn from deck) -->
-                            <div id="drawnCardArea">
-                                <div id="drawnCardDisplay" draggable="true"></div> <!-- Card drawn from deck -->
-                                <div id="drawnCardInstructions" style="font-size: 12px; text-align: center; margin-top: 8px; max-width: 120px; color: #666;">
-                                    Drag to replace or click a grid card to flip it
-                                </div>
-                            </div>
-                            <!-- Deck and Discard Pile (vertical layout) -->
-                            <div class="deck-discard-vertical">
-                                <div>
-                                    <h4>Deck</h4>
-                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div> <!-- Deck -->
-                                    <div id="deckSize" style="text-align: center; margin-top: 5px; font-size: 12px;"></div>
-                                </div>
-                                <div>
-                                    <h4>Discard</h4>
-                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div> <!-- Discard pile -->
-                                </div>
+
+                    <!-- Notification Area (left): badge, gifs, matchup summary -->
+                    <div class="notification-area">
+                        <div id="yourTurnBadge"></div>
+                        <div id="aiThinkingMessage"></div>
+                        <div id="gameOverBanner"></div>
+                        <div id="celebrationGif"></div>
+                        <div id="matchupSummary"></div>
+                    </div>
+
+                    <!-- Gameplay Area (center): player grids, deck/discard, drawn card -->
+                    <div class="gameplay-area">
+                        <div id="playerGrids"></div>
+                        <div id="drawnCardArea">
+                            <div id="drawnCardDisplay" draggable="true"></div>
+                            <div id="drawnCardInstructions">
+                                Drag to replace or click a grid card to flip it
                             </div>
                         </div>
+                        <div class="deck-discard-container">
+                            <div class="deck-area">
+                                <h4>Deck</h4>
+                                <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                <div id="deckSize"></div>
                             </div>
-                    <!-- Right Panel: Probabilities Panel, Cumulative Score Chart -->
-                    <div class="right-panel always-right-panel">
-                        <div id="probabilitiesPanelContainer" style="width:100%;margin-top:auto;">
-                            <!-- Probabilities Panel (deck composition, odds, etc.) -->
-                            <div id="probabilitiesPanel"></div>
-                            <!-- Cumulative Score Chart (line chart per round) -->
-                            <div style="margin-top:32px;">
-                                <canvas id="cumulativeScoreChart" height="180"></canvas>
+                            <div class="discard-area">
+                                <h4>Discard</h4>
+                                <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Probabilities Panel -->
+                    <div class="probabilities-area">
+                        <div id="probabilitiesPanel"></div>
+                        <!-- Cumulative Chart Below Probabilities -->
+                        <div class="chart-container">
+                            <canvas id="cumulativeScoreChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- REMOVED: External probabilities panel - now integrated into grid layout -->
 
     <!-- Position Selection Modal (for choosing where to place a card) -->
     <div id="positionModal" class="modal">
@@ -117,11 +121,6 @@
             <p id="modalMessage">Choose a position:</p>
             <div id="positionButtons" class="position-buttons"></div> <!-- 2x2 grid of position buttons -->
         </div>
-    </div>
-
-    <!-- Celebration Panel (shows GIFs and match summary, left side, outside main container) -->
-    <div id="celebrationPanelContainer">
-        <div id="celebrationPanel"></div>
     </div>
 
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->

@@ -160,18 +160,28 @@ function updateGameDisplay() {
     // Show current game number and total games
     const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
     let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
-    const celebrationPanel = document.getElementById('celebrationPanel');
-    celebrationPanel.innerHTML = '';
+
+    // Clear all notification area elements
+    document.getElementById('yourTurnBadge').innerHTML = '';
+    document.getElementById('aiThinkingMessage').innerHTML = '';
+    document.getElementById('gameOverBanner').innerHTML = '';
+    document.getElementById('celebrationGif').innerHTML = '';
+
     // Show AI thinking message if applicable
     if (currentGameState.ai_thinking) {
-        celebrationPanel.innerHTML = `<div style="font-size:1.15em;font-weight:bold;text-align:center;background:#28a745;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
-            AI is lining up its shot...</div>`;
+        document.getElementById('aiThinkingMessage').innerHTML =
+            `<div style="font-size:1.15em;font-weight:bold;text-align:center;background:#28a745;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
+                AI is lining up its shot...</div>`;
     } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-        celebrationPanel.innerHTML = `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
-            Your Turn!</div>` + celebrationPanel.innerHTML;
+        document.getElementById('yourTurnBadge').innerHTML =
+            `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
+                Your Turn!</div>`;
     }
+
     if (currentGameState.game_over) {
         infoText += ' - Game Over!';
+        document.getElementById('gameOverBanner').innerHTML =
+            `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div>`;
         // Show celebratory GIF in left panel if human wins
         let iconHtml = '';
         if (currentGameState.winner === 0) {
@@ -183,7 +193,8 @@ function updateGameDisplay() {
         } else if (typeof currentGameState.winner === 'number') {
             iconHtml = '🏆'; // AI wins
         }
-        celebrationPanel.innerHTML = `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div><div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
+        document.getElementById('celebrationGif').innerHTML =
+            `<div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
     }
 
     document.getElementById('gameInfo').textContent = infoText;
@@ -204,7 +215,7 @@ function updateGameDisplay() {
             summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
         }
         summaryHtml += `</div>`;
-        celebrationPanel.innerHTML = summaryHtml + celebrationPanel.innerHTML;
+        document.getElementById('matchupSummary').innerHTML = summaryHtml;
     }
 
     // Update deck size
@@ -572,9 +583,6 @@ function restartGame() {
     if (setupHideTimeout) clearTimeout(setupHideTimeout);
     if (setupViewInterval) clearInterval(setupViewInterval);
     showSetupViewTimer(SETUP_VIEW_SECONDS);
-    // Clear celebration panel on restart
-    const celebrationPanel = document.getElementById('celebrationPanel');
-    celebrationPanel.innerHTML = '';
 }
 
 // Close modals when clicking outside
@@ -755,49 +763,7 @@ function updateProbabilitiesPanel() {
         html += '</div>';
     }
 
-    // Deck composition with horizontal bar chart
-    if (probs.deck_counts) {
-        // Desired order: J, A, 2-10, Q, K
-        const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
-        const maxCount = Math.max(...Object.values(probs.deck_counts));
-
-        html += '<div><b>(Unknown Cards left):</b>';
-        html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
-        html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;width:150px;">Count</th></tr></thead><tbody>';
-
-        for (const rank of order) {
-            if (probs.deck_counts[rank] !== undefined) {
-                const count = probs.deck_counts[rank];
-                const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
-
-                // Color based on count: light green for low (0-1), yellow for medium (2-3), red for high (4)
-                let barColor;
-                if (count === 0) {
-                    barColor = '#dc3545'; // Red for 0 (cards are out)
-                } else if (count === 1) {
-                    barColor = '#ffc107'; // Yellow for 1 (low availability)
-                } else if (count <= 2) {
-                    barColor = '#fd7e14'; // Orange for 2 (medium-low)
-                } else if (count <= 3) {
-                    barColor = '#20c997'; // Teal for 3 (medium)
-                } else {
-                    barColor = '#28a745'; // Green for 4 (high availability)
-                }
-
-                html += `<tr><td style="padding-right:10px;padding:2px 0;">${rank}</td>`;
-                html += `<td style="padding:2px 0;">`;
-                html += `<div class="card-count-bar-container">`;
-                html += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
-                html += `<span class="card-count-text">${count}</span>`;
-                html += `</div>`;
-                html += `</div>`;
-                html += `</td></tr>`;
-            }
-        }
-        html += '</tbody></table></div>';
-    }
-
-    // Probability of drawing a pair (for human)
+    // Probability statistics (show ABOVE the chart)
     if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
         html += `<div style="margin-top:4px;">`;
         html += `<b>Prob. next card matches your grid:</b> <span style="color:#007bff;">${probs.prob_draw_pair[0]}</span>`;
@@ -809,6 +775,48 @@ function updateProbabilitiesPanel() {
         html += `<b>Prob. next card improves your hand:</b> <span style="color:#007bff;">${probs.prob_improve_hand[0]}</span>`;
         html += '</div>';
     }
+
+    // Deck composition with horizontal bar chart (show BELOW the statistics)
+    if (probs.deck_counts) {
+        // Desired order: J, A, 2-10, Q, K
+        const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
+        const maxCount = Math.max(...Object.values(probs.deck_counts));
+
+        html += '<div style="margin-top:8px;"><b>(Unknown Cards left):</b>';
+        html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
+        html += '<thead><tr><th style="text-align:left;padding-right:5px;width:25px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
+
+        for (const rank of order) {
+            if (probs.deck_counts[rank] !== undefined) {
+                const count = probs.deck_counts[rank];
+                const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+                // Color based on count: Swapped yellow and orange as requested
+                let barColor;
+                if (count === 0) {
+                    barColor = '#dc3545'; // Red for 0 (cards are out)
+                } else if (count === 1) {
+                    barColor = '#fd7e14'; // Orange for 1 (low availability) - SWAPPED
+                } else if (count <= 2) {
+                    barColor = '#ffc107'; // Yellow for 2 (medium-low) - SWAPPED
+                } else if (count <= 3) {
+                    barColor = '#20c997'; // Teal for 3 (medium)
+                } else {
+                    barColor = '#28a745'; // Green for 4 (high availability)
+                }
+
+                html += `<tr><td style="padding-right:5px;padding:2px 0;">${rank}</td>`;
+                html += `<td style="padding:2px 0;">`;
+                html += `<div class="card-count-bar-container">`;
+                html += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
+                html += `<span class="card-count-text">${count}</span>`;
+                html += `</div>`;
+                html += `</div>`;
+                html += `</td></tr>`;
+            }
+        }
+        html += '</tbody></table></div>';
+    }
     html += '</div>';
     panel.innerHTML = html;
 }
@@ -818,8 +826,16 @@ let cumulativeScoreChart = null;
 let lastChartGameId = null;
 let lastChartRound = null;
 function updateCumulativeScoreChart() {
-    const ctx = document.getElementById('cumulativeScoreChart').getContext('2d');
-    if (!currentGameState || !currentGameState.cumulative_scores || !currentGameState.current_game) return;
+    const canvas = document.getElementById('cumulativeScoreChart');
+    if (!canvas) {
+        console.log('Canvas element not found');
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!currentGameState || !currentGameState.cumulative_scores || !currentGameState.current_game) {
+        console.log('Missing game state data for chart');
+        return;
+    }
     // Build score history for each player, per round
     if (!window.cumulativeScoreHistory || lastChartGameId !== gameId) {
         // Reset history if new game session
