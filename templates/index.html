@@ -1,4 +1,4 @@
-<!-- Main HTML for Golf Card Game UI -->
+<!-- Main HTML for Golf Card Game UI --> <!-- Entry point for the Golf Card Game web app -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -39,17 +39,17 @@
             border-radius: 8px;
         }
         .four-player-grid {
-            display: grid;
+            display: grid; /* 2x2 grid for 4 players */
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
         .player-grid.current-turn {
-            border-color: #007bff;
+            border-color: #007bff; /* Highlight for current turn */
             background-color: #f8f9fa;
             position: relative;
         }
         .player-grid.current-turn.turn-animate {
-            animation: pulse-border 2.5s infinite;
+            animation: pulse-border 2.5s infinite; /* Border pulse animation */
         }
         @keyframes pulse-border {
             0% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
@@ -57,9 +57,8 @@
             100% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
         }
 
-
         .grid-container {
-            display: grid;
+            display: grid; /* 2x2 grid for cards */
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             max-width: 300px;
@@ -81,7 +80,7 @@
             transition: all 0.2s ease;
         }
         .card.face-down {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #667eea, #764ba2); /* Blue gradient for face-down */
             color: white;
         }
         .card.face-up {
@@ -89,11 +88,11 @@
             color: #333;
         }
         .card.privately-visible {
-            background: linear-gradient(45deg, #f39c12, #e67e22);
+            background: linear-gradient(45deg, #f39c12, #e67e22); /* Orange for private cards */
             color: white;
         }
         .card.public {
-            border-color: #28a745;
+            border-color: #28a745; /* Green border for public cards */
             box-shadow: 0 0 5px #28a745;
         }
         /* Layered deck effect */
@@ -185,7 +184,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.5); /* Overlay for modals */
         }
         .modal-content {
             background-color: white;
@@ -213,7 +212,7 @@
             align-items: center;
         }
         .main-board {
-            display: flex;
+            display: flex; /* Main layout: left, center, right panels */
             flex-direction: row;
             justify-content: flex-start;
             align-items: flex-start;
@@ -274,40 +273,10 @@
             flex-direction: column;
             gap: 12px;
         }
-        /* .legend {
-            margin-top: 10px;
-            padding: 6px 8px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin: 5px 0;
-        }
-        .legend-card {
-            width: 30px;
-            height: 20px;
-            margin-right: 10px;
-            border: 1px solid #333;
-            border-radius: 3px;
-        }
-        .legend-card.face-down {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border: 2px solid #333;
-        }
-        .legend-card.privately-visible {
-            background: linear-gradient(45deg, #f39c12, #e67e22);
-            border: 2px solid #b36b00;
-        }
-        .legend-card.face-up {
-            background: white;
-            border: 2px solid #333;
-        } */
+        /* .legend { ... }  Legend styles commented out for now */
         /* Drag-and-drop highlight for grid cells */
         .card.drop-target {
-            outline: 3px dashed #007bff;
+            outline: 3px dashed #007bff; /* Highlight drop targets */
             box-shadow: 0 0 8px #007bff;
         }
         .card.not-droppable {
@@ -412,9 +381,9 @@
     </style>
 </head>
 <body>
-    <!-- Main container for the entire app -->
+    <!-- Main container for the entire app --> <!-- App root -->
     <div class="container">
-        <!-- Header Section (Title) -->
+        <!-- Header Section (Title) --> <!-- Game title -->
         <div class="header">
             <h1>🏌️ Golf Card Game</h1>
         </div>
@@ -426,7 +395,7 @@
                 <!-- Player Name Input -->
                 <p>
                     <label for="playerName">Your Name:</label>
-                    <input type="text" id="playerName" placeholder="Enter your name" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" />
+                    <input type="text" id="playerName" placeholder="Enter your name" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" /> <!-- Name input -->
                 </p>
                 <!-- Game Mode Dropdown -->
                 <p>
@@ -434,7 +403,7 @@
                     <select id="gameMode">
                         <option value="1v1">1 vs 1 AI</option>
                         <option value="1v3">1 vs 3 AI</option>
-                    </select>
+                    </select> <!-- Game mode selection -->
                 </p>
                 <!-- Opponent Type Dropdown (hidden for 1v3) -->
                 <p id="opponentSection">
@@ -443,7 +412,7 @@
                         <option value="random">Random AI</option>
                         <option value="heuristic">Heuristic AI</option>
                         <option value="qlearning">Q-Learning AI</option>
-                    </select>
+                    </select> <!-- AI type selection -->
                 </p>
                 <!-- Number of Holes Dropdown -->
                 <p>
@@ -454,7 +423,7 @@
                         <option value="6">6</option>
                         <option value="9">9</option>
                         <option value="18">18</option>
-                    </select>
+                    </select> <!-- Number of games/holes -->
                 </p>
                 <!-- Start/Restart Buttons -->
                 <button onclick="startGame()" class="btn btn-primary">Start Game</button>
@@ -471,25 +440,25 @@
                         <!-- Game Info (current game, round, etc.) -->
                         <div class="game-info" id="gameInfo"></div>
                         <!-- Player Grids (all players' cards) -->
-                        <div id="playerGrids"></div>
+                        <div id="playerGrids"></div> <!-- Where all player grids are rendered -->
                     </div>
                     <!-- Center Panel: Deck, Discard, Drawn Card Area -->
                     <div class="center-panel">
                         <div style="display: flex; flex-direction: row; align-items: flex-end;">
                             <!-- Drawn Card Area (shows card drawn from deck) -->
                             <div id="drawnCardArea">
-                                <div id="drawnCardDisplay" draggable="true"></div>
+                                <div id="drawnCardDisplay" draggable="true"></div> <!-- Card drawn from deck -->
                             </div>
                             <!-- Deck and Discard Pile (vertical layout) -->
                             <div class="deck-discard-vertical">
                                 <div>
                                     <h4>Deck</h4>
-                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div> <!-- Deck -->
                                     <div id="deckSize" style="text-align: center; margin-top: 5px; font-size: 12px;"></div>
                                 </div>
                                 <div>
                                     <h4>Discard</h4>
-                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div> <!-- Discard pile -->
                                 </div>
                             </div>
                         </div>
@@ -515,7 +484,7 @@
         <div class="modal-content">
             <h3 id="modalTitle">Select Position</h3>
             <p id="modalMessage">Choose a position:</p>
-            <div id="positionButtons" class="position-buttons"></div>
+            <div id="positionButtons" class="position-buttons"></div> <!-- 2x2 grid of position buttons -->
         </div>
     </div>
 
@@ -524,7 +493,7 @@
         <div id="celebrationPanel"></div>
     </div>
 
-    <!-- Main JavaScript for all UI/game logic -->
+    <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
     <script>
         let currentGameState = null; // Holds the current game state from backend
         let gameId = null; // Unique game session ID
@@ -542,12 +511,17 @@
         let setupViewInterval = null; // Interval for setup view timer
         const SNAP_THRESHOLD = 110; // pixels
 
-        // Celebration GIFs for human win
-        const celebrationGifs = [
-            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWhleGUwam04bzZ0NnFnaWhybmZiZmM0ajMxc3RwZWNxNG15aHJkMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/xUOwG43OJ9Mzf4exQQ/giphy.gif",
-            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWhleGUwam04bzZ0NnFnaWhybmZiZmM0ajMxc3RwZWNxNG15aHJkMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/Zn7rsVqBTPAly/giphy.gif",
-            "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExa2J1bTJ5bXdsNm03cHJqMW8xcGtyMmExM2FibjFqd2k3OW9iMG5nOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/akiHW8qDydkm4/giphy.gif"
-        ];
+        // Celebration GIFs for human win (now loaded from JSON)
+        let celebrationGifs = [];
+        fetch('/static/golf_celebration_gifs.json')
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.data) {
+                    celebrationGifs = data.data
+                        .map(gif => gif.images && gif.images.downsized_medium && gif.images.downsized_medium.url)
+                        .filter(Boolean);
+                }
+            });
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
@@ -668,8 +642,11 @@
                 // Show celebratory GIF in left panel if human wins
                 let iconHtml = '';
                 if (currentGameState.winner === 0) {
-                    const gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
-                    iconHtml = `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);object-fit:contain;background:#fff;" />`;
+                    let gifUrl = '';
+                    if (celebrationGifs.length > 0) {
+                        gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+                    }
+                    iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);object-fit:contain;background:#fff;" />` : '';
                 } else if (typeof currentGameState.winner === 'number') {
                     iconHtml = '🏆'; // AI wins
                 }

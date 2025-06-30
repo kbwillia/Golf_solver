@@ -1,2 +1,4 @@
 numpy>=1.21.0
 flask
+requests
+json

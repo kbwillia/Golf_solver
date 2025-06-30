@@ -257,3 +257,38 @@ def expected_value_draw_vs_discard(game):
         'current_hand_score': current_score
     }
 
+def which_card_to_swap_for_discard(game):
+    """if the player wants to swap the discard card, which card should they swap it with?"""
+    # get the discard card
+    discard_card = game.discard_pile[-1]
+    # get the human player
+    human_player = game.players[0]
+    # get the available positions for the human player
+    available_positions = [i for i, known in enumerate(human_player.known) if not known]
+    # get the cards in the human player's grid
+    cards_in_grid = [card for card in human_player.grid if card]
+    # get the private deck counts
+    private_deck_counts = get_private_deck_counts(game)
+
+    # get the expected value of drawing from deck vs taking the discard card
+    #loop through each card and use probabilities of the private deck counts to get the expected value of swapping the discard card with that card
+    for card in cards_in_grid:
+        # get the probability of the card being in the private deck
+        probability = private_deck_counts[card.rank] / sum(private_deck_counts.values())
+        # get the expected value of swapping the discard card with that card
+        expected_value = probability * card.score()
+        # add the expected value to the list
+        expected_values.append(expected_value)
+    # return the card with the highest expected value
+    return cards_in_grid[expected_values.index(max(expected_values))]
+
+def which_card_to_swap_for_deck(game):
+    """if the player wants to swap the deck card, which card should they swap it with?"""
+    # get the deck card
+    deck_card = game.deck[-1]
+    # get the human player
+    human_player = game.players[0]
+    # get the available positions for the human player
+    available_positions = [i for i, known in enumerate(human_player.known) if not known]
+    # get the cards in the human player's grid
+    pass
