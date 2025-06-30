@@ -49,7 +49,7 @@
             70% { box-shadow: 0 0 0 8px rgba(0,123,255,0.1); }
             100% { box-shadow: 0 0 0 0 rgba(0,123,255,0.5); }
         }
-        .your-turn-badge {
+        /* .your-turn-badge {
             position: absolute;
             top: 10px;
             right: 18px;
@@ -62,7 +62,7 @@
             box-shadow: 0 2px 8px rgba(0,123,255,0.18);
             z-index: 10;
             animation: badge-pop 5.0s cubic-bezier(.68,-0.55,.27,1.55) both;
-        }
+        } */
         @keyframes badge-pop {
             0% { transform: scale(0.7); opacity: 0; }
             60% { transform: scale(1.15); opacity: 1; }
@@ -235,14 +235,14 @@
         }
         .left-panel {
             flex: 2;
-            min-width: 0;
+            min-width: 120;
             margin-right: 0;
             padding-right: 4px;
         }
         .center-panel {
             flex: 1.2;
             min-width: 220px;
-            max-width: 680px;
+            max-width: 600px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -405,19 +405,19 @@
             top: 40px;
             left: 20px;
             z-index: 100;
-            min-width: 320px;
-            max-width: 420px;
-            width: 380px;
+            min-width: 420px;
+            max-width: 600px;
+            width: 520px;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
         }
         #celebrationPanel {
-            min-width: 300px;
-            max-width: 400px;
+            min-width: 380px;
+            max-width: 560px;
             font-size: 1.15em;
             align-self: flex-start;
-            padding: 18px 24px;
+            padding: 24px 32px;
         }
     </style>
 </head>
@@ -529,6 +529,14 @@
         let setupCardsHidden = false; // Whether setup cards are hidden
         const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom cards
         let setupViewInterval = null; // Interval for setup view timer
+        const SNAP_THRESHOLD = 110; // pixels
+
+        // Celebration GIFs for human win
+        const celebrationGifs = [
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWhleGUwam04bzZ0NnFnaWhybmZiZmM0ajMxc3RwZWNxNG15aHJkMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/xUOwG43OJ9Mzf4exQQ/giphy.gif",
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWhleGUwam04bzZ0NnFnaWhybmZiZmM0ajMxc3RwZWNxNG15aHJkMCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/Zn7rsVqBTPAly/giphy.gif",
+            "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExa2J1bTJ5bXdsNm03cHJqMW8xcGtyMmExM2FibjFqd2k3OW9iMG5nOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/akiHW8qDydkm4/giphy.gif"
+        ];
 
         // Hide opponent selection for 1v3 mode
         document.getElementById('gameMode').addEventListener('change', function() {
@@ -639,14 +647,15 @@
             }
             if (currentGameState.game_over) {
                 infoText += ' - Game Over!';
-                // Show celebratory icon in left panel
-                let icon = '🏆';
+                // Show celebratory GIF in left panel if human wins
+                let iconHtml = '';
                 if (currentGameState.winner === 0) {
-                    icon = '🎉'; // Human wins
+                    const gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+                    iconHtml = `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.18);object-fit:contain;background:#fff;" />`;
                 } else if (typeof currentGameState.winner === 'number') {
-                    icon = '🏆'; // AI wins
+                    iconHtml = '🏆'; // AI wins
                 }
-                celebrationPanel.innerHTML += `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div><div style="font-size:4em;text-align:center;margin-top:20px;">${icon}</div>`;
+                celebrationPanel.innerHTML = `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div><div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
             }
 
             document.getElementById('gameInfo').textContent = infoText;
@@ -732,10 +741,7 @@
                 let scoreText = '';
                 let badgeHtml = '';
                 if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
-                    scoreText = ` - Public Score: ${currentGameState.public_scores[index]}`;
-                    // if (isHuman && currentGameState.private_scores && typeof currentGameState.private_scores[index] !== 'undefined' && currentGameState.private_scores[index] !== null) {
-                    //     scoreText += `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Private: ${currentGameState.private_scores[index]})`;
-                    // }
+                    scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
                     if (currentGameState.game_over && index === currentGameState.winner) {
                         scoreText += ' 🏆';
                     }
@@ -980,7 +986,7 @@
                 }
             } else {
                 // 4-player game
-                const agentNames = ["Random AI", "Heuristic AI", "Q-Learning AI"];
+                const agentNames = ["Random AI", "Logic AI", "Q-Learning AI"];
                 for (let i = 1; i < currentGameState.scores.length; i++) {
                     resultMessage += `${agentNames[i-1]} score: ${currentGameState.scores[i]}\n`;
                 }
@@ -1081,13 +1087,60 @@
             });
         });
 
+        // Helper to animate snap effect
+        function animateSnapToGrid(cardElem, targetElem, callback) {
+            const cardRect = cardElem.getBoundingClientRect();
+            const targetRect = targetElem.getBoundingClientRect();
+            // Create a clone
+            const clone = cardElem.cloneNode(true);
+            document.body.appendChild(clone);
+            clone.style.position = 'fixed';
+            clone.style.left = cardRect.left + 'px';
+            clone.style.top = cardRect.top + 'px';
+            clone.style.width = cardRect.width + 'px';
+            clone.style.height = cardRect.height + 'px';
+            clone.style.zIndex = 9999;
+            clone.style.pointerEvents = 'none';
+            clone.style.transition = 'all 0.2s cubic-bezier(.4,1.4,.6,1)';
+            // Hide original
+            cardElem.style.visibility = 'hidden';
+            // Animate to target
+            requestAnimationFrame(() => {
+                clone.style.left = targetRect.left + 'px';
+                clone.style.top = targetRect.top + 'px';
+            });
+            // After animation, remove clone and callback
+            setTimeout(() => {
+                clone.remove();
+                cardElem.style.visibility = '';
+                if (callback) callback();
+            }, 200);
+        }
+
         function handleDropOnGrid(pos) {
+            // Find the grid cell element
+            const gridCells = document.querySelectorAll('.player-grid.current-turn .grid-container .card');
+            let targetElem = null;
+            gridCells.forEach(cell => {
+                if (parseInt(cell.getAttribute('data-position')) === pos) {
+                    targetElem = cell;
+                }
+            });
+            // Drawn card drop
             if (drawnCardDragActive && drawnCardData) {
-                // Keep the drawn card at this position
-                executeAction(pos, 'draw_keep');
-                hideDrawnCardArea();
+                const drawnCardElem = document.getElementById('drawnCardDisplay');
+                if (targetElem && drawnCardElem) {
+                    animateSnapToGrid(drawnCardElem, targetElem, () => {
+                        executeAction(pos, 'draw_keep');
+                        hideDrawnCardArea();
+                    });
+                } else {
+                    executeAction(pos, 'draw_keep');
+                    hideDrawnCardArea();
+                }
                 return;
             }
+            // Discard card drop
             if (!dragActive) return;
             if (currentGameState.current_turn !== 0 || currentGameState.game_over || !currentGameState.discard_top) return;
             const card = currentGameState.players[0].grid[pos];
@@ -1098,7 +1151,14 @@
                 alert('The discard card has changed. Please try again.');
                 return;
             }
-            executeAction(pos, 'take_discard');
+            const discardCardElem = document.getElementById('discardCard');
+            if (targetElem && discardCardElem) {
+                animateSnapToGrid(discardCardElem, targetElem, () => {
+                    executeAction(pos, 'take_discard');
+                });
+            } else {
+                executeAction(pos, 'take_discard');
+            }
         }
 
         function flipDrawnCardOnGrid(pos) {
@@ -1125,11 +1185,11 @@
                 // Desired order: J, A, 2-10, Q, K
                 const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
                 html += '<div><b>Deck Composition:</b>';
-                html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
+                html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:50%;border-collapse:collapse;">';
                 html += '<thead><tr><th style="text-align:left;padding-right:10px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
                 for (const rank of order) {
                     if (probs.deck_counts[rank] !== undefined) {
-                        html += `<tr><td style="padding-right:10px;">${rank}</td><td>${probs.deck_counts[rank]}</td></tr>`;
+                        html += `<tr><td style="padding-right:0px;">${rank}</td><td>${probs.deck_counts[rank]}</td></tr>`;
                     }
                 }
                 html += '</tbody></table></div>';
@@ -1160,6 +1220,25 @@
         document.addEventListener('DOMContentLoaded', function() {
             showSetupViewTimer(SETUP_VIEW_SECONDS);
         });
+
+        function onDrop(card, slot) {
+            const cardRect = card.getBoundingClientRect();
+            const slotRect = slot.getBoundingClientRect();
+
+            const dx = cardRect.left - slotRect.left;
+            const dy = cardRect.top - slotRect.top;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < SNAP_THRESHOLD) {
+                // Snap the card to the slot
+                card.style.transition = 'all 0.2s';
+                card.style.left = `${slotRect.left}px`;
+                card.style.top = `${slotRect.top}px`;
+                // Optionally, update your game state here
+            } else {
+                // Return card to original position or handle as invalid drop
+            }
+        }
     </script>
 </body>
 </html>
