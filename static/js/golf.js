@@ -359,7 +359,6 @@ function updatePlayerGrids() {
 
             if (isHuman && pos >= 2) {
                 if (!setupCardsHidden) {
-                    console.log(`🔍 Bottom cards visible - setupCardsHidden: ${setupCardsHidden}, game: ${currentGameState.current_game}`);
                     cardClass += ' privately-visible'; // Show bottom cards at setup
                     displayContent = getCardDisplayContent(card, false);
                     isFaceDown = false;
@@ -368,7 +367,6 @@ function updatePlayerGrids() {
                     displayContent = getCardDisplayContent(card, false);
                     isFaceDown = false;
                 } else {
-                    console.log(`🚫 Bottom cards hidden - setupCardsHidden: ${setupCardsHidden}, game: ${currentGameState.current_game}`);
                     cardClass += ' face-down'; // Hide after setup
                     displayContent = '';
                     isFaceDown = true;
@@ -468,7 +466,8 @@ async function takeDiscard() {
         return;
     }
 
-    showPositionModal('Take Discard Card', 'Choose position to place the discard card:', availablePositions, 'take_discard');
+    // Now using drag-and-drop instead of modal
+    alert('Drag the discard card to a position in your grid to place it.');
 }
 
 async function drawFromDeck() {
@@ -566,50 +565,10 @@ function getAvailablePositions() {
     return positions;
 }
 
-function showPositionModal(title, message, positions, actionType) {
-    currentAction = actionType;
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalMessage').textContent = message;
-
-    const buttonsContainer = document.getElementById('positionButtons');
-    buttonsContainer.innerHTML = '';
-
-    // Get the human player's grid
-    const humanPlayer = currentGameState.players[0];
-
-    // Create a 2x2 grid of buttons (positions 0-3)
-    for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-            const pos = row * 2 + col;
-            if (positions.includes(pos)) {
-                let cardLabel = '?';
-                const card = humanPlayer.grid[pos];
-                if (card) {
-                    if (card.visible) {
-                        cardLabel = `${card.rank}${card.suit}`;
-                    } else {
-                        cardLabel = '?';
-                    }
-                }
-                const button = document.createElement('button');
-                button.className = 'btn btn-primary';
-                button.textContent = cardLabel;
-                button.onclick = () => executeAction(pos, actionType);
-                buttonsContainer.appendChild(button);
-            } else {
-                // Add an invisible placeholder to keep grid shape
-                const placeholder = document.createElement('div');
-                placeholder.style.visibility = 'hidden';
-                buttonsContainer.appendChild(placeholder);
-            }
-        }
-    }
-
-    document.getElementById('positionModal').style.display = 'block';
-}
+// Position modal functions removed - now using drag-and-drop
 
 async function executeAction(position, actionType = null) {
-    document.getElementById('positionModal').style.display = 'none';
+    // Position modal removed - no need to hide it
 
     const action = {
         game_id: gameId,
@@ -674,15 +633,7 @@ function restartGame() {
     updateGameDisplay();
 }
 
-// Close modals when clicking outside
-window.onclick = function(event) {
-    const modals = document.getElementsByClassName('modal');
-    for (let modal of modals) {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    }
-}
+// Modal closing logic removed - no modals in use
 
 // Periodically refresh game state to catch AI moves
 setInterval(() => {
@@ -843,15 +794,15 @@ function updateProbabilitiesPanel() {
 
     // LEFT COLUMN: Unknown Cards Chart
     if (unknownCardsPanel && probs.deck_counts) {
-        let unknownHtml = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
-        unknownHtml += '<h4 style="margin-top:0;">Cards Left</h4>';
+        let unknownHtml = '<div class="probabilities-panel-box">';
+        unknownHtml += '<h4 class="probabilities-title">Cards Left</h4>';
 
         // Desired order: J, A, 2-10, Q, K
         const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
         const maxCount = Math.max(...Object.values(probs.deck_counts));
 
-        unknownHtml += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
-        unknownHtml += '<thead><tr><th style="text-align:left;padding-right:5px;width:25px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
+        unknownHtml += '<table class="probabilities-table">';
+        unknownHtml += '<thead><tr><th class="rank-header">Rank</th><th class="count-header">Count</th></tr></thead><tbody>';
 
         for (const rank of order) {
             if (probs.deck_counts[rank] !== undefined) {
@@ -859,23 +810,23 @@ function updateProbabilitiesPanel() {
                 const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
 
                 // Color based on count
-                let barColor;
+                let barColorClass;
                 if (count === 0) {
-                    barColor = '#dc3545'; // Red for 0 (cards are out)
+                    barColorClass = 'card-bar-red';
                 } else if (count === 1) {
-                    barColor = '#fd7e14'; // Orange for 1 (low availability)
+                    barColorClass = 'card-bar-orange';
                 } else if (count <= 2) {
-                    barColor = '#ffc107'; // Yellow for 2 (medium-low)
+                    barColorClass = 'card-bar-yellow';
                 } else if (count <= 3) {
-                    barColor = '#20c997'; // Teal for 3 (medium)
+                    barColorClass = 'card-bar-teal';
                 } else {
-                    barColor = '#28a745'; // Green for 4 (high availability)
+                    barColorClass = 'card-bar-green';
                 }
 
-                unknownHtml += `<tr><td style="padding-right:5px;padding:2px 0;">${rank}</td>`;
-                unknownHtml += `<td style="padding:2px 0;">`;
+                unknownHtml += `<tr><td class="rank-cell">${rank}</td>`;
+                unknownHtml += `<td class="count-cell">`;
                 unknownHtml += `<div class="card-count-bar-container">`;
-                unknownHtml += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
+                unknownHtml += `<div class="card-count-bar ${barColorClass}" style="width:${Math.max(barWidth, 8)}%;">`;
                 unknownHtml += `<span class="card-count-text">${count}</span>`;
                 unknownHtml += `</div>`;
                 unknownHtml += `</div>`;
@@ -888,32 +839,32 @@ function updateProbabilitiesPanel() {
 
     // RIGHT COLUMN: Other Probabilities
     if (otherProbabilitiesPanel) {
-        let otherHtml = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
-        otherHtml += '<h4 style="margin-top:0;">Probabilities</h4>';
+        let otherHtml = '<div class="probabilities-panel-box">';
+        otherHtml += '<h4 class="probabilities-title">Probabilities</h4>';
 
         // Expected Value Comparison (most important - show first)
         if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
             const ev = probs.expected_value_draw_vs_discard;
-            otherHtml += '<div style="margin-bottom:12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:4px solid #007bff;">';
-            otherHtml += '<div style="font-weight:bold;color:#007bff;margin-bottom:4px;">🎯 Strategic Recommendation:</div>';
-            otherHtml += `<div style="font-size:14px;margin-bottom:2px;"><b>${ev.recommendation}</b></div>`;
-            otherHtml += `<div style="font-size:12px;color:#666;">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
+            otherHtml += '<div class="probabilities-bar">';
+            otherHtml += '<div class="probabilities-bar-title">🎯 Strategic Recommendation:</div>';
+            otherHtml += `<div class="probabilities-bar-main"><b>${ev.recommendation}</b></div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
             if (ev.discard_card) {
-                otherHtml += `<div style="font-size:12px;color:#666;">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
+                otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
             }
             otherHtml += '</div>';
         }
 
         // Probability statistics
         if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
-            otherHtml += `<div style="margin-top:4px;">`;
-            otherHtml += `<b>Prob. next card matches your grid:</b> <span style="color:#007bff;">${probs.prob_draw_pair[0]}</span>`;
+            otherHtml += `<div class="probabilities-stat">`;
+            otherHtml += `<b>Prob. next card matches your grid:</b> <span class="probability-blue">${probs.prob_draw_pair[0]}</span>`;
             otherHtml += '</div>';
         }
         // Probability of drawing a card that improves your hand (for human)
         if (probs.prob_improve_hand && probs.prob_improve_hand.length > 0) {
-            otherHtml += `<div style="margin-top:4px;">`;
-            otherHtml += `<b>Prob. next card improves your hand:</b> <span style="color:#007bff;">${probs.prob_improve_hand[0]}</span>`;
+            otherHtml += `<div class="probabilities-stat">`;
+            otherHtml += `<b>Prob. next card improves your hand:</b> <span class="probability-blue">${probs.prob_improve_hand[0]}</span>`;
             otherHtml += '</div>';
         }
 
@@ -1167,10 +1118,11 @@ discardCard.onclick = function() {
 };
 
 function handleGameEnd() {
-    console.log('Game ended, fetching new state...');
-    // fetch logic
-    console.log('New state received:', newState);
-    console.log('Updating display...');
-    updateGameDisplay();
-    console.log('Display updated');
+    // Immediately fetch new game state, don't wait for polling
+    fetch(`/game_state/${gameId}`)
+        .then(response => response.json())
+        .then(newState => {
+            currentGameState = newState;
+            updateGameDisplay(); // Force immediate UI update
+        });
 }
