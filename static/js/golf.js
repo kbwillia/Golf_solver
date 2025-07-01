@@ -378,14 +378,14 @@ function updatePlayerGrids() {
         if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
             scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
             if (currentGameState.cumulative_scores && typeof currentGameState.cumulative_scores[index] !== 'undefined') {
-                scoreText += ` (Cumulative: ${currentGameState.cumulative_scores[index]})`;
+                scoreText;
             }
             if (currentGameState.game_over && index === currentGameState.winner) {
                 scoreText += '';
             }
         }
         playerDiv.innerHTML = `
-            <h3>${player.name}${scoreText}</h3> /
+            <h3>${player.name}${scoreText}</h3>
             ${badgeHtml}
             <div class="grid-container">${gridHtml}</div>
         `; //this is where Human (human) and AI (AI) are displayed
