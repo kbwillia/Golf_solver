@@ -53,7 +53,9 @@ fetch('/static/golf_celebration_gifs.json')
     .then(data => {
         if (data && data.data) {
             celebrationGifs = data.data
-                .map(gif => gif.images && gif.images.downsized_medium && gif.images.downsized_medium.url)
+                // .map(gif => gif.images && gif.images.downsized_medium && gif.images.downsized_medium.url)
+                .map(gif => gif.images && gif.images.downsized_large && gif.images.downsized_large.url)
+
                 .filter(Boolean);
         }
     });

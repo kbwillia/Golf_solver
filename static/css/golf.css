@@ -1,10 +1,14 @@
 /* Main page body styles */
-body { /* Page body */
+body, html {
     font-family: Arial, sans-serif; /* Set font */
-    max-width: none; /* Remove max width */
+    max-width: 100%; /* Remove max width */
     margin: 0; /* Remove default margin */
     padding: 0; /* Remove default padding */
     background-color: #f0f0f0; /* Light gray background */
+    background: #898383; /* light gray for testing */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    overflow-y: auto;
+    height: 100%;
 }
 
 #setupViewTimer {
@@ -18,21 +22,29 @@ body { /* Page body */
     font-size: 1.4em !important;
 }
 
+.game-grid-container,
+.gameplay-area,
+.probabilities-area {
+    min-height: 0;      /* Allow to shrink to fit grid cell */
+    height: 100%;       /* Fill parent grid cell */
+}
 
 
 /* COMPACT RESPONSIVE CONTAINER: Minimal spacing */
-.container { /* Main app container */
-    /* background: rgb(119, 154, 198, 0.95); */
+.container {
+    /* Main app container: fills the viewport, never exceeds it */
     padding: 5px; /* Small padding */
-    /* border-radius: 32px; Rounded corners */
-    /* box-shadow: 0 4px 20px rgba(0,0,0,0.1); Subtle shadow */
     background: url('/static/4k-golf-1.jpg') center center/cover no-repeat;
-    width: 100vw;
-    max-width: 100vw;
+    /* width: 100vw; */
+    max-width: 100%;
     margin: 0;
-    min-height: 100vh;
+    /* min-height: 100vh; Always at least as tall as the viewport */
     height: 100vh;
-    /* box-sizing: border-box; Include padding/border in size */
+    min-height: 0;
+    max-height: 100vh;
+    overflow: hidden; /* or overflow-y: auto; */
+    box-sizing: border-box; /* Include padding/border in size */
+    border: 3px solid red;
 }
 
 /* Setup section at the top of the game */
@@ -41,7 +53,12 @@ body { /* Page body */
     margin-bottom: 18px;
 }
 
-/* MODERN GAME BOARD: Full responsive layout */
+/*
+ * .game-board: Main wrapper for the game area (shown during gameplay, hidden during setup)
+ *   - Parent: .container
+ *   - Child: .game-grid-container
+ *   - Purpose: Contains the grid layout for the main game interface
+ */
 .game-board {
     display: none;
     width: 100%;
@@ -49,16 +66,23 @@ body { /* Page body */
     min-height: 0;
 }
 
-/* CSS GRID LAYOUT: Compact with minimal top spacing */
+/*
+ * .game-grid-container: Main CSS Grid for the game columns
+ *   - Parent: .game-board
+ *   - Children: .notification-area (left), .gameplay-area (center), .probabilities-area (right)
+ *   - Purpose: Lays out the three main columns of the game using CSS Grid
+ */
 .game-grid-container {
+    /* Main grid for layout: fills container, never exceeds it */
     display: grid;
-    grid-template-columns: 1fr 2.5fr 2fr;
+    grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr);
     grid-template-areas: "notification gameplay probabilities";
-    gap: 0px; /* Removed gap to eliminate white space */
+    gap: 0px; /* No gap between columns */
     width: 100vw;
-    max-width: 100vw;
-    height: 100vh;
-    min-height: 100vh;
+    /* max-width: 100vw; */
+    min-height: 0;
+    height: 100%; /* Fills parent (.container) */
+    box-sizing: border-box;
 }
 
 /* RESPONSIVE: Adjust for smaller screens */
@@ -74,7 +98,7 @@ body { /* Page body */
         grid-template-rows: auto auto auto auto;
         grid-template-areas:
             "info-bar"
-            "golf-green"
+            /* "golf-green" */
             "players-area"
             "probabilities";
         max-height: none; /* Allow scrolling on mobile if needed */
@@ -93,19 +117,21 @@ body { /* Page body */
 
 /* Notification Area (left): badge, gifs, matchup summary */
 .notification-area {
+    /* Left column: scrolls if content overflows, never exceeds grid cell */
     grid-area: notification;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    min-width: 400px;
-    max-width: 600px;
+    min-width: 30px;
+    /* max-width: 300px; */
     align-items: stretch;
-    /* background: rgba(230, 249, 230, 0.75); */
-    border-radius: 12px;  /* Optional: rounded corners for a nice look */
-    padding: 16px; /* Add padding to the notification area */
-    min-height: 100vh;
+    border-radius: 12px;
+    padding: 16px;
+    min-height: 0;
     height: 100%;
     box-sizing: border-box;
+    overflow-y: auto;
+    border: 3px solid green;
 }
 
 /* Game Info Display in notification area */
@@ -176,21 +202,21 @@ body { /* Page body */
 
 /* Gameplay Area (center): player grids, deck/discard, drawn card */
 .gameplay-area {
+    /* Center gameplay column: fills available height, scrolls if needed */
     grid-area: gameplay;
     display: flex;
-    flex-direction: column; /* Keep vertical for overall area */
+    flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     min-width: 420px;
     max-width: 900px;
     padding: 18px 12px;
-    /* background: url('/static/green.jpg') center center/cover no-repeat; */
     border-radius: 20px;
-    /* box-shadow: 0 6px 20px rgba(0,0,0,0.12); */
     border: 2px solid #1a4d0a;
-    min-height: 100vh;
-    height: 100%;
+    min-height: 0; /* Allows shrinking to fit parent grid cell (important for grid/flex children) */
+    height: 100%;  /* Fills parent grid cell */
     box-sizing: border-box;
+    overflow-y: auto; /* Allow gameplay area to scroll if content overflows */
 }
 
 .gameplay-row {
@@ -210,25 +236,47 @@ body { /* Page body */
 
 /* RIGHT: Probabilities Area */
 .probabilities-area {
+    /* Right column: scrolls if content overflows, never exceeds grid cell */
     grid-area: probabilities;
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Stack children vertically */
     gap: 15px;
     overflow-y: auto;
     max-height: 100vh;
-    align-items: flex-end; /* This aligns content to the right */
-    /* background-color: #20c997; */
-    /* background: rgba(230, 249, 230, 0.95) !important; */
+    align-items: flex-end;
     border-radius: 20px !important;
-    min-width: 500px;
-    max-width: 900px;
-    min-height: 100vh;
-    height: 100%;
+    min-width: 0; /* Allow shrinking */
+    max-width: 100%; /* Never exceed grid cell */
+    min-height: 0; /* Allows shrinking to fit parent grid cell (important for grid/flex children) */
+    height: 100%;  /* Fills parent grid cell */
     box-sizing: border-box;
+}
+
+.probabilities-content {
+    max-height: 50%; /* or whatever value works for your layout */
+    overflow-y: auto;  /* allow scrolling if content is too tall */
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    width: 100%;
+    /* height: 10%; */
+    border: 3px solid blue;
+    /* Ensure the probabilities content does not overflow and allows scrolling */
+    overflow: hidden;
+    /* No flex-grow here! */
+}
+
+.unknown-cards-column, .other-probabilities-column {
+    /* Allow these columns to scroll if their content is too tall */
+    overflow-y: auto;
+    max-height: 100%;
 }
 
 /* Two-column layout for probabilities content */
 .probabilities-content {
+    /* Make this child flexible: it will grow/shrink to fill available vertical space in .probabilities-area */
+    flex: 1 1 auto;
+    min-height: 0; /* Allows shrinking below content if needed (important for flex children) */
     display: flex;
     flex-direction: row;
     gap: 15px;
@@ -240,7 +288,7 @@ body { /* Page body */
     flex-basis: 20%;
     width: 30%;
     min-width: 180px;
-    max-width: 240px;
+    max-width: 180px;
     background: rgba(230, 249, 230, 0.15) !important;
 }
 .other-probabilities-column {
@@ -269,12 +317,7 @@ body { /* Page body */
     margin: 20 auto;
 }
 
-/* .player-grid h3 {
-    text-align: center;
-    font-size: 1.1em;
-    margin: 0 0 6px 0;
-    word-break: break-word;
-} */
+
 
 /* 2x2 grid layout for 4 players */
 /* 4-PLAYER GRID: Responsive layout */
@@ -287,6 +330,7 @@ body { /* Page body */
     height: 100%;
     justify-items: center;
     align-items: center;
+    /* border: 3px solid green; */
 }
 
 .four-player-grid .player-grid {
@@ -882,48 +926,49 @@ body { /* Page body */
     cursor: not-allowed;
 }
 
-/* PROBABILITIES PANEL: Integrated into grid layout */
-#probabilitiesPanel {
-    /* background: #f8f9fa; */
 
-    padding: 15px;
-    border-radius: 10px;
-    /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
-    font-size: 18px;
-    width: 100%;
-    box-sizing: border-box;
-}
 
-/* CHART CONTAINER: Optimized for grid layout */
+/* cumulative score chart CHART CONTAINER: Optimized for grid layout */
 .chart-container {
-    /* background: white; */
+    /* Chart at bottom of probabilities column - never overflow */
     background: rgba(230, 249, 230, 0.85);
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    min-height: 450px;
+    max-height: 450px;
+    min-height: 350px; /* Reserve space to prevent layout shift */
     width: 100%;
+    max-width: 100%; /* Never exceed parent column */
+    min-width: 0; /* Allow shrinking */
     box-sizing: border-box;
+    border: 3px solid red;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-top: auto; /* Push to bottom of parent */
+    flex-shrink: 0; /* Don't let it shrink too much */
+    transition: all 0.3s ease; /* Smooth any layout changes */
 }
 
 .chart-container canvas {
     width: 100% !important;
-    height: 300px !important;
+    height: 300px !important; /* Fixed height to prevent shaking */
+    max-width: 100%;
+    min-width: 0;
     display: block;
 }
 
-
-
-/* Card count bar chart styles */
+/* Card count bar chart styles. This is the individaul bards of the cards left chart. */
 .card-count-bar-container {
     width: 120px;
     height: 18px;
     /* background-color: #f8f9fa; */
-    background: rgba(230, 249, 230, 0.05) !important;
+    /* background: rgba(230, 249, 230, 0.55) !important; */
     border: 2px solid #e9ecef;
     border-radius: 3px;
     position: relative;
     overflow: hidden;
+    /* border: 3px solid red; */
 }
 
 .card-count-bar {
