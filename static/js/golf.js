@@ -134,6 +134,11 @@ async function startGame() {
                 console.error('Error in updateGameDisplay (initial):', error);
                 throw error; // Re-throw to see the full error
             }
+
+            // Check if it's an AI's turn right after game creation
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                pollAITurns();
+            }
         } else {
             console.error('Game start error:', data);
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));
@@ -185,6 +190,13 @@ async function refreshGameState() {
 
                         currentGameState = data;
             updateGameDisplay();
+            // Update chart after game state refresh
+            updateCumulativeScoreChart();
+
+            // Check if it's an AI's turn and start polling if needed
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                pollAITurns();
+            }
 
             if (data.game_over) {
                 // Game over - no modal needed
@@ -626,6 +638,8 @@ async function executeAction(position, actionType = null) {
         if (data.success) {
             currentGameState = data.game_state;
             updateGameDisplay();
+            // Update chart immediately after game state changes
+            updateCumulativeScoreChart();
             // Immediately refresh to catch any AI moves or turn changes
             refreshGameState();
             if (data.game_state.game_over) {
@@ -655,6 +669,18 @@ function restartGame() {
     if (setupHideTimeout) clearTimeout(setupHideTimeout);
     if (setupViewInterval) clearInterval(setupViewInterval);
     showSetupViewTimer(SETUP_VIEW_SECONDS);
+
+    // Reset chart data for new match
+    window.cumulativeScoreHistory = null;
+    window.cumulativeScoreLabels = null;
+    window.lastMatchId = null;
+
+    // Destroy existing chart instance to ensure fresh start
+    if (cumulativeScoreChart) {
+        cumulativeScoreChart.destroy();
+        cumulativeScoreChart = null;
+    }
+
     updateGameDisplay();
 }
 
@@ -905,88 +931,189 @@ let lastChartRound = null;
 
 function initializeCumulativeScoreChart() {
     const canvas = document.getElementById('cumulativeScoreChart');
-    if (!canvas) {
-        console.log('Canvas element not found');
-        return;
-    }
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d');
 
-    // Create initial chart with 4 default columns and placeholder data
-    const defaultLabels = ['Game 1', 'Game 2', 'Game 3', 'Game 4'];
-    const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2'];
-    const defaultDatasets = [
-        {
-            label: 'Human',
-            data: [null, null, null, null],
-            borderColor: colors[0],
-            backgroundColor: colors[0],
+    // Destroy existing chart if it exists
+    if (cumulativeScoreChart) {
+        cumulativeScoreChart.destroy();
+    }
+
+    // Initialize with empty data
+    const initialLabels = window.cumulativeScoreLabels || [];
+    const initialDatasets = [];
+
+    // Create datasets for current players if available
+    if (currentGameState && currentGameState.players) {
+        currentGameState.players.forEach((player, i) => {
+            initialDatasets.push({
+                label: player.name,
+                data: window.cumulativeScoreHistory ? (window.cumulativeScoreHistory[i] || []) : [],
+                borderColor: getPlayerColor(i),
+                backgroundColor: getPlayerColor(i),
+                borderWidth: 3, // Thicker lines
             fill: false,
-            tension: 0.2,
-            pointRadius: 1,
-            pointHoverRadius: 5
-        },
-        {
-            label: 'AI Player 1',
-            data: [null, null, null, null],
-            borderColor: colors[1],
-            backgroundColor: colors[1],
-            fill: false,
-            tension: 0.2,
-            pointRadius: 1,
-            pointHoverRadius: 5
-        },
-        {
-            label: 'AI Player 2',
-            data: [null, null, null, null],
-            borderColor: colors[2],
-            backgroundColor: colors[2],
-            fill: false,
-            tension: 0.2,
-            pointRadius: 1,
-            pointHoverRadius: 5
-        },
-        {
-            label: 'AI Player 3',
-            data: [null, null, null, null],
-            borderColor: colors[3],
-            backgroundColor: colors[3],
-            fill: false,
-            tension: 0.2,
-            pointRadius: 1,
-            pointHoverRadius: 5
-        }
-    ];
+                tension: 0.4, // Smooth curved lines
+                pointRadius: 3,
+                hoverRadius: 6
+            });
+        });
+    }
 
     cumulativeScoreChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: defaultLabels,
-            datasets: defaultDatasets
+            labels: initialLabels,
+            datasets: initialDatasets
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
-                legend: { display: true, position: 'bottom' },
-                title: { display: true, text: 'Cumulative Scores by Round' }
+                legend: {
+                    display: true,
+                    position: 'right',
+                    labels: {
+                        boxWidth: 10,
+                        padding: 4,
+                        usePointStyle: true,
+                        font: {
+                            size: 10
+                        },
+                        color: '#ffffff'
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Cumulative Scores by Round',
+                    color: '#ffffff',
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Game & Round' },
-                    ticks: { autoSkip: false }
+                    title: {
+                        display: true,
+                        text: 'Game & Round',
+                        color: '#ffffff',
+                        font: {
+                            size: 10
+                        }
+                    },
+                    ticks: {
+                        autoSkip: false,
+                        color: '#ffffff',
+                        font: {
+                            size: 9
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        lineWidth: 1
+                    },
+                    border: {
+                        color: '#ffffff',
+                        width: 1
+                    }
                 },
                 y: {
-                    title: { display: true, text: 'Score' },
-                    beginAtZero: true
+                    title: {
+                        display: true,
+                        text: 'Score',
+                        color: '#ffffff',
+                        font: {
+                            size: 10
+                        }
+                    },
+                    beginAtZero: true,
+                    suggestedMin: 0,
+                    suggestedMax: 20,
+                    ticks: {
+                        color: '#ffffff',
+                        font: {
+                            size: 9
+                        },
+                        stepSize: 4
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        lineWidth: 1
+                    },
+                    border: {
+                        color: '#ffffff',
+                        width: 1
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    radius: 2,
+                    hoverRadius: 4
+                },
+                line: {
+                    spanGaps: false
                 }
             }
-        }
+        },
+        plugins: [{
+            id: 'textOutline',
+            afterDraw: (chart) => {
+                const ctx = chart.ctx;
+                const originalStrokeText = ctx.strokeText;
+                const originalFillText = ctx.fillText;
+
+                // Override fillText to add stroke
+                ctx.fillText = function(text, x, y, maxWidth) {
+                    // Save current state
+                    ctx.save();
+
+                    // Draw black outline
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 3;
+                    ctx.lineJoin = 'round';
+                    ctx.miterLimit = 2;
+                    if (originalStrokeText) {
+                        originalStrokeText.call(ctx, text, x, y, maxWidth);
+                    }
+
+                    // Draw white fill
+                    ctx.fillStyle = '#ffffff';
+                    originalFillText.call(ctx, text, x, y, maxWidth);
+
+                    // Restore state
+                    ctx.restore();
+                };
+
+                // Trigger a redraw
+                Chart.helpers.each(chart.boxes, (box) => {
+                    box.draw();
+                });
+
+                // Restore original methods
+                ctx.fillText = originalFillText;
+                ctx.strokeText = originalStrokeText;
+            }
+        }]
     });
+}
+
+// Helper function to get consistent player colors
+function getPlayerColor(playerIndex) {
+    const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2', '#f39c12', '#e74c3c'];
+    return colors[playerIndex % colors.length];
 }
 
 function updateCumulativeScoreChart() {
     const canvas = document.getElementById('cumulativeScoreChart');
     if (!canvas) {
-        console.log('Canvas element not found');
         return;
     }
     const ctx = canvas.getContext('2d');
@@ -996,97 +1123,130 @@ function updateCumulativeScoreChart() {
         initializeCumulativeScoreChart();
     }
 
-    if (!currentGameState || !currentGameState.cumulative_scores || !currentGameState.current_game) {
-        console.log('Missing game state data for chart');
+    if (!currentGameState || !currentGameState.current_game) {
         return;
     }
+
+    const gameId = currentGameState.current_game;
+
     // Build score history for each player, per round
-    if (!window.cumulativeScoreHistory || lastChartGameId !== gameId) {
-        // Reset history if new game session
+    // Only reset history when starting a completely new match (not when advancing games)
+    const matchId = `${currentGameState.num_games}_${currentGameState.players.map(p => p.name).join('_')}`;
+    if (!window.cumulativeScoreHistory || !window.lastMatchId || window.lastMatchId !== matchId) {
+        // Reset history for new match session (not just new game)
         window.cumulativeScoreHistory = [];
         for (let i = 0; i < currentGameState.players.length; i++) {
             window.cumulativeScoreHistory.push([]);
         }
         window.cumulativeScoreLabels = [];
-        lastChartGameId = gameId;
+        window.lastMatchId = matchId; // Track match with num_games and player names
         lastChartRound = null;
     }
-    // Always add a point for the first round of the first game if not present
-    if (window.cumulativeScoreLabels.length === 0 && currentGameState.round === 1) {
-        for (let i = 0; i < currentGameState.players.length; i++) {
-            window.cumulativeScoreHistory[i].push(currentGameState.cumulative_scores[i]);
-        }
-        window.cumulativeScoreLabels.push('G1R1');
-        lastChartRound = 'G1R1';
+
+    // Track current round progress
+    const currentRoundKey = `G${currentGameState.current_game}R${currentGameState.round}`;
+
+    // Use public_scores if available, otherwise cumulative_scores
+    let roundScores = null;
+    if (currentGameState.public_scores && currentGameState.public_scores.some(score => typeof score === 'number')) {
+        // Use public scores (these should be available after each round)
+        roundScores = currentGameState.public_scores.map(score => typeof score === 'number' ? score : 0);
+    } else if (currentGameState.cumulative_scores && currentGameState.cumulative_scores.every(score => score !== null && score !== undefined)) {
+        // Use cumulative scores (available at game end)
+        roundScores = currentGameState.cumulative_scores;
     }
-    // Only update if new round or game over
-    const roundKey = `G${currentGameState.current_game}R${currentGameState.round}`;
-    if (window.cumulativeScoreLabels[window.cumulativeScoreLabels.length - 1] !== roundKey && (currentGameState.round > 1 || currentGameState.current_game > 1 || currentGameState.game_over)) {
-        for (let i = 0; i < currentGameState.players.length; i++) {
-            window.cumulativeScoreHistory[i].push(currentGameState.cumulative_scores[i]);
-        }
-        window.cumulativeScoreLabels.push(roundKey);
-        lastChartRound = roundKey;
-    } else if (window.cumulativeScoreLabels[window.cumulativeScoreLabels.length - 1] === roundKey) {
-        // No new round, don't update chart
+
+    // Only proceed if we have valid scores to chart
+    if (!roundScores) {
         return;
     }
-    // X axis: per round (G1R1, G1R2, ...)
-    const labels = window.cumulativeScoreLabels;
-    // Colors for each player
-    const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2', '#f39c12', '#e74c3c'];
-    const datasets = currentGameState.players.map((player, i) => ({
-        label: player.name,
-        data: window.cumulativeScoreHistory[i],
-        borderColor: colors[i % colors.length],
-        backgroundColor: colors[i % colors.length],
-        fill: false,
-        tension: 0.2,
-        pointRadius: 1,
-        pointHoverRadius: 5
-    }));
-    // Keep first 4 rounds static (0-20), only become dynamic after 4 rounds
-    const shouldUseDynamicYAxis = labels.length > 4;
-    const yAxisOptions = shouldUseDynamicYAxis ?
-        {
-            title: { display: true, text: 'Score' },
-            beginAtZero: true
-        } :
-        {
-            title: { display: true, text: 'Score' },
-            min: 0,
-            max: 20,
-            beginAtZero: true
-        };
 
-    if (cumulativeScoreChart) {
-        cumulativeScoreChart.data.labels = labels;
-        cumulativeScoreChart.data.datasets = datasets;
-        // Update Y-axis options based on number of data points
-        cumulativeScoreChart.options.scales.y = yAxisOptions;
-        cumulativeScoreChart.update();
+    const isNewRound = !window.cumulativeScoreLabels.includes(currentRoundKey);
+    let dataChanged = false;
+
+    if (isNewRound) {
+        // Add new data point for new round
+        for (let i = 0; i < currentGameState.players.length; i++) {
+            window.cumulativeScoreHistory[i].push(roundScores[i] || 0);
+        }
+        window.cumulativeScoreLabels.push(currentRoundKey);
+        lastChartRound = currentRoundKey;
+        dataChanged = true;
     } else {
-        cumulativeScoreChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: true, position: 'bottom' },
-                    title: { display: true, text: 'Cumulative Scores by Round' }
-                },
-                scales: {
-                    x: {
-                        title: { display: true, text: 'Game & Round' },
-                        ticks: { autoSkip: false }
-                    },
-                    y: yAxisOptions
+        // Update existing data point if scores have changed
+        const lastIndex = window.cumulativeScoreLabels.length - 1;
+        if (lastIndex >= 0 && window.cumulativeScoreLabels[lastIndex] === currentRoundKey) {
+            for (let i = 0; i < currentGameState.players.length; i++) {
+                const newScore = roundScores[i] || 0;
+                if (window.cumulativeScoreHistory[i][lastIndex] !== newScore) {
+                    window.cumulativeScoreHistory[i][lastIndex] = newScore;
+                    dataChanged = true;
                 }
             }
-        });
+        }
+    }
+
+    // Only update the chart if data actually changed
+    if (!dataChanged) {
+        return;
+    }
+
+    // Update chart data without recreating the chart
+    if (cumulativeScoreChart && cumulativeScoreChart.data) {
+        // Determine what data to show based on game progression
+        let displayLabels = [...window.cumulativeScoreLabels];
+        let displayHistory = window.cumulativeScoreHistory.map(playerHistory => [...playerHistory]);
+
+        if (currentGameState.current_game === 1) {
+            // First game: show exactly 4 rounds, pad with empty if needed
+            const maxRoundsFirstGame = 4;
+            if (displayLabels.length > maxRoundsFirstGame) {
+                displayLabels = displayLabels.slice(0, maxRoundsFirstGame);
+                displayHistory = displayHistory.map(playerHistory =>
+                    playerHistory.slice(0, maxRoundsFirstGame)
+                );
+    } else {
+                // Pad with empty rounds if we have fewer than 4
+                while (displayLabels.length < maxRoundsFirstGame) {
+                    const roundNum = displayLabels.length + 1;
+                    displayLabels.push(`G1R${roundNum}`);
+                    displayHistory.forEach(playerHistory => {
+                        playerHistory.push(null); // null values won't be plotted
+                    });
+                }
+            }
+        } else {
+            // Multi-game mode: show last 6 rounds
+            const maxRoundsMultiGame = 6;
+            if (displayLabels.length > maxRoundsMultiGame) {
+                displayLabels = displayLabels.slice(-maxRoundsMultiGame);
+                displayHistory = displayHistory.map(playerHistory =>
+                    playerHistory.slice(-maxRoundsMultiGame)
+                );
+            }
+        }
+
+        // Update chart with the determined data
+        cumulativeScoreChart.data.labels = displayLabels;
+
+        // Update datasets for active players only
+        const activePlayerNames = currentGameState.players.map(p => p.name);
+        cumulativeScoreChart.data.datasets = activePlayerNames.map((playerName, i) => ({
+            label: playerName,
+            data: displayHistory[i] || [],
+            borderColor: getPlayerColor(i),
+            backgroundColor: getPlayerColor(i),
+            borderWidth: 3, // Thicker lines
+            fill: false,
+            tension: 0.4, // Smooth curved lines
+            spanGaps: false // Don't connect lines across null values
+        }));
+
+        // Update the chart display
+        cumulativeScoreChart.update('none'); // Use 'none' animation mode for smooth updates
+    } else {
+        // Fallback: recreate chart if something went wrong
+        initializeCumulativeScoreChart();
     }
 }
 
@@ -1138,6 +1298,17 @@ async function pollAITurns() {
 
 // Add the replayGame function
 function replayGame() {
+    // Reset chart data for replay
+    window.cumulativeScoreHistory = null;
+    window.cumulativeScoreLabels = null;
+    window.lastMatchId = null;
+
+    // Destroy existing chart instance to ensure fresh start
+    if (cumulativeScoreChart) {
+        cumulativeScoreChart.destroy();
+        cumulativeScoreChart = null;
+    }
+
     // Use the last selected settings
     const gameMode = currentGameState.mode || '1v1';
     const opponentType = currentGameState.players && currentGameState.players[1] ? currentGameState.players[1].agent_type : 'random';
@@ -1190,6 +1361,11 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
                 if (setupViewInterval) clearInterval(setupViewInterval);
             }, SETUP_VIEW_SECONDS * 1000);
             updateGameDisplay();
+
+            // Check if it's an AI's turn right after game creation
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                pollAITurns();
+            }
         } else {
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));
         }
@@ -1254,4 +1430,17 @@ function handleGameEnd() {
             currentGameState = newState;
             updateGameDisplay(); // Force immediate UI update
         });
+}
+
+function updateChart(gameData) {
+    // Only include players that are actually in the game
+    const activePlayers = gameData.players.filter(player => player.isActive);
+
+    // Create datasets only for active players
+    const datasets = activePlayers.map(player => ({
+        label: player.name,
+        data: player.scores,
+        backgroundColor: player.color,
+        // ...
+    }));
 }

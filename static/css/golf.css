@@ -44,7 +44,7 @@ body, html {
     max-height: 100vh;
     overflow: hidden; /* or overflow-y: auto; */
     box-sizing: border-box; /* Include padding/border in size */
-    border: 3px solid red;
+    /* border: 3px solid red; */
 }
 
 /* Setup section at the top of the game */
@@ -138,7 +138,7 @@ body, html {
 #gameInfoDisplay {
     /* background: #f8f9fa; */
     background: rgba(230, 249, 230, 0.75);
-    border: 1px solid #dee2e6;
+    /* border: 1px solid #dee2e6; */
     border-radius: 8px;
     padding: 8px 12px;
     text-align: center;
@@ -173,7 +173,7 @@ body, html {
 /* Player Scores Display in Notification Area */
 .scores-panel {
     background: rgba(230, 249, 230, 0.75);
-    border: 1px solid #dee2e6;
+    /* border: 1px solid #dee2e6; */
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 12px;
@@ -260,7 +260,7 @@ body, html {
     gap: 15px;
     width: 100%;
     /* height: 10%; */
-    border: 3px solid blue;
+    /* border: 3px solid blue; */
     /* Ensure the probabilities content does not overflow and allows scrolling */
     overflow: hidden;
     /* No flex-grow here! */
@@ -932,19 +932,19 @@ body, html {
 .chart-container {
     /* Chart at bottom of probabilities column - overflow to left with layer priority */
     position: absolute;
-    bottom: 15px; /* Distance from bottom */
+    bottom: 0px; /* Reduced from 15px */
     right: 15px;  /* Distance from right edge */
-    width: 700px;  /* Fixed width - extends into center column */
-    max-height: 400px; /* Cap the height */
+    width: 750px !important;  /* Increased width, force with !important */
+    height: 100px !important; /* Reduced height to prevent overlap */
     z-index: 100; /* Above everything else */
-    background: rgba(230, 249, 230, 0.85);
-    padding: 15px;
+    /* background: rgba(230, 249, 230, 0.85); */
+    padding: 5px; /* Further reduced padding for small height */
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    min-height: 250px; /* Smaller min-height to work with max-height */
-    min-width: 0; /* Allow shrinking */
+    /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
+    min-width: 750px; /* Ensure minimum width */
+    min-height: 250px; /* Match the reduced height */
     box-sizing: border-box;
-    border: 3px solid red;
+    /* border: 3px solid red; */
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -952,12 +952,22 @@ body, html {
     transition: all 0.3s ease; /* Smooth any layout changes */
 }
 
+.chart-container canvas {
+    /* ... existing styles ... */
+}
 
+/* Force legend to be horizontal */
+.chart-container .chartjs-legend {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+}
 
-/* Card count bar chart styles. This is the individaul bards of the cards left chart. */
+/* Card count bar chart styles. This is the individaul bars of the cards left chart. */
 .card-count-bar-container {
-    width: 120px;
-    height: 18px;
+    width: 100px;
+    height: 10px;
     /* background-color: #f8f9fa; */
     /* background: rgba(230, 249, 230, 0.55) !important; */
     border: 2px solid #e9ecef;
@@ -1319,5 +1329,13 @@ body, html {
     flex-direction: column;
     align-items: center;
     gap: 48px; /* Increase this value for more space */
+}
+
+/* Chart styling for cumulative score chart */
+#cumulativeScoreChart {
+     background: rgba(230, 249, 230, 0.05) !important;
+
+    border-radius: 8px;
+    /* border: 1px solid rgba(255, 255, 255, 0.2); */
 }
 

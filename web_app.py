@@ -60,6 +60,7 @@ def create_game():
         'num_games': num_games,
         'current_game': 1,
         'cumulative_scores': [0] * num_players,
+        'round_cumulative_scores': [0] * num_players,
         'match_winner': None
     }
 
@@ -273,6 +274,9 @@ def get_game_state(game_id):
     num_games = game_session.get('num_games', 1)
     match_winner = game_session.get('match_winner')
 
+    # Use round_cumulative_scores if available (during game), otherwise cumulative_scores (between games)
+    display_cumulative_scores = game_session.get('round_cumulative_scores', cumulative_scores)
+
     state = {
         'players': players_data,
         'current_turn': game.turn,
@@ -288,7 +292,7 @@ def get_game_state(game_id):
         'mode': game_session['mode'],
         'probabilities': probabilities,
         'ai_thinking': game_session.get('ai_thinking', False),
-        'cumulative_scores': cumulative_scores,
+        'cumulative_scores': display_cumulative_scores,
         'current_game': current_game,
         'num_games': num_games,
         'match_winner': match_winner
@@ -371,24 +375,39 @@ def run_ai_turn():
             time.sleep(AI_TURN_DELAY)
         game.play_turn(player)
         game.next_player()
+
         # Check for game over, update state as needed
         if game.round > game.max_rounds:
             for p in game.players:
                 p.reveal_all()
             game_session['game_over'] = True
-            # Update cumulative scores
-            scores = [game.calculate_score(p.grid) for p in game.players]
-            for i, s in enumerate(scores):
-                game_session['cumulative_scores'][i] += s
             # If this is the last game, set match_winner
             if game_session['current_game'] == game_session['num_games']:
                 min_score = min(game_session['cumulative_scores'])
                 winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
                 game_session['match_winner'] = winners
+        else:
+            # Update cumulative scores after each round (not just at game end)
+            # Use public scores that are available after each round
+            public_scores = [get_public_score(p, game) for p in game.players]
+            # Initialize cumulative_scores if not exists or reset for new game
+            if 'round_cumulative_scores' not in game_session:
+                game_session['round_cumulative_scores'] = [0] * len(game.players)
+
+            # Update running totals for this game
+            for i, score in enumerate(public_scores):
+                if score is not None:
+                    game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
+
         game_session['ai_thinking'] = False
 
     # Handle new game creation without delay
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+        # Add final game scores to cumulative totals
+        scores = [game.calculate_score(p.grid) for p in game.players]
+        for i, s in enumerate(scores):
+            game_session['cumulative_scores'][i] += s
+
         # Start next game immediately, no delay needed
         game_session['current_game'] += 1
         if game_session['mode'] == '1v1':
@@ -402,6 +421,8 @@ def run_ai_turn():
         game_session['game'] = new_game
         game_session['game_over'] = False
         game_session['match_winner'] = None
+        # Reset round cumulative scores for new game
+        game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
 
     return jsonify({
         'success': True,
