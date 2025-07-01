@@ -133,7 +133,7 @@ body { /* Page body */
 #matchupSummary {
     min-height: 40px;
     /* background: #f8f9fa;   */
-    background: rgba(230, 249, 230, 0.75);
+    /* background: rgba(230, 249, 230, 0.75); */
 
     border-radius: 8px;
     padding: 8px 12px;
@@ -668,13 +668,10 @@ body { /* Page body */
 }
 
 /* Disabled card style */
-.card.disabled {
+.disabled, .card.disabled {
+    pointer-events: none !important;
     opacity: 0.5;
-    cursor: not-allowed;
-}
-.card.disabled:hover {
-    box-shadow: none;
-    opacity: 0.5;
+    cursor: not-allowed !important;
 }
 
 /* Setup and board vertical layout */
@@ -807,7 +804,7 @@ body { /* Page body */
 /* CHART CONTAINER: Optimized for grid layout */
 .chart-container {
     /* background: white; */
-    background: rgba(230, 249, 230, 0.65);
+    background: rgba(230, 249, 230, 0.85);
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -903,7 +900,8 @@ body { /* Page body */
     font-size: 1.2em;
     font-weight: bold;
     color: #fff;
-    background: #007bff; /* Blue for default/your turn */
+    /* background: #007bff; Blue for default/your turn */
+    background: rgba(230, 249, 230, 0.75);
     border-radius: 8px;
     text-align: center;
     padding: 10px 0;
@@ -911,7 +909,7 @@ body { /* Page body */
     transition: background 0.3s;
 }
 #notificationBanner.game-over {
-    background: #28a745; /* Green for game over, or pick another color */
+    background: rgba(230, 249, 230, 0.75);
 }
 
 /* Removed the smaller sizing - player grids will use the standard size */
@@ -921,3 +919,81 @@ body { /* Page body */
     width: 100%;
     padding: 2px 2px;
 } /*these are the cards inside the player grids*/
+
+/* Example for a specific class */
+.celebration-gif {
+    border-radius: 16px; /* Adjust the px value for more/less rounding */
+    overflow: hidden;    /* Ensures the corners are clipped */
+}
+
+#celebrationGif img {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    display: block !important;
+}
+
+/* Game Over Banner */
+#gameOverBanner, .game-over-banner {
+    background: rgba(46, 204, 113, 0.05); /* Light green, semi-transparent */
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border-radius: 10px;
+    padding: 18px 0;
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 18px;
+    border: 2px solid #000;
+}
+
+/* Game Over Buttons */
+#gameOverBanner .btn, .game-over-banner .btn,
+#gameOverBanner button, .game-over-banner button {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border: 2px solid #000;
+    border-radius: 6px;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 0 8px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#gameOverBanner .btn:hover, .game-over-banner .btn:hover,
+#gameOverBanner button:hover, .game-over-banner button:hover {
+    background: rgba(39, 174, 96, 0.95); /* Slightly darker green on hover */
+    color: #fff;
+}
+
+/* Match Summary Notification */
+#matchSummaryPanel, .match-summary {
+    background: rgba(46, 204, 113, 0.85); /* Light green, semi-transparent */
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border-radius: 10px;
+    padding: 18px 24px;
+    font-size: 1.3em;
+    font-weight: bold;
+    text-align: center;
+    border: 2px solid #000;
+    margin: 18px auto 0 auto;
+    max-width: 420px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+}
+
+#matchSummaryPanel, .match-summary,
+#matchSummaryPanel *, .match-summary * {
+    color: #fff !important;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+}
+
+.game-over-banner {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border: 2px solid #000;
+    border-radius: 10px;
+}

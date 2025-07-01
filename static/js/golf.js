@@ -13,6 +13,7 @@ let setupCardsHidden = false; // Whether setup cards are hidden
 const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom cards
 let setupViewInterval = null; // Interval for setup view timer
 const SNAP_THRESHOLD = 30; // pixels
+let isMyTurn = false;
 
 // Function to create card display content (SVG or fallback text)
 function getCardDisplayContent(card, faceDown = false) {
@@ -188,8 +189,7 @@ function updateGameDisplay() {
             ) {
                 infoText += ' - Game Over!';
                 notificationBanner.innerHTML = "Game Over!";
-                notificationBanner.style.background = "#dc3545"; // Red for game over
-                notificationBanner.style.color = "white";
+                notificationBanner.classList.add('game-over-banner');
 
                 // Show celebratory GIF below the banner if human wins
                 let iconHtml = '';
@@ -1084,3 +1084,48 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
 
 // Remove the problematic global scope code that was causing the null reference error
 // The pollAITurns() function should only be called from within functions after a game is started
+
+function updateInteractivity(isMyTurn) {
+    // Deck
+    const deck = document.getElementById('deckCard');
+    if (deck) {
+        deck.classList.toggle('disabled', !isMyTurn);
+    }
+
+    // Discard
+    const discard = document.getElementById('discardCard');
+    if (discard) {
+        discard.classList.toggle('disabled', !isMyTurn);
+    }
+
+    // All your cards
+    document.querySelectorAll('.player-grid.human .card').forEach(card => {
+        card.classList.toggle('disabled', !isMyTurn);
+    });
+}
+
+function setPlayerInteractivity(isMyTurn) {
+    // Deck
+    const deck = document.getElementById('deckCard');
+    if (deck) deck.classList.toggle('disabled', !isMyTurn);
+
+    // Discard
+    const discard = document.getElementById('discardCard');
+    if (discard) discard.classList.toggle('disabled', !isMyTurn);
+
+    // All your cards
+    document.querySelectorAll('.player-grid.human .card').forEach(card => {
+        card.classList.toggle('disabled', !isMyTurn);
+    });
+
+    // Block drag events for discard and cards
+    if (discard) discard.draggable = isMyTurn;
+    document.querySelectorAll('.player-grid.human .card').forEach(card => {
+        card.draggable = isMyTurn;
+    });
+}
+
+discardCard.onclick = function() {
+    if (!isMyTurn) return;
+    // ...rest of logic...
+};
