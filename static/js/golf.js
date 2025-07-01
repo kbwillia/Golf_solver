@@ -220,65 +220,6 @@ function updateGameDisplay() {
         const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
         let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
 
-        // Clear notification area elements that exist
-        const notificationBanner = document.getElementById('notificationBanner');
-        const celebrationGif = document.getElementById('celebrationGif');
-
-        if (celebrationGif) celebrationGif.innerHTML = '';
-
-        // Set up the unified notification banner
-        if (notificationBanner) {
-            notificationBanner.className = ''; // Reset classes
-
-            if (
-                currentGameState.game_over &&
-                currentGameState.current_game === currentGameState.num_games
-            ) {
-                infoText += ' - Game Over!';
-                notificationBanner.innerHTML = "Game Over!";
-                notificationBanner.classList.add('game-over-banner');
-
-                // Show celebratory GIF below the banner if human wins
-                let iconHtml = '';
-                if (currentGameState.winner === 0) {
-                    let gifUrl = '';
-                    if (celebrationGifs.length > 0) {
-                        gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
-                    }
-                    iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />` : '';
-                } else if (typeof currentGameState.winner === 'number') {
-                    iconHtml = '🏆'; // AI wins
-                }
-                if (celebrationGif) {
-                    celebrationGif.innerHTML = `<div class="celebration-gif-container">${iconHtml}</div>`;
-                }
-
-                // Add New Game and Replay buttons
-                let buttonHtml = `<div id="gameOverButtons" class="game-over-buttons">
-                    <button id="newGameBtn" class="btn btn-secondary">New Game</button>
-                    <button id="replayBtn" class="btn btn-primary">Replay</button>
-                </div>`;
-                notificationBanner.innerHTML += buttonHtml;
-                // Attach event listeners after rendering
-                setTimeout(() => {
-                    const newGameBtn = document.getElementById('newGameBtn');
-                    const replayBtn = document.getElementById('replayBtn');
-                    if (newGameBtn) newGameBtn.onclick = restartGame;
-                    if (replayBtn) replayBtn.onclick = replayGame;
-                }, 0);
-            } else if (currentGameState.ai_thinking) {
-                notificationBanner.innerHTML = "AI is lining up its shot...";
-                notificationBanner.classList.add('ai-thinking-banner');
-            } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-                notificationBanner.innerHTML = "Your Turn!";
-                notificationBanner.classList.add('your-turn-banner');
-            } else {
-                notificationBanner.innerHTML = "";
-                notificationBanner.classList.add('default-banner');
-            }
-        }
-
-
         // Put game info in the notification area instead of the game info bar
         const gameInfoDisplay = document.getElementById('gameInfoDisplay');
         if (gameInfoDisplay) {
@@ -296,15 +237,20 @@ function updateGameDisplay() {
             let summaryHtml = `<div class="match-summary-panel">
                 <h2 class="match-summary-title">Match Summary</h2>`;
             summaryHtml += `<div class="match-summary-scores-label"><b>Final Cumulative Scores:</b></div><ul class="match-summary-scores-list">`;
-            for (let i = 0; i < currentGameState.players.length; i++) {
-                const winnerIcon = (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(i)) ? ' 🏆' : '';
-                summaryHtml += `<li class="match-summary-score-item"><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
-            }
+            const scores = currentGameState.cumulative_scores;
+            const minScore = Math.min(...scores);
+            const winners = [];
+            scores.forEach((score, idx) => {
+                if (score === minScore) winners.push(idx);
+            });
+            winners.forEach(winner => {
+                summaryHtml += `<li class="match-summary-score-item"><b>${playerNames[winner]}</b>: ${scores[winner]} 🏆</li>`;
+            });
             summaryHtml += `</ul>`;
-            if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.length === 1) {
-                summaryHtml += `<div class="match-summary-winner">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
-            } else if (Array.isArray(currentGameState.match_winner)) {
-                summaryHtml += `<div class="match-summary-winner">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
+            if (winners.length === 1) {
+                summaryHtml += `<div class="match-summary-winner">Winner: ${playerNames[winners[0]]} 🏆</div>`;
+            } else if (winners.length > 1) {
+                summaryHtml += `<div class="match-summary-winner">Winners: ${winners.map(i => playerNames[i]).join(', ')} 🏆</div>`;
             }
             summaryHtml += `</div>`;
             document.getElementById('matchupSummary').innerHTML = summaryHtml;
@@ -324,8 +270,8 @@ function updateGameDisplay() {
 
         // Update player grids
         updatePlayerGrids();
-        // Update scores display in notification area
-        updatePlayerScoresDisplay();
+        // Update combined scores and round info display
+        updateScoresAndRoundInfo();
         // Update probabilities panel
         updateProbabilitiesPanel();
 
@@ -454,35 +400,41 @@ function updatePlayerGrids() {
     }
 }
 
-function updatePlayerScoresDisplay() {
-    const scoresContainer = document.getElementById('playerScoresDisplay');
-    if (!scoresContainer || !currentGameState || !currentGameState.players) {
+function updateScoresAndRoundInfo() {
+    const container = document.getElementById('ScoresAndRoundInfo');
+    if (!container || !currentGameState || !currentGameState.players) {
         return;
     }
 
-    let scoresHtml = '<div class="scores-panel"><h4>Current Scores</h4>';
+    // Info text (round/game info)
+    const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
+    let infoText = `<div class="round-info"><b>Game</b> ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | <b>Round</b> ${roundDisplay}/${currentGameState.max_rounds}</div>`;
 
+    // Scores
+    let scoresHtml = '<div class="scores-panel"><h4>Scores</h4>';
     currentGameState.players.forEach((player, index) => {
         let scoreText = 'Hidden';
         let winnerIcon = '';
-
         if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
             scoreText = currentGameState.public_scores[index];
             if (currentGameState.game_over && index === currentGameState.winner) {
                 winnerIcon = ' 🏆';
             }
         }
-
         const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
-        const turnIndicator = isCurrentTurn ? ' ← ' : '';
-
-        scoresHtml += `<div class="score-item ${isCurrentTurn ? 'current-turn-score' : ''}">
-            <strong>${player.name}:</strong> ${scoreText}${winnerIcon}${turnIndicator}
-        </div>`;
+        let turnIndicator = '';
+        if (isCurrentTurn) {
+            if (index === 0) {
+                turnIndicator = ' <span class="turn-label">(Your Turn)</span>';
+            } else {
+                turnIndicator = ' <span class="turn-label"></span>';
+            }
+        }
+        scoresHtml += `<div class="score-item ${isCurrentTurn ? 'current-turn-score' : ''}"><strong>${player.name}:</strong> ${scoreText}${winnerIcon}${turnIndicator}</div>`;
     });
-
     scoresHtml += '</div>';
-    scoresContainer.innerHTML = scoresHtml;
+
+    container.innerHTML = infoText + scoresHtml;
 }
 
 async function takeDiscard() {
@@ -1146,18 +1098,23 @@ function updateCumulativeScoreChart() {
     // Track current round progress
     const currentRoundKey = `G${currentGameState.current_game}R${currentGameState.round}`;
 
-    // Use public_scores if available, otherwise cumulative_scores
+    // Use cumulative_scores first (which contains accumulated match totals), fallback to public_scores
     let roundScores = null;
-    if (currentGameState.public_scores && currentGameState.public_scores.some(score => typeof score === 'number')) {
-        // Use public scores (these should be available after each round)
-        roundScores = currentGameState.public_scores.map(score => typeof score === 'number' ? score : 0);
-    } else if (currentGameState.cumulative_scores && currentGameState.cumulative_scores.every(score => score !== null && score !== undefined)) {
-        // Use cumulative scores (available at game end)
+    if (currentGameState.cumulative_scores && currentGameState.cumulative_scores.every(score => score !== null && score !== undefined)) {
+        // Use cumulative scores first (contains accumulated match totals)
         roundScores = currentGameState.cumulative_scores;
+        console.log('Using cumulative_scores:', roundScores);
+    } else if (currentGameState.public_scores && currentGameState.public_scores.some(score => typeof score === 'number')) {
+        // Fallback to public scores if cumulative not available
+        roundScores = currentGameState.public_scores.map(score => typeof score === 'number' ? score : 0);
+        console.log('Using public_scores:', roundScores);
     }
+
+    console.log('Chart Debug - Game:', currentGameState.current_game, 'Round:', currentGameState.round, 'Scores:', roundScores, 'Game Over:', currentGameState.game_over);
 
     // Only proceed if we have valid scores to chart
     if (!roundScores) {
+        console.log('No valid scores available for charting');
         return;
     }
 

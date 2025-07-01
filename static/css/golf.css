@@ -33,7 +33,7 @@ body, html {
 /* COMPACT RESPONSIVE CONTAINER: Minimal spacing */
 .container {
     /* Main app container: fills the viewport, never exceeds it */
-    padding: 5px; /* Small padding */
+    padding: 0px; /* Reduced from 5px to save space and prevent overflow */
     background: url('/static/4k-golf-1.jpg') center center/cover no-repeat;
     /* width: 100vw; */
     max-width: 100%;
@@ -44,7 +44,7 @@ body, html {
     max-height: 100vh;
     overflow: hidden; /* or overflow-y: auto; */
     box-sizing: border-box; /* Include padding/border in size */
-    /* border: 3px solid red; */
+    border: 3px solid red;
 }
 
 /* Setup section at the top of the game */
@@ -78,7 +78,7 @@ body, html {
     grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr);
     grid-template-areas: "notification gameplay probabilities";
     gap: 0px; /* No gap between columns */
-    width: 100vw;
+    width: 100%; /* Changed from 100vw to 100% to fit within container padding */
     /* max-width: 100vw; */
     min-height: 0;
     height: 100%; /* Fills parent (.container) */
@@ -131,13 +131,14 @@ body, html {
     height: 100%;
     box-sizing: border-box;
     overflow-y: auto;
-    border: 3px solid green;
+    /* border: 3px solid green; */
+    /* background: rgba(230, 249, 230, 0.35) !important; */
 }
 
 /* Game Info Display in notification area */
 #gameInfoDisplay {
     /* background: #f8f9fa; */
-    background: rgba(230, 249, 230, 0.75);
+    background: rgba(230, 249, 230, 0.35) !important;
     /* border: 1px solid #dee2e6; */
     border-radius: 8px;
     padding: 8px 12px;
@@ -145,29 +146,28 @@ body, html {
     font-size: 14px;
     font-weight: bold;
     color: #495057;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 #yourTurnBadge {
     min-height: 12px;
-    max-height: 20px;
+    max-height: 12px;
     font-size: 1.0em;
     font-weight: bold;
     color: #fff;
     /* background: #007bff, 0.75; */
-    background: rgba(230, 249, 230, 0.75);
+    background: rgba(230, 249, 230, 0.35) !important;
     text-align: center;
-    padding: 8px 0;
-    margin-bottom: 8px;
+    padding: 0px 0;
+    margin-bottom: 0px;
 }
 #matchupSummary {
-    min-height: 40px;
+    min-height: 20px;
     /* background: #f8f9fa;   */
     /* background: rgba(230, 249, 230, 0.75); */
 
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 1em;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    /* box-shadow: 0 1px 4px rgba(0,0,0,0.06); */
 }
 
 /* Player Scores Display in Notification Area */
@@ -210,13 +210,12 @@ body, html {
     justify-content: flex-start;
     min-width: 420px;
     max-width: 900px;
-    padding: 18px 12px;
+    padding: 10px 8px; /* Reduced padding from 18px 12px to save vertical space */
     border-radius: 20px;
-    border: 2px solid #1a4d0a;
+    /* border: 2px solid #1a4d0a; */
     min-height: 0; /* Allows shrinking to fit parent grid cell (important for grid/flex children) */
     height: 100%;  /* Fills parent grid cell */
     box-sizing: border-box;
-    overflow-y: auto; /* Allow gameplay area to scroll if content overflows */
 }
 
 .gameplay-row {
@@ -250,6 +249,7 @@ body, html {
     min-height: 0; /* Allows shrinking to fit parent grid cell (important for grid/flex children) */
     height: 100%;  /* Fills parent grid cell */
     box-sizing: border-box;
+    /* border: 2px solid #1a4d0a; */
 }
 
 .probabilities-content {
@@ -268,7 +268,7 @@ body, html {
 
 .unknown-cards-column, .other-probabilities-column {
     /* Allow these columns to scroll if their content is too tall */
-    overflow-y: auto;
+    /* overflow-y: auto; */
     max-height: 100%;
 }
 
@@ -289,7 +289,7 @@ body, html {
     width: 30%;
     min-width: 180px;
     max-width: 180px;
-    background: rgba(230, 249, 230, 0.15) !important;
+    /* background: rgba(230, 249, 230, 0.15) !important; */
 }
 .other-probabilities-column {
     flex-basis: 80%;
@@ -300,13 +300,13 @@ body, html {
 
 /* PLAYER GRID: Compact and optimized */
 .player-grid {
-    width: 360px;
-    height: 360px;
-    margin: 40px 0;
-    padding: 6px 8px;
+    width: 280px;
+    height: 280px;
+    margin: 0px 0;
+    padding: 0px 0px; /* Reduced horizontal padding from 6px 8px to bring cards closer to edges */
     /* border: 2px solid #ddd; */
     border-radius: 50%;
-    background: rgba(60, 121, 81, 0.55);
+    /* background: rgba(60, 121, 81, 0.55); */
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 
     border-radius: 32px;
@@ -314,7 +314,7 @@ body, html {
     flex-direction: column;
     align-items: center;
     justify-content: center; /* Center content vertically */
-    margin: 20 auto;
+    margin: 20px auto; /* Reduced from 20 auto */
 }
 
 
@@ -353,8 +353,8 @@ body, html {
 .player-grid.current-turn {
     min-width: 200px;
     min-height: 200px;
-    width: 360px;
-    height: 360px;
+    width: 280px; /* Reduced from 360px to match new standard size */
+    height: 280px; /* Reduced from 360px to match new standard size */
     position: relative;
     border-radius: 50%;
     /* overflow: hidden; */ /* Removed to prevent card clipping */
@@ -375,7 +375,9 @@ body, html {
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    background: url('/static/titlelist1.jpg') center center/cover no-repeat !important;
+    /* background: url('/static/titlelist1.jpg') center center/cover no-repeat !important; */
+    background: url('/static/happy2.jpg') center center/cover no-repeat !important;
+
     opacity: 0.5 !important; /* Only the background image is transparent */
     z-index: 0 !important; /* Put behind content but visible */
     animation: rotate-background-continuous 8s linear infinite !important; /* Faster rotation */
@@ -422,7 +424,7 @@ body, html {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
-    max-width: 200px;
+    max-width: 240px; /* Increased from 200px to better fill player grid */
     margin: 0 auto; /* Remove vertical margin, keep horizontal centering */
     width: fit-content;
 }
@@ -1085,7 +1087,7 @@ body, html {
 
 /* Match Summary Notification */
 #matchSummaryPanel, .match-summary {
-    background: rgba(46, 204, 113, 0.85); /* Light green, semi-transparent */
+    background: rgba(230, 249, 230, 0.75) !important;
     color: #fff;
     text-shadow:
         -1px -1px 0 black,
@@ -1098,10 +1100,8 @@ body, html {
     font-size: 1.3em;
     font-weight: bold;
     text-align: center;
-    border: 2px solid #000;
     margin: 18px auto 0 auto;
     max-width: 420px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
 }
 
 #matchSummaryPanel, .match-summary,
@@ -1166,7 +1166,7 @@ body, html {
     transition: background 0.2s, color 0.2s;
 }
 .game-over-buttons .btn:hover, .game-over-buttons button:hover {
-    background: rgba(39, 174, 96, 0.95);
+    background: rgba(230, 249, 230, 0.35) !important;
     color: #fff;
 }
 
@@ -1176,7 +1176,7 @@ body, html {
     overflow: hidden;
     display: block;
     max-width: 320px;
-    max-height: 200px;
+    max-height: 240px;
     margin: 0 auto;
     object-fit: contain;
     background: transparent;
@@ -1188,26 +1188,25 @@ body, html {
 
 /* Match Summary Panel */
 .match-summary-panel {
-    background: rgba(46, 204, 113, 0.85);
+    background: rgba(230, 249, 230, 0.35) !important;
     color: #fff;
     text-shadow:
         -1px -1px 0 black,
          1px -1px 0 black,
         -1px  1px 0 black,
          1px  1px 0 black; /* Black outline in all directions */
-    border: 2px solid #000;
-    border-radius: 12px;
-    padding: 18px 24px;
-    font-size: 1.2em;
+    /* border: 2px solid #000; */
+    /* border-radius: 12px; */
+    padding: 6px 6px;
+    font-size: 0.8em;
     font-weight: bold;
     text-align: center;
-    margin: 18px auto 0 auto;
+    margin: 0px auto 0 auto;
     max-width: 480px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
 }
 .match-summary-title {
     font-size: 1.5em;
-    margin-bottom: 10px;
+    margin-bottom: 0px;
     font-weight: bold;
     text-align: center;
 }
@@ -1236,9 +1235,9 @@ body, html {
     font-weight: bold;
 }
 
-/* Probabilities Panel Box. This includes the 'Cards Left'. for real for real. */
+/* Probabilities Panel Box. This includes the 'Cards Left' AND the strategic Reccomendations for real. */
 .probabilities-panel-box {
-    background: rgba(230, 249, 230, 0.25);
+    background: rgba(230, 249, 230, 0.75) !important;
     border-radius: 20px !important;
     padding: 14px !important;
 }
@@ -1259,29 +1258,28 @@ body, html {
 /* probabilities cards left table   */
 .probabilities-table {
     font-size: 13px;
-    margin-top: 24px;
+    margin-top: 2px;
     margin-bottom: 6px;
     width: 100%;
     border-collapse: collapse;
-    /* background: rgba(230, 249, 230, 0.05) !important; */
     /* text-shadow: 1px 1px 2px #000, 0 0 1px #000; */
 
 }
 
 .probabilities-bar {
-    margin-bottom: 12px;
+    margin-bottom: 0px;
     padding: 8px 12px;
     /* background: #e8f4fd; */
     /* border-radius: 6px; */
-    border-left: 4px solid #007bff;
+    /* border-left: 4px solid #007bff; */
     background:rgba(0, 123, 255, 0.01)
 }
 
-.probabilities-bar-title {
+/* .probabilities-bar-title {
     font-weight: bold;
     color: #007bff;
     margin-bottom: 4px;
-}
+} */
 
 .probabilities-bar-main {
     font-size: 14px;
@@ -1297,12 +1295,7 @@ body, html {
     margin-top: 4px;
 }
 
-/* Probabilities table header and cell alignment */
-.probabilities-table th.rank-header {
-    text-align: left;
-    padding-right: 5px;
-    width: 25px;
-}
+
 .probabilities-table th.count-header {
     text-align: left;
 }
@@ -1333,9 +1326,49 @@ body, html {
 
 /* Chart styling for cumulative score chart */
 #cumulativeScoreChart {
-     background: rgba(230, 249, 230, 0.05) !important;
+     background: rgba(230, 249, 230, 0.75) !important;
 
-    border-radius: 8px;
+    border-radius: 22px;
     /* border: 1px solid rgba(255, 255, 255, 0.2); */
+}
+
+#ScoresAndRoundInfo {
+    background: rgba(230, 249, 230, 0.75) !important;
+    border-radius: 12px;
+    padding: 10px 14px 8px 14px;
+    margin-bottom: 12px;
+    font-size: 1em;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#ScoresAndRoundInfo .round-info {
+    font-size: 1.08em;
+    font-weight: bold;
+    color: #1a4d0a;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+#ScoresAndRoundInfo .scores-panel {
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+}
+
+#ScoresAndRoundInfo .score-item {
+    font-size: 1em;
+    margin: 2px 0;
+    padding: 2px 0;
+    border-radius: 4px;
+    text-align: left;
+}
+
+#ScoresAndRoundInfo .score-item.current-turn-score {
+    background: rgba(0, 123, 255, 0.10);
+    border-left: 3px solid #007bff;
+    font-weight: bold;
 }
 

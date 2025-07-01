@@ -390,9 +390,9 @@ def run_ai_turn():
             # Update cumulative scores after each round (not just at game end)
             # Use public scores that are available after each round
             public_scores = [get_public_score(p, game) for p in game.players]
-            # Initialize cumulative_scores if not exists or reset for new game
+            # Initialize round_cumulative_scores if not exists, starting from cumulative_scores
             if 'round_cumulative_scores' not in game_session:
-                game_session['round_cumulative_scores'] = [0] * len(game.players)
+                game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
 
             # Update running totals for this game
             for i, score in enumerate(public_scores):
