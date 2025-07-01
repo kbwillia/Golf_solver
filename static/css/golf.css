@@ -7,11 +7,24 @@ body { /* Page body */
     background-color: #f0f0f0; /* Light gray background */
 }
 
+#setupViewTimer {
+    color: white !important;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black;
+    font-weight: bold;
+    font-size: 1.4em !important;
+}
+
+
+
 /* COMPACT RESPONSIVE CONTAINER: Minimal spacing */
 .container { /* Main app container */
     /* background: rgb(119, 154, 198, 0.95); Blue background */
     padding: 5px; /* Small padding */
-    border-radius: 32px; /* Rounded corners */
+    /* border-radius: 32px; Rounded corners */
     /* box-shadow: 0 4px 20px rgba(0,0,0,0.1); Subtle shadow */
     background: url('/static/4k-golf-1.jpg') center center/cover no-repeat;
     width: 100vw;
@@ -19,7 +32,7 @@ body { /* Page body */
     margin: 0;
     min-height: 100vh;
     height: 100vh;
-    box-sizing: border-box; /* Include padding/border in size */
+    /* box-sizing: border-box; Include padding/border in size */
 }
 
 /* Setup section at the top of the game */
@@ -87,14 +100,15 @@ body { /* Page body */
     min-width: 400px;
     max-width: 600px;
     align-items: stretch;
-    /* background: rgba(230, 249, 230, 0.75); Light green with 75% opacity */
+    /* background: rgba(230, 249, 230, 0.75)
     border-radius: 12px;  /* Optional: rounded corners for a nice look */
     padding: 16px; /* Add padding to the notification area */
 }
 
 /* Game Info Display in notification area */
 #gameInfoDisplay {
-    background: #f8f9fa;
+    /* background: #f8f9fa; */
+    background: rgba(230, 249, 230, 0.75);
     border: 1px solid #dee2e6;
     border-radius: 8px;
     padding: 8px 12px;
@@ -111,7 +125,7 @@ body { /* Page body */
     font-weight: bold;
     color: #fff;
     /* background: #007bff, 0.75; */
-    background: rgba(0, 123, 255, 0.15); /* ✅ 75% opaque blue */
+    background: rgba(230, 249, 230, 0.75);
     text-align: center;
     padding: 8px 0;
     margin-bottom: 8px;
@@ -119,7 +133,7 @@ body { /* Page body */
 #matchupSummary {
     min-height: 40px;
     /* background: #f8f9fa;   */
-    /* background: rgba(230, 249, 230, 0.75); light green */
+    background: rgba(230, 249, 230, 0.75);
 
     border-radius: 8px;
     padding: 8px 12px;
@@ -240,9 +254,9 @@ body { /* Page body */
 
 /* Highlight for the current player's turn */
 .player-grid.current-turn {
-    border: 3.0px solid #007bff;
+    border: 4.0px solid #007bff;
     box-shadow: 0 0 0 0 #007bff;
-    animation: border-glow-pulse 8.2s ease-in-out infinite;
+    animation: border-glow-pulse 10s ease-in-out infinite;
     /* background: rgba(48, 140, 143, 0.55); */
     position: relative;
 }
@@ -595,7 +609,12 @@ body { /* Page body */
 .deck-area h4, .discard-area h4 {
     margin: 0;
     color: white;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    /* text-shadow: 2px 2px 4px rgba(0,0,0,0.7); */
+    text-shadow:
+    -1px -1px 0 black,
+     1px -1px 0 black,
+    -1px  1px 0 black,
+     1px  1px 0 black;
     font-size: 16px;
 }
 
