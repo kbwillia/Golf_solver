@@ -159,16 +159,7 @@ body, html {
     padding: 0px 0;
     margin-bottom: 0px;
 }
-#matchupSummary {
-    min-height: 20px;
-    /* background: #f8f9fa;   */
-    /* background: rgba(230, 249, 230, 0.75); */
 
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 1em;
-    /* box-shadow: 0 1px 4px rgba(0,0,0,0.06); */
-}
 
 /* Player Scores Display in Notification Area */
 .scores-panel {
@@ -295,6 +286,7 @@ body, html {
     flex-basis: 80%;
     width: 70%;
     min-width: 220px;
+    min-height: 300px;
     /* background: rgba(230, 249, 230, 0.75) !important; */
 }
 
@@ -307,7 +299,7 @@ body, html {
     /* border: 2px solid #ddd; */
     border-radius: 50%;
     /* background: rgba(60, 121, 81, 0.55); */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /* box-shadow: 0 2px 8px rgba(0,0,0,0.1); */
 
     border-radius: 32px;
     display: flex;
@@ -1085,34 +1077,7 @@ body, html {
     color: #fff;
 }
 
-/* Match Summary Notification */
-#matchSummaryPanel, .match-summary {
-    background: rgba(230, 249, 230, 0.75) !important;
-    color: #fff;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
 
-    border-radius: 10px;
-    padding: 18px 24px;
-    font-size: 1.3em;
-    font-weight: bold;
-    text-align: center;
-    margin: 18px auto 0 auto;
-    max-width: 420px;
-}
-
-#matchSummaryPanel, .match-summary,
-#matchSummaryPanel *, .match-summary * {
-    color: #fff !important;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-}
 
 .game-over-banner {
     background: rgba(46, 204, 113, 0.85);
@@ -1186,54 +1151,7 @@ body, html {
     margin-top: 20px;
 }
 
-/* Match Summary Panel */
-.match-summary-panel {
-    background: rgba(230, 249, 230, 0.35) !important;
-    color: #fff;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-    /* border: 2px solid #000; */
-    /* border-radius: 12px; */
-    padding: 6px 6px;
-    font-size: 0.8em;
-    font-weight: bold;
-    text-align: center;
-    margin: 0px auto 0 auto;
-    max-width: 480px;
-}
-.match-summary-title {
-    font-size: 1.5em;
-    margin-bottom: 0px;
-    font-weight: bold;
-    text-align: center;
-}
-.match-summary-scores-label {
-    margin-bottom: 10px;
-    font-weight: bold;
-}
-.match-summary-scores-list {
-    padding-left: 18px;
-    text-align: left;
-    margin-bottom: 10px;
-}
-.match-summary-score-item {
-    margin-bottom: 4px;
-}
-.match-summary-winner {
-    margin-top: 12px;
-    font-size: 1.2em;
-    text-align: center;
-    color: #fff;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-    font-weight: bold;
-}
+
 
 /* Probabilities Panel Box. This includes the 'Cards Left' AND the strategic Reccomendations for real. */
 .probabilities-panel-box {
@@ -1275,37 +1193,57 @@ body, html {
     background:rgba(0, 123, 255, 0.01)
 }
 
-/* .probabilities-bar-title {
+/* === Probabilities Recommendation Section Styling === */
+
+/* Title for the recommendation bar (e.g., 'Strategic Recommendation:') */
+.probabilities-bar-title {
+    font-size: 1.1em;
     font-weight: bold;
-    color: #007bff;
-    margin-bottom: 4px;
-} */
-
-.probabilities-bar-main {
-    font-size: 14px;
+    color: #1976d2;
     margin-bottom: 2px;
+    letter-spacing: 0.5px;
 }
 
-.probabilities-bar-detail {
-    font-size: 12px;
-    color: #666;
+/* Label for 'Strategic Recommendation' (icon + text) */
+.strategic-recommendation-label {
+    font-size: 1.08em;
+    font-weight: bold;
+    color: #1976d2;
+    text-shadow: 1px 1px 2px #fff, 0 0 2px #000;
 }
 
-.probabilities-stat {
-    margin-top: 4px;
+/* Main recommendation action (e.g., 'Draw from deck...') */
+.probabilities-bar-main {
+    font-size: 1.08em;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 4px;
 }
 
+/* Container for all details (EVs, card info, etc.) */
+.probabilities-bar-details {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding-left: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
 
-.probabilities-table th.count-header {
-    text-align: left;
+/* Label for each probability/statistic (e.g., 'Draw EV:') */
+.prob-label {
+    color: #333;
+    font-weight: 500;
+    margin-right: 4px;
 }
-.probabilities-table td.rank-cell {
-    padding-right: 5px;
-    padding: 2px 0;
+
+/* Value for each probability/statistic (e.g., '+7.5') */
+.prob-value {
+    color: #007b83;
+    font-weight: bold;
 }
-.probabilities-table td.count-cell {
-    padding: 2px 0;
-}
+
+/* === End Probabilities Recommendation Section Styling === */
 
 /* Card count bar color classes (for JS to add dynamically) */
 .card-bar-red { background-color: #dc3545; }
@@ -1370,5 +1308,46 @@ body, html {
     background: rgba(0, 123, 255, 0.10);
     border-left: 3px solid #007bff;
     font-weight: bold;
+}
+
+/* Game Control Buttons in ScoresAndRoundInfo */
+.game-control-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.game-control-btn {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.game-control-btn.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.game-control-btn.btn-secondary:hover {
+    background: #5a6268;
+    border-color: #545b62;
+}
+
+.game-control-btn.btn-primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.game-control-btn.btn-primary:hover {
+    background: #0056b3;
+    border-color: #004085;
 }
 

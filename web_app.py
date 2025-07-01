@@ -143,7 +143,11 @@ def make_move():
         # Restore original agent
         game.agents[0] = original_agent
 
-        # Move to next player
+        # Update cumulative scores for all players BEFORE advancing to next player
+        # This ensures scores are recorded for the current round before it advances
+        update_round_cumulative_scores(game_session, game)
+
+        # Move to next player (this may advance the round)
         game.next_player()
 
         return jsonify({
@@ -277,6 +281,15 @@ def get_game_state(game_id):
     # Use round_cumulative_scores if available (during game), otherwise cumulative_scores (between games)
     display_cumulative_scores = game_session.get('round_cumulative_scores', cumulative_scores)
 
+    deck_top_card = None
+    if len(game.deck) > 0:
+        card = game.deck[-1]
+        deck_top_card = {
+            'rank': card.rank,
+            'suit': card.suit,
+            'score': card.score()
+        }
+
     state = {
         'players': players_data,
         'current_turn': game.turn,
@@ -295,7 +308,8 @@ def get_game_state(game_id):
         'cumulative_scores': display_cumulative_scores,
         'current_game': current_game,
         'num_games': num_games,
-        'match_winner': match_winner
+        'match_winner': match_winner,
+        'deck_top_card': deck_top_card
     }
     # Set winner for current game if over
     if game_session['game_over']:
@@ -374,9 +388,13 @@ def run_ai_turn():
         if game.round > 1:
             time.sleep(AI_TURN_DELAY)
         game.play_turn(player)
+
+        # Update cumulative scores BEFORE advancing to next player
+        update_round_cumulative_scores(game_session, game)
+
         game.next_player()
 
-        # Check for game over, update state as needed
+        # Check for game over
         if game.round > game.max_rounds:
             for p in game.players:
                 p.reveal_all()
@@ -386,18 +404,6 @@ def run_ai_turn():
                 min_score = min(game_session['cumulative_scores'])
                 winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
                 game_session['match_winner'] = winners
-        else:
-            # Update cumulative scores after each round (not just at game end)
-            # Use public scores that are available after each round
-            public_scores = [get_public_score(p, game) for p in game.players]
-            # Initialize round_cumulative_scores if not exists, starting from cumulative_scores
-            if 'round_cumulative_scores' not in game_session:
-                game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
-
-            # Update running totals for this game
-            for i, score in enumerate(public_scores):
-                if score is not None:
-                    game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
 
         game_session['ai_thinking'] = False
 
@@ -428,6 +434,29 @@ def run_ai_turn():
         'success': True,
         'game_state': get_game_state(game_id)
     })
+
+def update_round_cumulative_scores(game_session, game):
+    """Update round cumulative scores for all players after any move"""
+    public_scores = [get_public_score(p, game) for p in game.players]
+
+    # Initialize round_cumulative_scores if not exists, starting from cumulative_scores
+    if 'round_cumulative_scores' not in game_session:
+        game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
+
+    # Update running totals for this game for all players
+    # Important: Use the current round number when the scores are calculated,
+    # not after the round has advanced
+    current_round = game.round
+    for i, score in enumerate(public_scores):
+        if score is not None:
+            if current_round == 1:
+                # For round 1, just use the current score
+                game_session['round_cumulative_scores'][i] = score
+            else:
+                # For later rounds, add to cumulative total from previous games
+                game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
+
+    print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

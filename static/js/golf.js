@@ -103,7 +103,6 @@ async function startGame() {
             currentGameState = data.game_state;
             document.getElementById('gameSetup').style.display = 'none';
             document.getElementById('gameBoard').style.display = 'block';
-            document.getElementById('restartBtn').style.display = 'inline-block';
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
@@ -195,6 +194,7 @@ async function refreshGameState() {
 
             // Check if it's an AI's turn and start polling if needed
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                console.log('🔄 refreshGameState: AI turn detected, calling pollAITurns');
                 pollAITurns();
             }
 
@@ -232,29 +232,7 @@ function updateGameDisplay() {
             gameInfoBar.textContent = '';
         }
 
-        // Show match summary if match is over
-        if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
-            let summaryHtml = `<div class="match-summary-panel">
-                <h2 class="match-summary-title">Match Summary</h2>`;
-            summaryHtml += `<div class="match-summary-scores-label"><b>Final Cumulative Scores:</b></div><ul class="match-summary-scores-list">`;
-            const scores = currentGameState.cumulative_scores;
-            const minScore = Math.min(...scores);
-            const winners = [];
-            scores.forEach((score, idx) => {
-                if (score === minScore) winners.push(idx);
-            });
-            winners.forEach(winner => {
-                summaryHtml += `<li class="match-summary-score-item"><b>${playerNames[winner]}</b>: ${scores[winner]} 🏆</li>`;
-            });
-            summaryHtml += `</ul>`;
-            if (winners.length === 1) {
-                summaryHtml += `<div class="match-summary-winner">Winner: ${playerNames[winners[0]]} 🏆</div>`;
-            } else if (winners.length > 1) {
-                summaryHtml += `<div class="match-summary-winner">Winners: ${winners.map(i => playerNames[i]).join(', ')} 🏆</div>`;
-            }
-            summaryHtml += `</div>`;
-            document.getElementById('matchupSummary').innerHTML = summaryHtml;
-        }
+
 
         // Update deck size
         document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
@@ -275,7 +253,7 @@ function updateGameDisplay() {
         // Update probabilities panel
         updateProbabilitiesPanel();
 
-        // Update cumulative score chart
+        // Update cumulative score chart (only if game state changed)
         updateCumulativeScoreChart();
 
         // Game display updated successfully
@@ -434,7 +412,13 @@ function updateScoresAndRoundInfo() {
     });
     scoresHtml += '</div>';
 
-    container.innerHTML = infoText + scoresHtml;
+    // Add game control buttons
+    let buttonsHtml = '<div class="game-control-buttons">';
+    buttonsHtml += '<button onclick="restartGame()" class="btn btn-secondary game-control-btn">New Game</button>';
+    buttonsHtml += '<button onclick="replayGame()" class="btn btn-primary game-control-btn">Replay</button>';
+    buttonsHtml += '</div>';
+
+    container.innerHTML = infoText + scoresHtml + buttonsHtml;
 }
 
 async function takeDiscard() {
@@ -599,6 +583,7 @@ async function executeAction(position, actionType = null) {
             }
             // If it's now an AI's turn, start polling for AI turns
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
                 pollAITurns();
             }
         } else {
@@ -616,7 +601,6 @@ function restartGame() {
     gameId = null;
     document.getElementById('gameBoard').style.display = 'none';
     document.getElementById('gameSetup').style.display = 'block';
-    document.getElementById('restartBtn').style.display = 'none';
     setupCardsHidden = false;
     if (setupHideTimeout) clearTimeout(setupHideTimeout);
     if (setupViewInterval) clearInterval(setupViewInterval);
@@ -643,7 +627,7 @@ setInterval(() => {
     if (gameId && currentGameState && !currentGameState.game_over) {
         refreshGameState();
     }
-}, 1000);
+}, 500); // Reduced from 1000ms to 500ms for more responsive AI turns
 
 // Drawn card drag-and-drop logic
 document.addEventListener('DOMContentLoaded', () => {
@@ -1063,11 +1047,23 @@ function getPlayerColor(playerIndex) {
     return colors[playerIndex % colors.length];
 }
 
+// Add throttling to prevent excessive chart updates
+let lastChartUpdate = 0;
+const CHART_UPDATE_THROTTLE = 100; // minimum 100ms between updates
+
 function updateCumulativeScoreChart() {
     const canvas = document.getElementById('cumulativeScoreChart');
     if (!canvas) {
         return;
     }
+
+    // Throttle chart updates to prevent excessive rendering
+    const now = Date.now();
+    if (now - lastChartUpdate < CHART_UPDATE_THROTTLE) {
+        return;
+    }
+    lastChartUpdate = now;
+
     const ctx = canvas.getContext('2d');
 
     // Initialize chart if it doesn't exist
@@ -1092,6 +1088,7 @@ function updateCumulativeScoreChart() {
         }
         window.cumulativeScoreLabels = [];
         window.lastMatchId = matchId; // Track match with num_games and player names
+        window.lastProcessedRound = 1; // Reset round tracking
         lastChartRound = null;
     }
 
@@ -1118,7 +1115,26 @@ function updateCumulativeScoreChart() {
         return;
     }
 
-    const isNewRound = !window.cumulativeScoreLabels.includes(currentRoundKey);
+    // Round completion detection: When scores exist but we're in a later round,
+    // the scores represent the previous completed round
+    let targetRound = currentGameState.round;
+    let targetRoundKey = currentRoundKey;
+
+    // Track the last round we processed
+    if (!window.lastProcessedRound) {
+        window.lastProcessedRound = 1;
+    }
+
+    // If we have scores and round has advanced, scores are for the previous round
+    if (currentGameState.round > window.lastProcessedRound && roundScores.some(score => score > 0)) {
+        targetRound = currentGameState.round - 1;
+        targetRoundKey = `G${currentGameState.current_game}R${targetRound}`;
+        console.log('=== ROUND COMPLETION DETECTED ===');
+        console.log('Current round:', currentGameState.round, 'Recording scores for completed round:', targetRound);
+        window.lastProcessedRound = currentGameState.round;
+    }
+
+    const isNewRound = !window.cumulativeScoreLabels.includes(targetRoundKey);
     let dataChanged = false;
 
     if (isNewRound) {
@@ -1126,16 +1142,18 @@ function updateCumulativeScoreChart() {
         for (let i = 0; i < currentGameState.players.length; i++) {
             window.cumulativeScoreHistory[i].push(roundScores[i] || 0);
         }
-        window.cumulativeScoreLabels.push(currentRoundKey);
-        lastChartRound = currentRoundKey;
+        window.cumulativeScoreLabels.push(targetRoundKey);
+        lastChartRound = targetRoundKey;
         dataChanged = true;
+        console.log('=== ADDED NEW ROUND ===', targetRoundKey, 'with scores:', roundScores);
     } else {
         // Update existing data point if scores have changed
-        const lastIndex = window.cumulativeScoreLabels.length - 1;
-        if (lastIndex >= 0 && window.cumulativeScoreLabels[lastIndex] === currentRoundKey) {
+        const lastIndex = window.cumulativeScoreLabels.findIndex(label => label === targetRoundKey);
+        if (lastIndex >= 0) {
             for (let i = 0; i < currentGameState.players.length; i++) {
                 const newScore = roundScores[i] || 0;
                 if (window.cumulativeScoreHistory[i][lastIndex] !== newScore) {
+                    console.log('=== UPDATING SCORE ===', `Player ${i}:`, window.cumulativeScoreHistory[i][lastIndex], '→', newScore);
                     window.cumulativeScoreHistory[i][lastIndex] = newScore;
                     dataChanged = true;
                 }
@@ -1236,7 +1254,9 @@ function onDrop(card, slot) {
 }
 
 async function pollAITurns() {
+    console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over);
     while (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+        console.log('🤖 Making AI turn request for player', currentGameState.current_turn);
         const response = await fetch('/run_ai_turn', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1244,13 +1264,16 @@ async function pollAITurns() {
         });
         const data = await response.json();
         if (data.success) {
+            console.log('🤖 AI turn successful, updating game state');
             currentGameState = data.game_state;
             updateGameDisplay();
         } else {
+            console.log('🤖 AI turn failed or game over:', data.error);
             break; // error or game over
         }
         await new Promise(res => setTimeout(res, 100)); // small delay to avoid hammering server
     }
+    console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn);
 }
 
 // Add the replayGame function
@@ -1296,7 +1319,6 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             currentGameState = data.game_state;
             document.getElementById('gameSetup').style.display = 'none';
             document.getElementById('gameBoard').style.display = 'block';
-            document.getElementById('restartBtn').style.display = 'inline-block';
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
