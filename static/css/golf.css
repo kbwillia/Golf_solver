@@ -280,7 +280,7 @@ body { /* Page body */
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 24px; /* Increase gap for more space */
+    gap: 40px 30px; /* Larger vertical gap (40px) and horizontal gap (30px) */
     width: 100%;
     height: 100%;
     justify-items: center;
@@ -288,8 +288,8 @@ body { /* Page body */
 }
 
 .four-player-grid .player-grid {
-    width: 220px;   /* Increase as needed */
-    height: 220px;  /* Make square */
+    width: 260px;   /* Increased size for better visibility */
+    height: 260px;  /* Keep square */
     max-width: 100%;
     max-height: 100%;
     /* Add any additional styling you want */
@@ -317,8 +317,8 @@ body { /* Page body */
 
 /* Keep current-turn player grids square in four-player layout */
 .four-player-grid .player-grid.current-turn {
-    width: 220px !important;   /* Same size as other players */
-    height: 220px !important;  /* Keep square */
+    width: 260px !important;   /* Same size as other players */
+    height: 260px !important;  /* Keep square */
 }
 
 /* Semi-transparent background image using pseudo-element */
@@ -332,7 +332,7 @@ body { /* Page body */
     background: url('/static/titlelist1.jpg') center center/cover no-repeat !important;
     opacity: 0.5 !important; /* Only the background image is transparent */
     z-index: 0 !important; /* Put behind content but visible */
-    animation: rotate-background-continuous 20s linear infinite !important; /* Slower, continuous rotation */
+    animation: rotate-background-continuous 8s linear infinite !important; /* Faster rotation */
     animation-delay: calc(-1 * var(--animation-offset, 0s)) !important; /* Offset to prevent restart */
     transform-origin: center !important; /* Rotate from center */
     border-radius: 50% !important; /* Make the background image itself circular */
@@ -399,6 +399,7 @@ body { /* Page body */
     padding: 0;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
+    opacity: 0.7; /* Default opacity for subtle appearance */
 }
 
 /* Face-down card style - classic casino card back design */
@@ -727,7 +728,11 @@ body { /* Page body */
     margin-top: 8px;
     max-width: 140px;
     color: rgba(255,255,255,0.9);
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
     background: rgba(0,0,0,0.3);
     padding: 5px 8px;
     border-radius: 8px;
@@ -749,7 +754,7 @@ body { /* Page body */
 /* Card hover effect - now more responsive */
 .card:hover {
     box-shadow: 0 0 12px #007bff, 0 0 6px #764ba2;
-    opacity: 0.95;
+    opacity: 1.0 !important; /* Full opacity on hover */
     cursor: pointer;
     transform: scale(1.02); /* Slight scale on hover */
 }
@@ -882,8 +887,8 @@ body { /* Page body */
 
     padding: 15px;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    font-size: 14px;
+    /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
+    font-size: 18px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -906,49 +911,7 @@ body { /* Page body */
     display: block;
 }
 
-/* Game over modal inside content */
-/* .gameover-modal-inside {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    width: 100%;
-    margin-top: 40px;
-    z-index: 10;
-} */
 
-/* Modal content inside game over modal */
-/* .modal-content-inside {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-    padding: 24px 18px 18px 18px;
-    width: 90%;
-    max-width: 260px;
-    text-align: center;
-} */
-
-/* Celebration panel container (fixed left) */
-/* #celebrationPanelContainer {
-    position: fixed;
-    top: 40px;
-    left: 20px;
-    z-index: 100;
-    min-width: 200px;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-} */
-
-/* Celebration panel content */
-/* #celebrationPanel {
-    min-width: 380px;
-    max-width: 560px;
-    font-size: 1.15em;
-    align-self: flex-start;
-    padding: 24px 32px;
-} */
 
 /* Card count bar chart styles */
 .card-count-bar-container {
@@ -977,7 +940,12 @@ body { /* Page body */
     color: white;
     font-weight: bold;
     font-size: 11px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+
+    text-shadow:
+    -1px -1px 0 black,
+     1px -1px 0 black,
+    -1px  1px 0 black,
+     1px  1px 0 black; /* Black outline in all directions */
     position: absolute;
     z-index: 1;
 }
@@ -1023,7 +991,11 @@ body { /* Page body */
 #gameOverBanner, .game-over-banner {
     background: rgba(46, 204, 113, 0.05); /* Light green, semi-transparent */
     color: #fff;
-    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
     border-radius: 10px;
     padding: 18px 0;
     font-size: 2em;
@@ -1038,7 +1010,11 @@ body { /* Page body */
 #gameOverBanner button, .game-over-banner button {
     background: rgba(46, 204, 113, 0.85);
     color: #fff;
-    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
     border: 2px solid #000;
     border-radius: 6px;
     font-size: 1.1em;
@@ -1059,7 +1035,12 @@ body { /* Page body */
 #matchSummaryPanel, .match-summary {
     background: rgba(46, 204, 113, 0.85); /* Light green, semi-transparent */
     color: #fff;
-    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
+
     border-radius: 10px;
     padding: 18px 24px;
     font-size: 1.3em;

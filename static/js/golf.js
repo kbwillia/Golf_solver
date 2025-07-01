@@ -351,7 +351,7 @@ function updatePlayerGrids() {
         if (index === currentGameState.current_turn) {
             playerDiv.classList.add('current-turn'); // Highlight current turn
             // Set animation offset to prevent restart on DOM updates
-            const animationOffset = (Date.now() % 20000) / 1000; // 20s animation cycle
+            const animationOffset = (Date.now() % 8000) / 1000; // 8s animation cycle
             playerDiv.style.setProperty('--animation-offset', `${animationOffset}s`);
         }
         const isHuman = index === 0; // Human is always player 0
