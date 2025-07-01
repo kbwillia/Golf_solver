@@ -70,31 +70,32 @@
 
                     <!-- Notification Area (left): badge, gifs, matchup summary -->
                     <div class="notification-area">
-                        <div id="yourTurnBadge"></div>
+                        <div id="notificationBanner"></div>
                         <div id="aiThinkingMessage"></div>
-                        <div id="gameOverBanner"></div>
                         <div id="celebrationGif"></div>
                         <div id="matchupSummary"></div>
                     </div>
 
                     <!-- Gameplay Area (center): player grids, deck/discard, drawn card -->
                     <div class="gameplay-area">
-                        <div id="playerGrids"></div>
+                        <div class="gameplay-row">
+                            <div id="playerGrids"></div>
+                            <div class="deck-discard-container">
+                                <div class="deck-area">
+                                    <h4>Deck</h4>
+                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                    <div id="deckSize"></div>
+                                </div>
+                                <div class="discard-area">
+                                    <h4>Discard</h4>
+                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                </div>
+                            </div>
+                        </div>
                         <div id="drawnCardArea">
                             <div id="drawnCardDisplay" draggable="true"></div>
                             <div id="drawnCardInstructions">
                                 Drag to replace or click a grid card to flip it
-                            </div>
-                        </div>
-                        <div class="deck-discard-container">
-                            <div class="deck-area">
-                                <h4>Deck</h4>
-                                <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
-                                <div id="deckSize"></div>
-                            </div>
-                            <div class="discard-area">
-                                <h4>Discard</h4>
-                                <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
                             </div>
                         </div>
                     </div>

@@ -93,6 +93,7 @@ async function startGame() {
         });
 
         const data = await response.json();
+        // Debug: Response received successfully
         if (data.success && data.game_state && data.game_state.players) {
             gameId = data.game_id;
             currentGameState = data.game_state;
@@ -115,11 +116,20 @@ async function startGame() {
             }, 1000);
             setupHideTimeout = setTimeout(() => {
                 setupCardsHidden = true;
-                updateGameDisplay();
+                try {
+                    updateGameDisplay();
+                } catch (error) {
+                    console.error('Error in updateGameDisplay (timeout):', error);
+                }
                 hideSetupViewTimer();
                 if (setupViewInterval) clearInterval(setupViewInterval);
             }, SETUP_VIEW_SECONDS * 1000);
-            updateGameDisplay();
+            try {
+                updateGameDisplay();
+            } catch (error) {
+                console.error('Error in updateGameDisplay (initial):', error);
+                throw error; // Re-throw to see the full error
+            }
         } else {
             console.error('Game start error:', data);
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));
@@ -152,91 +162,107 @@ async function refreshGameState() {
 function updateGameDisplay() {
     if (!currentGameState) return;
 
-    // Get custom player names
-    const playerNames = currentGameState.players.map(p => p.name);
-    const currentPlayer = currentGameState.players[currentGameState.current_turn];
-    const isHumanTurn = currentPlayer && currentGameState.current_turn === 0;
+    try {
+        // Get custom player names
+        const playerNames = currentGameState.players.map(p => p.name);
+        const currentPlayer = currentGameState.players[currentGameState.current_turn];
+        const isHumanTurn = currentPlayer && currentGameState.current_turn === 0;
 
-    // Show current game number and total games
-    const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-    let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
+        // Show current game number and total games
+        const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
+        let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
 
-    // Clear all notification area elements
-    document.getElementById('yourTurnBadge').innerHTML = '';
-    document.getElementById('aiThinkingMessage').innerHTML = '';
-    document.getElementById('gameOverBanner').innerHTML = '';
-    document.getElementById('celebrationGif').innerHTML = '';
+        // Clear notification area elements that exist
+        const notificationBanner = document.getElementById('notificationBanner');
+        const celebrationGif = document.getElementById('celebrationGif');
 
-    // Show AI thinking message if applicable
-    if (currentGameState.ai_thinking) {
-        document.getElementById('aiThinkingMessage').innerHTML =
-            `<div style="font-size:1.15em;font-weight:bold;text-align:center;background:#28a745;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
-                AI is lining up its shot...</div>`;
-    } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-        document.getElementById('yourTurnBadge').innerHTML =
-            `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">
-                Your Turn!</div>`;
-    }
+        if (celebrationGif) celebrationGif.innerHTML = '';
 
-    if (currentGameState.game_over) {
-        infoText += ' - Game Over!';
-        document.getElementById('gameOverBanner').innerHTML =
-            `<div style="font-size:1.25em;font-weight:bold;text-align:center;background:#007bff;color:white;padding:10px 0 10px 0;border-radius:8px;margin-bottom:18px;">Game Over</div>`;
-        // Show celebratory GIF in left panel if human wins
-        let iconHtml = '';
-        if (currentGameState.winner === 0) {
-            let gifUrl = '';
-            if (celebrationGifs.length > 0) {
-                gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+        // Set up the unified notification banner
+        if (notificationBanner) {
+            notificationBanner.className = ''; // Reset classes
+
+            if (currentGameState.game_over) {
+                infoText += ' - Game Over!';
+                notificationBanner.innerHTML = "Game Over!";
+                notificationBanner.style.background = "#dc3545"; // Red for game over
+                notificationBanner.style.color = "white";
+
+                // Show celebratory GIF below the banner if human wins
+                let iconHtml = '';
+                if (currentGameState.winner === 0) {
+                    let gifUrl = '';
+                    if (celebrationGifs.length > 0) {
+                        gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+                    }
+                    iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;object-fit:contain;background:transparent;border-radius:0;" />` : '';
+                } else if (typeof currentGameState.winner === 'number') {
+                    iconHtml = '🏆'; // AI wins
+                }
+                if (celebrationGif) {
+                    celebrationGif.innerHTML = `<div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
+                }
+            } else if (currentGameState.ai_thinking) {
+                notificationBanner.innerHTML = "AI is lining up its shot...";
+                notificationBanner.style.background = "#28a745"; // Green for AI thinking
+                notificationBanner.style.color = "white";
+            } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                notificationBanner.innerHTML = "Your Turn!";
+                notificationBanner.style.background = "#007bff"; // Blue for your turn
+                notificationBanner.style.color = "white";
+            } else {
+                notificationBanner.innerHTML = "";
+                notificationBanner.style.background = "#007bff";
+                notificationBanner.style.color = "white";
             }
-            iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;object-fit:contain;background:transparent;border-radius:0;" />` : '';
-        } else if (typeof currentGameState.winner === 'number') {
-            iconHtml = '🏆'; // AI wins
         }
-        document.getElementById('celebrationGif').innerHTML =
-            `<div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
-    }
 
-    document.getElementById('gameInfo').textContent = infoText;
+        document.getElementById('gameInfo').textContent = infoText;
 
-    // Show match summary if match is over
-    if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
-        let summaryHtml = `<div style="background:#f8f9fa;padding:18px 24px;border-radius:12px;box-shadow:0 2px 12px #eee;margin-bottom:18px;max-width:480px;">
-            <h2 style="text-align:center;">Match Summary</h2>`;
-        summaryHtml += `<div style="margin-bottom:10px;"><b>Final Cumulative Scores:</b></div><ul style="padding-left:18px;">`;
-        for (let i = 0; i < currentGameState.players.length; i++) {
-            const winnerIcon = (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(i)) ? ' 🏆' : '';
-            summaryHtml += `<li><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
+        // Show match summary if match is over
+        if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
+            let summaryHtml = `<div style="background:#f8f9fa;padding:18px 24px;border-radius:12px;box-shadow:0 2px 12px #eee;margin-bottom:18px;max-width:480px;">
+                <h2 style="text-align:center;">Match Summary</h2>`;
+            summaryHtml += `<div style="margin-bottom:10px;"><b>Final Cumulative Scores:</b></div><ul style="padding-left:18px;">`;
+            for (let i = 0; i < currentGameState.players.length; i++) {
+                const winnerIcon = (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(i)) ? ' 🏆' : '';
+                summaryHtml += `<li><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
+            }
+            summaryHtml += `</ul>`;
+            if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.length === 1) {
+                summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
+            } else if (Array.isArray(currentGameState.match_winner)) {
+                summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
+            }
+            summaryHtml += `</div>`;
+            document.getElementById('matchupSummary').innerHTML = summaryHtml;
         }
-        summaryHtml += `</ul>`;
-        if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.length === 1) {
-            summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
-        } else if (Array.isArray(currentGameState.match_winner)) {
-            summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
+
+        // Update deck size
+        document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
+
+        // Update discard pile
+        const discardCard = document.getElementById('discardCard');
+        if (currentGameState.discard_top) {
+            discardCard.innerHTML = getCardDisplayContent(currentGameState.discard_top, false);
+        } else {
+            discardCard.innerHTML = '';
+            discardCard.classList.add('face-down');
         }
-        summaryHtml += `</div>`;
-        document.getElementById('matchupSummary').innerHTML = summaryHtml;
+
+        // Update player grids
+        updatePlayerGrids();
+        // Update probabilities panel
+        updateProbabilitiesPanel();
+
+        // Update cumulative score chart
+        updateCumulativeScoreChart();
+
+        // Game display updated successfully
+    } catch (error) {
+        console.error('Error in updateGameDisplay:', error);
+        throw error;
     }
-
-    // Update deck size
-    document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
-
-    // Update discard pile
-    const discardCard = document.getElementById('discardCard');
-    if (currentGameState.discard_top) {
-        discardCard.innerHTML = getCardDisplayContent(currentGameState.discard_top, false);
-    } else {
-        discardCard.innerHTML = '';
-        discardCard.classList.add('face-down');
-    }
-
-    // Update player grids
-    updatePlayerGrids();
-    // Update probabilities panel
-    updateProbabilitiesPanel();
-
-    // Update cumulative score chart
-    updateCumulativeScoreChart();
 }
 
 function updatePlayerGrids() {
@@ -938,7 +964,7 @@ function onDrop(card, slot) {
 }
 
 async function pollAITurns() {
-    while (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+    while (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
         const response = await fetch('/run_ai_turn', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -955,9 +981,5 @@ async function pollAITurns() {
     }
 }
 
-// After a human move:
-if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-    pollAITurns();
-}
-
-console.log(currentGameState.match_winner, currentGameState.current_game, currentGameState.num_games);
+// Remove the problematic global scope code that was causing the null reference error
+// The pollAITurns() function should only be called from within functions after a game is started

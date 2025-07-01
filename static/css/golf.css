@@ -86,8 +86,9 @@ body { /* Page body */
     border-radius: 12px;  /* Optional: rounded corners for a nice look */
 }
 #yourTurnBadge {
-    min-height: 24px;
-    font-size: 1.2em;
+    min-height: 12px;
+    max-height: 20px;
+    font-size: 1.0em;
     font-weight: bold;
     color: #fff;
     background: #007bff;
@@ -109,7 +110,7 @@ body { /* Page body */
 .gameplay-area {
     grid-area: gameplay;
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Keep vertical for overall area */
     align-items: center;
     justify-content: flex-start;
     min-width: 420px;
@@ -119,6 +120,21 @@ body { /* Page body */
     border-radius: 20px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12);
     border: 2px solid #1a4d0a;
+}
+
+.gameplay-row {
+    display: flex;
+    flex-direction: row; /* Horizontal: playerGrids | deck/discard */
+    align-items: flex-start;
+    gap: 32px; /* Space between player grid and deck/discard */
+    width: 100%;
+    justify-content: center; /* Center the row in the area */
+}
+#playerGrids {
+    /* Optionally set a max-width or flex-basis if needed */
+}
+.deck-discard-container {
+    /* Already styled, but you can adjust width if needed */
 }
 
 /* RIGHT: Probabilities Area */
@@ -146,6 +162,7 @@ body { /* Page body */
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     max-width: 420px; /* LIMIT WIDTH: Prevent excessive expansion */
     width: fit-content; /* SHRINK TO CONTENT: Only as wide as needed */
+    border-radius: 32px;
 }
 
 /* 2x2 grid layout for 4 players */
@@ -455,15 +472,7 @@ body { /* Page body */
 }
 
 /* Game info panel - COMPACT for less top spacing */
-.game-info {
-    background: #bc1111;
-    border-radius: 8px;
-    padding: 8px 15px; /* REDUCED PADDING: Less vertical space */
-    margin-bottom: 5px; /* REDUCED MARGIN: Less spacing */
-    font-size: 1em; /* SMALLER FONT: More compact */
-    font-weight: bold;
-    text-align: center;
-}
+
 
 /* Modal overlay for popups */
 .modal {
@@ -478,7 +487,7 @@ body { /* Page body */
 }
 
 /* Modal content box */
-.modal-content {
+/* .modal-content {
     background-color: white;
     margin: 0 auto;
     position: fixed;
@@ -492,7 +501,7 @@ body { /* Page body */
     text-align: center;
     z-index: 2000;
     box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-}
+} */
 
 /* 2x2 grid for position selection buttons in modal */
 .position-buttons {
@@ -800,4 +809,20 @@ body { /* Page body */
     text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     position: absolute;
     z-index: 1;
+}
+
+#notificationBanner {
+    min-height: 32px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    background: #007bff; /* Blue for default/your turn */
+    border-radius: 8px;
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 12px;
+    transition: background 0.3s;
+}
+#notificationBanner.game-over {
+    background: #28a745; /* Green for game over, or pick another color */
 }
