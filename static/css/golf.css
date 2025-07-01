@@ -257,7 +257,7 @@ body { /* Page body */
     border: 4.0px solid #007bff;
     box-shadow: 0 0 0 0 #007bff;
     animation: border-glow-pulse 10s ease-in-out infinite;
-    /* background: rgba(48, 140, 143, 0.55); */
+    background: rgba(230, 249, 230, 0.60);
     position: relative;
 }
 
@@ -996,4 +996,106 @@ body { /* Page body */
     text-shadow: 1px 1px 2px #000, 0 0 1px #000;
     border: 2px solid #000;
     border-radius: 10px;
+}
+
+/* Game Over and Notification Banners */
+.game-over-banner, .ai-thinking-banner, .your-turn-banner, .default-banner {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border: 2px solid #000;
+    border-radius: 10px;
+    padding: 18px 0;
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+/* Specific banner color overrides */
+.ai-thinking-banner {
+    background: rgba(40, 167, 69, 0.85);
+}
+.your-turn-banner {
+    background: rgba(0, 123, 255, 0.85);
+}
+.default-banner {
+    background: rgba(0, 123, 255, 0.85);
+}
+
+/* Game Over Buttons */
+.game-over-buttons .btn, .game-over-buttons button {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border: 2px solid #000;
+    border-radius: 6px;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 0 8px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.game-over-buttons .btn:hover, .game-over-buttons button:hover {
+    background: rgba(39, 174, 96, 0.95);
+    color: #fff;
+}
+
+/* Celebration GIFs */
+.celebration-gif-img {
+    border-radius: 18px;
+    overflow: hidden;
+    display: block;
+    max-width: 320px;
+    max-height: 200px;
+    margin: 0 auto;
+    object-fit: contain;
+    background: transparent;
+}
+.celebration-gif-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Match Summary Panel */
+.match-summary-panel {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    border: 2px solid #000;
+    border-radius: 12px;
+    padding: 18px 24px;
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+    margin: 18px auto 0 auto;
+    max-width: 480px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+}
+.match-summary-title {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    font-weight: bold;
+    text-align: center;
+}
+.match-summary-scores-label {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+.match-summary-scores-list {
+    padding-left: 18px;
+    text-align: left;
+    margin-bottom: 10px;
+}
+.match-summary-score-item {
+    margin-bottom: 4px;
+}
+.match-summary-winner {
+    margin-top: 12px;
+    font-size: 1.2em;
+    text-align: center;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
+    font-weight: bold;
 }

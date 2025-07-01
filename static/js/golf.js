@@ -6,6 +6,7 @@ let dragActive = false; // Drag state for discard
 let draggedDiscardCard = null; // Card being dragged from discard
 let drawnCardData = null; // Data for the currently drawn card
 let drawnCardDragActive = false; // Drag state for drawn card
+let lastGameSetupReset = 0; // Track which game we last reset the setup for
 let turnAnimateTimeout = null; // Timeout for turn animation
 let lastTurnIndex = null; // Last turn index to detect turn changes
 let setupHideTimeout = null; // Timeout for hiding setup cards
@@ -147,8 +148,40 @@ async function refreshGameState() {
     try {
         const response = await fetch(`/game_state/${gameId}`);
         const data = await response.json();
-        if (data && !data.error) {
-            currentGameState = data;
+                if (data && !data.error) {
+                        // Check if we're in a new game but setup timer hasn't been reset
+            const isNewGame = currentGameState && data.current_game > currentGameState.current_game;
+            const isMultiGameAndRound1 = data.current_game > 1 && data.round === 1 && setupCardsHidden && lastGameSetupReset < data.current_game;
+
+                        if (isNewGame || isMultiGameAndRound1) {
+                lastGameSetupReset = data.current_game; // Mark that we've reset for this game
+
+                // RESET SETUP TIMER FOR NEW GAME
+                setupCardsHidden = false;
+                if (setupHideTimeout) clearTimeout(setupHideTimeout);
+                if (setupViewInterval) clearInterval(setupViewInterval);
+
+                // Start the setup timer for the new game
+                let secondsLeft = SETUP_VIEW_SECONDS;
+                showSetupViewTimer(secondsLeft);
+                setupViewInterval = setInterval(() => {
+                    secondsLeft--;
+                    if (secondsLeft > 0) {
+                        showSetupViewTimer(secondsLeft);
+                    } else {
+                        hideSetupViewTimer();
+                        clearInterval(setupViewInterval);
+                    }
+                }, 1000);
+                setupHideTimeout = setTimeout(() => {
+                    setupCardsHidden = true;
+                    updateGameDisplay();
+                    hideSetupViewTimer();
+                    if (setupViewInterval) clearInterval(setupViewInterval);
+                }, SETUP_VIEW_SECONDS * 1000);
+            }
+
+                        currentGameState = data;
             updateGameDisplay();
 
             if (data.game_over) {
@@ -198,17 +231,17 @@ function updateGameDisplay() {
                     if (celebrationGifs.length > 0) {
                         gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
                     }
-                    iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" style="width:100%;max-width:320px;max-height:200px;display:block;margin:0 auto;object-fit:contain;background:transparent;border-radius:0;" />` : '';
+                    iconHtml = gifUrl ? `<img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />` : '';
                 } else if (typeof currentGameState.winner === 'number') {
                     iconHtml = '🏆'; // AI wins
                 }
                 if (celebrationGif) {
-                    celebrationGif.innerHTML = `<div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
+                    celebrationGif.innerHTML = `<div class="celebration-gif-container">${iconHtml}</div>`;
                 }
 
                 // Add New Game and Replay buttons
-                let buttonHtml = `<div id="gameOverButtons" style="margin-top:12px;text-align:center;">
-                    <button id="newGameBtn" class="btn btn-secondary" style="margin-right:10px;">New Game</button>
+                let buttonHtml = `<div id="gameOverButtons" class="game-over-buttons">
+                    <button id="newGameBtn" class="btn btn-secondary">New Game</button>
                     <button id="replayBtn" class="btn btn-primary">Replay</button>
                 </div>`;
                 notificationBanner.innerHTML += buttonHtml;
@@ -221,18 +254,16 @@ function updateGameDisplay() {
                 }, 0);
             } else if (currentGameState.ai_thinking) {
                 notificationBanner.innerHTML = "AI is lining up its shot...";
-                notificationBanner.style.background = "#28a745"; // Green for AI thinking
-                notificationBanner.style.color = "white";
+                notificationBanner.classList.add('ai-thinking-banner');
             } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
                 notificationBanner.innerHTML = "Your Turn!";
-                notificationBanner.style.background = "#007bff"; // Blue for your turn
-                notificationBanner.style.color = "white";
+                notificationBanner.classList.add('your-turn-banner');
             } else {
                 notificationBanner.innerHTML = "";
-                notificationBanner.style.background = "#007bff";
-                notificationBanner.style.color = "white";
+                notificationBanner.classList.add('default-banner');
             }
         }
+
 
         // Put game info in the notification area instead of the game info bar
         const gameInfoDisplay = document.getElementById('gameInfoDisplay');
@@ -248,18 +279,18 @@ function updateGameDisplay() {
 
         // Show match summary if match is over
         if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
-            let summaryHtml = `<div style="background:#f8f9fa;padding:18px 24px;border-radius:12px;box-shadow:0 2px 12px #eee;margin-bottom:18px;max-width:480px;">
-                <h2 style="text-align:center;">Match Summary</h2>`;
-            summaryHtml += `<div style="margin-bottom:10px;"><b>Final Cumulative Scores:</b></div><ul style="padding-left:18px;">`;
+            let summaryHtml = `<div class="match-summary-panel">
+                <h2 class="match-summary-title">Match Summary</h2>`;
+            summaryHtml += `<div class="match-summary-scores-label"><b>Final Cumulative Scores:</b></div><ul class="match-summary-scores-list">`;
             for (let i = 0; i < currentGameState.players.length; i++) {
                 const winnerIcon = (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(i)) ? ' 🏆' : '';
-                summaryHtml += `<li><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
+                summaryHtml += `<li class="match-summary-score-item"><b>${playerNames[i]}</b>: ${currentGameState.cumulative_scores[i]}${winnerIcon}</li>`;
             }
             summaryHtml += `</ul>`;
             if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.length === 1) {
-                summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
+                summaryHtml += `<div class="match-summary-winner">Winner: ${playerNames[currentGameState.match_winner[0]]} 🏆</div>`;
             } else if (Array.isArray(currentGameState.match_winner)) {
-                summaryHtml += `<div style="margin-top:12px;font-size:1.2em;text-align:center;color:#007bff;font-weight:bold;">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
+                summaryHtml += `<div class="match-summary-winner">Winners: ${currentGameState.match_winner.map(i => playerNames[i]).join(', ')} 🏆</div>`;
             }
             summaryHtml += `</div>`;
             document.getElementById('matchupSummary').innerHTML = summaryHtml;
@@ -290,6 +321,8 @@ function updateGameDisplay() {
         console.error('Error in updateGameDisplay:', error);
         throw error;
     }
+
+            // Game display updated successfully
 }
 
 function updatePlayerGrids() {
@@ -326,6 +359,7 @@ function updatePlayerGrids() {
 
             if (isHuman && pos >= 2) {
                 if (!setupCardsHidden) {
+                    console.log(`🔍 Bottom cards visible - setupCardsHidden: ${setupCardsHidden}, game: ${currentGameState.current_game}`);
                     cardClass += ' privately-visible'; // Show bottom cards at setup
                     displayContent = getCardDisplayContent(card, false);
                     isFaceDown = false;
@@ -334,6 +368,7 @@ function updatePlayerGrids() {
                     displayContent = getCardDisplayContent(card, false);
                     isFaceDown = false;
                 } else {
+                    console.log(`🚫 Bottom cards hidden - setupCardsHidden: ${setupCardsHidden}, game: ${currentGameState.current_game}`);
                     cardClass += ' face-down'; // Hide after setup
                     displayContent = '';
                     isFaceDown = true;
@@ -636,6 +671,7 @@ function restartGame() {
     if (setupHideTimeout) clearTimeout(setupHideTimeout);
     if (setupViewInterval) clearInterval(setupViewInterval);
     showSetupViewTimer(SETUP_VIEW_SECONDS);
+    updateGameDisplay();
 }
 
 // Close modals when clicking outside
@@ -1129,3 +1165,12 @@ discardCard.onclick = function() {
     if (!isMyTurn) return;
     // ...rest of logic...
 };
+
+function handleGameEnd() {
+    console.log('Game ended, fetching new state...');
+    // fetch logic
+    console.log('New state received:', newState);
+    console.log('Updating display...');
+    updateGameDisplay();
+    console.log('Display updated');
+}

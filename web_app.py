@@ -362,14 +362,14 @@ def run_ai_turn():
     game_session = games[game_id]
     game = game_session['game']
 
-    # Only run if it's an AI's turn and game not over
+    # Only add delay for actual AI turns, not new game setup
     if game.turn != 0 and not game_session['game_over']:
         game_session['ai_thinking'] = True
         player = game.players[game.turn]
-        time.sleep(AI_TURN_DELAY)
-        print(f' ai turn delay 405: {AI_TURN_DELAY}')
+        # Skip delay for first round to show cards immediately
+        if game.round > 1:
+            time.sleep(AI_TURN_DELAY)
         game.play_turn(player)
-        time.sleep(AI_TURN_DELAY)
         game.next_player()
         # Check for game over, update state as needed
         if game.round > game.max_rounds:
@@ -387,8 +387,9 @@ def run_ai_turn():
                 game_session['match_winner'] = winners
         game_session['ai_thinking'] = False
 
+    # Handle new game creation without delay
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-        # Start next game, update game_session['game'], increment current_game, etc.
+        # Start next game immediately, no delay needed
         game_session['current_game'] += 1
         if game_session['mode'] == '1v1':
             agent_types = ["human", game_session['game'].players[1].agent_type]
