@@ -310,6 +310,8 @@ function updateGameDisplay() {
 
         // Update player grids
         updatePlayerGrids();
+        // Update scores display in notification area
+        updatePlayerScoresDisplay();
         // Update probabilities panel
         updateProbabilitiesPanel();
 
@@ -348,6 +350,9 @@ function updatePlayerGrids() {
         playerDiv.className = 'player-grid';
         if (index === currentGameState.current_turn) {
             playerDiv.classList.add('current-turn'); // Highlight current turn
+            // Set animation offset to prevent restart on DOM updates
+            const animationOffset = (Date.now() % 20000) / 1000; // 20s animation cycle
+            playerDiv.style.setProperty('--animation-offset', `${animationOffset}s`);
         }
         const isHuman = index === 0; // Human is always player 0
         const gridHtml = player.grid.map((card, pos) => {
@@ -405,23 +410,10 @@ function updatePlayerGrids() {
             }
             return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
         }).join('');
-        // Show only the public score for each player, and private score for human
-        let scoreText = '';
-        let badgeHtml = '';
-        if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
-            scoreText = ` - Score: ${currentGameState.public_scores[index]}`;
-            if (currentGameState.cumulative_scores && typeof currentGameState.cumulative_scores[index] !== 'undefined') {
-                scoreText;
-            }
-            if (currentGameState.game_over && index === currentGameState.winner) {
-                scoreText += '';
-            }
-        }
+        // Remove player names and scores from gameplay area - now in notification area
         playerDiv.innerHTML = `
-            <h3>${player.name}${scoreText}</h3>
-            ${badgeHtml}
             <div class="grid-container">${gridHtml}</div>
-        `; //this is where Human (human) and AI (AI) are displayed
+        `;
         container.appendChild(playerDiv);
     });
     // Robust delayed turn animation for human (border pulse)
@@ -446,6 +438,37 @@ function updatePlayerGrids() {
             };
         });
     }
+}
+
+function updatePlayerScoresDisplay() {
+    const scoresContainer = document.getElementById('playerScoresDisplay');
+    if (!scoresContainer || !currentGameState || !currentGameState.players) {
+        return;
+    }
+
+    let scoresHtml = '<div class="scores-panel"><h4>Current Scores</h4>';
+
+    currentGameState.players.forEach((player, index) => {
+        let scoreText = 'Hidden';
+        let winnerIcon = '';
+
+        if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
+            scoreText = currentGameState.public_scores[index];
+            if (currentGameState.game_over && index === currentGameState.winner) {
+                winnerIcon = ' 🏆';
+            }
+        }
+
+        const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
+        const turnIndicator = isCurrentTurn ? ' ← ' : '';
+
+        scoresHtml += `<div class="score-item ${isCurrentTurn ? 'current-turn-score' : ''}">
+            <strong>${player.name}:</strong> ${scoreText}${winnerIcon}${turnIndicator}
+        </div>`;
+    });
+
+    scoresHtml += '</div>';
+    scoresContainer.innerHTML = scoresHtml;
 }
 
 async function takeDiscard() {

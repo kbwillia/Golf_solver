@@ -72,6 +72,7 @@
                     <div class="notification-area">
                         <div id="gameInfoDisplay"></div>
                         <div id="notificationBanner"></div>
+                        <div id="playerScoresDisplay"></div>
                         <div id="aiThinkingMessage"></div>
                         <div id="celebrationGif"></div>
                         <div id="matchupSummary"></div>
@@ -80,7 +81,15 @@
                     <!-- Gameplay Area (center): player grids, deck/discard, drawn card -->
                     <div class="gameplay-area">
                         <div class="gameplay-row">
-                            <div id="playerGrids"></div>
+                            <div id="playerGrids">
+                                <div class="player-grid current-turn">
+                                    <div class="rotating-background"></div>
+                                    <!-- Your actual content, e.g. player name, cards, etc. -->
+                                    <div class="cards-container">
+                                        <!-- cards here -->
+                                    </div>
+                                </div>
+                            </div>
                             <div class="deck-discard-container">
                                 <div class="deck-area">
                                     <h4>Deck</h4>

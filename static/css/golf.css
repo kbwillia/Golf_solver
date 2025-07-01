@@ -144,6 +144,36 @@ body { /* Page body */
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
+/* Player Scores Display in Notification Area */
+.scores-panel {
+    background: rgba(230, 249, 230, 0.75);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.scores-panel h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.score-item {
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    font-size: 0.95em;
+}
+
+.score-item.current-turn-score {
+    background: rgba(0, 123, 255, 0.1);
+    border-left: 3px solid #007bff;
+    font-weight: bold;
+}
+
 /* Gameplay Area (center): player grids, deck/discard, drawn card */
 .gameplay-area {
     grid-area: gameplay;
@@ -222,7 +252,7 @@ body { /* Page body */
 .player-grid {
     width: 360px;
     height: 360px;
-    margin: 4px 0;
+    margin: 40px 0;
     padding: 6px 8px;
     /* border: 2px solid #ddd; */
     border-radius: 50%;
@@ -233,15 +263,16 @@ body { /* Page body */
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 auto;
+    justify-content: center; /* Center content vertically */
+    margin: 20 auto;
 }
 
-.player-grid h3 {
+/* .player-grid h3 {
     text-align: center;
     font-size: 1.1em;
     margin: 0 0 6px 0;
     word-break: break-word;
-}
+} */
 
 /* 2x2 grid layout for 4 players */
 /* 4-PLAYER GRID: Responsive layout */
@@ -274,53 +305,71 @@ body { /* Page body */
 
 /* Highlight for the current player's turn */
 .player-grid.current-turn {
-    border: 4.0px solid #007bff;
-    box-shadow: 0 0 0 0 #007bff;
-    animation: border-glow-pulse 10s ease-in-out infinite;
-    background: url('/static/titlelist1.jpg') center center/cover no-repeat;
+    min-width: 200px;
+    min-height: 200px;
+    width: 360px;
+    height: 360px;
     position: relative;
     border-radius: 50%;
-    width: 100%;
-    aspect-ratio: 1 / 1;   /* Always a square */
-    max-width: 360px;      /* Or whatever max you want */
-    margin: 0 auto;
+    /* overflow: hidden; */ /* Removed to prevent card clipping */
+    background: none; /* Remove direct background */
+}
+
+/* Keep current-turn player grids square in four-player layout */
+.four-player-grid .player-grid.current-turn {
+    width: 220px !important;   /* Same size as other players */
+    height: 220px !important;  /* Keep square */
+}
+
+/* Semi-transparent background image using pseudo-element */
+.player-grid.current-turn::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: url('/static/titlelist1.jpg') center center/cover no-repeat !important;
+    opacity: 0.5 !important; /* Only the background image is transparent */
+    z-index: 0 !important; /* Put behind content but visible */
+    animation: rotate-background-continuous 20s linear infinite !important; /* Slower, continuous rotation */
+    animation-delay: calc(-1 * var(--animation-offset, 0s)) !important; /* Offset to prevent restart */
+    transform-origin: center !important; /* Rotate from center */
+    border-radius: 50% !important; /* Make the background image itself circular */
+}
+
+/* Make sure content is above the background */
+.player-grid.current-turn > * {
+    position: relative;
+    z-index: 2 !important; /* Higher z-index to ensure content is above background */
+}
+
+/* Rotation animation for background image */
+@keyframes rotate-background {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Persistent rotation animation that doesn't restart */
+@keyframes rotate-background-persistent {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(90deg); }
+    50% { transform: rotate(180deg); }
+    75% { transform: rotate(270deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Continuous rotation that doesn't restart on DOM updates */
+@keyframes rotate-background-continuous {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 
-
-/* .player-grid.current-turn .cards-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 10px;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-items: center;
-} */
-
-@keyframes border-glow-pulse {
-    0% {
-      box-shadow: 0 0 0 2 rgba(0, 123, 255, 0);
-      border-color: #007bff;
-    }
-    25% {
-      box-shadow: 0 0 8px 2px rgba(0, 123, 255, 0.4);
-      border-color: #33bfff;
-    }
-    50% {
-      box-shadow: 0 0 16px 4px rgba(0, 123, 255, 0.7);
-      border-color: #66dfff;
-    }
-    75% {
-      box-shadow: 0 0 8px 2px rgba(0, 123, 255, 0.4);
-      border-color: #33bfff;
-    }
-    100% {
-      box-shadow: 0 0 0 2 rgba(0, 123, 255, 0);
-      border-color: #007bff;
-    }
-  }
 
 /* 2x2 GRID: Compact player card layout */
 .grid-container {
@@ -328,7 +377,7 @@ body { /* Page body */
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     max-width: 200px;
-    margin: 4px auto;
+    margin: 0 auto; /* Remove vertical margin, keep horizontal centering */
     width: fit-content;
 }
 
@@ -1225,11 +1274,29 @@ body { /* Page body */
 .card-bar-green { background-color: #28a745; }
 
 /* Probability blue text */
-.probability-blue { color: #007bff; }
+.probability-blue { color: #4314a1; }
 
 .player-grids-row {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 48px; /* Increase this value for more space */
+}
+
+/* New CSS for circular rotating background */
+.player-grid.current-turn::before {
+    content: '';
+    position: absolute;
+    top: -20%; /* Extend beyond container */
+    left: -20%; /* Extend beyond container */
+    right: -20%; /* Extend beyond container */
+    bottom: -20%; /* Extend beyond container */
+    width: 140%; /* Make it larger than the container */
+    height: 140%; /* Make it larger than the container */
+    background: url('/static/titlelist1.jpg') center center/cover no-repeat;
+    opacity: 0.5; /* Only the background image is transparent */
+    z-index: 0; /* Layer it properly */
+    animation: rotate-background 15s linear infinite; /* Rotate the background */
+    transform-origin: center; /* Rotate from center */
+    clip-path: circle(50% at center); /* Alternative to border-radius */
 }
