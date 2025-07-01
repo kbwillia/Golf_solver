@@ -900,6 +900,87 @@ function updateProbabilitiesPanel() {
 let cumulativeScoreChart = null;
 let lastChartGameId = null;
 let lastChartRound = null;
+
+function initializeCumulativeScoreChart() {
+    const canvas = document.getElementById('cumulativeScoreChart');
+    if (!canvas) {
+        console.log('Canvas element not found');
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+
+    // Create initial chart with 4 default columns and placeholder data
+    const defaultLabels = ['Game 1', 'Game 2', 'Game 3', 'Game 4'];
+    const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2'];
+    const defaultDatasets = [
+        {
+            label: 'Human',
+            data: [null, null, null, null],
+            borderColor: colors[0],
+            backgroundColor: colors[0],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 1,
+            pointHoverRadius: 5
+        },
+        {
+            label: 'AI Player 1',
+            data: [null, null, null, null],
+            borderColor: colors[1],
+            backgroundColor: colors[1],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 1,
+            pointHoverRadius: 5
+        },
+        {
+            label: 'AI Player 2',
+            data: [null, null, null, null],
+            borderColor: colors[2],
+            backgroundColor: colors[2],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 1,
+            pointHoverRadius: 5
+        },
+        {
+            label: 'AI Player 3',
+            data: [null, null, null, null],
+            borderColor: colors[3],
+            backgroundColor: colors[3],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 1,
+            pointHoverRadius: 5
+        }
+    ];
+
+    cumulativeScoreChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: defaultLabels,
+            datasets: defaultDatasets
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true, position: 'bottom' },
+                title: { display: true, text: 'Cumulative Scores by Round' }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Game & Round' },
+                    ticks: { autoSkip: false }
+                },
+                y: {
+                    title: { display: true, text: 'Score' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
 function updateCumulativeScoreChart() {
     const canvas = document.getElementById('cumulativeScoreChart');
     if (!canvas) {
@@ -907,6 +988,12 @@ function updateCumulativeScoreChart() {
         return;
     }
     const ctx = canvas.getContext('2d');
+
+    // Initialize chart if it doesn't exist
+    if (!cumulativeScoreChart) {
+        initializeCumulativeScoreChart();
+    }
+
     if (!currentGameState || !currentGameState.cumulative_scores || !currentGameState.current_game) {
         console.log('Missing game state data for chart');
         return;
@@ -956,9 +1043,25 @@ function updateCumulativeScoreChart() {
         pointRadius: 1,
         pointHoverRadius: 5
     }));
+    // Keep first 4 rounds static (0-20), only become dynamic after 4 rounds
+    const shouldUseDynamicYAxis = labels.length > 4;
+    const yAxisOptions = shouldUseDynamicYAxis ?
+        {
+            title: { display: true, text: 'Score' },
+            beginAtZero: true
+        } :
+        {
+            title: { display: true, text: 'Score' },
+            min: 0,
+            max: 20,
+            beginAtZero: true
+        };
+
     if (cumulativeScoreChart) {
         cumulativeScoreChart.data.labels = labels;
         cumulativeScoreChart.data.datasets = datasets;
+        // Update Y-axis options based on number of data points
+        cumulativeScoreChart.options.scales.y = yAxisOptions;
         cumulativeScoreChart.update();
     } else {
         cumulativeScoreChart = new Chart(ctx, {
@@ -978,10 +1081,7 @@ function updateCumulativeScoreChart() {
                         title: { display: true, text: 'Game & Round' },
                         ticks: { autoSkip: false }
                     },
-                    y: {
-                        title: { display: true, text: 'Score' },
-                        beginAtZero: true
-                    }
+                    y: yAxisOptions
                 }
             }
         });
@@ -991,6 +1091,10 @@ function updateCumulativeScoreChart() {
 // Show timer on initial load
 document.addEventListener('DOMContentLoaded', function() {
     showSetupViewTimer(SETUP_VIEW_SECONDS);
+    // Initialize the chart when page loads
+    setTimeout(() => {
+        initializeCumulativeScoreChart();
+    }, 100); // Small delay to ensure DOM is ready
 });
 
 function onDrop(card, slot) {
