@@ -930,33 +930,29 @@ body, html {
 
 /* cumulative score chart CHART CONTAINER: Optimized for grid layout */
 .chart-container {
-    /* Chart at bottom of probabilities column - never overflow */
+    /* Chart at bottom of probabilities column - overflow to left with layer priority */
+    position: absolute;
+    bottom: 15px; /* Distance from bottom */
+    right: 15px;  /* Distance from right edge */
+    width: 700px;  /* Fixed width - extends into center column */
+    max-height: 400px; /* Cap the height */
+    z-index: 100; /* Above everything else */
     background: rgba(230, 249, 230, 0.85);
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    max-height: 450px;
-    min-height: 350px; /* Reserve space to prevent layout shift */
-    width: 100%;
-    max-width: 100%; /* Never exceed parent column */
+    min-height: 250px; /* Smaller min-height to work with max-height */
     min-width: 0; /* Allow shrinking */
     box-sizing: border-box;
     border: 3px solid red;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    margin-top: auto; /* Push to bottom of parent */
     flex-shrink: 0; /* Don't let it shrink too much */
     transition: all 0.3s ease; /* Smooth any layout changes */
 }
 
-.chart-container canvas {
-    width: 100% !important;
-    height: 300px !important; /* Fixed height to prevent shaking */
-    max-width: 100%;
-    min-width: 0;
-    display: block;
-}
+
 
 /* Card count bar chart styles. This is the individaul bards of the cards left chart. */
 .card-count-bar-container {
