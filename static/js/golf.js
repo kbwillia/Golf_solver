@@ -182,7 +182,10 @@ function updateGameDisplay() {
         if (notificationBanner) {
             notificationBanner.className = ''; // Reset classes
 
-            if (currentGameState.game_over) {
+            if (
+                currentGameState.game_over &&
+                currentGameState.current_game === currentGameState.num_games
+            ) {
                 infoText += ' - Game Over!';
                 notificationBanner.innerHTML = "Game Over!";
                 notificationBanner.style.background = "#dc3545"; // Red for game over
@@ -202,6 +205,20 @@ function updateGameDisplay() {
                 if (celebrationGif) {
                     celebrationGif.innerHTML = `<div style="text-align:center;margin-top:20px;">${iconHtml}</div>`;
                 }
+
+                // Add New Game and Replay buttons
+                let buttonHtml = `<div id="gameOverButtons" style="margin-top:12px;text-align:center;">
+                    <button id="newGameBtn" class="btn btn-secondary" style="margin-right:10px;">New Game</button>
+                    <button id="replayBtn" class="btn btn-primary">Replay</button>
+                </div>`;
+                notificationBanner.innerHTML += buttonHtml;
+                // Attach event listeners after rendering
+                setTimeout(() => {
+                    const newGameBtn = document.getElementById('newGameBtn');
+                    const replayBtn = document.getElementById('replayBtn');
+                    if (newGameBtn) newGameBtn.onclick = restartGame;
+                    if (replayBtn) replayBtn.onclick = replayGame;
+                }, 0);
             } else if (currentGameState.ai_thinking) {
                 notificationBanner.innerHTML = "AI is lining up its shot...";
                 notificationBanner.style.background = "#28a745"; // Green for AI thinking
@@ -217,7 +234,17 @@ function updateGameDisplay() {
             }
         }
 
-        document.getElementById('gameInfo').textContent = infoText;
+        // Put game info in the notification area instead of the game info bar
+        const gameInfoDisplay = document.getElementById('gameInfoDisplay');
+        if (gameInfoDisplay) {
+            gameInfoDisplay.textContent = infoText;
+        }
+
+        // Clear the old game info bar (keep it empty)
+        const gameInfoBar = document.getElementById('gameInfo');
+        if (gameInfoBar) {
+            gameInfoBar.textContent = '';
+        }
 
         // Show match summary if match is over
         if (currentGameState.match_winner && currentGameState.current_game === currentGameState.num_games) {
@@ -358,10 +385,10 @@ function updatePlayerGrids() {
             }
         }
         playerDiv.innerHTML = `
-            <h3>${player.name} (${player.agent_type})${scoreText}</h3>
+            <h3>${player.name}${scoreText}</h3> /
             ${badgeHtml}
             <div class="grid-container">${gridHtml}</div>
-        `;
+        `; //this is where Human (human) and AI (AI) are displayed
         container.appendChild(playerDiv);
     });
     // Robust delayed turn animation for human (border pulse)
@@ -767,84 +794,96 @@ function flipDrawnCardOnGrid(pos) {
 }
 
 function updateProbabilitiesPanel() {
-    const panel = document.getElementById('probabilitiesPanel');
+    const unknownCardsPanel = document.getElementById('unknownCardsPanel');
+    const otherProbabilitiesPanel = document.getElementById('otherProbabilitiesPanel');
+
     if (!currentGameState || !currentGameState.probabilities) {
-        panel.innerHTML = '';
+        if (unknownCardsPanel) unknownCardsPanel.innerHTML = '';
+        if (otherProbabilitiesPanel) otherProbabilitiesPanel.innerHTML = '';
         return;
     }
+
     const probs = currentGameState.probabilities;
-    let html = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
-    html += '<h4 style="margin-top:0;">Probabilities</h4>';
 
-    // Expected Value Comparison (most important - show first)
-    if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
-        const ev = probs.expected_value_draw_vs_discard;
-        html += '<div style="margin-bottom:12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:4px solid #007bff;">';
-        html += '<div style="font-weight:bold;color:#007bff;margin-bottom:4px;">🎯 Strategic Recommendation:</div>';
-        html += `<div style="font-size:14px;margin-bottom:2px;"><b>${ev.recommendation}</b></div>`;
-        html += `<div style="font-size:12px;color:#666;">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
-        if (ev.discard_card) {
-            html += `<div style="font-size:12px;color:#666;">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
-        }
-        html += '</div>';
-    }
+    // LEFT COLUMN: Unknown Cards Chart
+    if (unknownCardsPanel && probs.deck_counts) {
+        let unknownHtml = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
+        unknownHtml += '<h4 style="margin-top:0;">Cards Left</h4>';
 
-    // Probability statistics (show ABOVE the chart)
-    if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
-        html += `<div style="margin-top:4px;">`;
-        html += `<b>Prob. next card matches your grid:</b> <span style="color:#007bff;">${probs.prob_draw_pair[0]}</span>`;
-        html += '</div>';
-    }
-    // Probability of drawing a card that improves your hand (for human)
-    if (probs.prob_improve_hand && probs.prob_improve_hand.length > 0) {
-        html += `<div style="margin-top:4px;">`;
-        html += `<b>Prob. next card improves your hand:</b> <span style="color:#007bff;">${probs.prob_improve_hand[0]}</span>`;
-        html += '</div>';
-    }
-
-    // Deck composition with horizontal bar chart (show BELOW the statistics)
-    if (probs.deck_counts) {
         // Desired order: J, A, 2-10, Q, K
         const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
         const maxCount = Math.max(...Object.values(probs.deck_counts));
 
-        html += '<div style="margin-top:8px;"><b>(Unknown Cards left):</b>';
-        html += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
-        html += '<thead><tr><th style="text-align:left;padding-right:5px;width:25px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
+        unknownHtml += '<table style="font-size:13px;margin-top:4px;margin-bottom:6px;width:100%;border-collapse:collapse;">';
+        unknownHtml += '<thead><tr><th style="text-align:left;padding-right:5px;width:25px;">Rank</th><th style="text-align:left;">Count</th></tr></thead><tbody>';
 
         for (const rank of order) {
             if (probs.deck_counts[rank] !== undefined) {
                 const count = probs.deck_counts[rank];
                 const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
 
-                // Color based on count: Swapped yellow and orange as requested
+                // Color based on count
                 let barColor;
                 if (count === 0) {
                     barColor = '#dc3545'; // Red for 0 (cards are out)
                 } else if (count === 1) {
-                    barColor = '#fd7e14'; // Orange for 1 (low availability) - SWAPPED
+                    barColor = '#fd7e14'; // Orange for 1 (low availability)
                 } else if (count <= 2) {
-                    barColor = '#ffc107'; // Yellow for 2 (medium-low) - SWAPPED
+                    barColor = '#ffc107'; // Yellow for 2 (medium-low)
                 } else if (count <= 3) {
                     barColor = '#20c997'; // Teal for 3 (medium)
                 } else {
                     barColor = '#28a745'; // Green for 4 (high availability)
                 }
 
-                html += `<tr><td style="padding-right:5px;padding:2px 0;">${rank}</td>`;
-                html += `<td style="padding:2px 0;">`;
-                html += `<div class="card-count-bar-container">`;
-                html += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
-                html += `<span class="card-count-text">${count}</span>`;
-                html += `</div>`;
-                html += `</div>`;
-                html += `</td></tr>`;
+                unknownHtml += `<tr><td style="padding-right:5px;padding:2px 0;">${rank}</td>`;
+                unknownHtml += `<td style="padding:2px 0;">`;
+                unknownHtml += `<div class="card-count-bar-container">`;
+                unknownHtml += `<div class="card-count-bar" style="width:${Math.max(barWidth, 8)}%;background-color:${barColor};">`;
+                unknownHtml += `<span class="card-count-text">${count}</span>`;
+                unknownHtml += `</div>`;
+                unknownHtml += `</div>`;
+                unknownHtml += `</td></tr>`;
             }
         }
-        html += '</tbody></table></div>';
+        unknownHtml += '</tbody></table></div>';
+        unknownCardsPanel.innerHTML = unknownHtml;
     }
-    html += '</div>';
-    panel.innerHTML = html;
+
+    // RIGHT COLUMN: Other Probabilities
+    if (otherProbabilitiesPanel) {
+        let otherHtml = '<div style="background:#f8f9fa;padding:12px 18px;border-radius:10px;box-shadow:0 1px 4px #eee;">';
+        otherHtml += '<h4 style="margin-top:0;">Probabilities</h4>';
+
+        // Expected Value Comparison (most important - show first)
+        if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
+            const ev = probs.expected_value_draw_vs_discard;
+            otherHtml += '<div style="margin-bottom:12px;padding:8px 12px;background:#e8f4fd;border-radius:6px;border-left:4px solid #007bff;">';
+            otherHtml += '<div style="font-weight:bold;color:#007bff;margin-bottom:4px;">🎯 Strategic Recommendation:</div>';
+            otherHtml += `<div style="font-size:14px;margin-bottom:2px;"><b>${ev.recommendation}</b></div>`;
+            otherHtml += `<div style="font-size:12px;color:#666;">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
+            if (ev.discard_card) {
+                otherHtml += `<div style="font-size:12px;color:#666;">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
+            }
+            otherHtml += '</div>';
+        }
+
+        // Probability statistics
+        if (probs.prob_draw_pair && probs.prob_draw_pair.length > 0) {
+            otherHtml += `<div style="margin-top:4px;">`;
+            otherHtml += `<b>Prob. next card matches your grid:</b> <span style="color:#007bff;">${probs.prob_draw_pair[0]}</span>`;
+            otherHtml += '</div>';
+        }
+        // Probability of drawing a card that improves your hand (for human)
+        if (probs.prob_improve_hand && probs.prob_improve_hand.length > 0) {
+            otherHtml += `<div style="margin-top:4px;">`;
+            otherHtml += `<b>Prob. next card improves your hand:</b> <span style="color:#007bff;">${probs.prob_improve_hand[0]}</span>`;
+            otherHtml += '</div>';
+        }
+
+        otherHtml += '</div>';
+        otherProbabilitiesPanel.innerHTML = otherHtml;
+    }
 }
 
 // Draw a line chart of cumulative scores for all players
@@ -978,6 +1017,68 @@ async function pollAITurns() {
             break; // error or game over
         }
         await new Promise(res => setTimeout(res, 100)); // small delay to avoid hammering server
+    }
+}
+
+// Add the replayGame function
+function replayGame() {
+    // Use the last selected settings
+    const gameMode = currentGameState.mode || '1v1';
+    const opponentType = currentGameState.players && currentGameState.players[1] ? currentGameState.players[1].agent_type : 'random';
+    const playerName = currentGameState.players && currentGameState.players[0] ? currentGameState.players[0].name : 'Human2';
+    const numGames = currentGameState.num_games || 1;
+    // Start a new game with the same settings
+    startGameWithSettings(gameMode, opponentType, playerName, numGames);
+}
+
+// Add a helper to start a game with specific settings
+async function startGameWithSettings(gameMode, opponentType, playerName, numGames) {
+    try {
+        const response = await fetch('/create_game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                mode: gameMode,
+                opponent: opponentType,
+                player_name: playerName,
+                num_games: numGames
+            })
+        });
+        const data = await response.json();
+        if (data.success && data.game_state && data.game_state.players) {
+            gameId = data.game_id;
+            currentGameState = data.game_state;
+            document.getElementById('gameSetup').style.display = 'none';
+            document.getElementById('gameBoard').style.display = 'block';
+            document.getElementById('restartBtn').style.display = 'inline-block';
+            setupCardsHidden = false;
+            if (setupHideTimeout) clearTimeout(setupHideTimeout);
+            if (setupViewInterval) clearInterval(setupViewInterval);
+            let secondsLeft = SETUP_VIEW_SECONDS;
+            showSetupViewTimer(secondsLeft);
+            setupViewInterval = setInterval(() => {
+                secondsLeft--;
+                if (secondsLeft > 0) {
+                    showSetupViewTimer(secondsLeft);
+                } else {
+                    hideSetupViewTimer();
+                    clearInterval(setupViewInterval);
+                }
+            }, 1000);
+            setupHideTimeout = setTimeout(() => {
+                setupCardsHidden = true;
+                updateGameDisplay();
+                hideSetupViewTimer();
+                if (setupViewInterval) clearInterval(setupViewInterval);
+            }, SETUP_VIEW_SECONDS * 1000);
+            updateGameDisplay();
+        } else {
+            alert('Error starting game: ' + (data.error || JSON.stringify(data)));
+        }
+    } catch (error) {
+        alert('Error starting game: ' + (error.message || error));
     }
 }
 

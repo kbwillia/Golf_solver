@@ -70,6 +70,7 @@
 
                     <!-- Notification Area (left): badge, gifs, matchup summary -->
                     <div class="notification-area">
+                        <div id="gameInfoDisplay"></div>
                         <div id="notificationBanner"></div>
                         <div id="aiThinkingMessage"></div>
                         <div id="celebrationGif"></div>
@@ -85,6 +86,13 @@
                                     <h4>Deck</h4>
                                     <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
                                     <div id="deckSize"></div>
+                                    <!-- Drawn card area moved here, right below deck -->
+                                    <div id="drawnCardArea">
+                                        <div id="drawnCardDisplay" draggable="true"></div>
+                                        <div id="drawnCardInstructions">
+                                            Drag to replace or click a grid card to flip it
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="discard-area">
                                     <h4>Discard</h4>
@@ -92,18 +100,16 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="drawnCardArea">
-                            <div id="drawnCardDisplay" draggable="true"></div>
-                            <div id="drawnCardInstructions">
-                                Drag to replace or click a grid card to flip it
-                            </div>
-                        </div>
                     </div>
 
                     <!-- RIGHT: Probabilities Panel -->
                     <div class="probabilities-area">
-                        <div id="probabilitiesPanel"></div>
-                        <!-- Cumulative Chart Below Probabilities -->
+                        <!-- Two-column layout for probabilities content -->
+                        <div class="probabilities-content">
+                            <div class="unknown-cards-column" id="unknownCardsPanel"></div>
+                            <div class="other-probabilities-column" id="otherProbabilitiesPanel"></div>
+                        </div>
+                        <!-- Cumulative Chart Below Probabilities (spans full width) -->
                         <div class="chart-container">
                             <canvas id="cumulativeScoreChart"></canvas>
                         </div>

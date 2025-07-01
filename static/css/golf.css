@@ -16,7 +16,8 @@ body { /* Page body */
     width: 100vw;
     max-width: 100vw;
     margin: 0;
-    min-height: calc(100vh - 20px); /* Fill most of viewport height */
+    min-height: 100vh;
+    height: 100vh;
     box-sizing: border-box; /* Include padding/border in size */
 }
 
@@ -31,6 +32,7 @@ body { /* Page body */
     display: none;
     width: 100%;
     height: 100%;
+    min-height: 0;
 }
 
 /* CSS GRID LAYOUT: Compact with minimal top spacing */
@@ -41,6 +43,8 @@ body { /* Page body */
     gap: 20px;
     width: 100vw;
     max-width: 100vw;
+    height: 100%;
+    min-height: 0;
 }
 
 /* RESPONSIVE: Adjust for smaller screens */
@@ -84,6 +88,20 @@ body { /* Page body */
     align-items: stretch;
     background: #e6f9e6; /* Light green background */
     border-radius: 12px;  /* Optional: rounded corners for a nice look */
+    padding: 16px; /* Add padding to the notification area */
+}
+
+/* Game Info Display in notification area */
+#gameInfoDisplay {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #495057;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 #yourTurnBadge {
     min-height: 12px;
@@ -116,7 +134,8 @@ body { /* Page body */
     min-width: 420px;
     max-width: 900px;
     padding: 18px 12px;
-    background: linear-gradient(135deg, #1a4d0a 0%, #4fa52d 100%);
+    /* background: linear-gradient(135deg, #1a4d0a 0%, #4fa52d 100%); */
+    background: url('/static/green.jpg') center center/cover no-repeat;
     border-radius: 20px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12);
     border: 2px solid #1a4d0a;
@@ -152,17 +171,47 @@ body { /* Page body */
     max-width: 900px;
 }
 
+/* Two-column layout for probabilities content */
+.probabilities-content {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    width: 100%;
+}
+
+/* Unknown cards chart on the left */
+.unknown-cards-column {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Other probabilities on the right */
+.other-probabilities-column {
+    flex: 1;
+    min-width: 200px;
+}
+
 /* PLAYER GRID: Compact and optimized */
 .player-grid {
+    width: 320px;
     margin: 4px 0;
     padding: 6px 8px;
     border: 2px solid #ddd;
     border-radius: 8px;
-    background: rgba(60, 121, 81, 0.95);
+    background: rgba(60, 121, 81, 0.55);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    max-width: 420px; /* LIMIT WIDTH: Prevent excessive expansion */
-    width: fit-content; /* SHRINK TO CONTENT: Only as wide as needed */
+
     border-radius: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.player-grid h3 {
+    text-align: center;
+    font-size: 1.1em;
+    margin: 0 0 6px 0;
+    word-break: break-word;
 }
 
 /* 2x2 grid layout for 4 players */
@@ -170,13 +219,18 @@ body { /* Page body */
 .four-player-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 24px; /* or your preferred gap */
+    width: 100%;
+    margin: 0;
+    max-width: 420px; /* or your preferred width */
+    justify-items: left;   /* Align grid items to the left */
+    align-items: left;
 }
 
 @media (max-width: 900px) {
     .four-player-grid {
         grid-template-columns: 1fr; /* Single column on mobile */
-        gap: 8px;
+        gap: 14px;
     }
 }
 
@@ -185,7 +239,7 @@ body { /* Page body */
     border: 3.0px solid #007bff;
     box-shadow: 0 0 0 0 #007bff;
     animation: border-glow-pulse 8.2s ease-in-out infinite;
-    background-color: #f8f9fa;
+    background: rgba(60, 121, 81, 0.55);
     position: relative;
 }
 
@@ -212,30 +266,28 @@ body { /* Page body */
     }
   }
 
-
-
 /* 2x2 GRID: Compact player card layout */
 .grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-    max-width: 160px; /* REDUCED WIDTH: More compact card grid */
-    margin: 4px auto; /* REDUCED MARGIN: Less spacing */
-    width: fit-content; /* SHRINK TO CONTENT */
+    gap: 16px;
+    max-width: 200px;
+    margin: 4px auto;
+    width: fit-content;
 }
 
 /* Card appearance (base) - COMPACT for tighter layout */
 .card {
-    width: 60px; /* SMALLER WIDTH: More compact cards */
-    height: 90px; /* SMALLER HEIGHT: Maintain proportions */
+    width: 80px;
+    height: 110px;
     border: 2px solid #333;
-    border-radius: 8px; /* Slightly smaller radius */
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px; /* SMALLER FONT: Fit compact cards */
+    font-size: 18px;
     font-weight: bold;
-    margin: 2px; /* MINIMAL MARGIN: Tighter spacing */
+    margin: 2px;
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
@@ -531,6 +583,9 @@ body { /* Page body */
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    min-width: 100px; /* Fixed width to prevent layout shift */
+    min-height: 200px; /* Fixed height to prevent layout shift */
+    position: relative; /* For absolute positioning of drawn card */
 }
 
 .deck-area h4, .discard-area h4 {
@@ -649,8 +704,11 @@ body { /* Page body */
     display: none;
     flex-direction: column;
     align-items: center;
-    margin-right: 15px;
-    margin-bottom: 10px;
+    position: absolute;
+    top: 150px; /* Position below deck card and deck size */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    z-index: 10; /* Ensure it appears above other elements */
 }
 
 /* Drawn card display style */
@@ -826,3 +884,11 @@ body { /* Page body */
 #notificationBanner.game-over {
     background: #28a745; /* Green for game over, or pick another color */
 }
+
+/* Removed the smaller sizing - player grids will use the standard size */
+
+.four-player-grid .player-grid {
+    max-width: 450px;
+    width: 100%;
+    padding: 2px 2px;
+} /*these are the cards inside the player grids*/

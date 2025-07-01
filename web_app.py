@@ -387,6 +387,21 @@ def run_ai_turn():
                 game_session['match_winner'] = winners
         game_session['ai_thinking'] = False
 
+    if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+        # Start next game, update game_session['game'], increment current_game, etc.
+        game_session['current_game'] += 1
+        if game_session['mode'] == '1v1':
+            agent_types = ["human", game_session['game'].players[1].agent_type]
+            num_players = 2
+        else:
+            agent_types = ["human", "random", "heuristic", "qlearning"]
+            num_players = 4
+        new_game = GolfGame(num_players=num_players, agent_types=agent_types)
+        new_game.players[0].name = game_session['player_name']
+        game_session['game'] = new_game
+        game_session['game_over'] = False
+        game_session['match_winner'] = None
+
     return jsonify({
         'success': True,
         'game_state': get_game_state(game_id)
