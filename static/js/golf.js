@@ -78,7 +78,7 @@ fetch('/static/golf_celebration_gifs.json')
 
 // Hurry up timer for slow play
 let hurryUpTimer = null;
-const HURRY_UP_DELAY = 15000; // 15 seconds
+const HURRY_UP_DELAY = 150000; // 150 seconds
 let lastHurryUpGifIndex = -1; // Track last shown GIF to avoid repeats
 const hurryUpGifs = [
     "https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.gif", // Clock ticking
@@ -125,7 +125,7 @@ function showHurryUpGif() {
             <div class="celebration-gif-container">
                 <img src="${randomGif}" alt="Hurry Up!" class="celebration-gif-img" onerror="console.error('Failed to load hurry up GIF:', this.src);" />
                 <div style="text-align: center; margin-top: 10px; color: #ff6b6b; font-weight: bold; font-size: 1.2em;">
-                    Make your move! ⏰
+                    Let's pick up the pace of play!
                 </div>
             </div>
         `;
@@ -1040,7 +1040,7 @@ function updateProbabilitiesPanel() {
         if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
             const ev = probs.expected_value_draw_vs_discard;
             otherHtml += '<div class="probabilities-bar">';
-            otherHtml += '<div class="probabilities-bar-title">🎯 Strategic Recommendation:</div>';
+            otherHtml += '<div class="probabilities-bar-title">🎯 Strategery!</div>';
             otherHtml += `<div class="probabilities-bar-main"><b>${ev.recommendation}</b></div>`;
             otherHtml += `<div class="probabilities-bar-detail">Draw: +${ev.draw_expected_value}</div>`;
             otherHtml += `<div class="probabilities-bar-detail">Discard: +${ev.discard_expected_value}</div>`;
@@ -1643,17 +1643,20 @@ function setPlayerInteractivity(isMyTurn) {
 
     // Discard
     const discard = document.getElementById('discardCard');
-    if (discard) discard.classList.toggle('disabled', !isMyTurn);
+    if (discard) {
+        discard.classList.toggle('disabled', !isMyTurn);
+        discard.draggable = !!isMyTurn;
+        if (isMyTurn) {
+            discard.onclick = takeDiscard;
+        } else {
+            discard.onclick = null;
+        }
+    }
 
     // All your cards
     document.querySelectorAll('.player-grid.human .card').forEach(card => {
         card.classList.toggle('disabled', !isMyTurn);
-    });
-
-    // Block drag events for discard and cards
-    if (discard) discard.draggable = isMyTurn;
-    document.querySelectorAll('.player-grid.human .card').forEach(card => {
-        card.draggable = isMyTurn;
+        card.draggable = !!isMyTurn;
     });
 }
 

@@ -150,13 +150,16 @@ def make_move():
         # This ensures scores are recorded for the current round before it advances
         update_round_cumulative_scores(game_session, game)
 
-        # Move to next player (this may advance the round)
-        game.next_player()
-
-        return jsonify({
+        # Return game state BEFORE advancing to next player
+        response = jsonify({
             'success': True,
             'game_state': get_game_state(game_id)
         })
+
+        # Move to next player (this may advance the round)
+        game.next_player()
+
+        return response
 
     except Exception as e:
         print(f"Error processing move: {e}")
@@ -446,6 +449,13 @@ def run_ai_turn():
         # Update cumulative scores BEFORE advancing to next player
         update_round_cumulative_scores(game_session, game)
 
+        # Return game state BEFORE advancing to next player
+        response = jsonify({
+            'success': True,
+            'game_state': get_game_state(game_id)
+        })
+
+        # Move to next player (this may advance the round)
         game.next_player()
 
         # Check for game over
@@ -460,6 +470,8 @@ def run_ai_turn():
                 game_session['match_winner'] = winners
 
         game_session['ai_thinking'] = False
+
+        return response
 
     # Mark waiting for next game if more games remain (don't auto-start)
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:

@@ -204,7 +204,7 @@ body, html {
     justify-content: flex-start;
     min-width: 420px;
     max-width: 900px;
-    padding: 10px 8px; /* Reduced padding from 18px 12px to save vertical space */
+    padding: 0px 0px; /* Reduced padding from 18px 12px to save vertical space */
     border-radius: 20px;
     /* border: 2px solid #1a4d0a; */
     min-height: 0; /* Allows shrinking to fit parent grid cell (important for grid/flex children) */
@@ -225,6 +225,7 @@ body, html {
 }
 .deck-discard-container {
     /* Removed margin-left: auto to prevent pushing to far right */
+    margin-top: 0px;
 }
 
 /* RIGHT: Probabilities Area */
@@ -285,15 +286,18 @@ body, html {
     width: 30%;
     min-width: 180px;
     max-width: 180px;
+    margin-left: auto; /* Push to the right */
     /* background: rgba(230, 249, 230, 0.15) !important; */
 }
 .other-probabilities-column {
     flex-basis: 80%;
     width: 70%;
-    min-width: 220px;
+    min-width: 260px;
     max-width: 340px;
-    min-height: 300px;
-    /* background: rgba(230, 249, 230, 0.75) !important; */
+    min-height: 240px;
+    max-height: 260px;
+
+    /* border: 3px solid red; */
 }
 
 /* PLAYER GRID: Compact and optimized */
@@ -704,7 +708,7 @@ body, html {
     flex-direction: row;
     align-items: flex-start;
     gap: 4px;
-    margin-top: 15px;
+    margin-top: 8px; /*was 20 but wanted to align with probabilities pane */
     max-width: 200px;
 }
 
@@ -1008,7 +1012,21 @@ body, html {
     display: block !important;
 }
 
-/* \ */
+/* Celebration GIFs */
+.celebration-gif-img {
+    border-radius: 18px;
+    overflow: hidden;
+    display: block;
+    max-width: 320px;
+    max-height: 240px;
+    margin: 0 auto;
+    object-fit: contain;
+    background: transparent;
+}
+.celebration-gif-container {
+    text-align: center;
+    margin-top: 20px;
+}
 
 
 
@@ -1036,21 +1054,7 @@ body, html {
     color: #fff;
 }
 
-/* Celebration GIFs */
-.celebration-gif-img {
-    border-radius: 18px;
-    overflow: hidden;
-    display: block;
-    max-width: 320px;
-    max-height: 240px;
-    margin: 0 auto;
-    object-fit: contain;
-    background: transparent;
-}
-.celebration-gif-container {
-    text-align: center;
-    margin-top: 20px;
-}
+
 
 
 
@@ -1058,7 +1062,7 @@ body, html {
 .probabilities-panel-box {
     background: rgba(230, 249, 230, 0.75) !important;
     border-radius: 20px !important;
-    padding: 14px !important;
+    padding: 4px !important;
 }
 
 .probabilities-title {
