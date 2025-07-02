@@ -77,6 +77,9 @@ function hideSetupViewTimer() {
 }
 
 async function startGame() {
+    // Reset turn tracking for new game
+    lastTurnIndex = null;
+
     const gameMode = document.getElementById('gameMode').value;
     const opponentType = document.getElementById('opponentType').value;
     const playerName = document.getElementById('playerName').value || 'Human';
@@ -267,6 +270,30 @@ function updateGameDisplay() {
 
 function updatePlayerGrids() {
     const container = document.getElementById('playerGrids');
+
+    // Store old turn index for transition animation
+    const oldTurnIndex = lastTurnIndex;
+    const currentTurnIndex = currentGameState.current_turn;
+    const turnChanged = oldTurnIndex !== currentTurnIndex && oldTurnIndex !== undefined && oldTurnIndex !== null;
+
+    // Prepare for smooth transition if turn changed
+    let oldPlayerGrid = null;
+    let newPlayerGrid = null;
+
+    if (turnChanged) {
+        // Store reference to old current player grid for transition
+        const oldCurrentGrid = container.querySelector('.player-grid.current-turn');
+        if (oldCurrentGrid) {
+            // Create a snapshot of the old spinning background position
+            const rect = oldCurrentGrid.getBoundingClientRect();
+            oldPlayerGrid = {
+                element: oldCurrentGrid,
+                rect: rect,
+                index: oldTurnIndex
+            };
+        }
+    }
+
     container.innerHTML = '';
     // Add or remove four-player-grid class
     if (currentGameState.players.length === 4) {
@@ -275,7 +302,6 @@ function updatePlayerGrids() {
         container.classList.remove('four-player-grid');
     }
     // Only clear timeout and remove animation if turn index changes
-    const currentTurnIndex = currentGameState.current_turn;
     if (lastTurnIndex !== currentTurnIndex) {
         if (turnAnimateTimeout) {
             clearTimeout(turnAnimateTimeout);
@@ -366,6 +392,9 @@ function updatePlayerGrids() {
             }
         }, 1); // Delay for border pulse (set to 1ms for instant)
     }
+    // Clean up any existing transition backgrounds to prevent duplicates
+    document.querySelectorAll('.transition-background').forEach(el => el.remove());
+
     lastTurnIndex = currentTurnIndex;
     // Attach click handler to flippable cards in flip mode
     if (window.flipDrawnMode) {
@@ -419,6 +448,28 @@ function updateScoresAndRoundInfo() {
     buttonsHtml += '</div>';
 
     container.innerHTML = infoText + scoresHtml + buttonsHtml;
+
+    // Handle celebration GIF display when human wins
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        if (currentGameState.game_over && currentGameState.winner === 0) {
+            // Human won! Show celebration GIF
+            let gifUrl = '';
+            if (celebrationGifs.length > 0) {
+                gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+            }
+            if (gifUrl) {
+                celebrationContainer.innerHTML = `
+                    <div class="celebration-gif-container">
+                        <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
+                    </div>
+                `;
+            }
+        } else {
+            // Clear celebration GIF when game is not over or human didn't win
+            celebrationContainer.innerHTML = '';
+        }
+    }
 }
 
 async function takeDiscard() {
@@ -597,6 +648,9 @@ async function executeAction(position, actionType = null) {
 }
 
 function restartGame() {
+    // Reset turn tracking for restart
+    lastTurnIndex = null;
+
     currentGameState = null;
     gameId = null;
     document.getElementById('gameBoard').style.display = 'none';
@@ -835,10 +889,12 @@ function updateProbabilitiesPanel() {
             otherHtml += '<div class="probabilities-bar">';
             otherHtml += '<div class="probabilities-bar-title">🎯 Strategic Recommendation:</div>';
             otherHtml += `<div class="probabilities-bar-main"><b>${ev.recommendation}</b></div>`;
-            otherHtml += `<div class="probabilities-bar-detail">Draw: +${ev.draw_expected_value} | Discard: +${ev.discard_expected_value} | Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
-            if (ev.discard_card) {
-                otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
-            }
+            otherHtml += `<div class="probabilities-bar-detail">Draw: +${ev.draw_expected_value}</div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Discard: +${ev.discard_expected_value}</div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
+            // if (ev.discard_card) {
+            //     otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
+            // }
             otherHtml += '</div>';
         }
 
@@ -1278,6 +1334,9 @@ async function pollAITurns() {
 
 // Add the replayGame function
 function replayGame() {
+    // Reset turn tracking for replay
+    lastTurnIndex = null;
+
     // Reset chart data for replay
     window.cumulativeScoreHistory = null;
     window.cumulativeScoreLabels = null;
@@ -1341,9 +1400,13 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             }, SETUP_VIEW_SECONDS * 1000);
             updateGameDisplay();
 
-            // Check if it's an AI's turn right after game creation
+            // Check if it's an AI's turn right after game creation - add delay for first turn
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                pollAITurns();
+                setTimeout(() => {
+                    if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                        pollAITurns();
+                    }
+                }, 500); // Add 500ms delay for first AI turn
             }
         } else {
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));

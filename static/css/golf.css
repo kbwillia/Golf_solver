@@ -44,7 +44,7 @@ body, html {
     max-height: 100vh;
     overflow: hidden; /* or overflow-y: auto; */
     box-sizing: border-box; /* Include padding/border in size */
-    border: 3px solid red;
+    /* border: 3px solid red; */
 }
 
 /* Setup section at the top of the game */
@@ -244,7 +244,7 @@ body, html {
 }
 
 .probabilities-content {
-    max-height: 50%; /* or whatever value works for your layout */
+    max-height: 70%; /* or whatever value works for your layout */
     overflow-y: auto;  /* allow scrolling if content is too tall */
     display: flex;
     flex-direction: row;
@@ -719,7 +719,7 @@ body, html {
 .deck-discard-container {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 20px;
     margin-top: 15px;
 }
@@ -729,9 +729,10 @@ body, html {
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    min-width: 100px; /* Fixed width to prevent layout shift */
+    width: 160px; /* Fixed width to prevent layout shift */
     min-height: 200px; /* Fixed height to prevent layout shift */
     position: relative; /* For absolute positioning of drawn card */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .deck-area h4, .discard-area h4 {
@@ -754,18 +755,12 @@ body, html {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
 }
 
-/* DRAWN CARD AREA: Positioned within golf green */
-#drawnCardArea {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 15px;
-}
+
 
 #drawnCardInstructions {
     font-size: 12px;
-    text-align: center;
-    margin-top: 8px;
+    text-align: left;
+    margin-top: 0;
     max-width: 140px;
     color: rgba(255,255,255,0.9);
     text-shadow:
@@ -776,6 +771,8 @@ body, html {
     background: rgba(0,0,0,0.3);
     padding: 5px 8px;
     border-radius: 8px;
+    flex-shrink: 0; /* Prevent text from shrinking */
+    align-self: flex-start; /* Align to top of the drawn card */
 }
 
 /* Enhanced hover area for better interaction */
@@ -854,18 +851,17 @@ body, html {
 /* Drawn card area (shown when drawing from deck) */
 #drawnCardArea {
     display: none;
-    flex-direction: column;
-    align-items: center;
-    position: absolute;
-    top: 150px; /* Position below deck card and deck size */
-    left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
-    z-index: 10; /* Ensure it appears above other elements */
+    flex-direction: row;
+    align-items: flex-start;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    gap: 12px; /* Space between card and instructions */
+    justify-content: flex-start;
 }
 
 /* Drawn card display style */
 #drawnCardDisplay {
-    margin-bottom: 8px;
+    margin-bottom: 0;
     width: 80px; /* Larger for better visibility */
     height: 115px;
     font-size: 24px; /* Larger text */
@@ -883,6 +879,7 @@ body, html {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Card shadow */
     position: relative; /* Ensure it stays in normal flow */
     overflow: hidden; /* Ensure SVG doesn't overflow */
+    flex-shrink: 0; /* Prevent card from shrinking */
 }
 
 /* Drawn card drag effect */
@@ -927,15 +924,15 @@ body, html {
     /* Chart at bottom of probabilities column - overflow to left with layer priority */
     position: absolute;
     bottom: 0px; /* Reduced from 15px */
-    right: 15px;  /* Distance from right edge */
-    width: 750px !important;  /* Increased width, force with !important */
+    right: 0px;  /* Distance from right edge */
+    width: 725px !important;  /* Increased width, force with !important */
     height: 100px !important; /* Reduced height to prevent overlap */
     z-index: 100; /* Above everything else */
     /* background: rgba(230, 249, 230, 0.85); */
     padding: 5px; /* Further reduced padding for small height */
     border-radius: 10px;
     /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
-    min-width: 750px; /* Ensure minimum width */
+    min-width: 550px; /* Ensure minimum width */
     min-height: 250px; /* Match the reduced height */
     box-sizing: border-box;
     /* border: 3px solid red; */
@@ -1349,5 +1346,14 @@ body, html {
 .game-control-btn.btn-primary:hover {
     background: #0056b3;
     border-color: #004085;
+}
+
+/* Transition background for smooth sliding animation */
+.transition-background {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 1000 !important;
+    animation: rotate-background-continuous 8s linear infinite !important;
+    transform-origin: center !important;
 }
 
