@@ -54,7 +54,8 @@ function getCardDisplayContent(card, faceDown = false) {
     const rank = rankMap[card.rank] || card.rank;
     const suit = suitMap[card.suit] || card.suit;
     const filename = `${rank}${suit}.svg`;
-    const cardPath = `/static/cards/${filename}`;
+    const cardPath = `/static/edited_cards/${filename}`; //where front of cards is loaded.
+    // const cardPath = `/static/cards/${filename}`; //where front of cards is loaded.
 
     // Return an SVG image element
     return `<svg viewBox="0 0 240 336" width="100%" height="100%" style="display: block;">
@@ -81,7 +82,6 @@ let hurryUpTimer = null;
 const HURRY_UP_DELAY = 150000; // 150 seconds
 let lastHurryUpGifIndex = -1; // Track last shown GIF to avoid repeats
 const hurryUpGifs = [
-    "https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.gif", // Clock ticking
     "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif", // Hurry up
     "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif", // Time's up
     "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif", // Waiting

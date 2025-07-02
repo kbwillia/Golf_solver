@@ -440,8 +440,11 @@ body, html {
 .card {
     width: 80px;
     height: 110px;
-    border: 2px solid #333;
+    border: 3px solid #000102;    /* or your chosen color */
     border-radius: 8px;
+    padding: 2px;                 /* This creates a gap between SVG and border */
+    background: white;            /* Ensures the gap is white */
+    box-sizing: border-box;       /* Ensures padding doesn't make the card bigger */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -451,10 +454,9 @@ body, html {
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
-    padding: 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
     opacity: 0.7; /* Default opacity for subtle appearance */
+    border: none !important;
 }
 
 /* Face-down card style - classic casino card back design */
@@ -507,7 +509,7 @@ body, html {
     left: 6px;
     right: 6px;
     bottom: 6px;
-    border: 1px solid #ffffff30;
+    border: 1px solid #ffffff30; /* testing. Changed from 2px to 1px */
     border-radius: 4px;
     background:
         /* Corner decorations */
@@ -520,33 +522,33 @@ body, html {
 
 /* Face-up card style - clean white background for SVG cards */
 .card.face-up {
-    background: white;
-    color: #333;
-    font-size: 24px; /* Even larger for face-up cards */
-    border-color: #ddd;
+    /* background: white; */
+    /* color: #333; */
+    /* font-size: 24px; Even larger for face-up cards */
+    /* border-color: #ddd; */
 }
 
 /* SVG cards should fill the container */
 .card svg {
     width: 100%;
     height: 100%;
-    border-radius: 10px; /* Match card border radius */
+    border-radius: 0px; /* match card border radius */
     border: none; /* Remove any SVG borders */
     outline: none; /* Remove any SVG outlines */
 }
 
 /* Privately visible card (for human) - SVG cards don't need background */
 .card.privately-visible {
-    background: white; /* White background for SVG cards */
+    /* background: white; */ /* White background for SVG cards */
     color: white;
     font-size: 24px; /* Larger text for visibility */
 }
 
 /* Publicly visible card (for all players) */
 .card.public {
-    border-color: #28a745; /* Green border for public cards */
+    border: 4px solid #28a745 !important; /* Thicker green border for public cards */
     box-shadow: 0 0 8px #28a745, 0 2px 4px rgba(0,0,0,0.1);
-    font-size: 24px; /* Larger text */
+    font-size: 24px; /* is this doing something */
 }
 
 /* Deck card with layered effect - uses same back design as other face-down cards */
@@ -856,15 +858,15 @@ body, html {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid #333;
-    border-radius: 10px; /* Match card style */
-    background: white;
+    border: none !important;
+    border-radius: 10px; /* Match card style. this is the blue radius */
+    /* background: white; */
         /* background: rgba(230, 249, 230, 0.75);
 
     font-weight: bold;
     cursor: grab;
     user-select: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Card shadow */
+    box-shadow: none !important; /* Card shadow */
     position: relative; /* Ensure it stays in normal flow */
     overflow: hidden; /* Ensure SVG doesn't overflow */
     flex-shrink: 0; /* Prevent card from shrinking */
