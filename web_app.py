@@ -210,8 +210,8 @@ def get_game_state(game_id):
             card = player.grid[j]
             if card:
                 if i == 0:
-                    # Human player - show privately visible cards (bottom row) and publicly known cards
-                    if player.known[j] or j >= 2:  # Bottom row (positions 2,3) or publicly known
+                    # Human player - show privately visible cards and publicly known cards
+                    if player.known[j] or player.privately_visible[j]:
                         player_data['grid'].append({
                             'rank': card.rank,
                             'suit': card.suit,
@@ -220,7 +220,7 @@ def get_game_state(game_id):
                             'score': card.score()
                         })
                     else:
-                        # Top row hidden cards for human
+                        # Hidden cards for human (top row that aren't publicly known)
                         player_data['grid'].append({
                             'rank': None,
                             'suit': None,
@@ -309,7 +309,8 @@ def get_game_state(game_id):
         'current_game': current_game,
         'num_games': num_games,
         'match_winner': match_winner,
-        'deck_top_card': deck_top_card
+        'deck_top_card': deck_top_card,
+        'waiting_for_next_game': game_session.get('waiting_for_next_game', False)
     }
     # Set winner for current game if over
     if game_session['game_over']:
@@ -355,6 +356,54 @@ def get_available_actions(game_id):
         })
 
     return jsonify({'actions': actions})
+
+@app.route('/next_game', methods=['POST'])
+def next_game():
+    """Start the next game in a multi-game match"""
+    data = request.json
+    game_id = data.get('game_id')
+
+    if game_id not in games:
+        return jsonify({'error': 'Game not found'}), 404
+
+    game_session = games[game_id]
+
+    # Check if we're actually waiting for next game
+    if not game_session.get('waiting_for_next_game', False):
+        return jsonify({'error': 'Not waiting for next game'}), 400
+
+    # Check if there are more games to play
+    if game_session['current_game'] >= game_session['num_games']:
+        return jsonify({'error': 'No more games in this match'}), 400
+
+    try:
+        # Start next game
+        game_session['current_game'] += 1
+        if game_session['mode'] == '1v1':
+            agent_types = ["human", game_session['game'].players[1].agent_type]
+            num_players = 2
+        else:
+            agent_types = ["human", "random", "heuristic", "qlearning"]
+            num_players = 4
+
+        new_game = GolfGame(num_players=num_players, agent_types=agent_types)
+        new_game.players[0].name = game_session['player_name']
+        game_session['game'] = new_game
+        game_session['game_over'] = False
+        game_session['match_winner'] = None
+        game_session['waiting_for_next_game'] = False
+
+        # Reset round cumulative scores for new game
+        game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
+
+        return jsonify({
+            'success': True,
+            'game_state': get_game_state(game_id)
+        })
+
+    except Exception as e:
+        print(f"Error starting next game: {e}")
+        return jsonify({'error': str(e)}), 400
 
 def get_public_score(player, game):
     # Only sum cards that are public (face-up to all), using calculate_score for pair cancellation
@@ -407,28 +456,15 @@ def run_ai_turn():
 
         game_session['ai_thinking'] = False
 
-    # Handle new game creation without delay
+    # Mark waiting for next game if more games remain (don't auto-start)
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
         # Add final game scores to cumulative totals
         scores = [game.calculate_score(p.grid) for p in game.players]
         for i, s in enumerate(scores):
             game_session['cumulative_scores'][i] += s
 
-        # Start next game immediately, no delay needed
-        game_session['current_game'] += 1
-        if game_session['mode'] == '1v1':
-            agent_types = ["human", game_session['game'].players[1].agent_type]
-            num_players = 2
-        else:
-            agent_types = ["human", "random", "heuristic", "qlearning"]
-            num_players = 4
-        new_game = GolfGame(num_players=num_players, agent_types=agent_types)
-        new_game.players[0].name = game_session['player_name']
-        game_session['game'] = new_game
-        game_session['game_over'] = False
-        game_session['match_winner'] = None
-        # Reset round cumulative scores for new game
-        game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
+        # Set flag that we're waiting for user to continue to next game
+        game_session['waiting_for_next_game'] = True
 
     return jsonify({
         'success': True,
@@ -449,12 +485,9 @@ def update_round_cumulative_scores(game_session, game):
     current_round = game.round
     for i, score in enumerate(public_scores):
         if score is not None:
-            if current_round == 1:
-                # For round 1, just use the current score
-                game_session['round_cumulative_scores'][i] = score
-            else:
-                # For later rounds, add to cumulative total from previous games
-                game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
+            # Always add current game score to cumulative total from previous games
+            # This ensures cumulative scores always accumulate across games
+            game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
 
     print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
 
