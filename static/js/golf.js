@@ -525,8 +525,10 @@ function showDrawnCardArea(card) {
     drawnCardData = card;
     const area = document.getElementById('drawnCardArea');
     const display = document.getElementById('drawnCardDisplay');
+    const instructions = document.getElementById('drawnCardInstructions');
     display.innerHTML = getCardDisplayContent(card, false);
     area.style.display = 'flex';
+    instructions.style.display = 'block'; // Show instructions when drawn card is active
     display.setAttribute('draggable', 'true');
     display.classList.remove('dragging');
     display.classList.add('playable');
@@ -559,6 +561,7 @@ function hideDrawnCardArea() {
     drawnCardData = null;
     drawnCardDragActive = false;
     document.getElementById('drawnCardArea').style.display = 'none';
+    document.getElementById('drawnCardInstructions').style.display = 'none'; // Hide instructions when drawn card is hidden
     document.getElementById('drawnCardDisplay').classList.remove('playable');
 
     // Re-enable deck and discard

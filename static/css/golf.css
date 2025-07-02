@@ -76,6 +76,8 @@ body, html {
     /* Main grid for layout: fills container, never exceeds it */
     display: grid;
     grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr);
+    /* grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr); */
+
     grid-template-areas: "notification gameplay probabilities";
     gap: 0px; /* No gap between columns */
     width: 100%; /* Changed from 100vw to 100% to fit within container padding */
@@ -213,7 +215,7 @@ body, html {
     display: flex;
     flex-direction: row; /* Horizontal: playerGrids | deck/discard */
     align-items: flex-start;
-    gap: 32px; /* Space between player grid and deck/discard */
+    gap: 10px; /* Reduced gap between player grid and deck/discard */
     width: 100%;
     justify-content: center; /* Center the row in the area */
 }
@@ -221,7 +223,7 @@ body, html {
     /* Optionally set a max-width or flex-basis if needed */
 }
 .deck-discard-container {
-    margin-left: auto;
+    /* Removed margin-left: auto to prevent pushing to far right */
 }
 
 /* RIGHT: Probabilities Area */
@@ -326,8 +328,8 @@ body, html {
 }
 
 .four-player-grid .player-grid {
-    width: 260px;   /* Increased size for better visibility */
-    height: 260px;  /* Keep square */
+    width: 280px;   /* Same size for all players to prevent shifting */
+    height: 280px;  /* Keep square */
     max-width: 100%;
     max-height: 100%;
     /* Add any additional styling you want */
@@ -355,9 +357,11 @@ body, html {
 
 /* Keep current-turn player grids square in four-player layout */
 .four-player-grid .player-grid.current-turn {
-    width: 260px !important;   /* Same size as other players */
-    height: 260px !important;  /* Keep square */
+    width: 280px !important;   /* Same size as other players */
+    height: 280px !important;  /* Keep square */
 }
+
+/* Consistent sizing for all four-player grids - no size changes on turn change */
 
 /* Semi-transparent background image using pseudo-element */
 .player-grid.current-turn::before {
@@ -669,37 +673,7 @@ body, html {
     cursor: not-allowed;
 }
 
-/* Game info panel - COMPACT for less top spacing */
 
-
-/* Modal overlay for popups
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-} */
-
-/* Modal content box */
-/* .modal-content {
-    background-color: white;
-    margin: 0 auto;
-    position: fixed;
-    left: 50%;
-    bottom: 40px;
-    transform: translateX(-50%);
-    padding: 16px 20px;
-    border-radius: 10px;
-    width: 320px;
-    max-width: 90vw;
-    text-align: center;
-    z-index: 2000;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-} */
 
 /* 2x2 grid for position selection buttons in modal */
 .position-buttons {
@@ -720,8 +694,9 @@ body, html {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 20px;
+    gap: 4px;
     margin-top: 15px;
+    max-width: 200px;
 }
 
 .deck-area, .discard-area {
@@ -729,7 +704,7 @@ body, html {
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    width: 160px; /* Fixed width to prevent layout shift */
+    width: 80px; /* Fixed width to prevent layout shift */
     min-height: 200px; /* Fixed height to prevent layout shift */
     position: relative; /* For absolute positioning of drawn card */
     flex-shrink: 0; /* Prevent shrinking */
@@ -760,7 +735,7 @@ body, html {
 #drawnCardInstructions {
     font-size: 12px;
     text-align: left;
-    margin-top: 0;
+    margin: auto 0; /* Center vertically, no horizontal margin */
     max-width: 140px;
     color: rgba(255,255,255,0.9);
     text-shadow:
@@ -772,7 +747,8 @@ body, html {
     padding: 5px 8px;
     border-radius: 8px;
     flex-shrink: 0; /* Prevent text from shrinking */
-    align-self: flex-start; /* Align to top of the drawn card */
+    display: none; /* Hidden by default, shown when drawn card is active */
+    align-self: center; /* Center within the flex container */
 }
 
 /* Enhanced hover area for better interaction */
@@ -851,12 +827,11 @@ body, html {
 /* Drawn card area (shown when drawing from deck) */
 #drawnCardArea {
     display: none;
-    flex-direction: row;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
     margin-top: 10px;
     margin-bottom: 15px;
-    gap: 12px; /* Space between card and instructions */
-    justify-content: flex-start;
+    gap: 4px; /* Space between card and instructions */
 }
 
 /* Drawn card display style */
@@ -925,7 +900,7 @@ body, html {
     position: absolute;
     bottom: 0px; /* Reduced from 15px */
     right: 0px;  /* Distance from right edge */
-    width: 725px !important;  /* Increased width, force with !important */
+    width: 700px !important;  /* Increased width, force with !important */
     height: 100px !important; /* Reduced height to prevent overlap */
     z-index: 100; /* Above everything else */
     /* background: rgba(230, 249, 230, 0.85); */
@@ -1010,13 +985,7 @@ body, html {
     background: rgba(230, 249, 230, 0.75);
 }
 
-/* Removed the smaller sizing - player grids will use the standard size */
 
-.four-player-grid .player-grid {
-    max-width: 450px;
-    width: 100%;
-    padding: 2px 2px;
-} /*these are the cards inside the player grids*/
 
 /* Example for a specific class */
 .celebration-gif {
@@ -1030,84 +999,10 @@ body, html {
     display: block !important;
 }
 
-/* Game Over Banner */
-#gameOverBanner, .game-over-banner {
-    background: rgba(46, 204, 113, 0.05); /* Light green, semi-transparent */
-    color: #fff;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-    border-radius: 10px;
-    padding: 18px 0;
-    font-size: 2em;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 18px;
-    border: 2px solid #000;
-}
-
-/* Game Over Buttons */
-#gameOverBanner .btn, .game-over-banner .btn,
-#gameOverBanner button, .game-over-banner button {
-    background: rgba(46, 204, 113, 0.85);
-    color: #fff;
-    text-shadow:
-        -1px -1px 0 black,
-         1px -1px 0 black,
-        -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-    border: 2px solid #000;
-    border-radius: 6px;
-    font-size: 1.1em;
-    font-weight: bold;
-    margin: 0 8px;
-    padding: 10px 24px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#gameOverBanner .btn:hover, .game-over-banner .btn:hover,
-#gameOverBanner button:hover, .game-over-banner button:hover {
-    background: rgba(39, 174, 96, 0.95); /* Slightly darker green on hover */
-    color: #fff;
-}
+/* \ */
 
 
 
-.game-over-banner {
-    background: rgba(46, 204, 113, 0.85);
-    color: #fff;
-    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
-    border: 2px solid #000;
-    border-radius: 10px;
-}
-
-/* Game Over and Notification Banners */
-.game-over-banner, .ai-thinking-banner, .your-turn-banner, .default-banner {
-    background: rgba(46, 204, 113, 0.85);
-    color: #fff;
-    text-shadow: 1px 1px 2px #000, 0 0 1px #000;
-    border: 2px solid #000;
-    border-radius: 10px;
-    padding: 18px 0;
-    font-size: 2em;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 18px;
-}
-
-/* Specific banner color overrides */
-.ai-thinking-banner {
-    background: rgba(40, 167, 69, 0.85);
-}
-.your-turn-banner {
-    background: rgba(0, 123, 255, 0.85);
-}
-.default-banner {
-    background: rgba(0, 123, 255, 0.85);
-}
 
 /* Game Over Buttons */
 .game-over-buttons .btn, .game-over-buttons button {
@@ -1229,14 +1124,14 @@ body, html {
 
 /* Label for each probability/statistic (e.g., 'Draw EV:') */
 .prob-label {
-    color: #333;
+    color: #d71616f4;
     font-weight: 500;
     margin-right: 4px;
 }
 
 /* Value for each probability/statistic (e.g., '+7.5') */
 .prob-value {
-    color: #007b83;
+    color: #d71616f4;
     font-weight: bold;
 }
 
@@ -1326,7 +1221,7 @@ body, html {
     min-width: 80px;
 }
 
-.game-control-btn.btn-secondary {
+/* .game-control-btn.btn-secondary {
     background: #6c757d;
     color: white;
     border-color: #6c757d;
@@ -1346,14 +1241,14 @@ body, html {
 .game-control-btn.btn-primary:hover {
     background: #0056b3;
     border-color: #004085;
-}
+} */
 
 /* Transition background for smooth sliding animation */
-.transition-background {
+/* .transition-background {
     position: fixed !important;
     pointer-events: none !important;
     z-index: 1000 !important;
     animation: rotate-background-continuous 8s linear infinite !important;
     transform-origin: center !important;
-}
+} */
 
