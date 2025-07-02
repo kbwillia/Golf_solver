@@ -1250,8 +1250,8 @@ function updateCumulativeScoreChart() {
                 }
             }
         } else {
-            // Multi-game mode: show last 6 rounds
-            const maxRoundsMultiGame = 6;
+            // Multi-game mode: show last 8 rounds
+            const maxRoundsMultiGame = 10;
             if (displayLabels.length > maxRoundsMultiGame) {
                 displayLabels = displayLabels.slice(-maxRoundsMultiGame);
                 displayHistory = displayHistory.map(playerHistory =>
