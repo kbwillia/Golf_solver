@@ -75,7 +75,7 @@ body, html {
 .game-grid-container {
     /* Main grid for layout: fills container, never exceeds it */
     display: grid;
-    grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr);
+    grid-template-columns: minmax(320px, 0.450fr) minmax(2.5fr) minmax(300px, 1.5fr);
     /* grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr); */
 
     grid-template-areas: "notification gameplay probabilities";
@@ -322,21 +322,24 @@ body, html {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 40px 30px; /* Larger vertical gap (40px) and horizontal gap (30px) */
+    gap: 40px 0px; /* Larger vertical gap (40px) and horizontal gap (30px) */
     width: 100%;
     height: 100%;
     justify-items: center;
     align-items: center;
+
     /* border: 3px solid green; */
 }
 
 .four-player-grid .player-grid {
-    width: 280px;   /* Same size for all players to prevent shifting */
-    height: 280px;  /* Keep square */
+    width: 260px;   /* Same size for all players to prevent shifting */
+    height: 260px;  /* Keep square */
     max-width: 100%;
     max-height: 100%;
-    /* Add any additional styling you want */
-    margin: 0 auto;
+    /* Add any additional styling you want. vertical margin auto and then horizontal margin custom  */
+    /* margin: 0 auto; */
+    margin: auto 0px auto 0px; /* top right bottom left */
+    /* border: 3px solid red; */
 }
 
 @media (max-width: 900px) {
@@ -360,8 +363,8 @@ body, html {
 
 /* Keep current-turn player grids square in four-player layout */
 .four-player-grid .player-grid.current-turn {
-    width: 280px !important;   /* Same size as other players */
-    height: 280px !important;  /* Keep square */
+    width: 260px !important;   /* Same size as other players */
+    height: 260px !important;  /* Keep square */
 }
 
 /* Consistent sizing for all four-player grids - no size changes on turn change */
@@ -904,7 +907,7 @@ body, html {
     position: absolute;
     right: 0;
     bottom: 0;
-    width: 700px;
+    width: 685px;
     height: 250px;
     z-index: 100;
     /* background: rgba(230, 249, 230, 0.85); */
