@@ -76,6 +76,69 @@ fetch('/static/golf_celebration_gifs.json')
         }
     });
 
+// Hurry up timer for slow play
+let hurryUpTimer = null;
+const HURRY_UP_DELAY = 15000; // 15 seconds
+let lastHurryUpGifIndex = -1; // Track last shown GIF to avoid repeats
+const hurryUpGifs = [
+    "https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.gif", // Clock ticking
+    "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif", // Hurry up
+    "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif", // Time's up
+    "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif", // Waiting
+    "https://media.giphy.com/media/26tPplGWjN0xLybiU/giphy.gif" ,// Tap tap tap
+    "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3cXh4bnI2YjNzcDR2azZ0cmt0M2FxOGJqdWxibmg1OHlxOGpoMDhkbSZlcD12MV9naWZzX3JlbGF0ZWQmY3Q9Zw/M2EazvA5Fyu8U/giphy.gif" // well we're waiting
+];
+
+function startHurryUpTimer() {
+    // Only start a new timer if one isn't already running
+    if (hurryUpTimer) {
+        return; // Timer already running, don't restart it
+    }
+
+    hurryUpTimer = setTimeout(() => {
+        showHurryUpGif();
+    }, HURRY_UP_DELAY);
+}
+
+function clearHurryUpTimer() {
+    if (hurryUpTimer) {
+        clearTimeout(hurryUpTimer);
+        hurryUpTimer = null;
+    }
+}
+
+function showHurryUpGif() {
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer && hurryUpGifs.length > 0) {
+        // Select a random GIF, but avoid the last one shown
+        let randomIndex;
+        do {
+            randomIndex = Math.floor(Math.random() * hurryUpGifs.length);
+        } while (randomIndex === lastHurryUpGifIndex && hurryUpGifs.length > 1);
+
+        lastHurryUpGifIndex = randomIndex;
+        const randomGif = hurryUpGifs[randomIndex];
+
+        console.log('⏰ Showing hurry up GIF:', randomIndex, randomGif);
+
+        celebrationContainer.innerHTML = `
+            <div class="celebration-gif-container">
+                <img src="${randomGif}" alt="Hurry Up!" class="celebration-gif-img" onerror="console.error('Failed to load hurry up GIF:', this.src);" />
+                <div style="text-align: center; margin-top: 10px; color: #ff6b6b; font-weight: bold; font-size: 1.2em;">
+                    Make your move! ⏰
+                </div>
+            </div>
+        `;
+    }
+}
+
+function clearHurryUpGif() {
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        celebrationContainer.innerHTML = '';
+    }
+}
+
 // Hide opponent selection for 1v3 mode
 document.getElementById('gameMode').addEventListener('change', function() {
     const opponentSection = document.getElementById('opponentSection');
@@ -489,27 +552,32 @@ function updateScoresAndRoundInfo() {
 
     container.innerHTML = infoText + scoresHtml + buttonsHtml;
 
-    // Handle celebration GIF display when human wins
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        if (currentGameState.game_over && currentGameState.winner === 0) {
-            // Human won! Show celebration GIF
-            let gifUrl = '';
-            if (celebrationGifs.length > 0) {
-                gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+            // Handle GIF display (celebration for wins, hurry up for slow play)
+        const celebrationContainer = document.getElementById('celebrationGif');
+        if (celebrationContainer) {
+            if (currentGameState.game_over && currentGameState.winner === 0) {
+                // Human won! Show celebration GIF
+                clearHurryUpTimer(); // Clear any hurry up timer
+                let gifUrl = '';
+                if (celebrationGifs.length > 0) {
+                    gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+                }
+                if (gifUrl) {
+                    celebrationContainer.innerHTML = `
+                        <div class="celebration-gif-container">
+                            <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
+                        </div>
+                    `;
+                }
+            } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
+                // Human's turn - start hurry up timer (but don't clear existing hurry up GIF)
+                startHurryUpTimer();
+            } else {
+                // Not human's turn or game over - clear any hurry up content
+                clearHurryUpTimer();
+                celebrationContainer.innerHTML = '';
             }
-            if (gifUrl) {
-                celebrationContainer.innerHTML = `
-                    <div class="celebration-gif-container">
-                        <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
-                    </div>
-                `;
-            }
-        } else {
-            // Clear celebration GIF when game is not over or human didn't win
-            celebrationContainer.innerHTML = '';
         }
-    }
 }
 
 async function takeDiscard() {
@@ -545,6 +613,10 @@ async function drawFromDeck() {
         alert('No cards left in deck!');
         return;
     }
+
+    // Clear hurry up timer and GIF when human draws a card or takes a discard
+    clearHurryUpTimer();
+    clearHurryUpGif();
 
     try {
         const response = await fetch(`/draw_card/${gameId}`);
@@ -666,6 +738,10 @@ async function executeAction(position, actionType = null) {
 
         const data = await response.json();
         if (data.success) {
+            // Clear hurry up timer and GIF when human makes a move
+            clearHurryUpTimer();
+            clearHurryUpGif();
+
             console.log('🎯 executeAction: Received updated game state:', data.game_state);
             console.log('🃏 executeAction: Discard top card:', data.game_state.discard_top);
             currentGameState = data.game_state;
@@ -694,6 +770,10 @@ async function executeAction(position, actionType = null) {
 function restartGame() {
     // Reset turn tracking for restart
     lastTurnIndex = null;
+
+    // Clear any hurry up timer/GIF
+    clearHurryUpTimer();
+    clearHurryUpGif();
 
     currentGameState = null;
     gameId = null;
@@ -961,6 +1041,13 @@ function updateProbabilitiesPanel() {
         if (probs.prob_improve_hand && probs.prob_improve_hand.length > 0) {
             otherHtml += `<div class="probabilities-stat">`;
             otherHtml += `<b>Prob. next card improves your hand:</b> <span class="probability-blue">${probs.prob_improve_hand[0]}</span>`;
+            otherHtml += '</div>';
+        }
+
+        // Average score of remaining cards in deck
+        if (probs.average_deck_score !== undefined) {
+            otherHtml += `<div class="probabilities-stat">`;
+            otherHtml += `<b>Average score of remaining cards:</b> <span class="probability-blue">${probs.average_deck_score}</span>`;
             otherHtml += '</div>';
         }
 

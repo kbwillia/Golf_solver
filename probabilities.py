@@ -131,6 +131,7 @@ def get_probabilities(game):
         'prob_draw_pair': prob_draw_pair(game),
         'prob_improve_hand': prob_improve_hand(game),
         'expected_value_draw_vs_discard': expected_value_draw_vs_discard(game),
+        'average_deck_score': round(average_score_of_deck(game), 2) if game.deck else 0,
     }
 
 def expected_value_draw_vs_discard(game):
@@ -292,3 +293,11 @@ def which_card_to_swap_for_deck(game):
     available_positions = [i for i, known in enumerate(human_player.known) if not known]
     # get the cards in the human player's grid
     pass
+
+def average_score_of_deck(game):
+    """average score of the deck"""
+    # get the deck
+    deck = game.deck
+    # get the average score of the deck
+    return sum(card.score() for card in deck) / len(deck)
+
