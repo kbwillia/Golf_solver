@@ -1205,8 +1205,16 @@ body, html {
 /* Game Control Buttons in ScoresAndRoundInfo */
 .game-control-buttons {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-top: 8px;
+    align-items: center;
+}
+
+/* Row for the first two buttons */
+.button-row {
+    display: flex;
+    gap: 8px;
     justify-content: center;
 }
 
@@ -1242,6 +1250,27 @@ body, html {
     background: #0056b3;
     border-color: #004085;
 } */
+
+/* Next Game button - full width and prominent styling */
+.game-control-btn.next-game-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 16px;
+    font-size: 1.1em;
+    font-weight: bold;
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.game-control-btn.next-game-btn:hover {
+    background: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
 
 /* Transition background for smooth sliding animation */
 /* .transition-background {

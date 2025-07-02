@@ -441,10 +441,20 @@ function updateScoresAndRoundInfo() {
     });
     scoresHtml += '</div>';
 
-    // Add game control buttons
+        // Add game control buttons
     let buttonsHtml = '<div class="game-control-buttons">';
+
+    // First row: New Game and Replay buttons
+    buttonsHtml += '<div class="button-row">';
     buttonsHtml += '<button onclick="restartGame()" class="btn btn-secondary game-control-btn">New Game</button>';
     buttonsHtml += '<button onclick="replayGame()" class="btn btn-primary game-control-btn">Replay</button>';
+    buttonsHtml += '</div>';
+
+    // Add Next Game button if waiting for next game (full width, below other buttons)
+    if (currentGameState.waiting_for_next_game) {
+        buttonsHtml += '<button onclick="nextGame()" class="btn btn-success game-control-btn next-game-btn">Next Game</button>';
+    }
+
     buttonsHtml += '</div>';
 
     container.innerHTML = infoText + scoresHtml + buttonsHtml;
@@ -1358,6 +1368,44 @@ function replayGame() {
     const numGames = currentGameState.num_games || 1;
     // Start a new game with the same settings
     startGameWithSettings(gameMode, opponentType, playerName, numGames);
+}
+
+async function nextGame() {
+    if (!gameId) {
+        console.error('No game ID available');
+        return;
+    }
+
+    try {
+        const response = await fetch('/next_game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                game_id: gameId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentGameState = data.game_state;
+            updateGameDisplay();
+            updateCumulativeScoreChart();
+
+            // Check if it's an AI's turn right after new game creation
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                pollAITurns();
+            }
+        } else {
+            console.error('Next game error:', data.error);
+            alert('Error starting next game: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error starting next game:', error);
+        alert('Error starting next game. Please try again.');
+    }
 }
 
 // Add a helper to start a game with specific settings
