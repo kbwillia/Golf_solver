@@ -498,6 +498,33 @@ function updatePlayerGrids() {
             };
         });
     }
+
+    // Handle deck and discard interactivity based on game state
+    const deckCard = document.getElementById('deckCard');
+    const discardCard = document.getElementById('discardCard');
+
+    if (currentGameState && currentGameState.current_turn === 0 && !currentGameState.game_over) {
+        // Human's turn - check if we're in the middle of a drawn card action
+        if (window.flipDrawnMode || drawnCardData) {
+            // In the middle of resolving a drawn card - disable both deck and discard
+            deckCard.classList.add('disabled');
+            deckCard.onclick = null;
+            discardCard.classList.add('disabled');
+            discardCard.onclick = null;
+        } else {
+            // Normal turn - enable both deck and discard
+            deckCard.classList.remove('disabled');
+            deckCard.onclick = drawFromDeck;
+            discardCard.classList.remove('disabled');
+            discardCard.onclick = takeDiscard;
+        }
+    } else {
+        // Not human's turn or game over - disable both
+        deckCard.classList.add('disabled');
+        deckCard.onclick = null;
+        discardCard.classList.add('disabled');
+        discardCard.onclick = null;
+    }
 }
 
 function updateScoresAndRoundInfo() {
@@ -696,16 +723,8 @@ function hideDrawnCardArea() {
     document.getElementById('drawnCardInstructions').style.display = 'none'; // Hide instructions when drawn card is hidden
     document.getElementById('drawnCardDisplay').classList.remove('playable');
 
-    // Re-enable deck and discard
-    const deckCard = document.getElementById('deckCard');
-    const discardCard = document.getElementById('discardCard');
-    deckCard.classList.remove('disabled');
-    deckCard.onclick = drawFromDeck;
-    discardCard.classList.remove('disabled');
-    discardCard.onclick = takeDiscard;
-
     window.flipDrawnMode = false;
-    updatePlayerGrids(); // Refresh to remove flip indicators
+    updatePlayerGrids(); // Refresh to remove flip indicators and update interactivity
 }
 
 function getAvailablePositions() {
@@ -791,20 +810,7 @@ function restartGame() {
     // Reset turn tracking for restart
     lastTurnIndex = null;
 
-    // Clear any hurry up timer/GIF
-    clearHurryUpTimer();
-    clearHurryUpGif();
-
-    currentGameState = null;
-    gameId = null;
-    document.getElementById('gameBoard').style.display = 'none';
-    document.getElementById('gameSetup').style.display = 'block';
-    setupCardsHidden = false;
-    if (setupHideTimeout) clearTimeout(setupHideTimeout);
-    if (setupViewInterval) clearInterval(setupViewInterval);
-    showSetupViewTimer(SETUP_VIEW_SECONDS);
-
-    // Reset chart data for new match
+    // Reset chart data for replay
     window.cumulativeScoreHistory = null;
     window.cumulativeScoreLabels = null;
     window.lastMatchId = null;
@@ -815,7 +821,13 @@ function restartGame() {
         cumulativeScoreChart = null;
     }
 
-    updateGameDisplay();
+    // Use the last selected settings
+    const gameMode = currentGameState.mode || '1v1';
+    const opponentType = currentGameState.players && currentGameState.players[1] ? currentGameState.players[1].agent_type : 'random';
+    const playerName = currentGameState.players && currentGameState.players[0] ? currentGameState.players[0].name : 'Human2';
+    const numGames = currentGameState.num_games || 1;
+    // Start a new game with the same settings
+    startGameWithSettings(gameMode, opponentType, playerName, numGames);
 }
 
 // Modal closing logic removed - no modals in use
