@@ -17,7 +17,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 0.75  # seconds
+AI_TURN_DELAY = 2.75  # seconds
 
 @app.route('/')
 def index():
@@ -142,6 +142,9 @@ def make_move():
 
         # Restore original agent
         game.agents[0] = original_agent
+
+        # Mark that human has made at least one move (for AI delay logic)
+        game_session['human_has_played'] = True
 
         # Update cumulative scores for all players BEFORE advancing to next player
         # This ensures scores are recorded for the current round before it advances
@@ -433,8 +436,10 @@ def run_ai_turn():
     if game.turn != 0 and not game_session['game_over']:
         game_session['ai_thinking'] = True
         player = game.players[game.turn]
-        # Skip delay for first round to show cards immediately
-        if game.round > 1:
+        # Add delay for all AI turns AFTER the human has made at least one move
+        # This allows initial card reveals to show immediately but delays actual gameplay
+        human_has_played = game_session.get('human_has_played', False)
+        if human_has_played:
             time.sleep(AI_TURN_DELAY)
         game.play_turn(player)
 

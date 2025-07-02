@@ -16,6 +16,22 @@ let setupViewInterval = null; // Interval for setup view timer
 const SNAP_THRESHOLD = 30; // pixels
 let isMyTurn = false;
 
+// Custom HTML legend plugin for Chart.js
+const htmlLegendPlugin = {
+  id: 'htmlLegend',
+  afterUpdate(chart, args, options) {
+    const legendContainer = document.getElementById('customLegend');
+    if (!legendContainer) return;
+    const items = chart.options.plugins.legend.labels.generateLabels(chart);
+    legendContainer.innerHTML = items.map(item => `
+      <div class="legend-item-box">
+        <span class="legend-color-box" style="background:${item.fillStyle};"></span>
+        <span>${item.text}</span>
+      </div>
+    `).join('');
+  }
+};
+
 // Function to create card display content (SVG or fallback text)
 function getCardDisplayContent(card, faceDown = false) {
     if (faceDown || !card) {
@@ -240,10 +256,24 @@ function updateGameDisplay() {
         // Update deck size
         document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
 
-        // Update discard pile
+                // Update discard pile with comprehensive visual refresh
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
-            discardCard.innerHTML = getCardDisplayContent(currentGameState.discard_top, false);
+            // Remove any problematic classes
+            discardCard.classList.remove('faded', 'disabled');
+
+            // Force clear and reset all styles
+            discardCard.innerHTML = '';
+            discardCard.style.cssText = 'opacity: 1 !important; visibility: visible !important;';
+
+            // Force reflow
+            discardCard.offsetHeight;
+
+                        // Add new content
+            const newCardContent = getCardDisplayContent(currentGameState.discard_top, false);
+            discardCard.innerHTML = newCardContent;
+
+            console.log('🔄 UPDATED DISCARD PILE:', currentGameState.discard_top.rank + currentGameState.discard_top.suit);
         } else {
             discardCard.innerHTML = '';
             discardCard.classList.add('face-down');
@@ -636,12 +666,13 @@ async function executeAction(position, actionType = null) {
 
         const data = await response.json();
         if (data.success) {
+            console.log('🎯 executeAction: Received updated game state:', data.game_state);
+            console.log('🃏 executeAction: Discard top card:', data.game_state.discard_top);
             currentGameState = data.game_state;
             updateGameDisplay();
-            // Update chart immediately after game state changes
+            console.log('🔄 executeAction: Called updateGameDisplay()');
             updateCumulativeScoreChart();
-            // Immediately refresh to catch any AI moves or turn changes
-            refreshGameState();
+            refreshGameState(); // This may trigger the AI turn if needed
             if (data.game_state.game_over) {
                 // Game over - no modal needed
             }
@@ -700,6 +731,7 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => {
     const discardCard = document.getElementById('discardCard');
     discardCard.addEventListener('dragstart', (e) => {
+        console.log('🎯 DRAG START: Discard card drag initiated!');
         dragActive = true;
         // DON'T add drop-target class to the discard card itself
         // Add drag-active class to all potential drop targets (grid cards only)
@@ -714,11 +746,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 rank: currentGameState.discard_top.rank,
                 suit: currentGameState.discard_top.suit
             };
+            console.log('🃏 DRAG START: Stored discard card:', draggedDiscardCard);
         } else {
             draggedDiscardCard = null;
         }
     });
     discardCard.addEventListener('dragend', (e) => {
+        console.log('🎯 DRAG END: Discard card drag ended!');
         dragActive = false;
         // DON'T remove drop-target from discard card since we never added it
         draggedDiscardCard = null;
@@ -815,6 +849,8 @@ function handleDropOnGrid(pos) {
         return;
     }
     const discardCardElem = document.getElementById('discardCard');
+    console.log('🎯 handleDropOnGrid: About to take discard at position', pos);
+    console.log('🃏 handleDropOnGrid: Current discard top before move:', currentGameState.discard_top);
     if (targetElem && discardCardElem) {
         animateSnapToGrid(discardCardElem, targetElem, () => {
             executeAction(pos, 'take_discard');
@@ -829,8 +865,12 @@ function flipDrawnCardOnGrid(pos) {
     // Only allow if the position is not public
     const card = currentGameState.players[0].grid[pos];
     if (!card || card.public) return;
-    // Discard the drawn card and flip this position
-    executeAction(pos, 'draw_discard');
+    // --- Optimistic UI update: flip the card immediately for instant feedback ---
+    card.public = true;
+    card.visible = true; // If you use this property in your UI
+    updatePlayerGrids();
+    // Discard the drawn card and flip this position (backend)
+    executeAction(pos, 'draw_discard'); //calls flask backend to update the game state
     hideDrawnCardArea();
 }
 
@@ -958,7 +998,7 @@ function initializeCumulativeScoreChart() {
                 borderColor: getPlayerColor(i),
                 backgroundColor: getPlayerColor(i),
                 borderWidth: 3, // Thicker lines
-            fill: false,
+                fill: false,
                 tension: 0.4, // Smooth curved lines
                 pointRadius: 3,
                 hoverRadius: 6
@@ -981,7 +1021,7 @@ function initializeCumulativeScoreChart() {
             },
             plugins: {
                 legend: {
-                    display: true,
+                    display: false, // Hide default legend
                     position: 'right',
                     labels: {
                         boxWidth: 10,
@@ -1068,7 +1108,7 @@ function initializeCumulativeScoreChart() {
                 }
             }
         },
-        plugins: [{
+        plugins: [htmlLegendPlugin, {
             id: 'textOutline',
             afterDraw: (chart) => {
                 const ctx = chart.ctx;

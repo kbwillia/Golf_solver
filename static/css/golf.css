@@ -85,6 +85,7 @@ body, html {
     min-height: 0;
     height: 100%; /* Fills parent (.container) */
     box-sizing: border-box;
+    overflow: visible !important; /* Allow children to overflow grid cell boundaries. aka the chart */
 }
 
 /* RESPONSIVE: Adjust for smaller screens */
@@ -228,6 +229,7 @@ body, html {
 
 /* RIGHT: Probabilities Area */
 .probabilities-area {
+    position: relative; /* So .chart-container can be absolutely positioned inside */
     /* Right column: scrolls if content overflows, never exceeds grid cell */
     grid-area: probabilities;
     display: flex;
@@ -243,6 +245,7 @@ body, html {
     height: 100%;  /* Fills parent grid cell */
     box-sizing: border-box;
     /* border: 2px solid #1a4d0a; */
+    overflow: visible !important; /* Allow absolutely positioned chart to overflow into center column */
 }
 
 .probabilities-content {
@@ -556,6 +559,8 @@ body, html {
     width: 80px; /* Match deck size */
     height: 115px;
     font-size: 20px;
+    opacity: 1 !important; /* Force full opacity */
+    visibility: visible !important; /* Force visibility */
 }
 
 /* Layered deck effect (middle layer) - creates depth behind the main card */
@@ -896,13 +901,12 @@ body, html {
 
 /* cumulative score chart CHART CONTAINER: Optimized for grid layout */
 .chart-container {
-    /* Chart at bottom of probabilities column - overflow to left with layer priority */
     position: absolute;
-    bottom: 0px; /* Reduced from 15px */
-    right: 0px;  /* Distance from right edge */
-    width: 700px !important;  /* Increased width, force with !important */
-    height: 100px !important; /* Reduced height to prevent overlap */
-    z-index: 100; /* Above everything else */
+    right: 0;
+    bottom: 0;
+    width: 700px;
+    height: 250px;
+    z-index: 100;
     /* background: rgba(230, 249, 230, 0.85); */
     padding: 5px; /* Further reduced padding for small height */
     border-radius: 10px;
@@ -916,6 +920,7 @@ body, html {
     justify-content: flex-end;
     flex-shrink: 0; /* Don't let it shrink too much */
     transition: all 0.3s ease; /* Smooth any layout changes */
+    margin-bottom: 8px; /* Adjust value as needed */
 }
 
 .chart-container canvas {
@@ -1229,27 +1234,6 @@ body, html {
     min-width: 80px;
 }
 
-/* .game-control-btn.btn-secondary {
-    background: #6c757d;
-    color: white;
-    border-color: #6c757d;
-}
-
-.game-control-btn.btn-secondary:hover {
-    background: #5a6268;
-    border-color: #545b62;
-}
-
-.game-control-btn.btn-primary {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
-}
-
-.game-control-btn.btn-primary:hover {
-    background: #0056b3;
-    border-color: #004085;
-} */
 
 /* Next Game button - full width and prominent styling */
 .game-control-btn.next-game-btn {
@@ -1272,12 +1256,45 @@ body, html {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-/* Transition background for smooth sliding animation */
-/* .transition-background {
-    position: fixed !important;
-    pointer-events: none !important;
-    z-index: 1000 !important;
-    animation: rotate-background-continuous 8s linear infinite !important;
-    transform-origin: center !important;
-} */
+
+/* === Custom Chart Legend Styling === */
+
+/* The legend container is absolutely positioned in the top-right of the chart area */
+#customLegend {
+  position: absolute;      /* Take out of normal flow, overlay on chart */
+  top: 10px;               /* Distance from top of chart */
+  right: 18px;             /* Distance from right edge of chart */
+  z-index: 10;             /* Ensure it appears above chart elements */
+  display: flex;           /* Stack legend items vertically */
+  flex-direction: column;
+  align-items: flex-start;   /* LEFT ALIGN the legend items */
+  background: rgba(30,30,30,0.18); /* Subtle background for readability */
+  border-radius: 8px;      /* Rounded corners for the legend box */
+  padding: 4px 8px;        /* Space inside the legend container */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Soft shadow for separation */
+  min-width: unset;
+  max-width: 120px;        /* Prevent legend from being too wide */
+}
+
+/* Each legend item is a row: colored box + label */
+.legend-item-box {
+  display: flex;           /* Align color box and label horizontally */
+  align-items: center;     /* Vertically center the label with the box */
+  gap: 6px;                /* Space between color box and label */
+  margin-bottom: 2px;      /* Space between legend items */
+  font-size: 0.92em;       /* Smaller, compact text */
+  font-weight: 500;
+  color: #fff;             /* White text for contrast */
+}
+
+/* The colored box for each player/AI */
+.legend-item-box .legend-color-box {
+  width: 14px;             /* Small square */
+  height: 14px;
+  border-radius: 3px;      /* Slightly rounded corners */
+  background: #888;        /* Fallback, overridden inline by JS */
+  display: inline-block;
+  margin-right: 2px;       /* Small space to label */
+  border: 1.5px solid #fff;/* White border for visibility */
+}
 
