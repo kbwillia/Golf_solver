@@ -508,18 +508,32 @@ function updateScoresAndRoundInfo() {
 
     // Info text (round/game info)
     const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-    let infoText = `<div class="round-info"><b>Game</b> ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | <b>Round</b> ${roundDisplay}/${currentGameState.max_rounds}</div>`;
+    let infoText = `<div class="round-info" style="font-weight:bold; font-size:1.1em;">Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}&nbsp;&nbsp;Scores</div>`;
+
 
     // Scores
-    let scoresHtml = '<div class="scores-panel"><h4>Scores</h4>';
+    const isMultiGame = (currentGameState.num_games && currentGameState.num_games > 1);
+    let scoresHtml = '<div class="scores-panel">';
+    scoresHtml += '<table class="scores-table">';
+    scoresHtml += '<tr class="scores-subheader">';
+    scoresHtml += '<th></th><th>Current</th>';
+    if (isMultiGame) {
+        scoresHtml += '<th>Total</th>';
+    }
+    scoresHtml += '</tr>';
     currentGameState.players.forEach((player, index) => {
         let scoreText = 'Hidden';
         let winnerIcon = '';
         if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
             scoreText = currentGameState.public_scores[index];
             if (currentGameState.game_over && index === currentGameState.winner) {
-                winnerIcon = ' 🏆';
+                winnerIcon = ' 🏆🏆🏆';
             }
+        }
+        // Cumulative score (if multi-game)
+        let cumulativeText = '';
+        if (isMultiGame && currentGameState.cumulative_scores && typeof currentGameState.cumulative_scores[index] !== 'undefined') {
+            cumulativeText = currentGameState.cumulative_scores[index];
         }
         const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
         let turnIndicator = '';
@@ -527,30 +541,36 @@ function updateScoresAndRoundInfo() {
             if (index === 0) {
                 turnIndicator = ' <span class="turn-label">(Your Turn)</span>';
             } else {
-                turnIndicator = ' <span class="turn-label"></span>';
+                turnIndicator = ' <span class="turn-label">(AI Turn)</span>';
             }
         }
-        scoresHtml += `<div class="score-item ${isCurrentTurn ? 'current-turn-score' : ''}"><strong>${player.name}:</strong> ${scoreText}${winnerIcon}${turnIndicator}</div>`;
+        scoresHtml += `<tr class="score-item${isCurrentTurn ? ' current-turn-score' : ''}">` +
+            `<td style="text-align:left;"><strong>${player.name}:</strong>${winnerIcon}${turnIndicator}</td>` +
+            `<td style="text-align:right;">${scoreText}</td>`;
+        if (isMultiGame) {
+            scoresHtml += `<td style="text-align:right;">${cumulativeText}</td>`;
+        }
+        scoresHtml += `</tr>`;
     });
-    scoresHtml += '</div>';
+    scoresHtml += '</table></div>';
 
-        // Add game control buttons
+    // Flex row: round info left, scores right
+    let flexRowHtml = `<div class="scores-round-flex">${infoText}${scoresHtml}</div>`;
+
+    // Add game control buttons
     let buttonsHtml = '<div class="game-control-buttons">';
-
     // First row: New Game and Replay buttons
     buttonsHtml += '<div class="button-row">';
     buttonsHtml += '<button onclick="restartGame()" class="btn btn-secondary game-control-btn">New Game</button>';
     buttonsHtml += '<button onclick="replayGame()" class="btn btn-primary game-control-btn">Replay</button>';
     buttonsHtml += '</div>';
-
     // Add Next Game button if waiting for next game (full width, below other buttons)
     if (currentGameState.waiting_for_next_game) {
         buttonsHtml += '<button onclick="nextGame()" class="btn btn-success game-control-btn next-game-btn">Next Game</button>';
     }
-
     buttonsHtml += '</div>';
 
-    container.innerHTML = infoText + scoresHtml + buttonsHtml;
+    container.innerHTML = flexRowHtml + buttonsHtml;
 
             // Handle GIF display (celebration for wins, hurry up for slow play)
         const celebrationContainer = document.getElementById('celebrationGif');
