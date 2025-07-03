@@ -53,11 +53,17 @@
                         <option value="18">18</option>
                     </select> <!-- Number of games/holes -->
                 </p>
+                <!-- Bottom Cards Visibility Duration -->
+                <p>
+                    <label for="cardVisibilityDuration">Bottom two cards visible for:</label>
+                    <input type="number" id="cardVisibilityDuration" min="0.5" max="10" step="0.1" value="1.2" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em; width:60px;" />
+                    <span style="margin-left:4px;">seconds</span> <!-- Card visibility duration -->
+                </p>
                 <!-- Start/Restart Buttons -->
                 <button onclick="startGame()" class="btn btn-primary">Start Game</button>
                 <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
-                <!-- Setup View Timer (shows how long bottom cards are visible) -->
-                <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div>
+                <!-- Setup View Timer (shows countdown during game) -->
+                <!-- <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div> -->
             </div>
             <!-- REDESIGNED: Modern responsive game board layout -->
             <div class="game-board" id="gameBoard">

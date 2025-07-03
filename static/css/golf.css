@@ -23,7 +23,7 @@ body, html {
 }
 
 .game-grid-container,
-.gameplay-area,
+.game-play-area,
 .probabilities-area {
     min-height: 0;      /* Allow to shrink to fit grid cell */
     height: 100%;       /* Fill parent grid cell */
@@ -901,7 +901,7 @@ body, html {
 
 /* Discard card faded (when not available) */
 #discardCard.faded {
-    opacity: 0.4;
+    opacity: 0.17;
     filter: grayscale(80%);
     border-style: dashed;
     cursor: not-allowed;
@@ -1306,5 +1306,25 @@ body, html {
   display: inline-block;
   margin-right: 2px;       /* Small space to label */
   border: 1.5px solid #fff;/* White border for visibility */
+}
+
+.game-setup label {
+    font-size: 1.18em;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 4px #333, 0 0 2px #000;
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+    display: inline-block;
+}
+
+#cardVisibilityDuration + span {
+    font-size: 1.18em;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 4px #333, 0 0 2px #000;
+    letter-spacing: 0.02em;
+    margin-left: 4px;
+    vertical-align: middle;
 }
 

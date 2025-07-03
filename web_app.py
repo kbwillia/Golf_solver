@@ -17,7 +17,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 2.75  # seconds
+AI_TURN_DELAY = 1.0  # seconds
 
 @app.route('/')
 def index():
@@ -325,6 +325,15 @@ def get_game_state(game_id):
     if game_session['game_over']:
         scores = [game.calculate_score(p.grid) for p in game.players]
         state['winner'] = scores.index(min(scores))
+    if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+        # Add final game scores to cumulative totals
+        scores = [game.calculate_score(p.grid) for p in game.players]
+        for i, s in enumerate(scores):
+            game_session['cumulative_scores'][i] += s
+
+        # Set flag that we're waiting for user to continue to next game
+        game_session['waiting_for_next_game'] = True
+
     return state
 
 @app.route('/get_available_actions/<game_id>')

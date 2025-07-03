@@ -11,10 +11,12 @@ let turnAnimateTimeout = null; // Timeout for turn animation
 let lastTurnIndex = null; // Last turn index to detect turn changes
 let setupHideTimeout = null; // Timeout for hiding setup cards
 let setupCardsHidden = false; // Whether setup cards are hidden
-const SETUP_VIEW_SECONDS = 1.2; // Change this value for how long to show bottom cards
 let setupViewInterval = null; // Interval for setup view timer
+let cardVisibilityDuration = 1.2; // Default duration, updated from user input
 const SNAP_THRESHOLD = 30; // pixels
 let isMyTurn = false;
+let actionInProgress = false; // Prevents multiple simultaneous actions
+let pollingPaused = false; // Used to pause polling during actions
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -147,11 +149,14 @@ document.getElementById('gameMode').addEventListener('change', function() {
 
 function showSetupViewTimer(seconds) {
     const timerDiv = document.getElementById('setupViewTimer');
-    timerDiv.textContent = `Bottom two cards visible for: ${seconds} second${seconds !== 1 ? 's' : ''}`;
+    if (!timerDiv) return;
+    const secondsNum = parseFloat(seconds);
+    timerDiv.textContent = `Bottom two cards visible for: ${seconds} second${secondsNum !== 1 ? 's' : ''}`;
 }
 
 function hideSetupViewTimer() {
     const timerDiv = document.getElementById('setupViewTimer');
+    if (!timerDiv) return;
     timerDiv.textContent = '';
 }
 
@@ -163,6 +168,7 @@ async function startGame() {
     const opponentType = document.getElementById('opponentType').value;
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
+    cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.2;
 
     try {
         const response = await fetch('/create_game', {
@@ -188,17 +194,17 @@ async function startGame() {
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
-            let secondsLeft = SETUP_VIEW_SECONDS;
+            let secondsLeft = cardVisibilityDuration;
             showSetupViewTimer(secondsLeft);
             setupViewInterval = setInterval(() => {
-                secondsLeft--;
+                secondsLeft -= 0.1;
                 if (secondsLeft > 0) {
-                    showSetupViewTimer(secondsLeft);
+                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
                 } else {
                     hideSetupViewTimer();
                     clearInterval(setupViewInterval);
                 }
-            }, 1000);
+            }, 100);
             setupHideTimeout = setTimeout(() => {
                 setupCardsHidden = true;
                 try {
@@ -208,7 +214,7 @@ async function startGame() {
                 }
                 hideSetupViewTimer();
                 if (setupViewInterval) clearInterval(setupViewInterval);
-            }, SETUP_VIEW_SECONDS * 1000);
+            }, cardVisibilityDuration * 1000);
             try {
                 updateGameDisplay();
             } catch (error) {
@@ -250,23 +256,23 @@ async function refreshGameState() {
                 if (setupViewInterval) clearInterval(setupViewInterval);
 
                 // Start the setup timer for the new game
-                let secondsLeft = SETUP_VIEW_SECONDS;
+                let secondsLeft = cardVisibilityDuration;
                 showSetupViewTimer(secondsLeft);
                 setupViewInterval = setInterval(() => {
-                    secondsLeft--;
+                    secondsLeft -= 0.1;
                     if (secondsLeft > 0) {
-                        showSetupViewTimer(secondsLeft);
+                        showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
                     } else {
                         hideSetupViewTimer();
                         clearInterval(setupViewInterval);
                     }
-                }, 1000);
+                }, 100);
                 setupHideTimeout = setTimeout(() => {
                     setupCardsHidden = true;
                     updateGameDisplay();
                     hideSetupViewTimer();
                     if (setupViewInterval) clearInterval(setupViewInterval);
-                }, SETUP_VIEW_SECONDS * 1000);
+                }, cardVisibilityDuration * 1000);
             }
 
                         currentGameState = data;
@@ -511,12 +517,14 @@ function updatePlayerGrids() {
             deckCard.onclick = null;
             discardCard.classList.add('disabled');
             discardCard.onclick = null;
+            discardCard.classList.add('faded'); // Add fade effect
         } else {
             // Normal turn - enable both deck and discard
             deckCard.classList.remove('disabled');
             deckCard.onclick = drawFromDeck;
             discardCard.classList.remove('disabled');
             discardCard.onclick = takeDiscard;
+            discardCard.classList.remove('faded'); // Remove fade effect
         }
     } else {
         // Not human's turn or game over - disable both
@@ -524,6 +532,7 @@ function updatePlayerGrids() {
         deckCard.onclick = null;
         discardCard.classList.add('disabled');
         discardCard.onclick = null;
+        discardCard.classList.remove('faded'); // Remove fade effect
     }
 }
 
@@ -593,7 +602,7 @@ function updateScoresAndRoundInfo() {
     buttonsHtml += '</div>';
     // Add Next Game button if waiting for next game (full width, below other buttons)
     if (currentGameState.waiting_for_next_game) {
-        buttonsHtml += '<button onclick="nextGame()" class="btn btn-success game-control-btn next-game-btn">Next Game</button>';
+        buttonsHtml += '<button onclick="nextGame()" class="btn btn-success game-control-btn next-game-btn">Next Hole</button>';
     }
     buttonsHtml += '</div>';
 
@@ -746,27 +755,32 @@ function getAvailablePositions() {
 // Position modal functions removed - now using drag-and-drop
 
 async function executeAction(position, actionType = null) {
-    // Position modal removed - no need to hide it
-
-    const action = {
-        game_id: gameId,
-        action: {
-            type: actionType || currentAction,
-            position: position
-        }
-    };
-
-    // Add extra fields based on action type
-    if (actionType === 'draw_keep' || currentAction === 'draw_keep') {
-        action.action.type = 'draw_deck';
-        action.action.keep = true;
-    } else if (actionType === 'draw_discard' || currentAction === 'draw_discard') {
-        action.action.type = 'draw_deck';
-        action.action.keep = false;
-        action.action.flip_position = position;
+    if (actionInProgress) {
+        console.log('Action blocked: another action is in progress.');
+        return;
     }
-
+    actionInProgress = true;
+    pausePolling();
+    console.log('Sending action to backend:', { position, actionType });
     try {
+        const action = {
+            game_id: gameId,
+            action: {
+                type: actionType || currentAction,
+                position: position
+            }
+        };
+
+        // Add extra fields based on action type
+        if (actionType === 'draw_keep' || currentAction === 'draw_keep') {
+            action.action.type = 'draw_deck';
+            action.action.keep = true;
+        } else if (actionType === 'draw_discard' || currentAction === 'draw_discard') {
+            action.action.type = 'draw_deck';
+            action.action.keep = false;
+            action.action.flip_position = position;
+        }
+
         const response = await fetch('/make_move', {
             method: 'POST',
             headers: {
@@ -776,6 +790,7 @@ async function executeAction(position, actionType = null) {
         });
 
         const data = await response.json();
+        console.log('Received backend response:', data);
         if (data.success) {
             // Clear hurry up timer and GIF when human makes a move
             clearHurryUpTimer();
@@ -803,12 +818,19 @@ async function executeAction(position, actionType = null) {
     } catch (error) {
         console.error('Error executing action:', error);
         alert('Error executing action. Please try again.');
+    } finally {
+        actionInProgress = false;
+        resumePolling();
     }
 }
 
 function restartGame() {
     // Reset turn tracking for restart
     lastTurnIndex = null;
+
+    // Hide game board and show setup screen
+    document.getElementById('gameBoard').style.display = 'none';
+    document.getElementById('gameSetup').style.display = 'block';
 
     // Reset chart data for replay
     window.cumulativeScoreHistory = null;
@@ -820,21 +842,20 @@ function restartGame() {
         cumulativeScoreChart.destroy();
         cumulativeScoreChart = null;
     }
+    // Clear the chart container's HTML
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
+    }
 
-    // Use the last selected settings
-    const gameMode = currentGameState.mode || '1v1';
-    const opponentType = currentGameState.players && currentGameState.players[1] ? currentGameState.players[1].agent_type : 'random';
-    const playerName = currentGameState.players && currentGameState.players[0] ? currentGameState.players[0].name : 'Human2';
-    const numGames = currentGameState.num_games || 1;
-    // Start a new game with the same settings
-    startGameWithSettings(gameMode, opponentType, playerName, numGames);
+    // Optionally reset form fields or keep last settings
 }
 
 // Modal closing logic removed - no modals in use
 
 // Periodically refresh game state to catch AI moves
 setInterval(() => {
-    if (gameId && currentGameState && !currentGameState.game_over) {
+    if (gameId && currentGameState && !currentGameState.game_over && !pollingPaused) {
         refreshGameState();
     }
 }, 500); // Reduced from 1000ms to 500ms for more responsive AI turns
@@ -1455,7 +1476,7 @@ function updateCumulativeScoreChart() {
 
 // Show timer on initial load
 document.addEventListener('DOMContentLoaded', function() {
-    showSetupViewTimer(SETUP_VIEW_SECONDS);
+    showSetupViewTimer(cardVisibilityDuration);
     // Initialize the chart when page loads
     setTimeout(() => {
         initializeCumulativeScoreChart();
@@ -1509,6 +1530,11 @@ function replayGame() {
     // Reset turn tracking for replay
     lastTurnIndex = null;
 
+    // Reset drawn card state variables
+    drawnCardData = null;
+    drawnCardDragActive = false;
+    window.flipDrawnMode = false;
+
     // Reset chart data for replay
     window.cumulativeScoreHistory = null;
     window.cumulativeScoreLabels = null;
@@ -1518,6 +1544,11 @@ function replayGame() {
     if (cumulativeScoreChart) {
         cumulativeScoreChart.destroy();
         cumulativeScoreChart = null;
+    }
+    // Clear the chart container's HTML
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
     }
 
     // Use the last selected settings
@@ -1591,23 +1622,23 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
-            let secondsLeft = SETUP_VIEW_SECONDS;
+            let secondsLeft = cardVisibilityDuration;
             showSetupViewTimer(secondsLeft);
             setupViewInterval = setInterval(() => {
-                secondsLeft--;
+                secondsLeft -= 0.1;
                 if (secondsLeft > 0) {
-                    showSetupViewTimer(secondsLeft);
+                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
                 } else {
                     hideSetupViewTimer();
                     clearInterval(setupViewInterval);
                 }
-            }, 1000);
+            }, 100);
             setupHideTimeout = setTimeout(() => {
                 setupCardsHidden = true;
                 updateGameDisplay();
                 hideSetupViewTimer();
                 if (setupViewInterval) clearInterval(setupViewInterval);
-            }, SETUP_VIEW_SECONDS * 1000);
+            }, cardVisibilityDuration * 1000);
             updateGameDisplay();
 
             // Check if it's an AI's turn right after game creation - add delay for first turn
@@ -1699,3 +1730,7 @@ function updateChart(gameData) {
         // ...
     }));
 }
+
+// Wrap polling interval logic
+function pausePolling() { pollingPaused = true; }
+function resumePolling() { pollingPaused = false; }
