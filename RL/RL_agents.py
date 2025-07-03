@@ -25,19 +25,24 @@ class QLearningAgent(Agent):
         return GameState(player, game_state)
 
     def get_action_key(self, action):
-        return f"{action['type']}_{action['position']}"
+        if action['type'] == 'draw_deck' and not action.get('keep', True):
+            return f"draw_deck_discard_flip_{action['flip_position']}"
+        else:
+            return f"{action['type']}_{action['position']}"
 
     def choose_action(self, player, game_state, trajectory=None):
         positions = [i for i, known in enumerate(player.known) if not known]
-        if not positions:
-            return None
         actions = []
         if game_state.discard_pile:
             for pos in positions:
                 actions.append({'type': 'take_discard', 'position': pos})
         if game_state.deck:
             for pos in positions:
+                # Option 1: Keep the drawn card and replace a position
                 actions.append({'type': 'draw_deck', 'position': pos, 'keep': True})
+            for pos in positions:
+                # Option 2: Discard the drawn card and flip a card face-up
+                actions.append({'type': 'draw_deck', 'keep': False, 'flip_position': pos})
         if not actions:
             return None
         # Epsilon-greedy policy

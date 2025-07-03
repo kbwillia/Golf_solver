@@ -1,23 +1,56 @@
 state,action,q_value
-()_4_10_1,take_discard_0,0.034390000000000004
-()_4_10_1,take_discard_1,0.0
-()_4_10_1,take_discard_2,0.0
-()_4_10_1,take_discard_3,0.0
-()_4_10_1,draw_deck_0,0.0
-()_4_10_1,draw_deck_1,0.0
-()_4_10_1,draw_deck_2,0.0
-()_4_10_1,draw_deck_3,0.0
-"('10',)_3_3_2",take_discard_1,0.010000000000000002
-"('10',)_3_3_2",take_discard_2,0.0
-"('10',)_3_3_2",take_discard_3,0.0
-"('10',)_3_3_2",draw_deck_1,0.0
-"('10',)_3_3_2",draw_deck_2,0.0
-"('10',)_3_3_2",draw_deck_3,0.0
-"('10', '3')_2_10_3",take_discard_2,0.010000000000000002
-"('10', '3')_2_10_3",take_discard_3,0.0
-"('10', '3')_2_10_3",draw_deck_2,0.0
-"('10', '3')_2_10_3",draw_deck_3,0.0
-"('10', '10', '3')_1_A_4",take_discard_3,1.01
+"('3', 'K')_2_5_3",take_discard_0,0.010000000000000002
+"('3', 'K')_2_5_3",take_discard_3,0.0
+"('3', 'K')_2_5_3",draw_deck_0,0.0
+"('3', 'K')_2_5_3",draw_deck_3,0.0
+"('3', 'K')_2_5_3",draw_deck_discard_flip_0,0.0
+"('3', 'K')_2_5_3",draw_deck_discard_flip_3,0.0
+"('3', '5', 'K')_1_7_4",take_discard_3,-0.49000000000000005
+"('3', '5', 'K')_1_7_4",draw_deck_3,0.0
+"('3', '5', 'K')_1_7_4",draw_deck_discard_flip_3,0.0
+"('3',)_3_6_2",draw_deck_discard_flip_1,0.010000000000000002
+()_4_8_1,draw_deck_2,0.028000000000000004
+()_4_8_1,take_discard_0,0.0
+()_4_8_1,take_discard_1,0.0
+()_4_8_1,take_discard_2,0.0
+()_4_8_1,take_discard_3,0.0
+()_4_8_1,draw_deck_0,0.0
+()_4_8_1,draw_deck_1,0.0
+()_4_8_1,draw_deck_3,0.0
+()_4_8_1,draw_deck_discard_flip_0,0.0
+()_4_8_1,draw_deck_discard_flip_1,0.0
+()_4_8_1,draw_deck_discard_flip_2,0.0
+()_4_8_1,draw_deck_discard_flip_3,0.0
+"('A',)_3_K_2",take_discard_0,0.010000000000000002
+"('A',)_3_K_2",take_discard_1,0.0
+"('A',)_3_K_2",take_discard_3,0.0
+"('A',)_3_K_2",draw_deck_0,0.0
+"('A',)_3_K_2",draw_deck_1,0.0
+"('A',)_3_K_2",draw_deck_3,0.0
+"('A',)_3_K_2",draw_deck_discard_flip_0,0.0
+"('A',)_3_K_2",draw_deck_discard_flip_1,0.0
+"('A',)_3_K_2",draw_deck_discard_flip_3,0.0
+"('A', 'K')_2_8_3",take_discard_1,0.010000000000000002
+"('A', 'K')_2_8_3",take_discard_3,0.0
+"('A', 'K')_2_8_3",draw_deck_1,0.0
+"('A', 'K')_2_8_3",draw_deck_3,0.0
+"('A', 'K')_2_8_3",draw_deck_discard_flip_1,0.0
+"('A', 'K')_2_8_3",draw_deck_discard_flip_3,0.0
+"('8', 'A', 'K')_1_8_4",take_discard_3,1.01
+"('8', 'A', 'K')_1_8_4",draw_deck_3,0.0
+"('8', 'A', 'K')_1_8_4",draw_deck_discard_flip_3,0.0
+()_4_A_1,draw_deck_discard_flip_2,0.027100000000000006
+()_4_A_1,take_discard_0,0.0
+()_4_A_1,take_discard_1,0.0
+()_4_A_1,take_discard_2,0.0
+()_4_A_1,take_discard_3,0.0
+()_4_A_1,draw_deck_0,0.0
+()_4_A_1,draw_deck_1,0.0
+()_4_A_1,draw_deck_2,0.0
+()_4_A_1,draw_deck_3,0.0
+()_4_A_1,draw_deck_discard_flip_0,0.0
+()_4_A_1,draw_deck_discard_flip_1,0.0
+()_4_A_1,draw_deck_discard_flip_3,0.0
 ()_4_6_1,take_discard_0,0.019000000000000003
 ()_4_6_1,take_discard_1,0.0
 ()_4_6_1,take_discard_2,0.0
@@ -26,18 +59,336 @@ state,action,q_value
 ()_4_6_1,draw_deck_1,0.0
 ()_4_6_1,draw_deck_2,0.0
 ()_4_6_1,draw_deck_3,0.0
-"('6',)_3_A_2",take_discard_1,0.010000000000000002
-"('6',)_3_A_2",take_discard_2,0.0
-"('6',)_3_A_2",take_discard_3,0.0
-"('6',)_3_A_2",draw_deck_1,0.0
-"('6',)_3_A_2",draw_deck_2,0.0
-"('6',)_3_A_2",draw_deck_3,0.0
-"('6',)_3_A_2",take_discard_0,0.010000000000000002
-"('6',)_3_A_2",draw_deck_0,0.0
-"('3', '6', 'A')_1_9_4",take_discard_2,-0.49000000000000005
-"('3', '6', 'A')_1_9_4",draw_deck_2,0.0
-"('6', 'A')_2_3_3",draw_deck_3,0.010000000000000002
-()_4_3_1,take_discard_0,0.019000000000000003
+()_4_6_1,draw_deck_discard_flip_0,0.010000000000000002
+()_4_6_1,draw_deck_discard_flip_1,0.010000000000000002
+()_4_6_1,draw_deck_discard_flip_2,0.0
+()_4_6_1,draw_deck_discard_flip_3,0.0
+"('6',)_3_Q_2",take_discard_1,0.010000000000000002
+"('6',)_3_Q_2",take_discard_2,0.0
+"('6',)_3_Q_2",take_discard_3,0.0
+"('6',)_3_Q_2",draw_deck_1,0.0
+"('6',)_3_Q_2",draw_deck_2,0.0
+"('6',)_3_Q_2",draw_deck_3,0.0
+"('6',)_3_Q_2",draw_deck_discard_flip_1,0.0
+"('6',)_3_Q_2",draw_deck_discard_flip_2,0.0
+"('6',)_3_Q_2",draw_deck_discard_flip_3,0.0
+"('6', 'Q')_2_10_3",take_discard_2,0.010000000000000002
+"('6', 'Q')_2_10_3",take_discard_3,0.0
+"('6', 'Q')_2_10_3",draw_deck_2,0.0
+"('6', 'Q')_2_10_3",draw_deck_3,0.0
+"('6', 'Q')_2_10_3",draw_deck_discard_flip_2,0.0
+"('6', 'Q')_2_10_3",draw_deck_discard_flip_3,0.0
+"('10', '6', 'Q')_1_5_4",take_discard_3,-0.49000000000000005
+"('10', '6', 'Q')_1_5_4",draw_deck_3,0.0
+"('10', '6', 'Q')_1_5_4",draw_deck_discard_flip_3,0.0
+"('J',)_3_2_2",take_discard_0,0.010000000000000002
+"('J',)_3_2_2",take_discard_1,0.010000000000000002
+"('J',)_3_2_2",take_discard_3,0.0
+"('J',)_3_2_2",draw_deck_0,0.0
+"('J',)_3_2_2",draw_deck_1,0.0
+"('J',)_3_2_2",draw_deck_3,0.0
+"('J',)_3_2_2",draw_deck_discard_flip_0,0.0
+"('J',)_3_2_2",draw_deck_discard_flip_1,0.0
+"('J',)_3_2_2",draw_deck_discard_flip_3,0.0
+"('J',)_3_2_2",take_discard_2,0.0
+"('J',)_3_2_2",draw_deck_2,0.0
+"('J',)_3_2_2",draw_deck_discard_flip_2,0.0
+"('2', 'J', 'Q')_1_K_4",take_discard_3,-0.49000000000000005
+"('2', 'J', 'Q')_1_K_4",draw_deck_3,0.0
+"('2', 'J', 'Q')_1_K_4",draw_deck_discard_flip_3,0.0
+()_4_10_1,draw_deck_discard_flip_2,0.019000000000000003
+()_4_10_1,take_discard_0,0.0
+()_4_10_1,take_discard_1,0.0
+()_4_10_1,take_discard_2,0.0
+()_4_10_1,take_discard_3,0.0
+()_4_10_1,draw_deck_0,0.0
+()_4_10_1,draw_deck_1,0.0
+()_4_10_1,draw_deck_2,0.0
+()_4_10_1,draw_deck_3,0.0
+()_4_10_1,draw_deck_discard_flip_0,0.0
+()_4_10_1,draw_deck_discard_flip_1,0.0
+()_4_10_1,draw_deck_discard_flip_3,0.0
+"('2', 'J')_2_5_3",draw_deck_1,0.010000000000000002
+"('A',)_3_6_2",take_discard_0,0.010000000000000002
+"('A',)_3_6_2",take_discard_1,0.0
+"('A',)_3_6_2",take_discard_3,0.0
+"('A',)_3_6_2",draw_deck_0,0.0
+"('A',)_3_6_2",draw_deck_1,0.0
+"('A',)_3_6_2",draw_deck_3,0.0
+"('A',)_3_6_2",draw_deck_discard_flip_0,0.0
+"('A',)_3_6_2",draw_deck_discard_flip_1,0.0
+"('A',)_3_6_2",draw_deck_discard_flip_3,0.0
+"('6', 'A')_2_6_3",take_discard_1,0.010000000000000002
+"('6', 'A')_2_6_3",take_discard_3,0.0
+"('6', 'A')_2_6_3",draw_deck_1,0.0
+"('6', 'A')_2_6_3",draw_deck_3,0.0
+"('6', 'A')_2_6_3",draw_deck_discard_flip_1,0.0
+"('6', 'A')_2_6_3",draw_deck_discard_flip_3,0.0
+"('6', '6', 'A')_1_7_4",take_discard_3,1.01
+"('6', '6', 'A')_1_7_4",draw_deck_3,0.0
+"('6', '6', 'A')_1_7_4",draw_deck_discard_flip_3,0.0
+"('6',)_3_2_2",take_discard_1,0.010000000000000002
+"('6',)_3_2_2",take_discard_2,0.0
+"('6',)_3_2_2",take_discard_3,0.0
+"('6',)_3_2_2",draw_deck_1,0.0
+"('6',)_3_2_2",draw_deck_2,0.0
+"('6',)_3_2_2",draw_deck_3,0.0
+"('6',)_3_2_2",draw_deck_discard_flip_1,0.0
+"('6',)_3_2_2",draw_deck_discard_flip_2,0.0
+"('6',)_3_2_2",draw_deck_discard_flip_3,0.0
+"('2', '6')_2_3_3",take_discard_2,0.010000000000000002
+"('2', '6')_2_3_3",take_discard_3,0.0
+"('2', '6')_2_3_3",draw_deck_2,0.0
+"('2', '6')_2_3_3",draw_deck_3,0.0
+"('2', '6')_2_3_3",draw_deck_discard_flip_2,0.0
+"('2', '6')_2_3_3",draw_deck_discard_flip_3,0.0
+"('2', '3', '6')_1_7_4",take_discard_3,-0.49000000000000005
+"('2',)_3_9_2",take_discard_1,0.010000000000000002
+"('2',)_3_9_2",take_discard_2,0.0
+"('2',)_3_9_2",take_discard_3,0.0
+"('2',)_3_9_2",draw_deck_1,0.0
+"('2',)_3_9_2",draw_deck_2,0.0
+"('2',)_3_9_2",draw_deck_3,0.0
+"('2',)_3_9_2",draw_deck_discard_flip_1,0.0
+"('2',)_3_9_2",draw_deck_discard_flip_2,0.0
+"('2',)_3_9_2",draw_deck_discard_flip_3,0.0
+"('2', '9', 'J')_1_Q_4",take_discard_3,-0.49000000000000005
+"('2', '9', 'J')_1_Q_4",draw_deck_3,0.0
+"('2', '9', 'J')_1_Q_4",draw_deck_discard_flip_3,0.0
+()_4_7_1,draw_deck_0,0.027100000000000006
+()_4_7_1,take_discard_0,0.0
+()_4_7_1,take_discard_1,0.0
+()_4_7_1,take_discard_2,0.0
+()_4_7_1,take_discard_3,0.0
+()_4_7_1,draw_deck_1,0.0
+()_4_7_1,draw_deck_2,0.0
+()_4_7_1,draw_deck_3,0.0
+()_4_7_1,draw_deck_discard_flip_0,0.0
+()_4_7_1,draw_deck_discard_flip_1,0.0
+()_4_7_1,draw_deck_discard_flip_2,0.0
+()_4_7_1,draw_deck_discard_flip_3,0.0
+"('2', '9')_2_Q_3",draw_deck_2,0.010000000000000002
+()_4_J_1,take_discard_0,0.010000000000000002
+()_4_J_1,take_discard_1,0.0
+()_4_J_1,take_discard_2,0.0
+()_4_J_1,take_discard_3,0.0
+()_4_J_1,draw_deck_0,0.0
+()_4_J_1,draw_deck_1,0.0
+()_4_J_1,draw_deck_2,0.0
+()_4_J_1,draw_deck_3,0.0
+()_4_J_1,draw_deck_discard_flip_0,0.0
+()_4_J_1,draw_deck_discard_flip_1,0.0
+()_4_J_1,draw_deck_discard_flip_2,0.0
+()_4_J_1,draw_deck_discard_flip_3,0.0
+"('J',)_3_4_2",take_discard_1,0.010000000000000002
+"('J',)_3_4_2",take_discard_2,0.0
+"('J',)_3_4_2",take_discard_3,0.0
+"('J',)_3_4_2",draw_deck_1,0.0
+"('J',)_3_4_2",draw_deck_2,0.0
+"('J',)_3_4_2",draw_deck_3,0.0
+"('J',)_3_4_2",draw_deck_discard_flip_1,0.0
+"('J',)_3_4_2",draw_deck_discard_flip_2,0.0
+"('J',)_3_4_2",draw_deck_discard_flip_3,0.0
+"('4', 'J')_2_9_3",take_discard_2,0.010000000000000002
+"('4', 'J')_2_9_3",take_discard_3,0.0
+"('4', 'J')_2_9_3",draw_deck_2,0.0
+"('4', 'J')_2_9_3",draw_deck_3,0.0
+"('4', 'J')_2_9_3",draw_deck_discard_flip_2,0.0
+"('4', 'J')_2_9_3",draw_deck_discard_flip_3,0.0
+"('4', '9', 'J')_1_K_4",take_discard_3,1.01
+"('4', '9', 'J')_1_K_4",draw_deck_3,0.0
+"('4', '9', 'J')_1_K_4",draw_deck_discard_flip_3,0.0
+"('3', '8')_2_5_3",take_discard_2,0.010000000000000002
+"('3', '8')_2_5_3",take_discard_3,0.0
+"('3', '8')_2_5_3",draw_deck_2,0.0
+"('3', '8')_2_5_3",draw_deck_3,0.0
+"('3', '8')_2_5_3",draw_deck_discard_flip_2,0.0
+"('3', '8')_2_5_3",draw_deck_discard_flip_3,0.0
+"('3', '5', '8')_1_7_4",take_discard_3,-0.49000000000000005
+"('3', '5', '8')_1_7_4",draw_deck_3,0.0
+"('3', '5', '8')_1_7_4",draw_deck_discard_flip_3,0.0
+"('8',)_3_4_2",draw_deck_1,0.010000000000000002
+"('5', 'A', 'Q')_1_4_4",take_discard_3,1.01
+"('5', 'A', 'Q')_1_4_4",draw_deck_3,0.0
+"('5', 'A', 'Q')_1_4_4",draw_deck_discard_flip_3,0.0
+"('Q',)_3_A_2",take_discard_1,0.010000000000000002
+"('A', 'Q')_2_5_3",take_discard_2,0.010000000000000002
+()_4_5_1,take_discard_0,0.010000000000000002
+()_4_5_1,take_discard_1,0.0
+()_4_5_1,take_discard_2,0.0
+()_4_5_1,take_discard_3,0.0
+()_4_5_1,draw_deck_0,0.0
+()_4_5_1,draw_deck_1,0.0
+()_4_5_1,draw_deck_2,0.0
+()_4_5_1,draw_deck_3,0.0
+()_4_5_1,draw_deck_discard_flip_0,0.0
+()_4_5_1,draw_deck_discard_flip_1,0.0
+()_4_5_1,draw_deck_discard_flip_2,0.0
+()_4_5_1,draw_deck_discard_flip_3,0.0
+"('5',)_3_K_2",take_discard_1,0.010000000000000002
+"('5',)_3_K_2",take_discard_2,0.0
+"('5',)_3_K_2",take_discard_3,0.0
+"('5',)_3_K_2",draw_deck_1,0.0
+"('5',)_3_K_2",draw_deck_2,0.0
+"('5',)_3_K_2",draw_deck_3,0.0
+"('5',)_3_K_2",draw_deck_discard_flip_1,0.0
+"('5',)_3_K_2",draw_deck_discard_flip_2,0.0
+"('5',)_3_K_2",draw_deck_discard_flip_3,0.0
+"('5', 'K')_2_K_3",take_discard_2,0.010000000000000002
+"('5', 'K')_2_K_3",take_discard_3,0.0
+"('5', 'K')_2_K_3",draw_deck_2,0.0
+"('5', 'K')_2_K_3",draw_deck_3,0.0
+"('5', 'K')_2_K_3",draw_deck_discard_flip_2,0.0
+"('5', 'K')_2_K_3",draw_deck_discard_flip_3,0.0
+"('5', 'K', 'K')_1_4_4",take_discard_3,1.01
+"('5', 'K', 'K')_1_4_4",draw_deck_3,0.0
+"('5', 'K', 'K')_1_4_4",draw_deck_discard_flip_3,0.0
+"('10',)_3_J_2",take_discard_0,0.010000000000000002
+"('10',)_3_J_2",take_discard_2,0.0
+"('10',)_3_J_2",take_discard_3,0.0
+"('10',)_3_J_2",draw_deck_0,0.0
+"('10',)_3_J_2",draw_deck_2,0.0
+"('10',)_3_J_2",draw_deck_3,0.0
+"('10',)_3_J_2",draw_deck_discard_flip_0,0.0
+"('10',)_3_J_2",draw_deck_discard_flip_2,0.0
+"('10',)_3_J_2",draw_deck_discard_flip_3,0.0
+"('10', 'J')_2_5_3",take_discard_2,0.010000000000000002
+"('10', 'J')_2_5_3",take_discard_3,0.0
+"('10', 'J')_2_5_3",draw_deck_2,0.0
+"('10', 'J')_2_5_3",draw_deck_3,0.0
+"('10', 'J')_2_5_3",draw_deck_discard_flip_2,0.0
+"('10', 'J')_2_5_3",draw_deck_discard_flip_3,0.0
+"('10', '5', 'J')_1_4_4",take_discard_3,1.01
+"('10', '5', 'J')_1_4_4",draw_deck_3,0.0
+"('10', '5', 'J')_1_4_4",draw_deck_discard_flip_3,0.0
+"('8',)_3_10_2",take_discard_0,0.010000000000000002
+"('8',)_3_10_2",take_discard_1,0.0
+"('8',)_3_10_2",take_discard_3,0.0
+"('8',)_3_10_2",draw_deck_0,0.0
+"('8',)_3_10_2",draw_deck_1,0.0
+"('8',)_3_10_2",draw_deck_3,0.0
+"('8',)_3_10_2",draw_deck_discard_flip_0,0.0
+"('8',)_3_10_2",draw_deck_discard_flip_1,0.0
+"('8',)_3_10_2",draw_deck_discard_flip_3,0.0
+"('10', '8')_2_2_3",take_discard_1,0.010000000000000002
+"('10', '8')_2_2_3",take_discard_3,0.0
+"('10', '8')_2_2_3",draw_deck_1,0.0
+"('10', '8')_2_2_3",draw_deck_3,0.0
+"('10', '8')_2_2_3",draw_deck_discard_flip_1,0.0
+"('10', '8')_2_2_3",draw_deck_discard_flip_3,0.0
+"('10', '2', '8')_1_10_4",take_discard_3,1.919
+"('10', '2', '8')_1_10_4",draw_deck_3,0.0
+"('10', '2', '8')_1_10_4",draw_deck_discard_flip_3,0.0
+()_4_K_1,take_discard_0,0.027100000000000006
+()_4_K_1,take_discard_1,0.0
+()_4_K_1,take_discard_2,0.0
+()_4_K_1,take_discard_3,0.0
+()_4_K_1,draw_deck_0,0.0
+()_4_K_1,draw_deck_1,0.010000000000000002
+()_4_K_1,draw_deck_2,0.0
+()_4_K_1,draw_deck_3,0.0
+()_4_K_1,draw_deck_discard_flip_0,0.0
+()_4_K_1,draw_deck_discard_flip_1,0.0
+()_4_K_1,draw_deck_discard_flip_2,0.0
+()_4_K_1,draw_deck_discard_flip_3,0.0
+"('K',)_3_3_2",take_discard_1,0.019000000000000003
+"('K',)_3_3_2",take_discard_2,0.0
+"('K',)_3_3_2",take_discard_3,0.0
+"('K',)_3_3_2",draw_deck_1,0.0
+"('K',)_3_3_2",draw_deck_2,0.0
+"('K',)_3_3_2",draw_deck_3,0.0
+"('K',)_3_3_2",draw_deck_discard_flip_1,0.0
+"('K',)_3_3_2",draw_deck_discard_flip_2,0.0
+"('K',)_3_3_2",draw_deck_discard_flip_3,0.0
+"('K',)_3_3_2",take_discard_0,0.0
+"('K',)_3_3_2",draw_deck_0,0.0
+"('K',)_3_3_2",draw_deck_discard_flip_0,0.0
+"('3', 'A', 'K')_1_K_4",take_discard_3,1.01
+"('3', 'A', 'K')_1_K_4",draw_deck_3,0.0
+"('3', 'A', 'K')_1_K_4",draw_deck_discard_flip_3,0.0
+"('3', 'K')_2_8_3",draw_deck_discard_flip_2,0.010000000000000002
+"('3', 'K')_2_7_3",take_discard_0,0.010000000000000002
+"('3', 'K')_2_7_3",take_discard_3,0.0
+"('3', 'K')_2_7_3",draw_deck_0,0.0
+"('3', 'K')_2_7_3",draw_deck_3,0.0
+"('3', 'K')_2_7_3",draw_deck_discard_flip_0,0.0
+"('3', 'K')_2_7_3",draw_deck_discard_flip_3,0.0
+"('3', '7', 'K')_1_K_4",take_discard_3,1.01
+"('3', '7', 'K')_1_K_4",draw_deck_3,0.0
+"('3', '7', 'K')_1_K_4",draw_deck_discard_flip_3,0.0
+"('2', 'J')_2_3_3",take_discard_2,0.010000000000000002
+"('2', 'J')_2_3_3",take_discard_3,0.0
+"('2', 'J')_2_3_3",draw_deck_2,0.0
+"('2', 'J')_2_3_3",draw_deck_3,0.0
+"('2', 'J')_2_3_3",draw_deck_discard_flip_2,0.0
+"('2', 'J')_2_3_3",draw_deck_discard_flip_3,0.0
+"('2', '3', 'J')_1_10_4",take_discard_3,1.01
+"('2', '3', 'J')_1_10_4",draw_deck_3,0.0
+"('2', '3', 'J')_1_10_4",draw_deck_discard_flip_3,0.0
+"('10',)_3_2_2",take_discard_0,0.010000000000000002
+"('10',)_3_2_2",take_discard_1,0.0
+"('10',)_3_2_2",take_discard_3,0.0
+"('10',)_3_2_2",draw_deck_0,0.0
+"('10',)_3_2_2",draw_deck_1,0.0
+"('10',)_3_2_2",draw_deck_3,0.0
+"('10',)_3_2_2",draw_deck_discard_flip_0,0.0
+"('10',)_3_2_2",draw_deck_discard_flip_1,0.0
+"('10',)_3_2_2",draw_deck_discard_flip_3,0.0
+"('10', '2')_2_8_3",take_discard_1,0.10090000000000002
+"('10', '2')_2_8_3",take_discard_3,0.0
+"('10', '2')_2_8_3",draw_deck_1,0.0
+"('10', '2')_2_8_3",draw_deck_3,0.0
+"('10', '2')_2_8_3",draw_deck_discard_flip_1,0.0
+"('10', '2')_2_8_3",draw_deck_discard_flip_3,0.0
+()_4_9_1,take_discard_0,0.010000000000000002
+()_4_9_1,take_discard_1,0.0
+()_4_9_1,take_discard_2,0.0
+()_4_9_1,take_discard_3,0.0
+()_4_9_1,draw_deck_0,0.0
+()_4_9_1,draw_deck_1,0.0
+()_4_9_1,draw_deck_2,0.0
+()_4_9_1,draw_deck_3,0.0
+()_4_9_1,draw_deck_discard_flip_0,0.0
+()_4_9_1,draw_deck_discard_flip_1,0.0
+()_4_9_1,draw_deck_discard_flip_2,0.0
+()_4_9_1,draw_deck_discard_flip_3,0.0
+"('9',)_3_4_2",take_discard_1,0.010000000000000002
+"('9',)_3_4_2",take_discard_2,0.0
+"('9',)_3_4_2",take_discard_3,0.0
+"('9',)_3_4_2",draw_deck_1,0.0
+"('9',)_3_4_2",draw_deck_2,0.0
+"('9',)_3_4_2",draw_deck_3,0.0
+"('9',)_3_4_2",draw_deck_discard_flip_1,0.0
+"('9',)_3_4_2",draw_deck_discard_flip_2,0.0
+"('9',)_3_4_2",draw_deck_discard_flip_3,0.0
+"('4', '9')_2_Q_3",take_discard_2,0.010000000000000002
+"('4', '9')_2_Q_3",take_discard_3,0.0
+"('4', '9')_2_Q_3",draw_deck_2,0.0
+"('4', '9')_2_Q_3",draw_deck_3,0.0
+"('4', '9')_2_Q_3",draw_deck_discard_flip_2,0.0
+"('4', '9')_2_Q_3",draw_deck_discard_flip_3,0.0
+"('4', '9', 'Q')_1_K_4",take_discard_3,-0.49000000000000005
+"('4', '9', 'Q')_1_K_4",draw_deck_3,0.0
+"('4', '9', 'Q')_1_K_4",draw_deck_discard_flip_3,0.0
+"('K',)_3_A_2",take_discard_1,0.010000000000000002
+"('K',)_3_A_2",take_discard_2,0.0
+"('K',)_3_A_2",take_discard_3,0.0
+"('K',)_3_A_2",draw_deck_1,0.0
+"('K',)_3_A_2",draw_deck_2,0.0
+"('K',)_3_A_2",draw_deck_3,0.0
+"('K',)_3_A_2",draw_deck_discard_flip_1,0.0
+"('K',)_3_A_2",draw_deck_discard_flip_2,0.0
+"('K',)_3_A_2",draw_deck_discard_flip_3,0.0
+"('A', 'K')_2_2_3",take_discard_2,0.010000000000000002
+"('A', 'K')_2_2_3",take_discard_3,0.0
+"('A', 'K')_2_2_3",draw_deck_2,0.0
+"('A', 'K')_2_2_3",draw_deck_3,0.0
+"('A', 'K')_2_2_3",draw_deck_discard_flip_2,0.0
+"('A', 'K')_2_2_3",draw_deck_discard_flip_3,0.0
+"('2', 'A', 'K')_1_7_4",take_discard_3,-0.49000000000000005
+"('2', 'A', 'K')_1_7_4",draw_deck_3,0.0
+"('2', 'A', 'K')_1_7_4",draw_deck_discard_flip_3,0.0
+()_4_3_1,take_discard_0,0.010000000000000002
 ()_4_3_1,take_discard_1,0.0
 ()_4_3_1,take_discard_2,0.0
 ()_4_3_1,take_discard_3,0.0
@@ -45,163 +396,28 @@ state,action,q_value
 ()_4_3_1,draw_deck_1,0.0
 ()_4_3_1,draw_deck_2,0.0
 ()_4_3_1,draw_deck_3,0.0
-"('3',)_3_4_2",take_discard_1,0.010000000000000002
-"('3',)_3_4_2",take_discard_2,0.0
-"('3',)_3_4_2",take_discard_3,0.0
-"('3',)_3_4_2",draw_deck_1,0.0
-"('3',)_3_4_2",draw_deck_2,0.0
-"('3',)_3_4_2",draw_deck_3,0.0
-"('3', '4')_2_6_3",take_discard_2,0.010000000000000002
-"('3', '4')_2_6_3",take_discard_3,0.0
-"('3', '4')_2_6_3",draw_deck_2,0.0
-"('3', '4')_2_6_3",draw_deck_3,0.0
-"('3', '4', '6')_1_9_4",take_discard_3,-0.49000000000000005
-"('3', '4', '6')_1_9_4",draw_deck_3,0.0
-()_4_Q_1,take_discard_0,0.027100000000000006
-()_4_Q_1,take_discard_1,0.0
-()_4_Q_1,take_discard_2,0.0
-()_4_Q_1,take_discard_3,0.0
-()_4_Q_1,draw_deck_0,0.0
-()_4_Q_1,draw_deck_1,0.0
-()_4_Q_1,draw_deck_2,0.010000000000000002
-()_4_Q_1,draw_deck_3,0.0
-"('Q',)_3_3_2",take_discard_1,0.010000000000000002
-"('Q',)_3_3_2",take_discard_2,0.0
-"('Q',)_3_3_2",take_discard_3,0.0
-"('Q',)_3_3_2",draw_deck_1,0.0
-"('Q',)_3_3_2",draw_deck_2,0.0
-"('Q',)_3_3_2",draw_deck_3,0.0
-"('3', 'Q')_2_2_3",take_discard_2,0.010000000000000002
-"('3', 'Q')_2_2_3",take_discard_3,0.0
-"('3', 'Q')_2_2_3",draw_deck_2,0.0
-"('3', 'Q')_2_2_3",draw_deck_3,0.0
-"('2', '3', 'Q')_1_10_4",take_discard_3,-0.49000000000000005
-"('2', '3', 'Q')_1_10_4",draw_deck_3,0.0
-()_4_4_1,take_discard_0,0.019000000000000003
-()_4_4_1,take_discard_1,0.010000000000000002
-()_4_4_1,take_discard_2,0.0
-()_4_4_1,take_discard_3,0.0
-()_4_4_1,draw_deck_0,0.0
-()_4_4_1,draw_deck_1,0.0
-()_4_4_1,draw_deck_2,0.0
-()_4_4_1,draw_deck_3,0.0
-"('4',)_3_8_2",take_discard_1,0.010000000000000002
-"('4',)_3_8_2",take_discard_2,0.0
-"('4',)_3_8_2",take_discard_3,0.0
-"('4',)_3_8_2",draw_deck_1,0.0
-"('4',)_3_8_2",draw_deck_2,0.0
-"('4',)_3_8_2",draw_deck_3,0.0
-"('4', '8')_2_8_3",take_discard_2,0.010000000000000002
-"('4', '8')_2_8_3",take_discard_3,0.0
-"('4', '8')_2_8_3",draw_deck_2,0.0
-"('4', '8')_2_8_3",draw_deck_3,0.0
-"('4', '8', '8')_1_2_4",take_discard_3,1.01
-"('4', '8', '8')_1_2_4",draw_deck_3,0.0
-"('A',)_3_Q_2",take_discard_0,0.010000000000000002
-"('A',)_3_Q_2",take_discard_2,0.0
-"('A',)_3_Q_2",take_discard_3,0.0
-"('A',)_3_Q_2",draw_deck_0,0.0
-"('A',)_3_Q_2",draw_deck_2,0.0
-"('A',)_3_Q_2",draw_deck_3,0.0
-()_4_A_1,take_discard_1,0.019000000000000003
-()_4_A_1,take_discard_0,0.0
-()_4_A_1,take_discard_2,0.0
-()_4_A_1,take_discard_3,0.0
-()_4_A_1,draw_deck_0,0.0
-()_4_A_1,draw_deck_1,0.0
-()_4_A_1,draw_deck_2,0.0
-()_4_A_1,draw_deck_3,0.0
-"('A', 'Q')_2_8_3",take_discard_3,0.010000000000000002
-"('8', 'A', 'Q')_1_6_4",take_discard_2,-0.49000000000000005
-"('Q',)_3_4_2",take_discard_1,0.010000000000000002
-"('Q',)_3_4_2",take_discard_2,0.0
-"('Q',)_3_4_2",take_discard_3,0.0
-"('Q',)_3_4_2",draw_deck_1,0.0
-"('Q',)_3_4_2",draw_deck_2,0.0
-"('Q',)_3_4_2",draw_deck_3,0.0
-"('4', 'Q')_2_J_3",take_discard_2,0.010000000000000002
-"('4', 'Q')_2_J_3",take_discard_3,0.0
-"('4', 'Q')_2_J_3",draw_deck_2,0.0
-"('4', 'Q')_2_J_3",draw_deck_3,0.0
-"('4', 'J', 'Q')_1_8_4",take_discard_3,-0.49000000000000005
-"('4', 'J', 'Q')_1_8_4",draw_deck_3,0.0
-()_4_7_1,take_discard_0,0.010000000000000002
-()_4_7_1,take_discard_1,0.0
-()_4_7_1,take_discard_2,0.0
-()_4_7_1,take_discard_3,0.0
-()_4_7_1,draw_deck_0,0.0
-()_4_7_1,draw_deck_1,0.0
-()_4_7_1,draw_deck_2,0.0
-()_4_7_1,draw_deck_3,0.0
-"('7',)_3_3_2",take_discard_1,0.010000000000000002
-"('7',)_3_3_2",take_discard_2,0.0
-"('7',)_3_3_2",take_discard_3,0.0
-"('7',)_3_3_2",draw_deck_1,0.0
-"('7',)_3_3_2",draw_deck_2,0.0
-"('7',)_3_3_2",draw_deck_3,0.0
-"('3', '7')_2_10_3",take_discard_2,0.010000000000000002
-"('3', '7')_2_10_3",take_discard_3,0.0
-"('3', '7')_2_10_3",draw_deck_2,0.0
-"('3', '7')_2_10_3",draw_deck_3,0.0
-"('10', '3', '7')_1_10_4",take_discard_3,0.010000000000000002
-"('10', '3', '7')_1_10_4",draw_deck_3,0.0
-"('5', 'J')_2_A_3",take_discard_0,0.010000000000000002
-"('5', 'J')_2_A_3",take_discard_3,0.0
-"('5', 'J')_2_A_3",draw_deck_0,0.0
-"('5', 'J')_2_A_3",draw_deck_3,0.0
-"('5', 'A', 'J')_1_7_4",take_discard_3,1.01
-"('5', 'A', 'J')_1_7_4",draw_deck_3,0.0
-"('J',)_3_5_2",take_discard_1,0.010000000000000002
-"('2', 'A')_2_3_3",take_discard_0,0.010000000000000002
-"('2', 'A')_2_3_3",take_discard_2,0.0
-"('2', 'A')_2_3_3",draw_deck_0,0.0
-"('2', 'A')_2_3_3",draw_deck_2,0.0
-"('2', '3', 'A')_1_K_4",take_discard_2,1.01
-"('2', '3', 'A')_1_K_4",draw_deck_2,0.0
-"('A',)_3_5_2",draw_deck_3,0.010000000000000002
-"('3',)_3_A_2",take_discard_1,0.010000000000000002
-"('3',)_3_A_2",take_discard_2,0.0
-"('3',)_3_A_2",take_discard_3,0.0
-"('3',)_3_A_2",draw_deck_1,0.0
-"('3',)_3_A_2",draw_deck_2,0.0
-"('3',)_3_A_2",draw_deck_3,0.0
-"('3', 'A')_2_Q_3",take_discard_2,0.010000000000000002
-"('3', 'A')_2_Q_3",take_discard_3,0.0
-"('3', 'A')_2_Q_3",draw_deck_2,0.0
-"('3', 'A')_2_Q_3",draw_deck_3,0.0
-"('3', 'A', 'Q')_1_4_4",take_discard_3,-0.49000000000000005
-"('6',)_3_8_2",take_discard_1,0.010000000000000002
-"('6',)_3_8_2",take_discard_2,0.0
-"('6',)_3_8_2",take_discard_3,0.0
-"('6',)_3_8_2",draw_deck_1,0.0
-"('6',)_3_8_2",draw_deck_2,0.0
-"('6',)_3_8_2",draw_deck_3,0.0
-"('6', '8')_2_5_3",take_discard_2,0.010000000000000002
-"('6', '8')_2_5_3",take_discard_3,0.0
-"('6', '8')_2_5_3",draw_deck_2,0.0
-"('6', '8')_2_5_3",draw_deck_3,0.0
-"('5', '6', '8')_1_6_4",take_discard_3,1.01
-"('5', '6', '8')_1_6_4",draw_deck_3,0.0
-"('10',)_3_J_2",take_discard_1,0.010000000000000002
-"('10',)_3_J_2",take_discard_2,0.0
-"('10',)_3_J_2",take_discard_3,0.0
-"('10',)_3_J_2",draw_deck_1,0.0
-"('10',)_3_J_2",draw_deck_2,0.0
-"('10',)_3_J_2",draw_deck_3,0.0
-"('10', '5', 'J')_1_2_4",take_discard_2,1.01
-"('10', '5', 'J')_1_2_4",draw_deck_2,0.0
-"('10', 'J')_2_5_3",take_discard_3,0.010000000000000002
-"('4', '5')_2_3_3",take_discard_1,0.010000000000000002
-"('4', '5')_2_3_3",take_discard_2,0.010000000000000002
-"('4', '5')_2_3_3",draw_deck_1,0.0
-"('4', '5')_2_3_3",draw_deck_2,0.0
-"('4', '5')_2_3_3",take_discard_3,0.0
-"('4', '5')_2_3_3",draw_deck_3,0.0
-"('3', '4', '5')_1_10_4",take_discard_2,1.01
-"('3', '4', '5')_1_10_4",draw_deck_2,0.0
-"('3', '4', '5')_1_10_4",take_discard_3,-0.49000000000000005
-"('3', '4', '5')_1_10_4",draw_deck_3,0.0
-"('4',)_3_10_2",draw_deck_3,0.010000000000000002
+()_4_3_1,draw_deck_discard_flip_0,0.0
+()_4_3_1,draw_deck_discard_flip_1,0.0
+()_4_3_1,draw_deck_discard_flip_2,0.0
+()_4_3_1,draw_deck_discard_flip_3,0.0
+"('3',)_3_10_2",take_discard_1,0.010000000000000002
+"('3',)_3_10_2",take_discard_2,0.0
+"('3',)_3_10_2",take_discard_3,0.0
+"('3',)_3_10_2",draw_deck_1,0.0
+"('3',)_3_10_2",draw_deck_2,0.0
+"('3',)_3_10_2",draw_deck_3,0.0
+"('3',)_3_10_2",draw_deck_discard_flip_1,0.0
+"('3',)_3_10_2",draw_deck_discard_flip_2,0.0
+"('3',)_3_10_2",draw_deck_discard_flip_3,0.0
+"('10', '3')_2_3_3",take_discard_2,0.010000000000000002
+"('10', '3')_2_3_3",take_discard_3,0.0
+"('10', '3')_2_3_3",draw_deck_2,0.0
+"('10', '3')_2_3_3",draw_deck_3,0.0
+"('10', '3')_2_3_3",draw_deck_discard_flip_2,0.0
+"('10', '3')_2_3_3",draw_deck_discard_flip_3,0.0
+"('10', '3', '3')_1_8_4",take_discard_3,-0.49000000000000005
+"('10', '3', '3')_1_8_4",draw_deck_3,0.0
+"('10', '3', '3')_1_8_4",draw_deck_discard_flip_3,0.0
 ()_4_2_1,take_discard_0,0.010000000000000002
 ()_4_2_1,take_discard_1,0.0
 ()_4_2_1,take_discard_2,0.0
@@ -210,114 +426,80 @@ state,action,q_value
 ()_4_2_1,draw_deck_1,0.0
 ()_4_2_1,draw_deck_2,0.0
 ()_4_2_1,draw_deck_3,0.0
-"('2',)_3_4_2",take_discard_1,0.010000000000000002
-"('2',)_3_4_2",take_discard_2,0.0
-"('2',)_3_4_2",take_discard_3,0.0
-"('2',)_3_4_2",draw_deck_1,0.0
-"('2',)_3_4_2",draw_deck_2,0.0
-"('2',)_3_4_2",draw_deck_3,0.0
-"('2', '4')_2_J_3",take_discard_2,0.010000000000000002
-"('2', '4')_2_J_3",take_discard_3,0.0
-"('2', '4')_2_J_3",draw_deck_2,0.0
-"('2', '4')_2_J_3",draw_deck_3,0.0
-"('2', '4', 'J')_1_5_4",take_discard_3,1.01
-"('10',)_3_2_2",take_discard_1,0.010000000000000002
-"('10',)_3_2_2",take_discard_2,0.0
-"('10',)_3_2_2",take_discard_3,0.0
-"('10',)_3_2_2",draw_deck_1,0.0
-"('10',)_3_2_2",draw_deck_2,0.0
-"('10',)_3_2_2",draw_deck_3,0.0
-"('10', '2')_2_9_3",take_discard_2,0.010000000000000002
-"('10', '2')_2_9_3",take_discard_3,0.0
-"('10', '2')_2_9_3",draw_deck_2,0.0
-"('10', '2')_2_9_3",draw_deck_3,0.0
-"('10', '2', '9')_1_8_4",take_discard_3,-0.49000000000000005
-"('10', '2', '9')_1_8_4",draw_deck_3,0.0
-"('Q',)_3_A_2",take_discard_1,0.010000000000000002
-"('Q',)_3_A_2",take_discard_2,0.0
-"('Q',)_3_A_2",take_discard_3,0.0
-"('Q',)_3_A_2",draw_deck_1,0.0
-"('Q',)_3_A_2",draw_deck_2,0.0
-"('Q',)_3_A_2",draw_deck_3,0.0
-"('A', 'A', 'Q')_1_J_4",take_discard_2,1.01
-"('A', 'A', 'Q')_1_J_4",draw_deck_2,0.0
-"('A', 'Q')_2_A_3",take_discard_3,0.010000000000000002
-()_4_9_1,take_discard_0,0.027100000000000006
-()_4_9_1,take_discard_1,0.0
-()_4_9_1,take_discard_2,0.0
-()_4_9_1,take_discard_3,0.0
-()_4_9_1,draw_deck_0,0.0
-()_4_9_1,draw_deck_1,0.0
-()_4_9_1,draw_deck_2,0.0
-()_4_9_1,draw_deck_3,0.0
-"('9',)_3_J_2",take_discard_1,0.010000000000000002
-"('9',)_3_J_2",take_discard_2,0.0
-"('9',)_3_J_2",take_discard_3,0.0
-"('9',)_3_J_2",draw_deck_1,0.0
-"('9',)_3_J_2",draw_deck_2,0.0
-"('9',)_3_J_2",draw_deck_3,0.0
-"('9', 'J')_2_7_3",take_discard_2,0.010000000000000002
-"('9', 'J')_2_7_3",take_discard_3,0.0
-"('9', 'J')_2_7_3",draw_deck_2,0.0
-"('9', 'J')_2_7_3",draw_deck_3,0.0
-"('7', '9', 'J')_1_10_4",take_discard_3,-0.49000000000000005
-"('7', '9', 'J')_1_10_4",draw_deck_3,0.0
-"('9',)_3_7_2",take_discard_1,0.010000000000000002
-"('9',)_3_7_2",take_discard_2,0.0
-"('9',)_3_7_2",take_discard_3,0.0
-"('9',)_3_7_2",draw_deck_1,0.0
-"('9',)_3_7_2",draw_deck_2,0.0
-"('9',)_3_7_2",draw_deck_3,0.0
-"('7', '9', 'K')_1_10_4",take_discard_2,-0.49000000000000005
-"('7', '9', 'K')_1_10_4",draw_deck_2,0.0
-"('7', '9')_2_9_3",draw_deck_3,0.010000000000000002
-"('10',)_3_6_2",take_discard_1,0.010000000000000002
-"('10',)_3_6_2",take_discard_2,0.0
-"('10',)_3_6_2",take_discard_3,0.0
-"('10',)_3_6_2",draw_deck_1,0.0
-"('10',)_3_6_2",draw_deck_2,0.0
-"('10',)_3_6_2",draw_deck_3,0.0
-"('10', '6')_2_9_3",take_discard_2,0.010000000000000002
-"('10', '6')_2_9_3",take_discard_3,0.0
-"('10', '6')_2_9_3",draw_deck_2,0.0
-"('10', '6')_2_9_3",draw_deck_3,0.0
-"('10', '6', '9')_1_J_4",take_discard_3,-0.49000000000000005
-"('10', '6', '9')_1_J_4",draw_deck_3,0.0
-"('6', 'A')_2_2_3",take_discard_2,0.010000000000000002
-"('6', 'A')_2_2_3",take_discard_3,0.0
-"('6', 'A')_2_2_3",draw_deck_2,0.0
-"('6', 'A')_2_2_3",draw_deck_3,0.0
-"('2', '6', 'A')_1_K_4",take_discard_3,1.01
-"('2', '6', 'A')_1_K_4",draw_deck_3,0.0
-()_4_5_1,draw_deck_1,0.010000000000000002
-"('8',)_3_2_2",take_discard_0,0.010000000000000002
-"('8',)_3_2_2",take_discard_1,0.0
-"('8',)_3_2_2",take_discard_3,0.0
-"('8',)_3_2_2",draw_deck_0,0.0
-"('8',)_3_2_2",draw_deck_1,0.0
-"('8',)_3_2_2",draw_deck_3,0.0
-"('2', '8')_2_7_3",take_discard_1,0.010000000000000002
-"('2', '8')_2_7_3",take_discard_3,0.0
-"('2', '8')_2_7_3",draw_deck_1,0.0
-"('2', '8')_2_7_3",draw_deck_3,0.0
-"('2', '7', '8')_1_J_4",take_discard_3,1.01
-"('2', '7', '8')_1_J_4",draw_deck_3,0.0
-()_4_8_1,take_discard_2,0.010000000000000002
-"('10', '9', '9')_1_8_4",take_discard_1,1.01
-"('10', '9', '9')_1_8_4",draw_deck_1,0.0
-"('9',)_3_10_2",draw_deck_2,0.010000000000000002
-"('10', '9')_2_9_3",take_discard_3,0.010000000000000002
-"('4',)_3_5_2",take_discard_0,0.010000000000000002
-"('4',)_3_5_2",take_discard_2,0.0
-"('4',)_3_5_2",take_discard_3,0.0
-"('4',)_3_5_2",draw_deck_0,0.0
-"('4',)_3_5_2",draw_deck_2,0.0
-"('4',)_3_5_2",draw_deck_3,0.0
-"('4', 'J')_2_A_3",take_discard_0,0.010000000000000002
-"('4', 'J')_2_A_3",take_discard_2,0.0
-"('4', 'J')_2_A_3",draw_deck_0,0.0
-"('4', 'J')_2_A_3",draw_deck_2,0.0
-"('4', 'A', 'J')_1_7_4",take_discard_2,1.01
-"('4', 'A', 'J')_1_7_4",draw_deck_2,0.0
-"('J',)_3_4_2",take_discard_1,0.010000000000000002
-()_4_K_1,draw_deck_3,0.010000000000000002
+()_4_2_1,draw_deck_discard_flip_0,0.0
+()_4_2_1,draw_deck_discard_flip_1,0.010000000000000002
+()_4_2_1,draw_deck_discard_flip_2,0.0
+()_4_2_1,draw_deck_discard_flip_3,0.0
+"('2', 'Q')_2_3_3",take_discard_1,0.010000000000000002
+"('2', 'Q')_2_3_3",take_discard_2,0.0
+"('2', 'Q')_2_3_3",draw_deck_1,0.0
+"('2', 'Q')_2_3_3",draw_deck_2,0.0
+"('2', 'Q')_2_3_3",draw_deck_discard_flip_1,0.0
+"('2', 'Q')_2_3_3",draw_deck_discard_flip_2,0.0
+"('2',)_3_6_2",draw_deck_3,0.010000000000000002
+"('2', '3', 'Q')_1_K_4",take_discard_2,-0.49000000000000005
+"('6',)_3_8_2",take_discard_0,0.010000000000000002
+"('6',)_3_8_2",take_discard_2,0.0
+"('6',)_3_8_2",take_discard_3,0.0
+"('6',)_3_8_2",draw_deck_0,0.0
+"('6',)_3_8_2",draw_deck_2,0.0
+"('6',)_3_8_2",draw_deck_3,0.0
+"('6',)_3_8_2",draw_deck_discard_flip_0,0.0
+"('6',)_3_8_2",draw_deck_discard_flip_2,0.0
+"('6',)_3_8_2",draw_deck_discard_flip_3,0.0
+"('6', '8', '9')_1_4_4",take_discard_2,1.01
+"('6', '8', '9')_1_4_4",draw_deck_2,0.0
+"('6', '8', '9')_1_4_4",draw_deck_discard_flip_2,0.0
+"('6', '8')_2_10_3",draw_deck_discard_flip_3,0.010000000000000002
+"('K',)_3_10_2",take_discard_1,0.010000000000000002
+"('K',)_3_10_2",take_discard_2,0.0
+"('K',)_3_10_2",take_discard_3,0.0
+"('K',)_3_10_2",draw_deck_1,0.0
+"('K',)_3_10_2",draw_deck_2,0.0
+"('K',)_3_10_2",draw_deck_3,0.0
+"('K',)_3_10_2",draw_deck_discard_flip_1,0.0
+"('K',)_3_10_2",draw_deck_discard_flip_2,0.0
+"('K',)_3_10_2",draw_deck_discard_flip_3,0.0
+"('10', 'K')_2_10_3",take_discard_2,0.010000000000000002
+"('10', 'K')_2_10_3",take_discard_3,0.0
+"('10', 'K')_2_10_3",draw_deck_2,0.0
+"('10', 'K')_2_10_3",draw_deck_3,0.0
+"('10', 'K')_2_10_3",draw_deck_discard_flip_2,0.0
+"('10', 'K')_2_10_3",draw_deck_discard_flip_3,0.0
+"('10', '10', 'K')_1_K_4",take_discard_3,1.01
+"('10', '10', 'K')_1_K_4",draw_deck_3,0.0
+"('10', '10', 'K')_1_K_4",draw_deck_discard_flip_3,0.0
+"('2',)_3_3_2",take_discard_0,0.010000000000000002
+"('2',)_3_3_2",take_discard_1,0.0
+"('2',)_3_3_2",take_discard_3,0.0
+"('2',)_3_3_2",draw_deck_0,0.0
+"('2',)_3_3_2",draw_deck_1,0.0
+"('2',)_3_3_2",draw_deck_3,0.0
+"('2',)_3_3_2",draw_deck_discard_flip_0,0.0
+"('2',)_3_3_2",draw_deck_discard_flip_1,0.0
+"('2',)_3_3_2",draw_deck_discard_flip_3,0.0
+"('2', '3')_2_6_3",take_discard_1,0.010000000000000002
+"('2', '3')_2_6_3",take_discard_3,0.0
+"('2', '3')_2_6_3",draw_deck_1,0.0
+"('2', '3')_2_6_3",draw_deck_3,0.0
+"('2', '3')_2_6_3",draw_deck_discard_flip_1,0.0
+"('2', '3')_2_6_3",draw_deck_discard_flip_3,0.0
+"('2', '3', '6')_1_2_4",take_discard_3,1.01
+"('2', '3', '6')_1_2_4",draw_deck_3,0.0
+"('2', '3', '6')_1_2_4",draw_deck_discard_flip_3,0.0
+"('8',)_3_J_2",take_discard_0,0.010000000000000002
+"('8',)_3_J_2",take_discard_2,0.0
+"('8',)_3_J_2",take_discard_3,0.0
+"('8',)_3_J_2",draw_deck_0,0.0
+"('8',)_3_J_2",draw_deck_2,0.0
+"('8',)_3_J_2",draw_deck_3,0.0
+"('8',)_3_J_2",draw_deck_discard_flip_0,0.0
+"('8',)_3_J_2",draw_deck_discard_flip_2,0.0
+"('8',)_3_J_2",draw_deck_discard_flip_3,0.0
+"('8', 'J')_2_K_3",take_discard_2,0.010000000000000002
+"('8', 'J')_2_K_3",take_discard_3,0.0
+"('8', 'J')_2_K_3",draw_deck_2,0.0
+"('8', 'J')_2_K_3",draw_deck_3,0.0
+"('8', 'J')_2_K_3",draw_deck_discard_flip_2,0.0
+"('8', 'J')_2_K_3",draw_deck_discard_flip_3,0.0
+"('8', 'J', 'K')_1_3_4",draw_deck_3,-0.49000000000000005
