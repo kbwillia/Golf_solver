@@ -19,6 +19,7 @@ let actionInProgress = false; // Prevents multiple simultaneous actions
 let pollingPaused = false; // Used to pause polling during actions
 let isDrawingFromDeck = false; // Track if deck is being drawn from for fade effect
 let previousGameState = null;
+let aiTurnInProgress = false; // Prevents multiple concurrent AI turn polling
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -165,6 +166,9 @@ function hideSetupViewTimer() {
 async function startGame() {
     // Reset turn tracking for new game
     lastTurnIndex = null;
+
+    // Reset AI turn flag
+    aiTurnInProgress = false;
 
     const gameMode = document.getElementById('gameMode').value;
     const opponentType = document.getElementById('opponentType').value;
@@ -835,6 +839,10 @@ async function executeAction(position, actionType = null) {
             console.log('🎯 executeAction: Received updated game state:', data.game_state);
             console.log('🃏 executeAction: Discard top card:', data.game_state.discard_top);
             currentGameState = data.game_state;
+
+            // Reset AI turn flag when human takes a turn
+            aiTurnInProgress = false;
+
             updateGameDisplay();
             console.log('🔄 executeAction: Called updateGameDisplay()');
             updateCumulativeScoreChart();
@@ -863,6 +871,9 @@ async function executeAction(position, actionType = null) {
 function restartGame() {
     // Reset turn tracking for restart
     lastTurnIndex = null;
+
+    // Reset AI turn flag
+    aiTurnInProgress = false;
 
     // Hide game board and show setup screen
     document.getElementById('gameBoard').style.display = 'none';
@@ -1543,26 +1554,52 @@ function onDrop(card, slot) {
 }
 
 async function pollAITurns() {
-    console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over);
-    while (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-        console.log('🤖 Making AI turn request for player', currentGameState.current_turn);
-        const response = await fetch('/run_ai_turn', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game_id: gameId })
-        });
-        const data = await response.json();
-        if (data.success) {
-            console.log('🤖 AI turn successful, updating game state');
-            currentGameState = data.game_state;
-            updateGameDisplay();
-        } else {
-            console.log('🤖 AI turn failed or game over:', data.error);
-            break; // error or game over
-        }
-        await new Promise(res => setTimeout(res, 100)); // small delay to avoid hammering server
+    console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over, 'aiTurnInProgress:', aiTurnInProgress);
+
+    // Prevent multiple concurrent AI turn polling
+    if (aiTurnInProgress) {
+        console.log('🤖 AI turn already in progress, skipping...');
+        return;
     }
-    console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn);
+
+    // FIXED: Only run ONE AI turn at a time, not all AI turns in a loop
+    // This allows humans to see each AI move before the next one happens
+    if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+        aiTurnInProgress = true; // Set flag to prevent concurrent calls
+        console.log('🤖 Making AI turn request for player', currentGameState.current_turn);
+
+        try {
+            const response = await fetch('/run_ai_turn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game_id: gameId })
+            });
+            const data = await response.json();
+            if (data.success) {
+                console.log('🤖 AI turn successful, updating game state');
+                currentGameState = data.game_state;
+                updateGameDisplay();
+
+                // If there's another AI turn needed, schedule it after a delay
+                if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                    console.log('🤖 Scheduling next AI turn after delay...');
+                    setTimeout(() => {
+                        aiTurnInProgress = false; // Reset flag before next call
+                        pollAITurns(); // Recursive call for next AI turn
+                    }, 1500); // 1.5 second delay between AI turns for visibility
+                } else {
+                    aiTurnInProgress = false; // Reset flag when done
+                }
+            } else {
+                console.log('🤖 AI turn failed or game over:', data.error);
+                aiTurnInProgress = false; // Reset flag on error
+            }
+        } catch (error) {
+            console.error('🤖 Error in pollAITurns:', error);
+            aiTurnInProgress = false; // Reset flag on error
+        }
+    }
+    console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn, 'aiTurnInProgress:', aiTurnInProgress);
 }
 
 // Add the replayGame function

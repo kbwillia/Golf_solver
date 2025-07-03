@@ -40,16 +40,27 @@ def create_game():
         agent_types = ["human", opponent]
         num_players = 2
     else:  # 1v3
-        agent_types = ["Human", "Random AI", "Basic Logic AI", "qlearning"]
+        agent_types = ["human", "random", "heuristic", "qlearning"]
         num_players = 4
 
     # Create the game
     game = GolfGame(num_players=num_players, agent_types=agent_types)
     # Set the human player's name
     game.players[0].name = player_name
-    # set AI names
-    for i in range(1, num_players):
-        game.players[i].name = agent_types[i]
+    # set AI names with proper display names
+    if game_mode == '1v1':
+        # In 1v1, second player gets the opponent type name
+        if opponent == "random":
+            game.players[1].name = "Random AI"
+        elif opponent == "heuristic":
+            game.players[1].name = "Basic Logic AI"
+        elif opponent == "qlearning":
+            game.players[1].name = "Q-Learning AI"
+    else:
+        # In 1v3, give proper names to each AI
+        ai_names = ["Random AI", "Basic Logic AI", "Q-Learning AI"]
+        for i in range(1, num_players):
+            game.players[i].name = ai_names[i-1]
 
     # No need to run AI turns here; handled by /run_ai_turn
     game_over = False
