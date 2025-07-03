@@ -17,6 +17,7 @@ const SNAP_THRESHOLD = 30; // pixels
 let isMyTurn = false;
 let actionInProgress = false; // Prevents multiple simultaneous actions
 let pollingPaused = false; // Used to pause polling during actions
+let isDrawingFromDeck = false; // Track if deck is being drawn from for fade effect
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -330,6 +331,11 @@ function updateGameDisplay() {
         if (currentGameState.discard_top) {
             // Remove any problematic classes
             discardCard.classList.remove('faded', 'disabled');
+
+            // Add fade if drawing from deck
+            if (isDrawingFromDeck) {
+                discardCard.classList.add('faded');
+            }
 
             // Force clear and reset all styles
             discardCard.innerHTML = '';
@@ -674,6 +680,9 @@ async function drawFromDeck() {
     clearHurryUpTimer();
     clearHurryUpGif();
 
+    // Set fade flag before fetch
+    isDrawingFromDeck = true;
+
     try {
         const response = await fetch(`/draw_card/${gameId}`);
         const data = await response.json();
@@ -686,6 +695,10 @@ async function drawFromDeck() {
     } catch (error) {
         console.error('Error drawing card:', error);
         alert('Error drawing card. Please try again.');
+    } finally {
+        // Remove fade after UI update
+        isDrawingFromDeck = false;
+        updateGameDisplay();
     }
 }
 
@@ -848,6 +861,20 @@ function restartGame() {
         chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
     }
 
+    // Clear the celebration GIF
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        celebrationContainer.innerHTML = '';
+    }
+
+    // Reset drawn card state variables
+    drawnCardData = null;
+    drawnCardDragActive = false;
+    window.flipDrawnMode = false;
+
+    // Hide the drawn card area
+    hideDrawnCardArea();
+
     // Optionally reset form fields or keep last settings
 }
 
@@ -998,13 +1025,16 @@ function flipDrawnCardOnGrid(pos) {
     // Only allow if the position is not public
     const card = currentGameState.players[0].grid[pos];
     if (!card || card.public) return;
-    // --- Optimistic UI update: flip the card immediately for instant feedback ---
-    card.public = true;
-    card.visible = true; // If you use this property in your UI
-    updatePlayerGrids();
-    // Discard the drawn card and flip this position (backend)
-    executeAction(pos, 'draw_discard'); //calls flask backend to update the game state
-    hideDrawnCardArea();
+    // 1. Get the card element and discard pile element
+    const cardElem = document.querySelector(`.player-grid.current-turn .card[data-position="${pos}"]`);
+    const discardElem = document.getElementById('discardCard');
+
+    // 2. Animate the card to the discard pile
+    animateSnapToGrid(cardElem, discardElem, () => {
+        // 3. After animation, update the game state/UI
+        executeAction(pos, 'draw_discard');
+        hideDrawnCardArea();
+    });
 }
 
 function updateProbabilitiesPanel() {
@@ -1550,6 +1580,9 @@ function replayGame() {
     if (chartContainer) {
         chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
     }
+
+    // Hide the drawn card area
+    hideDrawnCardArea();
 
     // Use the last selected settings
     const gameMode = currentGameState.mode || '1v1';

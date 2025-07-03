@@ -242,9 +242,9 @@ def expected_value_draw_vs_discard(game):
 
     # Generate recommendation
     if draw_advantage > 0.5:
-        recommendation = f"Draw from deck (expected +{draw_advantage:.1f} advantage)"
+        recommendation = "Draw from deck"
     elif draw_advantage < -0.5:
-        recommendation = f"Take discard (expected +{-draw_advantage:.1f} advantage)"
+        recommendation = "Take discard"
     else:
         recommendation = "Either action is similar (draw slightly preferred)"
 

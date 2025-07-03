@@ -333,6 +333,8 @@ def get_game_state(game_id):
 
         # Set flag that we're waiting for user to continue to next game
         game_session['waiting_for_next_game'] = True
+    else:
+        game_session['waiting_for_next_game'] = False
 
     return state
 
@@ -494,6 +496,8 @@ def run_ai_turn():
 
         # Set flag that we're waiting for user to continue to next game
         game_session['waiting_for_next_game'] = True
+    else:
+        game_session['waiting_for_next_game'] = False
 
     return jsonify({
         'success': True,
