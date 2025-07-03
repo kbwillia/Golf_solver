@@ -4,3 +4,6 @@ requests
 json
 beautifulsoup4
 requests
+pytest-playwright
+playwright
+pytest
