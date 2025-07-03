@@ -1,7 +1,10 @@
 import itertools
 import random
-from models import Player, Card
-from agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from RL_models import Player, Card
+from RL_agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent
 
 class GolfGame:
     RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -40,7 +43,8 @@ class GolfGame:
         return agents
 
     def create_deck(self):
-        return [Card(rank, suit) for rank, suit in itertools.product(self.RANKS, self.SUITS)]
+        # 4 of each rank, no suits
+        return [Card(rank) for rank in self.RANKS for _ in range(4)]
 
     def deal(self):
         random.shuffle(self.deck)
@@ -52,24 +56,27 @@ class GolfGame:
 
     def display_all_grids(self):
         """Display all player grids showing what each player can see"""
-        print("\n=== CURRENT GRID STATE ===")
+        # print("\n=== CURRENT GRID STATE ===")
         for i, player in enumerate(self.players):
-            print(f"{player.name} ({player.agent_type}):")
+            # print(f"{player.name} ({player.agent_type}):")
             if player.agent_type == "human":
                 # Human player can see their own privately visible cards
-                print(player)
+                # print(player)
+                pass
             else:
                 # For AI players, show what the human player can see of them
                 def show_other(i):
                     return str(player.grid[i]) if player.known[i] else '?'
                 other_display = f"[ {show_other(0)} | {show_other(1)} ]\n[ {show_other(2)} | {show_other(3)} ]"
-                print(other_display)
-            print()
+                # print(other_display)
+                pass
+            # print()
 
         # Show what just happened
         if hasattr(self, 'last_action'):
-            print(f"Last action: {self.last_action}")
-            print()
+            # print(f"Last action: {self.last_action}")
+            # print()
+            pass
 
     def play_turn(self, player, trajectory=None):
         agent = self.agents[self.turn]
@@ -133,10 +140,11 @@ class GolfGame:
         while self.round <= self.max_rounds:
             player = self.players[self.turn]
             if verbose:
-                print(f"\n-- {player.name}'s turn (Round {self.round}) --")
-                print(f"Agent: {player.agent_type}")
-                print(player)
-                print(f"Top of discard: {self.discard_pile[-1]}")
+                # print(f"\n-- {player.name}'s turn (Round {self.round}) --")
+                # print(f"Agent: {player.agent_type}")
+                # print(player)
+                # print(f"Top of discard: {self.discard_pile[-1]}")
+                pass
 
             # Check if player has any moves available
             available_positions = [i for i, known in enumerate(player.known) if not known]
@@ -145,7 +153,8 @@ class GolfGame:
             else:
                 # Player has no moves (all cards face-up), but still counts as a turn
                 if verbose:
-                    print(f"{player.name} has no moves available (all cards face-up)")
+                    # print(f"{player.name} has no moves available (all cards face-up)")
+                    pass
 
             self.next_player()
 
@@ -153,15 +162,17 @@ class GolfGame:
         for p in self.players:
             p.reveal_all()
         if verbose:
-            print("\n=== FINAL GRIDS ===")
+            # print("\n=== FINAL GRIDS ===")
             for p in self.players:
-                print(f"{p.name} ({p.agent_type}):\n{p}\n")
+                # print(f"{p.name} ({p.agent_type}):\n{p}\n")
+                pass
         scores = [self.calculate_score(p.grid) for p in self.players]
         if verbose:
             for i, s in enumerate(scores):
-                print(f"{self.players[i].name} ({self.players[i].agent_type}) score: {s}")
+                # print(f"{self.players[i].name} ({self.players[i].agent_type}) score: {s}")
+                pass
             winner_idx = scores.index(min(scores))
-            print(f"Winner: {self.players[winner_idx].name} ({self.players[winner_idx].agent_type})")
+            # print(f"Winner: {self.players[winner_idx].name} ({self.players[winner_idx].agent_type})")
         return scores
 
     def calculate_score(self, grid):

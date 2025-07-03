@@ -7,7 +7,7 @@ and calculates both theoretical and actual state space sizes.
 """
 
 from RL_agents import QLearningAgent
-from game_learning import GolfGame
+from RL.RL_game import GolfGame
 from models import Card
 import math
 from collections import defaultdict

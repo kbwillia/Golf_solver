@@ -1,7 +1,7 @@
 import numpy as np
 from collections import defaultdict
-from game import GolfGame
-from agents import QLearningAgent
+from RL.RL_game import GolfGame
+from RL_agents import QLearningAgent
 
 def run_simulations_with_training(num_games=1000, agent_types=None, verbose=False):
     """

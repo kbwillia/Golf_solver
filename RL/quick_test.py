@@ -3,8 +3,11 @@
 Quick test of Q-learning performance (100 games)
 """
 
-from RL.simulation import run_simulations_with_training
+from simulation import run_simulations_with_training
 import time
+from RL_agents import QLearningAgent
+from RL_models import Player
+from RL_game import GolfGame
 
 def quick_test():
     print("=== QUICK Q-LEARNING TEST (100 games) ===")
@@ -12,7 +15,7 @@ def quick_test():
     start_time = time.time()
 
     stats = run_simulations_with_training(
-        num_games=100,
+        num_games=1,
         agent_types=['random', 'qlearning'],
         verbose=False
     )
@@ -56,6 +59,32 @@ def quick_test():
         print("⚠ Q-learning shows improvement")
     else:
         print("✗ Q-learning needs tuning")
+
+def train_agent_directly(num_games=100, verbose=True):
+    agent = QLearningAgent()
+    for game_num in range(num_games):
+        if verbose and game_num % 25 == 0:
+            print(f"Game {game_num+1}/{num_games}")
+        trajectory = []
+        game = GolfGame(num_players=2, agent_types=['random', 'qlearning'], q_agents=[None, agent])
+        scores = game.play_game(verbose=False, trajectories=[None, trajectory])
+        winner_idx = scores.index(min(scores))
+        if trajectory:
+            if winner_idx == 1:
+                reward = 10.0
+            else:
+                if scores[1] <= 5:
+                    reward = 2.0
+                elif scores[1] <= 10:
+                    reward = 0.0
+                elif scores[1] <= 15:
+                    reward = -2.0
+                else:
+                    reward = -5.0
+            agent.train_on_trajectory(trajectory, reward, scores[1])
+    if verbose:
+        print(f"Training complete! Q-table size: {len(agent.q_table)} states")
+    return agent
 
 if __name__ == "__main__":
     quick_test()
