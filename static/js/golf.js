@@ -1381,7 +1381,8 @@ function updateCumulativeScoreChart() {
 
     // Build score history for each player, per round
     // Only reset history when starting a completely new match (not when advancing games)
-    const matchId = `${currentGameState.num_games}_${currentGameState.players.map(p => p.name).join('_')}`;
+    const matchId = `${currentGameState.num_games}_` +
+        currentGameState.players.map(p => (p.name + '_' + (p.agent_type || '')).toLowerCase()).join('_');
     if (!window.cumulativeScoreHistory || !window.lastMatchId || window.lastMatchId !== matchId) {
         // Reset history for new match session (not just new game)
         window.cumulativeScoreHistory = [];
@@ -1474,33 +1475,12 @@ function updateCumulativeScoreChart() {
         let displayLabels = [...window.cumulativeScoreLabels];
         let displayHistory = window.cumulativeScoreHistory.map(playerHistory => [...playerHistory]);
 
-        if (currentGameState.current_game === 1) {
-            // First game: show exactly 4 rounds, pad with empty if needed
-            const maxRoundsFirstGame = 4;
-            if (displayLabels.length > maxRoundsFirstGame) {
-                displayLabels = displayLabels.slice(0, maxRoundsFirstGame);
-                displayHistory = displayHistory.map(playerHistory =>
-                    playerHistory.slice(0, maxRoundsFirstGame)
-                );
-    } else {
-                // Pad with empty rounds if we have fewer than 4
-                while (displayLabels.length < maxRoundsFirstGame) {
-                    const roundNum = displayLabels.length + 1;
-                    displayLabels.push(`G1R${roundNum}`);
-                    displayHistory.forEach(playerHistory => {
-                        playerHistory.push(null); // null values won't be plotted
-                    });
-                }
-            }
-        } else {
-            // Multi-game mode: show last 12 rounds
-            const maxRoundsMultiGame = 12;
-            if (displayLabels.length > maxRoundsMultiGame) {
-                displayLabels = displayLabels.slice(-maxRoundsMultiGame);
-                displayHistory = displayHistory.map(playerHistory =>
-                    playerHistory.slice(-maxRoundsMultiGame)
-                );
-            }
+        const maxRoundsToShow = 12; // or whatever number you want
+        if (displayLabels.length > maxRoundsToShow) {
+            displayLabels = displayLabels.slice(-maxRoundsToShow);
+            displayHistory = displayHistory.map(playerHistory =>
+                playerHistory.slice(-maxRoundsToShow)
+            );
         }
 
         // Update chart with the determined data
@@ -1525,6 +1505,13 @@ function updateCumulativeScoreChart() {
         // Fallback: recreate chart if something went wrong
         initializeCumulativeScoreChart();
     }
+
+    console.log('Chart DEBUG:', {
+        matchId,
+        lastMatchId: window.lastMatchId,
+        cumulativeScoreHistory: window.cumulativeScoreHistory,
+        cumulativeScoreLabels: window.cumulativeScoreLabels
+    });
 }
 
 // Show timer on initial load

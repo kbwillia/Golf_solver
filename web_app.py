@@ -414,7 +414,8 @@ def next_game():
             num_players = 4
 
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
-        new_game.players[0].name = game_session['player_name']
+        for i, player in enumerate(new_game.players):
+            player.name = game_session['game'].players[i].name
         game_session['game'] = new_game
         game_session['game_over'] = False
         game_session['match_winner'] = None
