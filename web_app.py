@@ -64,7 +64,8 @@ def create_game():
         'current_game': 1,
         'cumulative_scores': [0] * num_players,
         'round_cumulative_scores': [0] * num_players,
-        'match_winner': None
+        'match_winner': None,
+        'cumulative_updated_for_game': False  # NEW: Track if cumulative updated for this game
     }
 
     return jsonify({
@@ -290,6 +291,8 @@ def get_game_state(game_id):
     # Use round_cumulative_scores if available (during game), otherwise cumulative_scores (between games)
     display_cumulative_scores = game_session.get('round_cumulative_scores', cumulative_scores)
 
+    print(f"DEBUG: get_game_state: current_game={current_game}, game_over={game_session['game_over']}, cumulative_scores={game_session['cumulative_scores']}, round_cumulative_scores={game_session.get('round_cumulative_scores')}, cumulative_updated_for_game={game_session.get('cumulative_updated_for_game')}")
+
     deck_top_card = None
     if len(game.deck) > 0:
         card = game.deck[-1]
@@ -326,11 +329,15 @@ def get_game_state(game_id):
         scores = [game.calculate_score(p.grid) for p in game.players]
         state['winner'] = scores.index(min(scores))
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-        # Add final game scores to cumulative totals
-        scores = [game.calculate_score(p.grid) for p in game.players]
-        for i, s in enumerate(scores):
-            game_session['cumulative_scores'][i] += s
-
+        # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
+        if not game_session.get('cumulative_updated_for_game', False):
+            scores = [game.calculate_score(p.grid) for p in game.players]
+            for i, s in enumerate(scores):
+                game_session['cumulative_scores'][i] += s
+            game_session['cumulative_updated_for_game'] = True
+            print(f"DEBUG: get_game_state: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
+        else:
+            print("DEBUG: get_game_state: Cumulative scores already updated for this game.")
         # Set flag that we're waiting for user to continue to next game
         game_session['waiting_for_next_game'] = True
     else:
@@ -412,9 +419,11 @@ def next_game():
         game_session['game_over'] = False
         game_session['match_winner'] = None
         game_session['waiting_for_next_game'] = False
+        game_session['cumulative_updated_for_game'] = False  # NEW: Reset for new game
 
         # Reset round cumulative scores for new game
         game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
+        print(f"DEBUG: next_game: Starting game {game_session['current_game']}, cumulative_scores={game_session['cumulative_scores']}")
 
         return jsonify({
             'success': True,
@@ -485,15 +494,35 @@ def run_ai_turn():
 
         game_session['ai_thinking'] = False
 
+        # Mark waiting for next game if more games remain (don't auto-start)
+        if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+            # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
+            if not game_session.get('cumulative_updated_for_game', False):
+                scores = [game.calculate_score(p.grid) for p in game.players]
+                for i, s in enumerate(scores):
+                    game_session['cumulative_scores'][i] += s
+                game_session['cumulative_updated_for_game'] = True
+                print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
+            else:
+                print("DEBUG: run_ai_turn: Cumulative scores already updated for this game.")
+            # Set flag that we're waiting for user to continue to next game
+            game_session['waiting_for_next_game'] = True
+        else:
+            game_session['waiting_for_next_game'] = False
+
         return response
 
     # Mark waiting for next game if more games remain (don't auto-start)
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-        # Add final game scores to cumulative totals
-        scores = [game.calculate_score(p.grid) for p in game.players]
-        for i, s in enumerate(scores):
-            game_session['cumulative_scores'][i] += s
-
+        # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
+        if not game_session.get('cumulative_updated_for_game', False):
+            scores = [game.calculate_score(p.grid) for p in game.players]
+            for i, s in enumerate(scores):
+                game_session['cumulative_scores'][i] += s
+            game_session['cumulative_updated_for_game'] = True
+            print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
+        else:
+            print("DEBUG: run_ai_turn: Cumulative scores already updated for this game.")
         # Set flag that we're waiting for user to continue to next game
         game_session['waiting_for_next_game'] = True
     else:
