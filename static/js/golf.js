@@ -18,6 +18,7 @@ let isMyTurn = false;
 let actionInProgress = false; // Prevents multiple simultaneous actions
 let pollingPaused = false; // Used to pause polling during actions
 let isDrawingFromDeck = false; // Track if deck is being drawn from for fade effect
+let previousGameState = null;
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -232,7 +233,7 @@ async function startGame() {
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));
         }
     } catch (error) {
-        console.error('Error starting game:', error);
+        console.error('Error starting game:', error, error.stack);
         alert('Error starting game: ' + (error.message || error));
     }
 }
@@ -297,7 +298,7 @@ async function refreshGameState() {
 }
 
 function updateGameDisplay() {
-    if (!currentGameState) return;
+    if (!currentGameState || !currentGameState.players) return;
 
     try {
         // Get custom player names
@@ -321,12 +322,13 @@ function updateGameDisplay() {
             gameInfoBar.textContent = '';
         }
 
-
-
         // Update deck size
-        document.getElementById('deckSize').textContent = `${currentGameState.deck_size} cards`;
+        const deckSizeElem = document.getElementById('deckSize');
+        if (deckSizeElem) {
+            deckSizeElem.textContent = `${currentGameState.deck_size} cards`;
+        }
 
-                // Update discard pile with comprehensive visual refresh
+        // Update discard pile with comprehensive visual refresh
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
             // Remove any problematic classes
@@ -344,7 +346,7 @@ function updateGameDisplay() {
             // Force reflow
             discardCard.offsetHeight;
 
-                        // Add new content
+            // Add new content
             const newCardContent = getCardDisplayContent(currentGameState.discard_top, false);
             discardCard.innerHTML = newCardContent;
 
@@ -366,11 +368,32 @@ function updateGameDisplay() {
 
         // Game display updated successfully
     } catch (error) {
-        console.error('Error in updateGameDisplay:', error);
+        console.error('Error in updateGameDisplay:', error, error.stack);
         throw error;
     }
 
-            // Game display updated successfully
+    // 1. Compare previous and current state
+    if (previousGameState && aiJustMoved()) {
+        const {aiIndex, cardPos} = findAIDiscardedCard(previousGameState, currentGameState);
+        const cardElem = document.querySelector(`.player-grid[data-player="${aiIndex}"] .card[data-position="${cardPos}"]`);
+        const discardElem = document.getElementById('discardCard');
+        if (aiIndex !== null && cardPos !== null && cardElem && discardElem) {
+            // 2. Animate BEFORE updating the UI to the new state
+            animateSnapToGrid(cardElem, discardElem, () => {
+                // 3. Now update the UI to the new state
+                actuallyUpdateUI();
+                previousGameState = JSON.parse(JSON.stringify(currentGameState));
+            });
+            return;
+        }
+    }
+    // If no animation, just update UI
+    actuallyUpdateUI();
+    previousGameState = JSON.parse(JSON.stringify(currentGameState));
+}
+
+function actuallyUpdateUI() {
+    // ... your main UI update logic here ...
 }
 
 function updatePlayerGrids() {
@@ -417,6 +440,7 @@ function updatePlayerGrids() {
     currentGameState.players.forEach((player, index) => {
         const playerDiv = document.createElement('div');
         playerDiv.className = 'player-grid';
+        playerDiv.setAttribute('data-player', index);
         if (index === currentGameState.current_turn) {
             playerDiv.classList.add('current-turn'); // Highlight current turn
             // Set animation offset to prevent restart on DOM updates
@@ -552,7 +576,6 @@ function updateScoresAndRoundInfo() {
     const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
     let infoText = `<div class="round-info" style="font-weight:bold; font-size:1.1em;">Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}&nbsp;&nbsp;Scores</div>`;
 
-
     // Scores
     const isMultiGame = (currentGameState.num_games && currentGameState.num_games > 1);
     let scoresHtml = '<div class="scores-panel">';
@@ -614,32 +637,32 @@ function updateScoresAndRoundInfo() {
 
     container.innerHTML = flexRowHtml + buttonsHtml;
 
-            // Handle GIF display (celebration for wins, hurry up for slow play)
-        const celebrationContainer = document.getElementById('celebrationGif');
-        if (celebrationContainer) {
-            if (currentGameState.game_over && currentGameState.winner === 0) {
-                // Human won! Show celebration GIF
-                clearHurryUpTimer(); // Clear any hurry up timer
-                let gifUrl = '';
-                if (celebrationGifs.length > 0) {
-                    gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
-                }
-                if (gifUrl) {
-                    celebrationContainer.innerHTML = `
-                        <div class="celebration-gif-container">
-                            <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
-                        </div>
-                    `;
-                }
-            } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-                // Human's turn - start hurry up timer (but don't clear existing hurry up GIF)
-                startHurryUpTimer();
-            } else {
-                // Not human's turn or game over - clear any hurry up content
-                clearHurryUpTimer();
-                celebrationContainer.innerHTML = '';
+    // Handle GIF display (celebration for wins, hurry up for slow play)
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        if (currentGameState.game_over && currentGameState.winner === 0) {
+            // Human won! Show celebration GIF
+            clearHurryUpTimer(); // Clear any hurry up timer
+            let gifUrl = '';
+            if (celebrationGifs.length > 0) {
+                gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
             }
+            if (gifUrl) {
+                celebrationContainer.innerHTML = `
+                    <div class="celebration-gif-container">
+                        <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
+                    </div>
+                `;
+            }
+        } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
+            // Human's turn - start hurry up timer (but don't clear existing hurry up GIF)
+            startHurryUpTimer();
+        } else {
+            // Not human's turn or game over - clear any hurry up content
+            clearHurryUpTimer();
+            celebrationContainer.innerHTML = '';
         }
+    }
 }
 
 async function takeDiscard() {
@@ -958,7 +981,7 @@ function animateSnapToGrid(cardElem, targetElem, callback) {
     clone.style.height = cardRect.height + 'px';
     clone.style.zIndex = 9999;
     clone.style.pointerEvents = 'none';
-    clone.style.transition = 'all 0.2s cubic-bezier(.4,1.4,.6,1)';
+    clone.style.transition = 'all 0.5s cubic-bezier(.4,1.4,.6,1)';
     // Hide original
     cardElem.style.visibility = 'hidden';
     // Animate to target
@@ -1767,3 +1790,32 @@ function updateChart(gameData) {
 // Wrap polling interval logic
 function pausePolling() { pollingPaused = true; }
 function resumePolling() { pollingPaused = false; }
+
+function findAIDiscardedCard(prev, curr) {
+    for (let aiIndex = 1; aiIndex < prev.players.length; aiIndex++) {
+        const prevGrid = prev.players[aiIndex].grid;
+        const currGrid = curr.players[aiIndex].grid;
+        for (let pos = 0; pos < prevGrid.length; pos++) {
+            if (prevGrid[pos] && !currGrid[pos]) {
+                // Check if this card matches the new discard top
+                const discard = curr.discard_top;
+                if (prevGrid[pos].rank === discard.rank && prevGrid[pos].suit === discard.suit) {
+                    console.log('findAIDiscardedCard: Found discarded card', {aiIndex, pos, card: prevGrid[pos]});
+                    return { aiIndex, cardPos: pos };
+                }
+            }
+        }
+    }
+    console.log('findAIDiscardedCard: No discarded card found');
+    return { aiIndex: null, cardPos: null };
+}
+
+function aiJustMoved() {
+    const result = previousGameState && previousGameState.current_turn !== 0 && currentGameState.current_turn === 0;
+    console.log('aiJustMoved:', result, 'prev turn:', previousGameState && previousGameState.current_turn, 'curr turn:', currentGameState.current_turn);
+    return result;
+}
+
+function deepCopy(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}

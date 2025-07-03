@@ -1,7 +1,7 @@
 from simulation import run_simulations_with_training
 
-print("Running 5000 games with improved reward system...")
-stats = run_simulations_with_training(5000, ['random', 'heuristic', 'qlearning', 'random'], verbose=False)
+print("Running 100 games with improved reward system...")
+stats = run_simulations_with_training(100, ['random', 'heuristic', 'qlearning', 'random'], verbose=False)
 
 print("\n=== RESULTS ===")
 print(f"Q-learning agent final average score: {stats['average_scores']['qlearning']:.2f}")
