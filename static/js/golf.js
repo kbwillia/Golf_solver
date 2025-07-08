@@ -594,6 +594,16 @@ function updateScoresAndRoundInfo() {
     }
     scoresHtml += '</tr>';
     currentGameState.players.forEach((player, index) => {
+        let displayName = player.name;
+        if (player.agent_type === 'ev_ai') {
+            displayName = 'EV AI';
+        } else if (player.agent_type === 'heuristic') {
+            displayName = 'Basic Logic AI';
+        } else if (player.agent_type === 'qlearning') {
+            displayName = 'Q-Learning AI';
+        } else if (player.agent_type === 'random') {
+            displayName = 'Random-move AI';
+        }
         let scoreText = 'Hidden';
         let winnerIcon = '';
         if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
@@ -617,7 +627,7 @@ function updateScoresAndRoundInfo() {
             }
         }
         scoresHtml += `<tr class="score-item${isCurrentTurn ? ' current-turn-score' : ''}">` +
-            `<td style="text-align:left;"><strong>${player.name}:</strong>${winnerIcon}${turnIndicator}</td>` +
+            `<td style="text-align:left;"><strong>${displayName}:</strong>${winnerIcon}${turnIndicator}</td>` +
             `<td style="text-align:right;">${scoreText}</td>`;
         if (isMultiGame) {
             scoresHtml += `<td style="text-align:right;">${cumulativeText}</td>`;

@@ -1,7 +1,7 @@
 import itertools
 import random
 from models import Player, Card
-from agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent
+from agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent, EVAgent
 
 class GolfGame:
     RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -33,6 +33,8 @@ class GolfGame:
                     agents.append(q_agents[i])
                 else:
                     agents.append(QLearningAgent())
+            elif agent_type == "ev_ai":
+                agents.append(EVAgent())
             elif agent_type == "human":
                 agents.append(HumanAgent())
             else:

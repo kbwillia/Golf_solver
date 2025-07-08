@@ -134,6 +134,39 @@ def get_probabilities(game):
         'average_deck_score': round(average_score_of_deck(game), 2) if game.deck else 0,
     }
 
+def expected_score_blind(grid, known, rank_probabilities):
+    """
+    Compute the expected score of a grid, using:
+      - True values for known cards
+      - Probability-weighted expected values for unknown cards
+      - For pairs: only count a pair if both cards are known and match; otherwise, do not apply the pair bonus
+    """
+    from models import Card
+    scores = []
+    ranks = []
+    for i in range(4):
+        if known[i] and grid[i]:
+            scores.append(grid[i].score())
+            ranks.append(grid[i].rank)
+        else:
+            # Use expected value for unknown
+            expected = sum(Card(rank, '♠').score() * prob for rank, prob in rank_probabilities.items())
+            scores.append(expected)
+            # For pairing, treat as unknown (None)
+            ranks.append(None)
+    total_score = sum(scores)
+    # Only count pairs if both cards are known and match
+    used = set()
+    for pos1 in range(4):
+        for pos2 in range(pos1+1, 4):
+            if (ranks[pos1] is not None and ranks[pos2] is not None and
+                ranks[pos1] == ranks[pos2] and pos1 not in used and pos2 not in used):
+                # Subtract both scores (they become zero)
+                total_score -= (scores[pos1] + scores[pos2])
+                used.add(pos1)
+                used.add(pos2)
+    return total_score
+
 def expected_value_draw_vs_discard(game):
     """
     Calculate the expected value (EV) of drawing from the deck vs taking the discard card for the human player.
@@ -175,19 +208,38 @@ def expected_value_draw_vs_discard(game):
             'draw_advantage': 0
         }
 
-    # Calculate current hand score using game's calculate_score method
-    current_score = game.calculate_score(human_player.grid)
+    # Get probabilities for unknown cards
+    private_deck_counts = get_private_deck_counts(game)
+    total_private = sum(private_deck_counts.values())
+    rank_probabilities = {rank: count / total_private if total_private > 0 else 0 for rank, count in private_deck_counts.items()}
+
+    # Calculate current hand score using expected_score_blind
+    current_score = expected_score_blind(human_player.grid, human_player.known, rank_probabilities)
 
     # --- Discard EV ---
     # Try placing discard card in each available position and find best (most negative) change
-    best_discard_ev = 0  # 0 means no change; negative is good
+    best_discard_ev = 0
+    best_discard_position = None
+    from models import Card
+
     for pos in available_positions:
-        if human_player.grid[pos]:  # If there's a card to replace
-            test_grid = human_player.grid.copy()
-            test_grid[pos] = discard_card
-            test_score = game.calculate_score(test_grid)
-            ev = test_score - current_score  # Negative = score goes down (good)
-            best_discard_ev = min(best_discard_ev, ev)  # Most negative (best improvement)
+        # If the card is known, use its actual value
+        if human_player.known[pos] and human_player.grid[pos]:
+            current_card_score = human_player.grid[pos].score()
+        else:
+            # If unknown, use expected score
+            current_card_score = sum(Card(rank, '♠').score() * prob for rank, prob in rank_probabilities.items())
+        # Simulate swapping in the discard card
+        test_grid = human_player.grid.copy()
+        test_grid[pos] = discard_card
+        # Use expected_score_blind for the test grid
+        test_known = human_player.known.copy()
+        test_known[pos] = True  # After swap, this card is known
+        test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
+        ev = test_score - current_score
+        if ev < best_discard_ev or best_discard_position is None:
+            best_discard_ev = ev
+            best_discard_position = pos
 
     discard_expected_value = best_discard_ev
 
@@ -202,18 +254,27 @@ def expected_value_draw_vs_discard(game):
         draw_expected_value = 0
         for rank, count in deck_counts.items():
             if count > 0:
-                from models import Card
                 drawn_card = Card(rank, '♠')  # Suit doesn't matter for score
 
                 # Step 1: Evaluate keeping the drawn card (swap into each available position)
-                best_draw_ev = 0  # 0 means no change; negative is good
+                best_draw_ev = 0
+                best_draw_position = None
                 for pos in available_positions:
-                    if human_player.grid[pos]:
-                        test_grid = human_player.grid.copy()
-                        test_grid[pos] = drawn_card
-                        test_score = game.calculate_score(test_grid)
-                        ev = test_score - current_score  # Negative = score goes down (good)
-                        best_draw_ev = min(best_draw_ev, ev)
+                    # If the card is known, use its actual value
+                    if human_player.known[pos] and human_player.grid[pos]:
+                        current_card_score = human_player.grid[pos].score()
+                    else:
+                        # If unknown, use expected score
+                        current_card_score = sum(Card(r, '♠').score() * prob for r, prob in rank_probabilities.items())
+                    test_grid = human_player.grid.copy()
+                    test_grid[pos] = drawn_card
+                    test_known = human_player.known.copy()
+                    test_known[pos] = True  # After swap, this card is known
+                    test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
+                    ev = test_score - current_score
+                    if ev < best_draw_ev or best_draw_position is None:
+                        best_draw_ev = ev
+                        best_draw_position = pos
 
                 # Step 2: Evaluate discarding the drawn card and flipping one of your own
                 # (Small bonus for revealing info, not for score change)
@@ -242,7 +303,13 @@ def expected_value_draw_vs_discard(game):
     elif draw_advantage > 0.5:
         recommendation = "Take discard"
     else:
-        recommendation = "Either action is similar (draw slightly preferred)"
+        # Dynamic: whichever EV is lower (more negative) is slightly preferred
+        if draw_expected_value < discard_expected_value:
+            recommendation = "Either action is similar (draw slightly preferred)"
+        elif discard_expected_value < draw_expected_value:
+            recommendation = "Either action is similar (discard slightly preferred)"
+        else:
+            recommendation = "Either action is similar"
 
     return {
         'draw_expected_value': round(draw_expected_value, 2),
@@ -251,7 +318,9 @@ def expected_value_draw_vs_discard(game):
         'draw_advantage': round(draw_advantage, 2),
         'discard_card': f"{discard_card.rank}{discard_card.suit}",
         'discard_score': discard_card.score(),
-        'current_hand_score': current_score
+        'current_hand_score': current_score,
+        'best_discard_position': best_discard_position,
+        'best_draw_position': best_draw_position,
     }
 
 def which_card_to_swap_for_discard(game):

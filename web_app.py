@@ -51,7 +51,7 @@ def create_game():
     if game_mode == '1v1':
         # In 1v1, second player gets the opponent type name
         if opponent == "random":
-            game.players[1].name = "Random AI"
+            game.players[1].name = "Random move AI"
         elif opponent == "heuristic":
             game.players[1].name = "Basic Logic AI"
         elif opponent == "qlearning":

@@ -2,6 +2,7 @@ import random
 import itertools
 from collections import defaultdict
 from models import Card
+from probabilities import expected_value_draw_vs_discard
 
 class RandomAgent:
     """Random agent that makes random legal moves"""
@@ -387,3 +388,20 @@ class QLearningAgent:
     def decay_epsilon(self, factor=0.995):
         """Decay epsilon for better exploration/exploitation balance"""
         self.epsilon = max(0.01, self.epsilon * factor)
+
+class EVAgent:
+    def choose_action(self, player, game, trajectory=None):
+        ev = expected_value_draw_vs_discard(game)
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+        if not available_positions:
+            return None  # No moves
+
+        if ev['recommendation'].startswith("Draw"):
+            pos = ev.get('best_draw_position', available_positions[0])
+            return {'type': 'draw_deck', 'position': pos}
+        elif ev['recommendation'].startswith("Take discard"):
+            pos = ev.get('best_discard_position', available_positions[0])
+            return {'type': 'take_discard', 'position': pos}
+        else:
+            pos = ev.get('best_draw_position', available_positions[0])
+            return {'type': 'draw_deck', 'position': pos}
