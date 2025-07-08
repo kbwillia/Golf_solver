@@ -1628,6 +1628,12 @@ function replayGame() {
         chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
     }
 
+    // Clear the celebration GIF
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        celebrationContainer.innerHTML = '';
+    }
+
     // Hide the drawn card area
     hideDrawnCardArea();
 
@@ -1644,6 +1650,12 @@ async function nextGame() {
     if (!gameId) {
         console.error('No game ID available');
         return;
+    }
+
+    // Clear the celebration GIF when starting next game
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        celebrationContainer.innerHTML = '';
     }
 
     try {
@@ -1680,6 +1692,12 @@ async function nextGame() {
 
 // Add a helper to start a game with specific settings
 async function startGameWithSettings(gameMode, opponentType, playerName, numGames) {
+    // Clear the celebration GIF when starting a new game
+    const celebrationContainer = document.getElementById('celebrationGif');
+    if (celebrationContainer) {
+        celebrationContainer.innerHTML = '';
+    }
+
     try {
         const response = await fetch('/create_game', {
             method: 'POST',
