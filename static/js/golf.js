@@ -1236,9 +1236,9 @@ function updateProbabilitiesPanel() {
             otherHtml += '<div class="probabilities-bar">';
             otherHtml += '<div class="probabilities-bar-title">🎯 Strategery!</div>';
             otherHtml += `<div class="probabilities-bar-main"><b>${ev.recommendation}</b></div>`;
-            otherHtml += `<div class="probabilities-bar-detail">Draw: +${ev.draw_expected_value}</div>`;
-            otherHtml += `<div class="probabilities-bar-detail">Discard: +${ev.discard_expected_value}</div>`;
-            otherHtml += `<div class="probabilities-bar-detail">Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage}</div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Draw: ${ev.draw_expected_value > 0 ? '+' : ''}${ev.draw_expected_value} EV</div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_expected_value > 0 ? '+' : ''}${ev.discard_expected_value} EV</div>`;
+            otherHtml += `<div class="probabilities-bar-detail">Advantage: ${ev.draw_advantage > 0 ? '+' : ''}${ev.draw_advantage} EV</div>`;
             // if (ev.discard_card) {
             //     otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_card} (score: ${ev.discard_score})</div>`;
             // }

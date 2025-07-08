@@ -136,8 +136,22 @@ def get_probabilities(game):
 
 def expected_value_draw_vs_discard(game):
     """
-    Calculate the expected value of drawing from deck vs taking the discard card.
-    Returns a dict with expected values and recommendation for the human player.
+    Calculate the expected value (EV) of drawing from the deck vs taking the discard card for the human player.
+
+    In Golf, **lower scores are better**. Here, EV is defined as the **expected change in score**:
+        - A **negative EV** means your score is expected to go down (good).
+        - A **positive EV** means your score is expected to go up (bad).
+
+    The function returns a dict with:
+        - draw_expected_value: Expected change in score if you draw from the deck (averaged over all possible draws)
+        - discard_expected_value: Best possible change in score if you take the discard card
+        - recommendation: Which action is better (draw or discard)
+        - draw_advantage: Difference between draw_expected_value and discard_expected_value (negative = draw is better)
+
+    Calculation details:
+    1. **Discard EV**: For each available position in your grid, try swapping in the discard card and calculate the change (test_score - current_score). The best (most negative) change is used as the discard EV.
+    2. **Draw EV**: For each possible card you could draw, calculate the best (most negative) change (swap or flip), weighted by probability
+    3. **Interpretation**: Negative EV means a drop in your score (good in golf).
     """
     if not game.deck or not game.discard_pile:
         return {
@@ -151,11 +165,7 @@ def expected_value_draw_vs_discard(game):
     discard_card = game.discard_pile[-1]
 
     # Get available positions for human player (face-down cards)
-    # Include both top row (unknown) and bottom row (private but known to human)
-    available_positions = []
-    for i in range(4):
-        if not human_player.known[i]:  # Not public yet
-            available_positions.append(i)
+    available_positions = [i for i in range(4) if not human_player.known[i]]
 
     if not available_positions:
         return {
@@ -168,82 +178,68 @@ def expected_value_draw_vs_discard(game):
     # Calculate current hand score using game's calculate_score method
     current_score = game.calculate_score(human_player.grid)
 
-    # Calculate expected value of taking the discard card
-    # Try placing discard card in each available position and find best improvement
-    best_discard_improvement = 0
+    # --- Discard EV ---
+    # Try placing discard card in each available position and find best (most negative) change
+    best_discard_ev = 0  # 0 means no change; negative is good
     for pos in available_positions:
         if human_player.grid[pos]:  # If there's a card to replace
-            # Create a test grid with discard card in this position
             test_grid = human_player.grid.copy()
             test_grid[pos] = discard_card
             test_score = game.calculate_score(test_grid)
-            ev = test_score - current_score
-            best_discard_improvement = max(best_discard_improvement, ev)
+            ev = test_score - current_score  # Negative = score goes down (good)
+            best_discard_ev = min(best_discard_ev, ev)  # Most negative (best improvement)
 
-    discard_expected_value = best_discard_improvement
+    discard_expected_value = best_discard_ev
 
-    # Calculate expected value of drawing from deck (two-step process)
-    # Use private deck counts (human's perspective) for more accurate probabilities
+    # --- Draw EV ---
+    # For each possible card you could draw, calculate the best (most negative) change (swap or flip), weighted by probability
     deck_counts = get_private_deck_counts(game)
     total_remaining_cards = sum(deck_counts.values())
 
     if total_remaining_cards == 0:
-        # No cards left in deck
         draw_expected_value = 0
     else:
         draw_expected_value = 0
-
         for rank, count in deck_counts.items():
             if count > 0:
-                # Create a card of this rank to get its score
                 from models import Card
                 drawn_card = Card(rank, '♠')  # Suit doesn't matter for score
-                drawn_score = drawn_card.score()
 
-                # For each possible drawn card, calculate the best two-step decision
-                best_draw_improvement = 0
-
-                # Step 1: Evaluate keeping the drawn card
+                # Step 1: Evaluate keeping the drawn card (swap into each available position)
+                best_draw_ev = 0  # 0 means no change; negative is good
                 for pos in available_positions:
-                    if human_player.grid[pos]:  # If there's a card to replace
-                        # Create a test grid with drawn card in this position
+                    if human_player.grid[pos]:
                         test_grid = human_player.grid.copy()
                         test_grid[pos] = drawn_card
                         test_score = game.calculate_score(test_grid)
-                        ev = test_score - current_score
-                        best_draw_improvement = max(best_draw_improvement, ev)
+                        ev = test_score - current_score  # Negative = score goes down (good)
+                        best_draw_ev = min(best_draw_ev, ev)
 
                 # Step 2: Evaluate discarding the drawn card and flipping one of your own
-                # Find the best card to flip (the one that improves your hand most)
-                best_flip_improvement = 0
+                # (Small bonus for revealing info, not for score change)
+                best_flip_ev = 0
                 for flip_pos in available_positions:
-                    if human_player.grid[flip_pos]:  # If there's a card to flip
-                        # When you flip a card, you're revealing information
-                        # This can be strategically valuable even if it doesn't change your score
-                        # For now, we'll give a small strategic bonus for revealing cards
-                        # (this could be refined based on game theory analysis)
-
-                        # The card stays the same but becomes public (known)
-                        # For immediate scoring, no change, but strategic value exists
-                        # We'll give a small bonus for the strategic value of revealing information
-                        strategic_bonus = 0.1  # Small bonus for revealing information
-                        flip_improvement = strategic_bonus
-                        best_flip_improvement = max(best_flip_improvement, flip_improvement)
+                    if human_player.grid[flip_pos]:
+                        strategic_bonus = -0.1  # Small negative bonus for revealing information (good)
+                        flip_ev = strategic_bonus
+                        best_flip_ev = min(best_flip_ev, flip_ev)
 
                 # Choose the better option: keep drawn card or discard and flip
-                best_improvement = max(best_draw_improvement, best_flip_improvement)
+                best_ev = min(best_draw_ev, best_flip_ev)
 
                 # Weight by probability of drawing this card
                 probability = count / total_remaining_cards
-                draw_expected_value += best_improvement * probability
+                draw_expected_value += best_ev * probability
 
-    # Calculate the advantage of drawing over taking discard
+    # --- Draw Advantage ---
+    # Difference between draw and discard EVs (negative = draw is better)
     draw_advantage = draw_expected_value - discard_expected_value
 
-    # Generate recommendation
-    if draw_advantage > 0.5:
+    # --- Recommendation ---
+    # If draw_advantage is negative, drawing is better; if positive, discard is better
+    if draw_advantage < -0.5:
         recommendation = "Draw from deck"
-    elif draw_advantage < -0.5:
+    elif draw_advantage > 0.5:
         recommendation = "Take discard"
     else:
         recommendation = "Either action is similar (draw slightly preferred)"
