@@ -17,7 +17,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 0.5  # seconds
+AI_TURN_DELAY = 01.5  # seconds
 
 @app.route('/')
 def index():
@@ -474,11 +474,8 @@ def run_ai_turn():
     if game.turn != 0 and not game_session['game_over']:
         game_session['ai_thinking'] = True
         player = game.players[game.turn]
-        # Add delay for all AI turns AFTER the human has made at least one move
-        # This allows initial card reveals to show immediately but delays actual gameplay
-        human_has_played = game_session.get('human_has_played', False)
-        if human_has_played:
-            time.sleep(AI_TURN_DELAY)
+        # Always add delay for all AI turns (not just after human)
+        time.sleep(AI_TURN_DELAY)
         game.play_turn(player)
 
         # Update cumulative scores BEFORE advancing to next player
