@@ -709,6 +709,14 @@ body, html {
 /* REMOVED: Old conflicting layout CSS - replaced with CSS Grid */
 
 /* DECK/DISCARD CONTAINER: Modern layout within golf green */
+/* Wrapper for deck-discard and next hole button */
+.deck-discard-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
 .deck-discard-container {
     display: flex;
     flex-direction: row;
@@ -716,7 +724,7 @@ body, html {
     gap: 4px;
     margin-top: 8px; /*was 20 but wanted to align with probabilities pane */
     max-width: 200px;
-    min-height: 300px;
+    min-height: 100px;
 }
 
 .deck-area, .discard-area {
@@ -725,7 +733,7 @@ body, html {
     align-items: center;
     gap: 8px;
     width: 80px; /* Fixed width to prevent layout shift */
-    min-height: 250px; /* Fixed height to prevent layout shift */
+    min-height: 100px; /* Fixed height to prevent layout shift */
     position: relative; /* For absolute positioning of drawn card */
     flex-shrink: 0; /* Prevent shrinking */
 }
@@ -771,13 +779,11 @@ body, html {
     align-self: center; /* Center within the flex container */
 }
 
-/* Next Hole button container in deck-discard area */
+/* Next Hole button container below deck-discard area */
 .next-hole-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 16px;
-    width: 100%;
 }
 
 .next-hole-btn {

@@ -98,26 +98,28 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="deck-discard-container">
-                                <div class="deck-area">
-                                    <h4>Deck</h4>
-                                    <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
-                                    <div id="deckSize"></div>
-                                    <!-- Drawn card area moved here, right below deck -->
-                                    <div id="drawnCardArea">
-                                        <div id="drawnCardDisplay" draggable="true"></div>
+                            <div class="deck-discard-wrapper">
+                                <div class="deck-discard-container">
+                                    <div class="deck-area">
+                                        <h4>Deck</h4>
+                                        <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                        <div id="deckSize"></div>
+                                        <!-- Drawn card area moved here, right below deck -->
+                                        <div id="drawnCardArea">
+                                            <div id="drawnCardDisplay" draggable="true"></div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="discard-area">
-                                    <h4>Discard</h4>
-                                    <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
-                                    <div id="drawnCardInstructions">
-                                        Drag to replace or click your card to flip
+                                    <div class="discard-area">
+                                        <h4>Discard</h4>
+                                        <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                        <div id="drawnCardInstructions">
+                                            Drag to replace or click your card to flip
+                                        </div>
                                     </div>
                                 </div>
                                 <!-- Next Hole button for multi-game matches -->
                                 <div class="next-hole-container" id="nextHoleContainer" style="display: none;">
-                                    <button onclick="nextGame()" class="btn btn-success next-hole-btn">Next Hole</button>
+                                    <button onclick="nextGame()" class="btn btn-success next-hole-btn">Continue to Next Hole</button>
                                 </div>
                             </div>
                         </div>

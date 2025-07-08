@@ -160,6 +160,12 @@ function clearCelebration() {
     if (headerTitle) {
         headerTitle.innerHTML = '🏌️ Golf Card Game';
     }
+
+    // Hide Next Hole button when clearing celebrations
+    const nextHoleContainer = document.getElementById('nextHoleContainer');
+    if (nextHoleContainer) {
+        nextHoleContainer.style.display = 'none';
+    }
 }
 
 function clearHurryUpGif() {
@@ -454,6 +460,9 @@ function updateGameDisplay() {
 
         // Update cumulative score chart (only if game state changed)
         updateCumulativeScoreChart();
+
+        // Update Next Hole button visibility
+        updateNextHoleButton();
 
         // Game display updated successfully
     } catch (error) {
@@ -2127,8 +2136,8 @@ if (discardCard) {
     }
 }
 
-// Show/hide Next Hole button based on game state
-setTimeout(() => {
+// Update Next Hole button visibility
+function updateNextHoleButton() {
     const nextHoleContainer = document.getElementById('nextHoleContainer');
     if (nextHoleContainer) {
         if (currentGameState && currentGameState.waiting_for_next_game) {
@@ -2137,7 +2146,7 @@ setTimeout(() => {
             nextHoleContainer.style.display = 'none';
         }
     }
-}, 0);
+}
 
 function showHeaderButtons(show) {
     const headerButtons = document.getElementById('headerButtons');
