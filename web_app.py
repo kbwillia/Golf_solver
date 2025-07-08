@@ -17,7 +17,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 1.0  # seconds
+AI_TURN_DELAY = 0.5  # seconds
 
 @app.route('/')
 def index():
