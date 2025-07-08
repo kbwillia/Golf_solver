@@ -1673,6 +1673,29 @@ async function nextGame() {
 
         if (data.success) {
             currentGameState = data.game_state;
+
+            // Set up card visibility for the new game (same as startGame/startGameWithSettings)
+            setupCardsHidden = false;
+            if (setupHideTimeout) clearTimeout(setupHideTimeout);
+            if (setupViewInterval) clearInterval(setupViewInterval);
+            let secondsLeft = cardVisibilityDuration;
+            showSetupViewTimer(secondsLeft);
+            setupViewInterval = setInterval(() => {
+                secondsLeft -= 0.1;
+                if (secondsLeft > 0) {
+                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
+                } else {
+                    hideSetupViewTimer();
+                    clearInterval(setupViewInterval);
+                }
+            }, 100);
+            setupHideTimeout = setTimeout(() => {
+                setupCardsHidden = true;
+                updateGameDisplay();
+                hideSetupViewTimer();
+                if (setupViewInterval) clearInterval(setupViewInterval);
+            }, cardVisibilityDuration * 1000);
+
             updateGameDisplay();
             updateCumulativeScoreChart();
 
