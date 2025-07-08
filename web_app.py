@@ -335,10 +335,11 @@ def get_game_state(game_id):
         'deck_top_card': deck_top_card,
         'waiting_for_next_game': game_session.get('waiting_for_next_game', False)
     }
-    # Set winner for current game if over
+        # Set winner for current game if over
     if game_session['game_over']:
         scores = [game.calculate_score(p.grid) for p in game.players]
-        state['winner'] = scores.index(min(scores))
+        winner_index = scores.index(min(scores))
+        state['winner'] = winner_index
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
         # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
         if not game_session.get('cumulative_updated_for_game', False):

@@ -650,6 +650,7 @@ function updateScoresAndRoundInfo() {
         const isHumanGameWinner = currentGameState.game_over && currentGameState.winner === 0;
         const isHumanMatchWinner = (
             currentGameState.game_over &&
+            currentGameState.num_games > 1 &&  // Only check match winner for multi-game scenarios
             currentGameState.current_game === currentGameState.num_games &&
             currentGameState.match_winner &&
             (
