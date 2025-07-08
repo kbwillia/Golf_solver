@@ -647,8 +647,19 @@ function updateScoresAndRoundInfo() {
     // Handle GIF display (celebration for wins, hurry up for slow play)
     const celebrationContainer = document.getElementById('celebrationGif');
     if (celebrationContainer) {
-        if (currentGameState.game_over && currentGameState.winner === 0) {
-            // Human won! Show celebration GIF
+        const isHumanGameWinner = currentGameState.game_over && currentGameState.winner === 0;
+        const isHumanMatchWinner = (
+            currentGameState.game_over &&
+            currentGameState.current_game === currentGameState.num_games &&
+            currentGameState.match_winner &&
+            (
+                (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(0)) ||
+                currentGameState.match_winner === 0
+            )
+        );
+
+        if (isHumanGameWinner || isHumanMatchWinner) {
+            // Human won the game or the match! Show celebration GIF
             clearHurryUpTimer(); // Clear any hurry up timer
             let gifUrl = '';
             if (celebrationGifs.length > 0) {

@@ -109,17 +109,24 @@ class GolfGame:
                 self.discard_pile.append(old_card)
                 self.last_action = f"{player.name} drew {new_card} and kept it at position {action['position']+1}, discarding {old_card}"
             else:
-                # Discard the drawn card
+                # Discard the drawn card and flip a grid card
                 player.add_to_discard_memory(new_card)
-                self.discard_pile.append(new_card)
                 self.last_action = f"{player.name} drew {new_card} and discarded it"
 
-                # If player chose to flip one of their own cards
+                # If player chose to flip one of their own cards, that card goes to discard pile
                 if 'flip_position' in action:
                     flip_pos = action['flip_position']
+                    # Get the card that was flipped
+                    flipped_card = player.grid[flip_pos]
                     # Make the card at flip_position visible to ALL players - only for this player's grid
                     player.known[flip_pos] = True
-                    self.last_action += f", and flipped their card at position {flip_pos+1}"
+                    # Put the flipped card on the discard pile
+                    if flipped_card:
+                        player.add_to_discard_memory(flipped_card)
+                        self.discard_pile.append(flipped_card)
+                        self.last_action += f", flipped their card at position {flip_pos+1} ({flipped_card}), and discarded it"
+                    else:
+                        self.last_action += f", and flipped their card at position {flip_pos+1}"
 
         # Display updated grids after the action
         self.display_all_grids()
