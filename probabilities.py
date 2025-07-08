@@ -177,8 +177,8 @@ def expected_value_draw_vs_discard(game):
             test_grid = human_player.grid.copy()
             test_grid[pos] = discard_card
             test_score = game.calculate_score(test_grid)
-            improvement = current_score - test_score  # Lower score is better
-            best_discard_improvement = max(best_discard_improvement, improvement)
+            ev = test_score - current_score
+            best_discard_improvement = max(best_discard_improvement, ev)
 
     discard_expected_value = best_discard_improvement
 
@@ -210,8 +210,8 @@ def expected_value_draw_vs_discard(game):
                         test_grid = human_player.grid.copy()
                         test_grid[pos] = drawn_card
                         test_score = game.calculate_score(test_grid)
-                        improvement = current_score - test_score  # Lower score is better
-                        best_draw_improvement = max(best_draw_improvement, improvement)
+                        ev = test_score - current_score
+                        best_draw_improvement = max(best_draw_improvement, ev)
 
                 # Step 2: Evaluate discarding the drawn card and flipping one of your own
                 # Find the best card to flip (the one that improves your hand most)
