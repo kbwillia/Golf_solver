@@ -333,7 +333,9 @@ def get_game_state(game_id):
         'num_games': num_games,
         'match_winner': match_winner,
         'deck_top_card': deck_top_card,
-        'waiting_for_next_game': game_session.get('waiting_for_next_game', False)
+        'waiting_for_next_game': game_session.get('waiting_for_next_game', False),
+        'last_action': getattr(game, 'last_action', None),
+        'action_history': getattr(game, 'action_history', []),
     }
         # Set winner for current game if over
     if game_session['game_over']:

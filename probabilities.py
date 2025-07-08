@@ -250,15 +250,23 @@ def expected_value_draw_vs_discard(game):
 
     if total_remaining_cards == 0:
         draw_expected_value = 0
+        best_draw_position = None
+        best_flip_position = None
+        best_action_type = "keep"  # "keep" or "flip"
     else:
         draw_expected_value = 0
+        best_overall_ev = float('inf')
+        best_draw_position = None
+        best_flip_position = None
+        best_action_type = "keep"
+
         for rank, count in deck_counts.items():
             if count > 0:
                 drawn_card = Card(rank, '♠')  # Suit doesn't matter for score
 
                 # Step 1: Evaluate keeping the drawn card (swap into each available position)
-                best_draw_ev = 0
-                best_draw_position = None
+                best_draw_ev = float('inf')
+                current_best_draw_position = None
                 for pos in available_positions:
                     # If the card is known, use its actual value
                     if human_player.known[pos] and human_player.grid[pos]:
@@ -272,25 +280,49 @@ def expected_value_draw_vs_discard(game):
                     test_known[pos] = True  # After swap, this card is known
                     test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
                     ev = test_score - current_score
-                    if ev < best_draw_ev or best_draw_position is None:
+                    if ev < best_draw_ev:
                         best_draw_ev = ev
-                        best_draw_position = pos
+                        current_best_draw_position = pos
 
                 # Step 2: Evaluate discarding the drawn card and flipping one of your own
-                # (Small bonus for revealing info, not for score change)
-                best_flip_ev = 0
+                # Calculate actual expected score change when flipping each position
+                best_flip_ev = float('inf')
+                current_best_flip_position = None
                 for flip_pos in available_positions:
                     if human_player.grid[flip_pos]:
-                        strategic_bonus = -0.1  # Small negative bonus for revealing information (good)
-                        flip_ev = strategic_bonus
-                        best_flip_ev = min(best_flip_ev, flip_ev)
+                        # Calculate expected score change when this card is revealed
+                        test_known = human_player.known.copy()
+                        test_known[flip_pos] = True  # This card becomes known
+                        test_score = expected_score_blind(human_player.grid, test_known, rank_probabilities)
+                        ev = test_score - current_score
+                        if ev < best_flip_ev:
+                            best_flip_ev = ev
+                            current_best_flip_position = flip_pos
 
                 # Choose the better option: keep drawn card or discard and flip
-                best_ev = min(best_draw_ev, best_flip_ev)
+                if best_draw_ev < best_flip_ev:
+                    current_best_ev = best_draw_ev
+                    current_action_type = "keep"
+                    current_best_position = current_best_draw_position
+                else:
+                    current_best_ev = best_flip_ev
+                    current_action_type = "flip"
+                    current_best_position = current_best_flip_position
+
+                # Track the overall best action across all possible draws
+                if current_best_ev < best_overall_ev:
+                    best_overall_ev = current_best_ev
+                    best_action_type = current_action_type
+                    if current_action_type == "keep":
+                        best_draw_position = current_best_position
+                        best_flip_position = None
+                    else:
+                        best_draw_position = None
+                        best_flip_position = current_best_position
 
                 # Weight by probability of drawing this card
                 probability = count / total_remaining_cards
-                draw_expected_value += best_ev * probability
+                draw_expected_value += current_best_ev * probability
 
     # --- Draw Advantage ---
     # Difference between draw and discard EVs (negative = draw is better)
@@ -321,6 +353,8 @@ def expected_value_draw_vs_discard(game):
         'current_hand_score': current_score,
         'best_discard_position': best_discard_position,
         'best_draw_position': best_draw_position,
+        'best_flip_position': best_flip_position,
+        'best_action_type': best_action_type,  # "keep" or "flip"
     }
 
 def which_card_to_swap_for_discard(game):

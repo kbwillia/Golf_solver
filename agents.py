@@ -396,12 +396,36 @@ class EVAgent:
         if not available_positions:
             return None  # No moves
 
-        if ev['recommendation'].startswith("Draw"):
-            pos = ev.get('best_draw_position', available_positions[0])
-            return {'type': 'draw_deck', 'position': pos}
-        elif ev['recommendation'].startswith("Take discard"):
-            pos = ev.get('best_discard_position', available_positions[0])
-            return {'type': 'take_discard', 'position': pos}
+        # Determine which action is better based on EV values, not just recommendation text
+        draw_ev = ev.get('draw_expected_value', 0)
+        discard_ev = ev.get('discard_expected_value', 0)
+
+        # Choose the action with the lower (more negative) EV
+        if draw_ev < discard_ev:
+            # Draw is better - but check if we should keep or flip
+            action_type = ev.get('best_action_type', 'keep')
+
+            if action_type == 'flip':
+                # Draw, discard, and flip a card
+                best_flip_pos = ev.get('best_flip_position')
+                if best_flip_pos is not None and best_flip_pos in available_positions:
+                    return {'type': 'draw_deck', 'keep': False, 'flip_position': best_flip_pos}
+                else:
+                    # Fallback: flip first available position
+                    return {'type': 'draw_deck', 'keep': False, 'flip_position': available_positions[0]}
+            else:
+                # Draw and keep the card
+                best_pos = ev.get('best_draw_position')
+                if best_pos is not None and best_pos in available_positions:
+                    return {'type': 'draw_deck', 'position': best_pos, 'keep': True}
+                else:
+                    # Fallback: use first available position
+                    return {'type': 'draw_deck', 'position': available_positions[0], 'keep': True}
         else:
-            pos = ev.get('best_draw_position', available_positions[0])
-            return {'type': 'draw_deck', 'position': pos}
+            # Discard is better (or equal)
+            best_pos = ev.get('best_discard_position')
+            if best_pos is not None and best_pos in available_positions:
+                return {'type': 'take_discard', 'position': best_pos}
+            else:
+                # Fallback: choose first available position
+                return {'type': 'take_discard', 'position': available_positions[0]}

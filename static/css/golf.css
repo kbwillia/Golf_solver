@@ -125,8 +125,6 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    min-width: 30px;
-    /* max-width: 300px; */
     align-items: stretch;
     border-radius: 12px;
     padding: 16px;
@@ -136,6 +134,12 @@ body, html {
     overflow-y: auto;
     /* border: 3px solid green; */
     /* background: rgba(230, 249, 230, 0.35) !important; */
+    max-width: 360px;   /* or whatever fits your layout */
+    width: 100%;
+    min-width: 200px;   /* optional, for responsiveness */
+    box-sizing: border-box;
+    /* You can also add: */
+    overflow-x: auto;   /* just in case */
 }
 
 /* Game Info Display in notification area */
@@ -712,6 +716,7 @@ body, html {
     gap: 4px;
     margin-top: 8px; /*was 20 but wanted to align with probabilities pane */
     max-width: 200px;
+    min-height: 300px;
 }
 
 .deck-area, .discard-area {
@@ -720,7 +725,7 @@ body, html {
     align-items: center;
     gap: 8px;
     width: 80px; /* Fixed width to prevent layout shift */
-    min-height: 200px; /* Fixed height to prevent layout shift */
+    min-height: 250px; /* Fixed height to prevent layout shift */
     position: relative; /* For absolute positioning of drawn card */
     flex-shrink: 0; /* Prevent shrinking */
 }
@@ -764,6 +769,35 @@ body, html {
     flex-shrink: 0; /* Prevent text from shrinking */
     display: none; /* Hidden by default, shown when drawn card is active */
     align-self: center; /* Center within the flex container */
+}
+
+/* Next Hole button container in deck-discard area */
+.next-hole-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.next-hole-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.next-hole-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
 }
 
 /* Enhanced hover area for better interaction */
@@ -1020,14 +1054,14 @@ body, html {
     overflow: hidden;
     display: block;
     max-width: 320px;
-    max-height: 240px;
+    max-height: 220px;
     margin: 0 auto;
     object-fit: contain;
     background: transparent;
 }
 .celebration-gif-container {
     text-align: center;
-    margin-top: 20px;
+    margin-top: 2px;
 }
 
 
@@ -1222,7 +1256,7 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 0px;
     align-items: center;
 }
 
@@ -1266,6 +1300,31 @@ body, html {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
+/* Last action panel styling */
+.last-action-panel {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.last-action-header {
+    font-weight: bold;
+    font-size: 0.78em;      /* smaller font */
+    color: #495057;
+    margin-bottom: 2px;     /* less space below */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.last-action-text {
+    font-size: 0.85em;
+    color: #333;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
 
 /* === Custom Chart Legend Styling === */
 
@@ -1328,3 +1387,57 @@ body, html {
     vertical-align: middle;
 }
 
+.action-history-panel {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0px 0px;
+    margin: 0px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    max-width: 100%;
+}
+.action-history-list {
+    max-height: 148px;
+    overflow-y: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+}
+.action-history-item {
+    font-size: 0.8em;
+    color: #333;
+    background: rgba(230, 249, 230, 0.25);
+    border-radius: 4px;
+    padding: 0px 0px;
+    word-break: break-word;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 16px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.header-buttons .btn {
+    font-size: 1em;
+    padding: 6px 16px;
+}
+
+#headerButtons {
+    display: none;
+}
+
+/* Pulse animation for You Won message */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}

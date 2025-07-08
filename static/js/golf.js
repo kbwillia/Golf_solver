@@ -23,6 +23,7 @@ let aiTurnInProgress = false; // Prevents multiple concurrent AI turn polling
 let humanDiscardPosition = null; // Track position for human discard animation
 let humanDiscardAction = null; // Track action type for human discard animation
 let humanDrawnCardPosition = null; // Track position for drawn card replacement animation
+let previousActionHistory = []; // Place this at the top of your JS file
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -140,10 +141,85 @@ function showHurryUpGif() {
     }
 }
 
-function clearHurryUpGif() {
+// Helper function to clear celebrations and reset header
+function clearCelebration() {
     const celebrationContainer = document.getElementById('celebrationGif');
+    const headerTitle = document.querySelector('.header h1');
+    const youWonMessage = document.getElementById('youWonHeaderMessage');
+
     if (celebrationContainer) {
         celebrationContainer.innerHTML = '';
+    }
+
+    // Remove the You Won message from header
+    if (youWonMessage) {
+        youWonMessage.remove();
+    }
+
+    // Reset header title to original (in case it was modified)
+    if (headerTitle) {
+        headerTitle.innerHTML = '🏌️ Golf Card Game';
+    }
+}
+
+function clearHurryUpGif() {
+    clearCelebration();
+}
+
+// Show celebration GIF when human wins
+function showCelebrationGif() {
+    const celebrationContainer = document.getElementById('celebrationGif');
+    const header = document.querySelector('.header');
+
+    // Prevent duplicate celebrations
+    const existingMessage = document.getElementById('youWonHeaderMessage');
+    if (existingMessage) {
+        console.log('🚫 CELEBRATION BLOCKED: Already showing celebration');
+        return;
+    }
+
+    console.log('🎯 showCelebrationGif() called - checking conditions...');
+
+    if (celebrationContainer && celebrationGifs.length > 0) {
+        const randomIndex = Math.floor(Math.random() * celebrationGifs.length);
+        const randomGif = celebrationGifs[randomIndex];
+
+        console.log('🎉 Showing celebration GIF:', randomIndex, randomGif);
+
+        // Show GIF without the text
+        celebrationContainer.innerHTML = `
+            <div class="celebration-gif-container">
+                <img src="${randomGif}" alt="Celebration!" class="celebration-gif-img" onerror="console.error('Failed to load celebration GIF:', this.src);" />
+            </div>
+        `;
+
+        // Add "You Won!" message to the middle of the header
+        const existingMessage = document.getElementById('youWonHeaderMessage');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        if (header) {
+            const youWonMessage = document.createElement('div');
+            youWonMessage.id = 'youWonHeaderMessage';
+            youWonMessage.style.cssText = `
+                color: #28a745;
+                font-weight: bold;
+                font-size: 3.2em;
+                animation: pulse 1.5s infinite;
+                text-align: center;
+                white-space: nowrap;
+            `;
+            youWonMessage.innerHTML = '🎉 You Won! 🎉';
+
+            // Insert between title and buttons
+            const headerButtons = document.getElementById('headerButtons');
+            if (headerButtons) {
+                header.insertBefore(youWonMessage, headerButtons);
+            } else {
+                header.appendChild(youWonMessage);
+            }
+        }
     }
 }
 
@@ -200,6 +276,7 @@ async function startGame() {
             currentGameState = data.game_state;
             document.getElementById('gameSetup').style.display = 'none';
             document.getElementById('gameBoard').style.display = 'block';
+            showHeaderButtons(true); // <-- Add this here
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
@@ -344,6 +421,11 @@ function updateGameDisplay() {
             // Add fade if drawing from deck
             if (isDrawingFromDeck) {
                 discardCard.classList.add('faded');
+            }
+
+            // Restore functionality when not disabled
+            if (!discardCard.classList.contains('disabled')) {
+                discardCard.onclick = takeDiscard;
             }
 
             // Force clear and reset all styles
@@ -574,6 +656,16 @@ function updatePlayerGrids() {
 }
 
 function updateScoresAndRoundInfo() {
+    // Debug the game state when game is over
+    if (currentGameState.game_over) {
+        console.log('🎮 GAME OVER DEBUG:', {
+            winner: currentGameState.winner,
+            scores: currentGameState.scores,
+            public_scores: currentGameState.public_scores,
+            match_winner: currentGameState.match_winner,
+            players: currentGameState.players.map(p => p.name)
+        });
+    }
     const container = document.getElementById('ScoresAndRoundInfo');
     if (!container || !currentGameState || !currentGameState.players) {
         return;
@@ -610,6 +702,13 @@ function updateScoresAndRoundInfo() {
             scoreText = currentGameState.public_scores[index];
             if (currentGameState.game_over && index === currentGameState.winner) {
                 winnerIcon = ' 🏆🏆🏆';
+                // Show celebration GIF if human (player 0) wins the game
+                if (index === 0) {
+                    console.log(`🎉 GAME WIN: Human won! Winner: ${currentGameState.winner}, Player index: ${index}, Scores: ${JSON.stringify(currentGameState.scores)}`);
+                    showCelebrationGif();
+                } else {
+                    console.log(`🏆 GAME WIN: AI won! Winner: ${currentGameState.winner}, Player index: ${index}, Scores: ${JSON.stringify(currentGameState.scores)}`);
+                }
             }
         }
         // Cumulative score (if multi-game)
@@ -636,62 +735,79 @@ function updateScoresAndRoundInfo() {
     });
     scoresHtml += '</table></div>';
 
+    // Check for overall match winner (multi-game) and show celebration
+    if (currentGameState.match_winner && currentGameState.match_winner.includes && currentGameState.match_winner.includes(0)) {
+        if (currentGameState.match_winner.length === 1 && currentGameState.match_winner[0] === 0) {
+            // Human is the sole winner
+            console.log(`🏆 MATCH WIN: Human won overall match! Match winner: ${currentGameState.match_winner}`);
+            showCelebrationGif();
+        } else {
+            // It's a tie or human is not the sole winner
+            console.log(`🤝 MATCH TIE: Match ended in tie! Match winner: ${currentGameState.match_winner}`);
+        }
+    }
+
+    // Last action display
+    let lastActionHtml = '';
+    if (currentGameState.last_action) {
+        lastActionHtml = `
+            <div class="last-action-panel">
+                <div class="last-action-header">Last Action:</div>
+                <div class="last-action-text">${currentGameState.last_action}</div>
+            </div>
+        `;
+    }
+
+    // Action history display (scrollable)
+    let actionHistoryHtml = '';
+    if (currentGameState.action_history && currentGameState.action_history.length > 0) {
+        actionHistoryHtml = `
+            <div class="action-history-panel">
+                <div class="last-action-header">Action History:</div>
+                <div class="action-history-list" id="actionHistoryList">
+                    ${currentGameState.action_history.map(action => `<div class="action-history-item">${action}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Auto-scroll action history to bottom
+    const actionHistoryPanel = container.querySelector('.action-history-panel');
+    if (actionHistoryPanel) {
+        actionHistoryPanel.scrollTop = actionHistoryPanel.scrollHeight;
+    }
+
     // Flex row: round info left, scores right
     let flexRowHtml = `<div class="scores-round-flex">${infoText}${scoresHtml}</div>`;
 
-    // Add game control buttons
-    let buttonsHtml = '<div class="game-control-buttons">';
-    // First row: New Game and Replay buttons
-    buttonsHtml += '<div class="button-row">';
-    buttonsHtml += '<button onclick="restartGame()" class="btn btn-secondary game-control-btn">New Game</button>';
-    buttonsHtml += '<button onclick="replayGame()" class="btn btn-primary game-control-btn">Replay</button>';
-    buttonsHtml += '</div>';
-    // Add Next Game button if waiting for next game (full width, below other buttons)
-    if (currentGameState.waiting_for_next_game) {
-        buttonsHtml += '<button onclick="nextGame()" class="btn btn-success game-control-btn next-game-btn">Next Hole</button>';
-    }
-    buttonsHtml += '</div>';
+    container.innerHTML = flexRowHtml + actionHistoryHtml; // Remove + buttonsHtml
 
-    container.innerHTML = flexRowHtml + buttonsHtml;
+    setTimeout(() => {
+        const actionHistoryList = container.querySelector('.action-history-list');
+        if (actionHistoryList) {
+            actionHistoryList.scrollTop = actionHistoryList.scrollHeight;
+        }
+    }, 0);
 
-    // Handle GIF display (celebration for wins, hurry up for slow play)
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        const isHumanGameWinner = currentGameState.game_over && currentGameState.winner === 0;
-        const isHumanMatchWinner = (
-            currentGameState.game_over &&
-            currentGameState.num_games > 1 &&  // Only check match winner for multi-game scenarios
-            currentGameState.current_game === currentGameState.num_games &&
-            currentGameState.match_winner &&
-            (
-                (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(0)) ||
-                currentGameState.match_winner === 0
-            )
-        );
+    // ... after you have currentGameState.action_history ...
+    const actionHistoryListElem = document.getElementById('actionHistoryList');
+    const newHistory = currentGameState.action_history || [];
 
-        if (isHumanGameWinner || isHumanMatchWinner) {
-            // Human won the game or the match! Show celebration GIF
-            clearHurryUpTimer(); // Clear any hurry up timer
-            let gifUrl = '';
-            if (celebrationGifs.length > 0) {
-                gifUrl = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
-            }
-            if (gifUrl) {
-                celebrationContainer.innerHTML = `
-                    <div class="celebration-gif-container">
-                        <img src="${gifUrl}" alt="Golf Celebration" class="celebration-gif-img" />
-                    </div>
-                `;
-            }
-        } else if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-            // Human's turn - start hurry up timer (but don't clear existing hurry up GIF)
-            startHurryUpTimer();
-        } else {
-            // Not human's turn or game over - clear any hurry up content
-            clearHurryUpTimer();
-            celebrationContainer.innerHTML = '';
+    if (actionHistoryListElem) {
+        // Only add new items
+        for (let i = actionHistoryListElem.children.length; i < newHistory.length; i++) {
+            const div = document.createElement('div');
+            div.className = 'action-history-item';
+            div.textContent = newHistory[i];
+            actionHistoryListElem.appendChild(div);
+        }
+        // Scroll to bottom if new items were added
+        if (actionHistoryListElem.children.length === newHistory.length) {
+            actionHistoryListElem.scrollTop = actionHistoryListElem.scrollHeight;
         }
     }
+
+
 }
 
 async function takeDiscard() {
@@ -778,7 +894,7 @@ function showDrawnCardArea(card) {
         this.classList.remove('dragging');
     };
 
-    // Disable deck and discard during drawn card interaction
+        // Disable deck and discard during drawn card interaction
     const deckCard = document.getElementById('deckCard');
     const discardCard = document.getElementById('discardCard');
     deckCard.classList.add('disabled');
@@ -796,6 +912,16 @@ function hideDrawnCardArea() {
     document.getElementById('drawnCardArea').style.display = 'none';
     document.getElementById('drawnCardInstructions').style.display = 'none'; // Hide instructions when drawn card is hidden
     document.getElementById('drawnCardDisplay').classList.remove('playable');
+
+        // Re-enable deck and discard card
+    const deckCard = document.getElementById('deckCard');
+    const discardCard = document.getElementById('discardCard');
+
+    deckCard.classList.remove('disabled');
+    deckCard.onclick = drawFromDeck;
+
+    discardCard.classList.remove('disabled');
+    discardCard.onclick = takeDiscard;
 
     window.flipDrawnMode = false;
     updatePlayerGrids(); // Refresh to remove flip indicators and update interactivity
@@ -1000,10 +1126,7 @@ function restartGame() {
     }
 
     // Clear the celebration GIF
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        celebrationContainer.innerHTML = '';
-    }
+    clearCelebration();
 
     // Reset drawn card state variables
     drawnCardData = null;
@@ -1029,6 +1152,13 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => {
     const discardCard = document.getElementById('discardCard');
     discardCard.addEventListener('dragstart', (e) => {
+        // Check if the discard card is disabled
+        if (discardCard.classList.contains('disabled')) {
+            console.log('🚫 DRAG BLOCKED: Discard card is disabled');
+            e.preventDefault();
+            return false;
+        }
+
         console.log('🎯 DRAG START: Discard card drag initiated!');
         dragActive = true;
         // DON'T add drop-target class to the discard card itself
@@ -1736,10 +1866,7 @@ function replayGame() {
     }
 
     // Clear the celebration GIF
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        celebrationContainer.innerHTML = '';
-    }
+    clearCelebration();
 
     // Hide the drawn card area
     hideDrawnCardArea();
@@ -1760,10 +1887,7 @@ async function nextGame() {
     }
 
     // Clear the celebration GIF when starting next game
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        celebrationContainer.innerHTML = '';
-    }
+    clearCelebration();
 
     try {
         const response = await fetch('/next_game', {
@@ -1823,10 +1947,7 @@ async function nextGame() {
 // Add a helper to start a game with specific settings
 async function startGameWithSettings(gameMode, opponentType, playerName, numGames) {
     // Clear the celebration GIF when starting a new game
-    const celebrationContainer = document.getElementById('celebrationGif');
-    if (celebrationContainer) {
-        celebrationContainer.innerHTML = '';
-    }
+    clearCelebration();
 
     try {
         const response = await fetch('/create_game', {
@@ -2005,3 +2126,34 @@ if (discardCard) {
         discardCard.setAttribute('tabindex', '0');
     }
 }
+
+// Show/hide Next Hole button based on game state
+setTimeout(() => {
+    const nextHoleContainer = document.getElementById('nextHoleContainer');
+    if (nextHoleContainer) {
+        if (currentGameState && currentGameState.waiting_for_next_game) {
+            nextHoleContainer.style.display = 'block';
+        } else {
+            nextHoleContainer.style.display = 'none';
+        }
+    }
+}, 0);
+
+function showHeaderButtons(show) {
+    const headerButtons = document.getElementById('headerButtons');
+    if (headerButtons) {
+        headerButtons.style.display = show ? 'flex' : 'none';
+    }
+}
+
+// When showing setup:
+showHeaderButtons(false);
+
+// When starting the game:
+showHeaderButtons(true);
+
+document.addEventListener('DOMContentLoaded', function() {
+    showHeaderButtons(false);
+});
+
+showHeaderButtons(true);

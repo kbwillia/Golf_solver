@@ -19,6 +19,9 @@ class GolfGame:
         self.round = 1
         self.max_rounds = 4
         self.deal()
+        self.last_action = None
+        self.action_history = []
+        self.last_action_turn = None
 
     def create_agents(self, agent_types, q_agents=None):
         agents = []
@@ -90,7 +93,13 @@ class GolfGame:
             player.known[action['position']] = True
             player.add_to_discard_memory(old_card)
             self.discard_pile.append(old_card)
-            self.last_action = f"{player.name} took {new_card} from discard and placed it at position {action['position']+1}, discarding {old_card}"
+            self.last_action = f"<strong>{player.name}</strong> took {new_card} from discard and placed it at position {action['position']+1}, discarding {old_card}"
+            current_turn_id = (self.turn, self.round)
+            if self.action_history and self.last_action_turn == current_turn_id:
+                self.action_history[-1] = self.last_action
+            else:
+                self.action_history.append(self.last_action)
+            self.last_action_turn = current_turn_id
         elif action['type'] == 'draw_deck' and self.deck:
             # Draw from deck
             new_card = self.deck.pop()
@@ -102,11 +111,23 @@ class GolfGame:
                 player.known[action['position']] = True
                 player.add_to_discard_memory(old_card)
                 self.discard_pile.append(old_card)
-                self.last_action = f"{player.name} drew {new_card} and kept it at position {action['position']+1}, discarding {old_card}"
+                self.last_action = f"<strong>{player.name}</strong> drew {new_card} and kept it at position {action['position']+1}, discarding {old_card}"
+                current_turn_id = (self.turn, self.round)
+                if self.action_history and self.last_action_turn == current_turn_id:
+                    self.action_history[-1] = self.last_action
+                else:
+                    self.action_history.append(self.last_action)
+                self.last_action_turn = current_turn_id
             else:
                 # Discard the drawn card and flip a grid card
                 player.add_to_discard_memory(new_card)
-                self.last_action = f"{player.name} drew {new_card} and discarded it"
+                self.last_action = f"<strong>{player.name}</strong> drew {new_card} and discarded it"
+                current_turn_id = (self.turn, self.round)
+                if self.action_history and self.last_action_turn == current_turn_id:
+                    self.action_history[-1] = self.last_action
+                else:
+                    self.action_history.append(self.last_action)
+                self.last_action_turn = current_turn_id
 
                 # If player chose to flip one of their own cards, that card goes to discard pile
                 if 'flip_position' in action:
@@ -120,8 +141,20 @@ class GolfGame:
                         player.add_to_discard_memory(flipped_card)
                         self.discard_pile.append(flipped_card)
                         self.last_action += f", flipped their card at position {flip_pos+1} ({flipped_card}), and discarded it"
+                        current_turn_id = (self.turn, self.round)
+                        if self.action_history and self.last_action_turn == current_turn_id:
+                            self.action_history[-1] = self.last_action
+                        else:
+                            self.action_history.append(self.last_action)
+                        self.last_action_turn = current_turn_id
                     else:
                         self.last_action += f", and flipped their card at position {flip_pos+1}"
+                        current_turn_id = (self.turn, self.round)
+                        if self.action_history and self.last_action_turn == current_turn_id:
+                            self.action_history[-1] = self.last_action
+                        else:
+                            self.action_history.append(self.last_action)
+                        self.last_action_turn = current_turn_id
 
         # Display updated grids after the action
         self.display_all_grids()
@@ -154,7 +187,7 @@ class GolfGame:
             else:
                 # Player has no moves (all cards face-up), but still counts as a turn
                 if verbose:
-                    print(f"{player.name} has no moves available (all cards face-up)")
+                    print(f"<strong>{player.name}</strong> has no moves available (all cards face-up)")
 
             self.next_player()
 
@@ -187,3 +220,20 @@ class GolfGame:
                 used.add(pos2)
                 total_score -= (scores[pos1] + scores[pos2])
         return total_score
+
+    def quick_test(agent_types, num_games):
+        num_agents = len(agent_types)
+        total_scores = [0] * num_agents
+
+        for _ in range(num_games):
+            game = GolfGame(num_players=num_agents, agent_types=agent_types)
+            scores = game.play_game(verbose=False)
+            for i, score in enumerate(scores):
+                total_scores[i] += score
+
+        avg_scores = [total / num_games for total in total_scores]
+        print(f"Average scores over {num_games} games:")
+        for agent, avg in zip(agent_types, avg_scores):
+            print(f"  {agent}: {avg:.2f}")
+
+
