@@ -20,6 +20,9 @@ let pollingPaused = false; // Used to pause polling during actions
 let isDrawingFromDeck = false; // Track if deck is being drawn from for fade effect
 let previousGameState = null;
 let aiTurnInProgress = false; // Prevents multiple concurrent AI turn polling
+let humanDiscardPosition = null; // Track position for human discard animation
+let humanDiscardAction = null; // Track action type for human discard animation
+let humanDrawnCardPosition = null; // Track position for drawn card replacement animation
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -838,6 +841,77 @@ async function executeAction(position, actionType = null) {
 
             console.log('🎯 executeAction: Received updated game state:', data.game_state);
             console.log('🃏 executeAction: Discard top card:', data.game_state.discard_top);
+
+                        // Check if this was a human discard move that needs animation
+            if (humanDiscardPosition !== null && humanDiscardAction === 'take_discard') {
+                // Animate the card from grid to discard pile
+                const cardElem = document.querySelector(`.player-grid[data-player="0"] .card[data-position="${humanDiscardPosition}"]`);
+                const discardElem = document.getElementById('discardCard');
+
+                if (cardElem && discardElem) {
+                    // First update the game state without UI refresh
+                    currentGameState = data.game_state;
+                    aiTurnInProgress = false;
+
+                    // Animate the old card to discard pile, then update UI
+                    animateSnapToGrid(cardElem, discardElem, () => {
+                        updateGameDisplay();
+                        updateCumulativeScoreChart();
+                        refreshGameState();
+
+                        // Continue with AI turn logic
+                        if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                            console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
+                            pollAITurns();
+                        }
+                    });
+
+                    // Reset the trackers
+                    humanDiscardPosition = null;
+                    humanDiscardAction = null;
+                    return; // Don't execute the normal update flow
+                }
+
+                // Reset trackers if animation elements not found
+                humanDiscardPosition = null;
+                humanDiscardAction = null;
+            }
+
+            // Check if this was a drawn card move that needs animation
+            if (humanDrawnCardPosition !== null && humanDiscardAction === 'draw_keep') {
+                // Animate the old card from grid to discard pile
+                const cardElem = document.querySelector(`.player-grid[data-player="0"] .card[data-position="${humanDrawnCardPosition}"]`);
+                const discardElem = document.getElementById('discardCard');
+
+                if (cardElem && discardElem) {
+                    // First update the game state without UI refresh
+                    currentGameState = data.game_state;
+                    aiTurnInProgress = false;
+
+                    // Animate the old card to discard pile, then update UI
+                    animateSnapToGrid(cardElem, discardElem, () => {
+                        updateGameDisplay();
+                        updateCumulativeScoreChart();
+                        refreshGameState();
+
+                        // Continue with AI turn logic
+                        if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                            console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
+                            pollAITurns();
+                        }
+                    });
+
+                    // Reset the trackers
+                    humanDrawnCardPosition = null;
+                    humanDiscardAction = null;
+                    return; // Don't execute the normal update flow
+                }
+
+                // Reset trackers if animation elements not found
+                humanDrawnCardPosition = null;
+                humanDiscardAction = null;
+            }
+
             currentGameState = data.game_state;
 
             // Reset AI turn flag when human takes a turn
@@ -858,10 +932,18 @@ async function executeAction(position, actionType = null) {
         } else {
             console.error('Action failed:', data.error);
             alert('Action failed: ' + (data.error || 'Unknown error'));
+            // Reset trackers on failure
+            humanDiscardPosition = null;
+            humanDiscardAction = null;
+            humanDrawnCardPosition = null;
         }
     } catch (error) {
         console.error('Error executing action:', error);
         alert('Error executing action. Please try again.');
+        // Reset trackers on error
+        humanDiscardPosition = null;
+        humanDiscardAction = null;
+        humanDrawnCardPosition = null;
     } finally {
         actionInProgress = false;
         resumePolling();
@@ -992,7 +1074,7 @@ function animateSnapToGrid(cardElem, targetElem, callback) {
     clone.style.height = cardRect.height + 'px';
     clone.style.zIndex = 9999;
     clone.style.pointerEvents = 'none';
-    clone.style.transition = 'all 0.5s cubic-bezier(.4,1.4,.6,1)';
+    clone.style.transition = 'all 0.75s cubic-bezier(.4,1.4,.6,1)'; // sliding card animation
     // Hide original
     cardElem.style.visibility = 'hidden';
     // Animate to target
@@ -1000,12 +1082,17 @@ function animateSnapToGrid(cardElem, targetElem, callback) {
         clone.style.left = targetRect.left + 'px';
         clone.style.top = targetRect.top + 'px';
     });
-    // After animation, remove clone and callback
+    // After animation completes, clean up and trigger next actions
     setTimeout(() => {
+        // Remove the animated clone element from the DOM (it's no longer needed)
         clone.remove();
+
+        // Make the original card element visible again (it was hidden during animation)
         cardElem.style.visibility = '';
+
+        // Execute the callback function if provided (usually updates game state/UI)
         if (callback) callback();
-    }, 200);
+    }, 700); // Wait 200ms - should be slightly less than animation duration (500ms)
 }
 
 function handleDropOnGrid(pos) {
@@ -1019,16 +1106,14 @@ function handleDropOnGrid(pos) {
     });
     // Drawn card drop
     if (drawnCardDragActive && drawnCardData) {
-        const drawnCardElem = document.getElementById('drawnCardDisplay');
-        if (targetElem && drawnCardElem) {
-            animateSnapToGrid(drawnCardElem, targetElem, () => {
-                executeAction(pos, 'draw_keep');
-                hideDrawnCardArea();
-            });
-        } else {
-            executeAction(pos, 'draw_keep');
-            hideDrawnCardArea();
-        }
+        // Store position for animation AFTER the move (similar to discard logic)
+        humanDrawnCardPosition = pos;
+        humanDiscardAction = 'draw_keep';
+
+        // NO animation for drawn card->grid, but we want grid->discard animation
+        // We'll handle the animation in the backend response processing
+        executeAction(pos, 'draw_keep');
+        hideDrawnCardArea();
         return;
     }
     // Discard card drop
@@ -1042,16 +1127,16 @@ function handleDropOnGrid(pos) {
         alert('The discard card has changed. Please try again.');
         return;
     }
-    const discardCardElem = document.getElementById('discardCard');
     console.log('🎯 handleDropOnGrid: About to take discard at position', pos);
     console.log('🃏 handleDropOnGrid: Current discard top before move:', currentGameState.discard_top);
-    if (targetElem && discardCardElem) {
-        animateSnapToGrid(discardCardElem, targetElem, () => {
-            executeAction(pos, 'take_discard');
-        });
-    } else {
-        executeAction(pos, 'take_discard');
-    }
+
+    // Store position and action for animation AFTER the move
+    humanDiscardPosition = pos;
+    humanDiscardAction = 'take_discard';
+
+    // NO animation for discard->grid, but we want grid->discard animation
+    // We'll handle the animation in the backend response processing
+    executeAction(pos, 'take_discard');
 }
 
 function flipDrawnCardOnGrid(pos) {
