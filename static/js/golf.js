@@ -1969,3 +1969,17 @@ function aiJustMoved() {
 function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
+
+const discardCard = document.getElementById('discardCard');
+if (discardCard) {
+    // Fade if a drawn card is active or in flip mode
+    if (window.flipDrawnMode || drawnCardData) {
+        discardCard.classList.add('faded');
+        discardCard.onclick = null;
+        discardCard.setAttribute('tabindex', '-1');
+    } else {
+        discardCard.classList.remove('faded');
+        discardCard.onclick = takeDiscard;
+        discardCard.setAttribute('tabindex', '0');
+    }
+}
