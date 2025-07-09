@@ -269,9 +269,11 @@ class QLearningAgent:
     def get_state_key(self, player, game_state):
         from probabilities import expected_value_draw_vs_discard
 
-        # Known cards (including both public and privately visible cards)
-        known_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
-                                 if card and (player.known[i] or player.privately_visible[i])))
+        # Separate public cards (flipped, visible to all) from private cards (known only to this player)
+        public_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
+                                  if card and player.known[i]))
+        private_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
+                                   if card and player.privately_visible[i] and not player.known[i]))
 
         # Get EV analysis to inform state representation
         ev_analysis = expected_value_draw_vs_discard(game_state, player)
@@ -286,7 +288,7 @@ class QLearningAgent:
         # Round number
         round_num = game_state.round
 
-        return f"{known_cards}_{advantage_bucket}_{discard_rank}_{round_num}"
+        return f"pub_{public_cards}_priv_{private_cards}_{advantage_bucket}_{discard_rank}_{round_num}"
 
     def get_action_key(self, action):
         """Convert action to a string key"""
@@ -297,58 +299,69 @@ class QLearningAgent:
             # For take_discard and draw_deck_keep actions, use position
             return f"{action['type']}_{action['position']}"
 
-    def choose_action(self, player, game_state, trajectory=None):
-        # Get legal actions first
-        positions = [i for i, known in enumerate(player.known) if not known]
-        if not positions:
-            return None
-
+    def get_legal_actions(self, player, game_state):
+        """Get all legal actions for the current game state"""
         actions = []
 
-        # Add take discard actions
+        # Get available positions (cards that are not public/face-up)
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+
+        if not available_positions:
+            return actions
+
+        # Add take discard actions (if discard pile exists)
         if game_state.discard_pile:
-            for pos in positions:
+            for pos in available_positions:
                 actions.append({'type': 'take_discard', 'position': pos})
 
-        # Add draw deck actions
+        # Add draw deck actions (if deck exists)
         if game_state.deck:
             # Draw and keep actions
-            for pos in positions:
+            for pos in available_positions:
                 actions.append({'type': 'draw_deck', 'position': pos, 'keep': True})
 
             # Draw, discard, and flip actions
-            for flip_pos in positions:
+            for flip_pos in available_positions:
                 actions.append({'type': 'draw_deck', 'keep': False, 'flip_position': flip_pos})
 
-        if not actions:
+        return actions
+
+    def choose_action(self, player, game_state, trajectory=None):
+        # Get legal actions first
+        legal_actions = self.get_legal_actions(player, game_state)
+
+        if not legal_actions:
             return None
 
         # Epsilon-greedy policy
         if self.training_mode and random.random() < self.epsilon:
-            action = random.choice(actions)
+            action = random.choice(legal_actions)
         else:
             # Choose action with highest Q-value
             state_key = self.get_state_key(player, game_state)
             best_action = None
             best_value = float('-inf')
 
-            for action in actions:
+            for action in legal_actions:
                 action_key = self.get_action_key(action)
-                q_value = self.q_table[state_key][action_key]
+                q_value = self.q_table[state_key].get(action_key, 0.0)
                 if q_value > best_value:
                     best_value = q_value
                     best_action = action
 
-            action = best_action or random.choice(actions)
+            action = best_action or random.choice(legal_actions)
 
-        # Record action in trajectory for training
+
+
+        # Record the chosen action in the trajectory
         if trajectory is not None:
             state_key = self.get_state_key(player, game_state)
             action_key = self.get_action_key(action)
             trajectory.append({
                 'state_key': state_key,
                 'action_key': action_key,
-                'action': action
+                'action': action,
+                'round': game_state.round
             })
 
         return action

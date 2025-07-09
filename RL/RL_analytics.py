@@ -432,7 +432,7 @@ def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
 # DATA EXPORT
 # ============================================================================
 
-def save_qtable_to_csv(q_table, filename, agent, state_last_action_map=None):
+def save_qtable_to_csv(q_table, filename, agent, state_action_last_action_map=None):
     """
     Save Q-table to CSV file for external analysis
 
@@ -440,26 +440,23 @@ def save_qtable_to_csv(q_table, filename, agent, state_last_action_map=None):
         q_table: The Q-table dictionary
         filename: Output CSV filename
         agent: The QLearningAgent instance (for debug state info)
-        state_last_action_map: Optional mapping of states to last actions
+        state_action_last_action_map: Optional mapping of states to last actions
     """
     data = []
 
     for state_key, actions in q_table.items():
         for action, q_value in actions.items():
-            # Get debug information about the state
-            debug_info = agent.debug_state_key(state_key) if hasattr(agent, 'debug_state_key') else {}
-
-            # Get last action for this state
+            # Use the improved last_action map
             last_action = "Unknown"
-            if state_last_action_map and state_key in state_last_action_map:
-                last_action = state_last_action_map[state_key]
-
+            if state_action_last_action_map:
+                key = (state_key, action)
+                if key in state_action_last_action_map:
+                    last_action = state_action_last_action_map[key]
             row = {
                 'state': state_key,
                 'action': action,
                 'q_value': q_value,
-                'last_action': last_action,
-                'debug': debug_info
+                'last_action': last_action
             }
             data.append(row)
 
@@ -468,7 +465,7 @@ def save_qtable_to_csv(q_table, filename, agent, state_last_action_map=None):
 
     # Write to CSV
     with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['state', 'action', 'q_value', 'last_action', 'debug']
+        fieldnames = ['state', 'action', 'q_value', 'last_action']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         writer.writeheader()
@@ -515,6 +512,26 @@ def save_growth_data(games, states, entries, scores, filename="growth_data.csv")
     df.to_csv(filename, index=False)
     print(f"Growth data exported to {filename} ({len(games)} data points)")
     return df
+
+def save_trajectory_to_csv(trajectory, filename):
+    """
+    Save a trajectory to a CSV file.
+    This function is designed to export the full trajectory, including duplicates.
+    """
+    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['state_key', 'action_key', 'action', 'game', 'round']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for step in trajectory:
+            writer.writerow({
+                'state_key': step['state_key'],
+                'action_key': step['action_key'],
+                'action': step['action'],
+                'round': step.get('round', '?'),
+                'game': step.get('game', '?'),
+                # 'last_action': step.get('last_action', '')
+            })
+    print(f"Trajectory saved to {filename} with {len(trajectory)} steps")
 
 # ============================================================================
 # COMPREHENSIVE ANALYSIS FUNCTIONS
@@ -672,6 +689,7 @@ def main(num_games=200, verbose=True):
     from agents import RandomAgent
     random_agent = RandomAgent()
 
+    all_trajectories = []
     for game_num in range(num_games):
         # Create trajectories for training
         trajectory = []
@@ -731,9 +749,6 @@ def main(num_games=200, verbose=True):
 
             agent.train_on_trajectory(trajectory, reward, game_scores[0])
 
-            # Debug: Check Q-table after training
-            if game_num < 3:
-                print(f"    Q-table size after training: {len(agent.q_table)}")
 
         # Track data for visualization
         scores = [game_scores[0], game_scores[1]]
@@ -745,6 +760,18 @@ def main(num_games=200, verbose=True):
         # Track Q-table growth
         qtable_states.append(len(agent.q_table))
         qtable_entries.append(sum(len(actions) for actions in agent.q_table.values()))
+
+        all_trajectories.extend([
+            {
+                'state_key': step['state_key'],
+                'action_key': step['action_key'],
+                'action': step['action'],
+                'round': step.get('round', '?'),
+                'game': game_num+1,
+                'last_action': step.get('last_action', '')
+            }
+            for step in trajectory
+        ])
 
         if verbose and (game_num + 1) % 50 == 0:
             print(f"  Completed {game_num + 1} games")
@@ -766,7 +793,7 @@ def main(num_games=200, verbose=True):
     # Create score distribution visualization (easily commentable)
     # Uncomment the line below to disable score distribution visualization
     # plot_filename = None
-    plot_filename = create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games)
+    # plot_filename = create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games)
 
         # Create Q-table growth visualization
     print(f"\n📊 Creating Q-table growth visualization...")
@@ -774,9 +801,21 @@ def main(num_games=200, verbose=True):
                       [scores[0] for scores in all_scores],
                       save_filename=f"qtable_growth_{num_games}_games.png")
 
-    # Step 5: Save Q-table to CSV
+    # Step 5: Save Q-table and trajectory to CSV
     print(f"\n💾 STEP 5: Saving Q-table to CSV...")
-    save_qtable_to_csv(agent.q_table, f"qtable_trained_{num_games}_games.csv", agent, state_last_action_map)
+    # Build a (state_key, action_key) -> last_action map from the full trajectory
+    state_action_last_action_map = {}
+    for step in all_trajectories:
+        key = (step['state_key'], step['action_key'])
+        # You can use step['last_action'] if present, or construct a description
+        if 'last_action' in step and step['last_action']:
+            desc = step['last_action']
+        else:
+            # Construct a description with game/round info
+            desc = f"g_{step.get('game', '?')}_r_{step.get('round', '?')}: {step['action']}"
+        state_action_last_action_map[key] = desc
+    save_qtable_to_csv(agent.q_table, f"qtable_trained_{num_games}_games.csv", agent, state_action_last_action_map)
+    save_trajectory_to_csv(all_trajectories, f"trajectory_trained_{num_games}_games.csv")
 
     # Print all unique actions in the Q-table
     unique_actions = set()
@@ -794,11 +833,11 @@ def main(num_games=200, verbose=True):
     print(f"   • Q-learning agent won {wins[0]} games ({wins[0]/num_games*100:.1f}%)")
     print(f"   • Random agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
     print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
-    print(f"   • Visualizations saved as: {plot_filename}")
+    # print(f"   • Visualizations saved as: {plot_filename}")
     print(f"   • Q-table saved as: qtable_trained_{num_games}_games.csv")
 
     return agent, qtable_stats, state_patterns, all_scores
 
 if __name__ == "__main__":
     # Run the complete analysis
-    agent, qtable_stats, state_patterns, all_scores = main(num_games=100, verbose=True)
+    agent, qtable_stats, state_patterns, all_scores = main(num_games=1000, verbose=True)

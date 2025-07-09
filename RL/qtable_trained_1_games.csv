@@ -1,0 +1,5 @@
+state,action,q_value,last_action
+"pub_('J',)_priv_('2', '5')_-8.0_K_2",take_discard_0,0.010000000000000002,"g_1_r_2: {'type': 'take_discard', 'position': 0}"
+"pub_('J', 'K')_priv_('2', '5')_-2.0_3_3",take_discard_2,0.010000000000000002,"g_1_r_3: {'type': 'take_discard', 'position': 2}"
+"pub_('3', 'J', 'K')_priv_('5',)_6.0_3_4",take_discard_3,0.010000000000000002,"g_1_r_4: {'type': 'take_discard', 'position': 3}"
+"pub_()_priv_('2', '5')_2.0_J_1",take_discard_1,0.010000000000000002,"g_1_r_1: {'type': 'take_discard', 'position': 1}"
