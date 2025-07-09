@@ -267,24 +267,13 @@ class QLearningAgent:
         self.training_mode = True
 
     def get_state_key(self, player, game_state):
-        """Convert game state to a simplified string key for Q-table"""
-        # Simplified state representation focusing on key features
-        # Only track known cards and their scores, not specific suits
-        known_cards = []
-        for i, card in enumerate(player.grid):
-            if player.known[i] and card:
-                known_cards.append(card.rank)  # Only rank, not suit
-            else:
-                known_cards.append('?')
-
-        # Sort known cards for consistency (same state regardless of position)
-        known_cards_sorted = sorted([c for c in known_cards if c != '?'])
-        unknown_count = known_cards.count('?')
-
-        # Include discard top and round for context
+        # Only include known cards (sorted) and discard top (and round if you want)
+        known_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid) if player.known[i] and card))
         discard_top = game_state.discard_pile[-1].rank if game_state.discard_pile else 'None'
-
-        return f"{known_cards_sorted}_{unknown_count}_{discard_top}_{game_state.round}"
+        # Optionally include round if it matters for strategy
+        return f"{known_cards}_{discard_top}_{game_state.round}"
+    # Or, if you want to use a tuple for efficiency:
+    # return (known_cards, discard_top, game_state.round)
 
     def get_action_key(self, action):
         """Convert action to a string key"""
