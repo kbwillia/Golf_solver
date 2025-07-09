@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from quick_test import create_visualizations
+import csv
 
 def train_agent_directly(num_games, verbose=True):
     """Train a Q-learning agent directly and return it"""
@@ -431,25 +432,75 @@ def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
 # DATA EXPORT
 # ============================================================================
 
-def save_qtable_to_csv(q_table, filename="qtable_export.csv"):
-    """Save Q-table to CSV for external analysis"""
-    data = []
-    for state_key, actions in q_table.items():
-        for action_key, q_value in actions.items():
-            data.append({
-                'state': state_key,
-                'action': action_key,
-                'q_value': q_value
-            })
+def save_qtable_to_csv(q_table, filename, agent, state_last_action_map=None):
+    """
+    Save Q-table to CSV file for external analysis
 
-    if data:
-        df = pd.DataFrame(data)
-        df.to_csv(filename, index=False)
-        print(f"\nQ-table exported to {filename} ({len(data)} entries)")
-        return df
-    else:
-        print("\nNo Q-table data to save!")
-        return None
+    Args:
+        q_table: The Q-table dictionary
+        filename: Output CSV filename
+        agent: The QLearningAgent instance (for debug state info)
+        state_last_action_map: Optional mapping of states to last actions
+    """
+    data = []
+
+    for state_key, actions in q_table.items():
+        for action, q_value in actions.items():
+            # Get debug information about the state
+            debug_info = agent.debug_state_key(state_key) if hasattr(agent, 'debug_state_key') else {}
+
+            # Get last action for this state
+            last_action = "Unknown"
+            if state_last_action_map and state_key in state_last_action_map:
+                last_action = state_last_action_map[state_key]
+
+            row = {
+                'state': state_key,
+                'action': action,
+                'q_value': q_value,
+                'last_action': last_action,
+                'debug': debug_info
+            }
+            data.append(row)
+
+    # Sort by Q-value descending
+    data.sort(key=lambda x: x['q_value'], reverse=True)
+
+    # Write to CSV
+    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['state', 'action', 'q_value', 'last_action', 'debug']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for row in data:
+            writer.writerow(row)
+
+    print(f"Q-table saved to {filename} with {len(data)} entries")
+
+def parse_state_for_last_action(state_key):
+    """Parse state key to extract context about the game situation"""
+    try:
+        # Expected format: "('3', '6', '7')_-1.5_J_4"
+        parts = state_key.split('_')
+        if len(parts) >= 4:
+            known_cards = parts[0]     # e.g., "('3', '6', '7')"
+            draw_advantage = parts[1]  # e.g., "-1.5"
+            discard_rank = parts[2]    # e.g., "J"
+            round_num = parts[3]       # e.g., "4"
+
+            # Create a context string that gives insight into the situation
+            if float(draw_advantage) < -0.5:
+                decision_context = "Draw favored"
+            elif float(draw_advantage) > 0.5:
+                decision_context = "Discard favored"
+            else:
+                decision_context = "Close decision"
+
+            return f"R{round_num}: {decision_context}, Discard:{discard_rank}"
+        else:
+            return f"Context: {state_key[:30]}..."
+    except:
+        return f"Unknown context"
 
 def save_growth_data(games, states, entries, scores, filename="growth_data.csv"):
     """Save growth tracking data to CSV"""
@@ -487,7 +538,7 @@ def full_qtable_analysis(num_games=100, show_full_table=False):
         display_full_qtable(agent.q_table)
 
     # Save data
-    save_qtable_to_csv(agent.q_table)
+    save_qtable_to_csv(agent.q_table, "qtable_export.csv", agent)
 
     # Plot Q-value distribution
     plot_qvalue_distribution(agent.q_table)
@@ -535,7 +586,7 @@ def quick_qtable_view(num_games=50):
     analyze_qtable(agent.q_table, verbose=True)
     analyze_state_patterns(agent.q_table, verbose=True)
     # Always save Q-table to CSV
-    save_qtable_to_csv(agent.q_table, filename="qtable_export.csv")
+    save_qtable_to_csv(agent.q_table, filename="qtable_export.csv", agent=agent)
     print("Q-table saved to qtable_export.csv")
     return agent
 
@@ -611,6 +662,9 @@ def main(num_games=200, verbose=True):
     qtable_states = []
     qtable_entries = []
 
+    # Track state-to-last-action mapping for debugging
+    state_last_action_map = {}
+
     # Create the Q-learning agent
     agent = QLearningAgent()
 
@@ -625,6 +679,31 @@ def main(num_games=200, verbose=True):
         # Q-learning agent is always player 0
         game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[agent, random_agent])
         game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
+
+        # Capture last actions for each state in trajectory
+        # Since we can't get last_action reliably due to timing, construct it from the action
+        for step in trajectory:
+            state_key = step['state_key']
+            action = step['action']
+
+            # Extract round from state key (format: "('3', '6', '7')_-1.5_J_4" where 4 is the round)
+            try:
+                round_num = state_key.split('_')[-1] if '_' in state_key else '?'
+            except:
+                round_num = '?'
+
+            # Construct action description with game and round info
+            if action['type'] == 'take_discard':
+                action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent took from discard and placed at position {action['position']+1}"
+            elif action['type'] == 'draw_deck':
+                if action.get('keep', True):
+                    action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent drew from deck and kept at position {action['position']+1}"
+                else:
+                    action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent drew from deck, discarded it, and flipped position {action['flip_position']+1}"
+            else:
+                action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent: {action}"
+
+            state_last_action_map[state_key] = action_desc
 
         # Debug: Check if trajectory was populated
         if game_num < 3 and trajectory:  # Only print for first few games
@@ -697,7 +776,7 @@ def main(num_games=200, verbose=True):
 
     # Step 5: Save Q-table to CSV
     print(f"\n💾 STEP 5: Saving Q-table to CSV...")
-    save_qtable_to_csv(agent.q_table, f"qtable_trained_{num_games}_games.csv")
+    save_qtable_to_csv(agent.q_table, f"qtable_trained_{num_games}_games.csv", agent, state_last_action_map)
 
     # Print all unique actions in the Q-table
     unique_actions = set()
@@ -712,9 +791,9 @@ def main(num_games=200, verbose=True):
     print(f"\n🎉 ANALYSIS COMPLETE!")
     print(f"   • Trained for {num_games} games")
     print(f"   • Q-table has {len(agent.q_table)} states")
-    print(f"   • Q-learning agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
-    print(f"   • Random agent won {wins[0]} games ({wins[0]/num_games*100:.1f}%)")
-    print(f"   • Average scores: Q-learning={avg_scores[1]:.2f}, Random={avg_scores[0]:.2f}")
+    print(f"   • Q-learning agent won {wins[0]} games ({wins[0]/num_games*100:.1f}%)")
+    print(f"   • Random agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
+    print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
     print(f"   • Visualizations saved as: {plot_filename}")
     print(f"   • Q-table saved as: qtable_trained_{num_games}_games.csv")
 

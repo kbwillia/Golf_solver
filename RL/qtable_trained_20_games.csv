@@ -1,0 +1,473 @@
+state,action,q_value,last_action,debug
+"('3', '3', '6', '8')_-0.5_5_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('2', 'J', 'J', 'Q')_-1.0_2_4",draw_deck_3,1.01,Q-learning agent drew from deck and kept at position 4,{}
+"('2', '7', '9', '9')_-3.5_5_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('5', 'A', 'J', 'J')_-10.5_10_4",draw_deck_3,1.01,Q-learning agent drew from deck and kept at position 4,{}
+"('10', '7', '7', '8')_3.0_10_4",take_discard_2,1.01,Q-learning agent took from discard and placed at position 3,{}
+"('4', '9', 'A', 'J')_0.0_5_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('2', '2', '7', '8')_0.0_4_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('7', '8', '9', 'J')_-7.0_Q_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('5', 'J', 'J', 'K')_9.5_K_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('3', '9', 'A', 'A')_-8.0_10_4",draw_deck_flip_3,1.01,"Q-learning agent drew from deck, discarded it, and flipped position 4",{}
+"('5', '5', '6', 'Q')_-3.0_8_4",take_discard_2,1.01,Q-learning agent took from discard and placed at position 3,{}
+"('3', '3', '4', 'Q')_9.5_4_4",take_discard_3,1.01,Q-learning agent took from discard and placed at position 4,{}
+"('6', '8')_-1.0_3_2",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('3', '6', '8')_6.0_3_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('8', 'Q')_-3.5_6_1",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9')_-8.0_Q_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9', 'Q')_1.0_J_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9')_-7.0_9_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9', '9')_0.0_9_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9', '9')_-5.5_7_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'J')_-5.0_5_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('5', '9', 'J')_-0.5_J_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('7', '9')_-10.0_10_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('10', '7', '9')_-8.5_8_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '8', '9')_-7.5_Q_3",draw_deck_3,0.010000000000000002,Q-learning agent drew from deck and kept at position 4,{}
+"('2', '4')_-5.0_7_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4', '7')_-4.0_5_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('2', '4', '7')_-8.5_Q_2",draw_deck_flip_3,0.010000000000000002,"Q-learning agent drew from deck, discarded it, and flipped position 4",{}
+"('2', 'K')_-1.0_3_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('2', '3', 'K')_-7.5_9_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', '9', 'K')_-7.5_8_3",take_discard_3,0.010000000000000002,Q-learning agent took from discard and placed at position 4,{}
+"('5', '5', 'K')_0.0_5_2",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', '5', 'K')_-0.5_4_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('5', 'K')_-1.0_4_1",draw_deck_flip_1,0.010000000000000002,"Q-learning agent drew from deck, discarded it, and flipped position 2",{}
+"('J', 'K')_-6.0_6_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('6', 'J', 'K')_-9.5_9_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('6', '9', 'J', 'K')_-3.0_2_3",take_discard_3,0.010000000000000002,Q-learning agent took from discard and placed at position 4,{}
+"('10', '9')_-4.0_4_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('10', '4', '9')_5.0_J_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9', 'J')_4.0_A_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('6', '7')_-6.0_8_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7', '8')_-1.0_2_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('2', '6', '7', '8')_5.0_2_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('3', '9')_-5.0_5_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('10', '3', '5', '9')_-9.0_K_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('3', '5', '9')_-1.5_2_2",draw_deck_1,0.010000000000000002,Q-learning agent drew from deck and kept at position 2,{}
+"('7', '8', '9')_3.0_J_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8')_4.0_J_2",draw_deck_flip_0,0.010000000000000002,"Q-learning agent drew from deck, discarded it, and flipped position 1",{}
+"('4', '7')_-2.0_5_1",draw_deck_2,0.010000000000000002,Q-learning agent drew from deck and kept at position 3,{}
+"('J', 'Q')_-10.0_K_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K', 'Q')_-5.5_5_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('5', 'J', 'K', 'Q')_-1.0_J_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'Q')_-7.5_K_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'K', 'Q')_-8.5_Q_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('8', 'K')_-1.0_6_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8', 'K')_0.5_4_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('4', '6', '8', 'K')_-3.5_7_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('3', 'A')_0.0_A_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9', 'A')_2.5_A_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('3', 'A', 'A')_-10.0_9_2",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('5', 'Q')_-5.0_6_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('5', '6', 'Q')_9.0_5_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('5', '6', 'Q')_3.0_J_2",draw_deck_flip_3,0.010000000000000002,"Q-learning agent drew from deck, discarded it, and flipped position 4",{}
+"('3', 'Q')_0.0_3_2",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('3', '3', 'Q')_-1.5_4_3",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('3', 'Q')_-4.5_7_1",draw_deck_flip_2,0.010000000000000002,"Q-learning agent drew from deck, discarded it, and flipped position 3",{}
+"('2', 'A')_-10.0_Q_1",take_discard_0,0.010000000000000002,Q-learning agent took from discard and placed at position 1,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",take_discard_2,0.010000000000000002,Q-learning agent took from discard and placed at position 3,{}
+"('2', 'A', 'Q')_-5.5_5_2",take_discard_1,0.010000000000000002,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8')_-1.0_3_2",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8')_-1.0_3_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '6', '8')_6.0_3_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '6', '8')_6.0_3_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '6', '8')_6.0_3_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '6', '8')_6.0_3_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '6', '8')_6.0_3_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', '6', '8')_-0.5_5_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('3', '3', '6', '8')_-0.5_5_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('2', '9')_-8.0_Q_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-8.0_Q_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9', 'Q')_1.0_J_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'Q')_1.0_J_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', 'J', 'Q')_1.0_J_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9')_-7.0_9_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9')_-7.0_9_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '9', '9')_0.0_9_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9')_0.0_9_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '9', '9', '9')_-5.5_7_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', '9', '9')_-5.5_7_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', '9', '9')_-5.5_7_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', '9', '9')_-5.5_7_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '9', '9', '9')_-5.5_7_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '7', '9', '9')_-3.5_5_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('2', '7', '9', '9')_-3.5_5_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('9', 'J')_-5.0_5_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'J')_-5.0_5_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '9', 'J')_-0.5_J_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J')_-0.5_J_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '9', 'J', 'J')_-1.5_A_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('7', '9')_-10.0_10_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('7', '9')_-10.0_10_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '7', '9')_-8.5_8_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '9')_-8.5_8_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '7', '7', '8')_3.0_10_4",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '7', '7', '8')_3.0_10_4",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '4')_-5.0_7_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4')_-5.0_7_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '4', '7')_-4.0_5_3",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '4', '7')_-4.0_5_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '4', '7')_-4.0_5_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '4', '7')_-4.0_5_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '4', '7')_-4.0_5_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', 'K')_-1.0_3_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'K')_-1.0_3_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '3', 'K')_-7.5_9_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '3', 'K')_-7.5_9_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '5', 'K')_0.0_5_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', 'K')_0.0_5_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '5', '5', 'K')_-0.5_4_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '5', '5', 'K')_-0.5_4_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '5', '5', 'K')_-0.5_4_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '5', '5', 'K')_-0.5_4_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '5', '5', 'K')_-0.5_4_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '5', '5', '5')_-6.5_K_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('4', '5', '5', '5')_-6.5_K_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('J', 'K')_-6.0_6_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K')_-6.0_6_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', 'J', 'K')_-9.5_9_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', 'J', 'K')_-9.5_9_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '9')_-4.0_4_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '9')_-4.0_4_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '4', '9')_5.0_J_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9')_5.0_J_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('10', '4', '9', 'J')_4.0_A_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '4', '9', 'J')_4.0_A_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '4', '9', 'J')_4.0_A_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '4', '9', 'J')_4.0_A_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '4', '9', 'J')_4.0_A_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '9', 'A', 'J')_0.0_5_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('4', '9', 'A', 'J')_0.0_5_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('6', '7')_-6.0_8_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7')_-6.0_8_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '7', '8')_-1.0_2_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '7', '8')_-1.0_2_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('2', '6', '7', '8')_5.0_2_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '6', '7', '8')_5.0_2_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '6', '7', '8')_5.0_2_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '6', '7', '8')_5.0_2_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '6', '7', '8')_5.0_2_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '2', '7', '8')_0.0_4_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('2', '2', '7', '8')_0.0_4_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('3', '9')_-5.0_5_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9')_-5.0_5_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('10', '3', '5', '9')_-9.0_K_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '3', '5', '9')_-9.0_K_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '3', '5', '9')_-9.0_K_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '3', '5', '9')_-9.0_K_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '3', '5', '9')_-9.0_K_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('10', '3', '5', 'K')_5.5_5_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('10', '3', '5', 'K')_5.5_5_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('7', '8', '9')_3.0_J_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8', '9')_3.0_J_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8', '9')_3.0_J_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8', '9')_3.0_J_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8', '9')_3.0_J_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('7', '8', '9', 'J')_-7.0_Q_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('7', '8', '9', 'J')_-7.0_Q_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('J', 'Q')_-10.0_K_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'Q')_-10.0_K_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('J', 'K', 'Q')_-5.5_5_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('J', 'K', 'Q')_-5.5_5_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', 'J', 'J', 'K')_9.5_K_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('5', 'J', 'J', 'K')_9.5_K_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('9', 'Q')_-7.5_K_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'Q')_-7.5_K_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('9', 'K', 'Q')_-8.5_Q_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q')_-8.5_Q_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('9', 'K', 'Q', 'Q')_-13.0_3_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('8', 'K')_-1.0_6_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('8', 'K')_-1.0_6_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('6', '8', 'K')_0.5_4_2",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('6', '8', 'K')_0.5_4_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('4', '6', '8', 'K')_-3.5_7_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '6', '8', 'K')_-3.5_7_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '6', '8', 'K')_-3.5_7_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '6', '8', 'K')_-3.5_7_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('4', '6', '8', 'K')_-3.5_7_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('3', 'A')_0.0_A_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'A')_0.0_A_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '9', 'A')_2.5_A_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '9', 'A')_2.5_A_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '9', 'A')_2.5_A_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '9', 'A')_2.5_A_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '9', 'A')_2.5_A_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', 'Q')_-5.0_6_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', 'Q')_-5.0_6_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('5', '6', 'Q')_9.0_5_3",take_discard_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '6', 'Q')_9.0_5_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '6', 'Q')_9.0_5_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '6', 'Q')_9.0_5_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '6', 'Q')_9.0_5_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('5', '5', '6', 'Q')_-3.0_8_4",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('5', '5', '6', 'Q')_-3.0_8_4",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('3', 'Q')_0.0_3_2",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', 'Q')_0.0_3_2",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('3', '3', 'Q')_-1.5_4_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', 'Q')_-1.5_4_3",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', 'Q')_-1.5_4_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', 'Q')_-1.5_4_3",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', 'Q')_-1.5_4_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 2,{}
+"('3', '3', '4', 'Q')_9.5_4_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('3', '3', '4', 'Q')_9.5_4_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('2', 'A')_-10.0_Q_1",take_discard_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",take_discard_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",take_discard_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_flip_0,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_flip_1,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', 'A')_-10.0_Q_1",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 1,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",take_discard_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",draw_deck_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",draw_deck_flip_2,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '5', 'A', 'Q')_0.0_J_3",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 3,{}
+"('2', '5', 'J', 'Q')_-0.5_A_4",draw_deck_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('2', '5', 'J', 'Q')_-0.5_A_4",draw_deck_flip_3,0.0,Q-learning agent took from discard and placed at position 4,{}
+"('4', '5', '5', '5')_-6.5_K_4",take_discard_3,-0.19,Q-learning agent took from discard and placed at position 4,{}
+"('2', '4', '5', '7')_5.0_4_4",draw_deck_2,-0.49000000000000005,Q-learning agent drew from deck and kept at position 3,{}
+"('2', '3', '8', '9')_-6.0_6_4",draw_deck_2,-0.49000000000000005,Q-learning agent drew from deck and kept at position 3,{}
+"('2', '6', '9', 'J')_-9.0_8_4",draw_deck_2,-0.49000000000000005,Q-learning agent drew from deck and kept at position 3,{}
+"('10', '3', '5', 'K')_5.5_5_4",take_discard_3,-0.49000000000000005,Q-learning agent took from discard and placed at position 4,{}
+"('3', '9', 'K', 'Q')_13.0_Q_4",draw_deck_3,-0.49000000000000005,Q-learning agent drew from deck and kept at position 4,{}
+"('4', '6', '7', '8')_-7.5_K_4",draw_deck_flip_3,-0.49000000000000005,"Q-learning agent drew from deck, discarded it, and flipped position 4",{}
+"('2', '5', 'J', 'Q')_-0.5_A_4",take_discard_3,-0.49000000000000005,Q-learning agent took from discard and placed at position 4,{}

@@ -267,17 +267,35 @@ class QLearningAgent:
         self.training_mode = True
 
     def get_state_key(self, player, game_state):
-        # Only include known cards (sorted) and discard top (and round if you want)
-        known_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid) if player.known[i] and card))
-        discard_top = game_state.discard_pile[-1].rank if game_state.discard_pile else 'None'
-        # Optionally include round if it matters for strategy
-        return f"{known_cards}_{discard_top}_{game_state.round}"
-    # Or, if you want to use a tuple for efficiency:
-    # return (known_cards, discard_top, game_state.round)
+        from probabilities import expected_value_draw_vs_discard
+
+        # Known cards (including both public and privately visible cards)
+        known_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
+                                 if card and (player.known[i] or player.privately_visible[i])))
+
+        # Get EV analysis to inform state representation
+        ev_analysis = expected_value_draw_vs_discard(game_state, player)
+
+        # Use draw advantage (key decision factor) - bucket to reduce state space
+        draw_advantage = ev_analysis.get('draw_advantage', 0)
+        advantage_bucket = round(draw_advantage * 2) / 2  # Round to nearest 0.5
+
+        # Discard card rank (since score isn't useful for Jacks)
+        discard_rank = game_state.discard_pile[-1].rank if game_state.discard_pile else 'None'
+
+        # Round number
+        round_num = game_state.round
+
+        return f"{known_cards}_{advantage_bucket}_{discard_rank}_{round_num}"
 
     def get_action_key(self, action):
         """Convert action to a string key"""
-        return f"{action['type']}_{action['position']}"
+        if action['type'] == 'draw_deck' and not action.get('keep', True):
+            # For draw-discard-flip actions, use flip_position
+            return f"{action['type']}_flip_{action['flip_position']}"
+        else:
+            # For take_discard and draw_deck_keep actions, use position
+            return f"{action['type']}_{action['position']}"
 
     def choose_action(self, player, game_state, trajectory=None):
         # Get legal actions first
@@ -286,12 +304,21 @@ class QLearningAgent:
             return None
 
         actions = []
+
+        # Add take discard actions
         if game_state.discard_pile:
             for pos in positions:
                 actions.append({'type': 'take_discard', 'position': pos})
+
+        # Add draw deck actions
         if game_state.deck:
+            # Draw and keep actions
             for pos in positions:
                 actions.append({'type': 'draw_deck', 'position': pos, 'keep': True})
+
+            # Draw, discard, and flip actions
+            for flip_pos in positions:
+                actions.append({'type': 'draw_deck', 'keep': False, 'flip_position': flip_pos})
 
         if not actions:
             return None
