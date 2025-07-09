@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents import QLearningAgent
+from agents import QLearningAgent, EVAgent
 from game import GolfGame
 import pandas as pd
 import numpy as np
@@ -39,7 +39,7 @@ def train_agent_directly(num_games, verbose=True):
         trajectory = []
 
         # Create and play game
-        game = GolfGame(num_players=2, agent_types=['random', 'qlearning'], q_agents=[None, agent])
+        game = GolfGame(num_players=2, agent_types=['qlearning', 'ev_ai'], q_agents=[None, agent])
         game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
 
         # Train the agent
@@ -230,61 +230,61 @@ def analyze_state_patterns(q_table, verbose=True):
 # Q-TABLE GROWTH TRACKING
 # ============================================================================
 
-def track_qtable_growth(num_games=500, checkpoint_interval=25, verbose=True):
-    """Track Q-table growth during training"""
-    if verbose:
-        print(f"Tracking Q-table growth over {num_games} games...")
+# def track_qtable_growth(num_games=250, checkpoint_interval=25, verbose=True):
+#     """Track Q-table growth during training"""
+#     if verbose:
+#         print(f"Tracking Q-table growth over {num_games} games...")
 
-    agent = QLearningAgent()
+#     agent = QLearningAgent()
 
-    # Track growth
-    game_checkpoints = []
-    state_counts = []
-    entry_counts = []
-    scores = []
+#     # Track growth
+#     game_checkpoints = []
+#     state_counts = []
+#     entry_counts = []
+#     scores = []
 
-    for game_num in range(num_games):
-        # Create trajectories for training
-        trajectory = []
+#     for game_num in range(num_games):
+#         # Create trajectories for training
+#         trajectory = []
 
-        # Create and play game
-        game = GolfGame(num_players=2, agent_types=['random', 'qlearning'], q_agents=[None, agent])
-        game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
+#         # Create and play game
+#         game = GolfGame(num_players=2, agent_types=['ev_ai', 'qlearning'], q_agents=[None, agent])
+#         game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
 
-        # Train the agent
-        winner_idx = game_scores.index(min(game_scores))
-        if trajectory:
-            # Calculate reward
-            if winner_idx == 1:  # Q-learning agent won
-                reward = 10.0
-            else:
-                # Reward based on score
-                if game_scores[1] <= 5:
-                    reward = 2.0
-                elif game_scores[1] <= 10:
-                    reward = 0.0
-                elif game_scores[1] <= 15:
-                    reward = -2.0
-                else:
-                    reward = -5.0
+#         # Train the agent
+#         winner_idx = game_scores.index(min(game_scores))
+#         if trajectory:
+#             # Calculate reward
+#             if winner_idx == 1:  # Q-learning agent won
+#                 reward = 10.0
+#             else:
+#                 # Reward based on score
+#                 if game_scores[1] <= 5:
+#                     reward = 2.0
+#                 elif game_scores[1] <= 10:
+#                     reward = 0.0
+#                 elif game_scores[1] <= 15:
+#                     reward = -2.0
+#                 else:
+#                     reward = -5.0
 
-            agent.train_on_trajectory(trajectory, reward, game_scores[1])
+#             agent.train_on_trajectory(trajectory, reward, game_scores[1])
 
-        # Track at checkpoints
-        if (game_num + 1) % checkpoint_interval == 0:
-            states = len(agent.q_table)
-            entries = sum(len(actions) for actions in agent.q_table.values())
-            score = game_scores[1]
+#         # Track at checkpoints
+#         if (game_num + 1) % checkpoint_interval == 0:
+#             states = len(agent.q_table)
+#             entries = sum(len(actions) for actions in agent.q_table.values())
+#             score = game_scores[1]
 
-            game_checkpoints.append(game_num + 1)
-            state_counts.append(states)
-            entry_counts.append(entries)
-            scores.append(score)
+#             game_checkpoints.append(game_num + 1)
+#             state_counts.append(states)
+#             entry_counts.append(entries)
+#             scores.append(score)
 
-            if verbose:
-                print(f"Game {game_num+1:3d}: {states:3d} states, {entries:4d} entries, score: {score:5.1f}")
+#             if verbose:
+#                 print(f"Game {game_num+1:3d}: {states:3d} states, {entries:4d} entries, score: {score:5.1f}")
 
-    return agent, game_checkpoints, state_counts, entry_counts, scores
+#     return agent, game_checkpoints, state_counts, entry_counts, scores
 
 def analyze_growth_patterns(games, states, entries, scores=None):
     """Analyze Q-table growth patterns"""
@@ -544,153 +544,7 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
 
     return agent, growth_stats, qtable_stats
 
-def calculate_theoretical_state_space():
-    """
-    Calculate the theoretical number of states and state-action pairs for the Golf game.
 
-    Returns:
-        dict: Dictionary containing theoretical counts and breakdown
-    """
-    print("="*70)
-    print("THEORETICAL STATE SPACE CALCULATION")
-    print("="*70)
-
-    # Game parameters
-    num_positions = 4  # 2x2 grid
-    num_cards = 52     # Standard deck
-    num_rounds = 4     # 4 rounds per game
-
-    # State components:
-    # 1. Public cards (flipped cards) - 0 to 4 cards
-    # 2. Private cards (known but not flipped) - 0 to 4 cards
-    # 3. Discard top card - 1 card (or None if no discard pile)
-    # 4. Round number - 1 to 4
-    # 5. Draw advantage (EV) - continuous value, but we'll discretize
-
-    print("State Space Components:")
-    print(f"  • Grid positions: {num_positions}")
-    print(f"  • Total cards in deck: {num_cards}")
-    print(f"  • Rounds per game: {num_rounds}")
-
-    # Calculate state space size
-    total_states = 0
-
-    # For each possible number of public cards (0 to 4)
-    for num_public in range(5):  # 0, 1, 2, 3, 4
-        num_private = num_positions - num_public
-
-        # Number of ways to choose public cards from 52 cards
-        if num_public == 0:
-            public_combinations = 1
-        else:
-            # C(52, num_public) * num_public! (order matters for positions)
-            public_combinations = 1
-            for i in range(num_public):
-                public_combinations *= (52 - i)
-
-        # Number of ways to choose private cards from remaining cards
-        if num_private == 0:
-            private_combinations = 1
-        else:
-            remaining_cards = 52 - num_public
-            private_combinations = 1
-            for i in range(num_private):
-                private_combinations *= (remaining_cards - i)
-
-        # Discard top card possibilities
-        # If no discard pile, it's None
-        # If discard pile exists, it's one of the remaining cards
-        discard_possibilities = 1  # None
-        if num_public + num_private < 52:  # Some cards still in deck
-            discard_possibilities += (52 - num_public - num_private)
-
-        # Round possibilities (1 to 4)
-        round_possibilities = num_rounds
-
-        # Draw advantage discretization
-        # We'll assume a reasonable discretization (e.g., -10 to +10 in 0.5 steps)
-        ev_possibilities = 41  # -10, -9.5, -9, ..., 9.5, 10
-
-        # Total states for this public/private combination
-        states_for_combination = (public_combinations *
-                                private_combinations *
-                                discard_possibilities *
-                                round_possibilities *
-                                ev_possibilities)
-
-        total_states += states_for_combination
-
-        print(f"  • {num_public} public, {num_private} private: {states_for_combination:,} states")
-
-    print(f"\nTotal theoretical states: {total_states:,}")
-
-    # Action space calculation
-    # For each state, possible actions depend on:
-    # 1. Number of available positions (unflipped cards)
-    # 2. Whether discard pile exists
-    # 3. Whether deck has cards
-
-    print(f"\nAction Space Analysis:")
-
-    # Calculate average actions per state
-    total_actions = 0
-    state_count = 0
-
-    for num_public in range(5):
-        num_private = num_positions - num_public
-        available_positions = num_private
-
-        # Actions per available position:
-        # - take_discard (if discard pile exists)
-        # - draw_deck_keep (if deck has cards)
-        # - draw_deck_discard_flip (if deck has cards and there are other positions to flip)
-
-        actions_per_position = 0
-        if available_positions > 0:
-            # Always can draw from deck if it has cards
-            actions_per_position += 2  # draw_keep + draw_discard_flip
-            # Can take from discard if discard pile exists
-            actions_per_position += 1  # take_discard
-
-        total_actions_for_combination = available_positions * actions_per_position
-
-        # Estimate number of states with this combination
-        # (This is a rough estimate - actual number depends on card combinations)
-        estimated_states = total_states // 5  # Rough estimate
-
-        total_actions += total_actions_for_combination * estimated_states
-        state_count += estimated_states
-
-        print(f"  • {num_public} public cards: {available_positions} positions, {actions_per_position} actions/position")
-
-    avg_actions_per_state = total_actions / state_count if state_count > 0 else 0
-    total_state_action_pairs = total_states * avg_actions_per_state
-
-    print(f"\nAverage actions per state: {avg_actions_per_state:.1f}")
-    print(f"Total theoretical state-action pairs: {total_state_action_pairs:,.0f}")
-
-    # Practical considerations
-    print(f"\nPractical Considerations:")
-    print(f"  • Many states are unreachable due to game rules")
-    print(f"  • Card combinations are constrained by deck composition")
-    print(f"  • Some state transitions are impossible")
-    print(f"  • Actual reachable states likely much smaller")
-
-    # Estimate reachable states (rough guess: 1-5% of theoretical)
-    estimated_reachable_states = total_states * 0.02  # 2% estimate
-    estimated_reachable_pairs = total_state_action_pairs * 0.02
-
-    print(f"\nEstimated reachable states: {estimated_reachable_states:,.0f}")
-    print(f"Estimated reachable state-action pairs: {estimated_reachable_pairs:,.0f}")
-
-    return {
-        'total_theoretical_states': total_states,
-        'total_theoretical_pairs': total_state_action_pairs,
-        'avg_actions_per_state': avg_actions_per_state,
-        'estimated_reachable_states': estimated_reachable_states,
-        'estimated_reachable_pairs': estimated_reachable_pairs,
-        'state_space_utilization': 0.02  # Estimated percentage
-    }
 
 # ============================================================================
 # MAIN EXECUTION FUNCTIONS
@@ -709,53 +563,53 @@ def quick_qtable_view(num_games=50):
     print("Q-table saved to output/qtable_export.csv")
     return agent
 
-def quick_growth_view(num_games=100, checkpoint_interval=10):
-    """Quick growth viewer for testing"""
-    print("QUICK GROWTH VIEWER")
-    print("="*50)
+# def quick_growth_view(num_games=100, checkpoint_interval=10):
+#     """Quick growth viewer for testing"""
+#     print("QUICK GROWTH VIEWER")
+#     print("="*50)
 
-    agent_types = ["qlearning", "random"]
-    all_scores = []
-    wins = [0, 0]
-    game_numbers = []
+#     agent_types = ["qlearning", "random"]
+#     all_scores = []
+#     wins = [0, 0]
+#     game_numbers = []
 
-    for game_num in range(num_games):
-        # Create trajectories for training
-        trajectory = []
+#     for game_num in range(num_games):
+#         # Create trajectories for training
+#         trajectory = []
 
-        # Create and play game
-        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[None, agent])
-        game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
+#         # Create and play game
+#         game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[None, agent])
+#         game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
 
-        # Train the agent
-        winner_idx = game_scores.index(min(game_scores))
-        if trajectory:
-            # Calculate reward
-            if winner_idx == 1:  # Q-learning agent won
-                reward = 10.0
-            else:
-                # Reward based on score
-                if game_scores[1] <= 5:
-                    reward = 2.0
-                elif game_scores[1] <= 10:
-                    reward = 0.0
-                elif game_scores[1] <= 15:
-                    reward = -2.0
-                else:
-                    reward = -5.0
+#         # Train the agent
+#         winner_idx = game_scores.index(min(game_scores))
+#         if trajectory:
+#             # Calculate reward
+#             if winner_idx == 1:  # Q-learning agent won
+#                 reward = 10.0
+#             else:
+#                 # Reward based on score
+#                 if game_scores[1] <= 5:
+#                     reward = 2.0
+#                 elif game_scores[1] <= 10:
+#                     reward = 0.0
+#                 elif game_scores[1] <= 15:
+#                     reward = -2.0
+#                 else:
+#                     reward = -5.0
 
-            agent.train_on_trajectory(trajectory, reward, game_scores[1])
+#             agent.train_on_trajectory(trajectory, reward, game_scores[1])
 
-        scores = [game_scores[0], game_scores[1]]
-        all_scores.append(scores)
-        game_numbers.append(game_num + 1)
-        winner_idx = scores.index(min(scores))
-        wins[winner_idx] += 1
+#         scores = [game_scores[0], game_scores[1]]
+#         all_scores.append(scores)
+#         game_numbers.append(game_num + 1)
+#         winner_idx = scores.index(min(scores))
+#         wins[winner_idx] += 1
 
-    avg_scores = [sum([scores[i] for scores in all_scores]) / num_games for i in range(len(agent_types))]
-    # create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games) # This line was removed
+#     avg_scores = [sum([scores[i] for scores in all_scores]) / num_games for i in range(len(agent_types))]
+#     # create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games) # This line was removed
 
-    return agent, games, states, entries, scores
+#     return agent, games, states, entries, scores
 
 def main(num_games=200, verbose=True):
     """
@@ -787,17 +641,16 @@ def main(num_games=200, verbose=True):
     # Create the Q-learning agent
     agent = QLearningAgent()
 
-    # Import RandomAgent for the opponent
-    from agents import RandomAgent
-    random_agent = RandomAgent()
+    # Import EVAgent for the opponent
+    opponent_agent = EVAgent()
 
     all_trajectories = []
     for game_num in range(num_games):
         # Create trajectories for training
         trajectory = []
 
-        # Q-learning agent is always player 0
-        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[agent, random_agent])
+        # Q-learning agent is always player 0, EVAgent is player 1
+        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[agent, opponent_agent])
         game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
 
         # Capture last actions for each state in trajectory
@@ -956,17 +809,19 @@ def main(num_games=200, verbose=True):
     print(f"   • Trained for {num_games} games")
     print(f"   • Q-table has {len(agent.q_table)} states")
     # Calculate and print theoretical state space
-    theoretical_stats = calculate_theoretical_state_space()
-    total_theoretical_states = theoretical_stats['total_theoretical_states']
-    print(f"   • Total theoretical states: {total_theoretical_states:,}")
-    print(f"   • Q-learning agent won {wins[0]} games ({wins[0]/num_games*100:.1f}%)")
-    print(f"   • Random agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
+    # theoretical_stats = calculate_theoretical_state_space()
+    # total_theoretical_states = theoretical_stats['total_theoretical_states']
+
     print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
     # print(f"   • Visualizations saved as: {plot_filename}")
     print(f"   • Q-table saved as: output/qtable_trained_{num_games}_games.csv")
+
+    # After training, plot learning curves
+    from RL.RL_viz import plot_learning_curves
+    plot_learning_curves(game_numbers, all_scores, agent_types, save_filename=get_output_path(f"learning_curves_{num_games}_games.png"))
 
     return agent, qtable_stats, state_patterns, all_scores
 
 if __name__ == "__main__":
     # Run the complete analysis
-    agent, qtable_stats, state_patterns, all_scores = main(num_games=1000, verbose=True)
+    agent, qtable_stats, state_patterns, all_scores = main(num_games=500, verbose=True)

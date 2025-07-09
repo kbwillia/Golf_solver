@@ -292,3 +292,34 @@ def plot_action_type_tracking(trajectory, round_info=False, save_filename="actio
     plt.show()
 
     return action_counts
+
+def plot_learning_curves(game_numbers, all_scores, agent_types, save_filename="learning_curves.png"):
+    """
+    Plot learning curves (average score per agent over time).
+    Args:
+        game_numbers: list of game numbers
+        all_scores: list of [score_agent0, score_agent1] per game
+        agent_types: list of agent type names (e.g., ["qlearning", "evagent"])
+        save_filename: output filename
+    """
+    import numpy as np
+    output_path = get_output_path(save_filename)
+    scores = np.array(all_scores)
+    plt.figure(figsize=(10, 6))
+    for i, agent_name in enumerate(agent_types):
+        # Moving average for smoother curve
+        window = min(50, len(scores))
+        if window > 1:
+            moving_avg = np.convolve(scores[:, i], np.ones(window)/window, mode='valid')
+            x = game_numbers[window-1:]
+            plt.plot(x, moving_avg, label=f"{agent_name} (moving avg)")
+        plt.plot(game_numbers, scores[:, i], alpha=0.2, label=f"{agent_name} (raw)")
+    plt.xlabel("Game Number")
+    plt.ylabel("Score")
+    plt.title("Learning Curves: Average Score Over Time")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Learning curves plot saved to {output_path}")
+    plt.show()

@@ -259,7 +259,7 @@ class HeuristicAgent:
 
 class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
-    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2, n_bootstrap_games=500):
+    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2, n_bootstrap_games=250):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
@@ -340,9 +340,25 @@ class QLearningAgent:
             if action not in legal_actions:
                 action = random.choice(legal_actions)
         else:
-            # Standard epsilon-greedy Q-learning
+            # Custom epsilon-greedy: 1/3 take_discard, 1/3 draw_deck_keep, 1/3 draw_deck_discard_flip
             if self.training_mode and random.random() < self.epsilon:
-                action = random.choice(legal_actions)
+                # Group legal actions by type
+                type_groups = {
+                    'take_discard': [],
+                    'draw_deck_keep': [],
+                    'draw_deck_discard_flip': []
+                }
+                for a in legal_actions:
+                    if a['type'] == 'take_discard':
+                        type_groups['take_discard'].append(a)
+                    elif a['type'] == 'draw_deck' and a.get('keep', True):
+                        type_groups['draw_deck_keep'].append(a)
+                    elif a['type'] == 'draw_deck' and not a.get('keep', True):
+                        type_groups['draw_deck_discard_flip'].append(a)
+                # Pick a type at random (only among those with available actions)
+                available_types = [k for k, v in type_groups.items() if v]
+                chosen_type = random.choice(available_types)
+                action = random.choice(type_groups[chosen_type])
             else:
                 state_key = self.get_state_key(player, game_state)
                 best_action = None
