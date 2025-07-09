@@ -14,9 +14,18 @@ from agents import QLearningAgent
 from game import GolfGame
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from quick_test import create_visualizations
 import csv
+from RL.RL_viz import plot_qtable_state_and_entry_growth, plot_qvalue_distribution, plot_action_type_tracking
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
+# Create output directory if it doesn't exist
+output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
+os.makedirs(output_dir, exist_ok=True)
+
+def get_output_path(filename):
+    """Helper function to get full path for output files"""
+    return os.path.join(output_dir, filename)
 
 def train_agent_directly(num_games, verbose=True):
     """Train a Q-learning agent directly and return it"""
@@ -346,54 +355,6 @@ def analyze_growth_patterns(games, states, entries, scores=None):
 # PLOTTING AND VISUALIZATION
 # ============================================================================
 
-def plot_qtable_growth(games, states, entries, scores, save_filename="qtable_growth.png"):
-    """Plot Q-table growth charts"""
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
-
-    # Plot 1: States over time
-    ax1.plot(games, states, 'b-', linewidth=2, marker='o', markersize=4)
-    ax1.set_xlabel('Games Played')
-    ax1.set_ylabel('Number of States')
-    ax1.set_title('Q-table State Count Growth')
-    ax1.grid(True, alpha=0.3)
-
-    # Plot 2: Entries over time
-    ax2.plot(games, entries, 'g-', linewidth=2, marker='s', markersize=4)
-    ax2.set_xlabel('Games Played')
-    ax2.set_ylabel('Number of State-Action Pairs')
-    ax2.set_title('Q-table Entry Count(SA Pairs) Growth')
-    ax2.grid(True, alpha=0.3)
-
-    # Plot 3: Performance over time (moving average)
-    if len(scores) > 5:
-        # Calculate moving average
-        window = min(5, len(scores))
-        moving_avg = np.convolve(scores, np.ones(window)/window, mode='valid')
-        games_avg = games[window-1:]
-        ax3.plot(games, scores, 'r-', alpha=0.3, label='Individual')
-        ax3.plot(games_avg, moving_avg, 'r-', linewidth=2, label='Moving Avg')
-        ax3.legend()
-    else:
-        ax3.plot(games, scores, 'r-', linewidth=2, marker='^', markersize=4)
-
-    ax3.set_xlabel('Games Played')
-    ax3.set_ylabel('Score')
-    ax3.set_title('Performance Over Time')
-    ax3.grid(True, alpha=0.3)
-    ax3.invert_yaxis()  # Lower scores are better
-
-    # Plot 4: Actions per state
-    actions_per_state = [e/s if s > 0 else 0 for e, s in zip(entries, states)]
-    ax4.plot(games, actions_per_state, 'm-', linewidth=2, marker='d', markersize=4)
-    ax4.set_xlabel('Games Played')
-    ax4.set_ylabel('Actions per State')
-    ax4.set_title('Q-table Density')
-    ax4.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(save_filename, dpi=300, bbox_inches='tight')
-    print(f"\nPlots saved to {save_filename}")
-    plt.show()
 
 def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
     """Plot Q-value distribution"""
@@ -464,7 +425,8 @@ def save_qtable_to_csv(q_table, filename, agent, state_action_last_action_map=No
     data.sort(key=lambda x: x['q_value'], reverse=True)
 
     # Write to CSV
-    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+    output_path = get_output_path(filename)
+    with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['state', 'action', 'q_value', 'last_action']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
@@ -472,7 +434,7 @@ def save_qtable_to_csv(q_table, filename, agent, state_action_last_action_map=No
         for row in data:
             writer.writerow(row)
 
-    print(f"Q-table saved to {filename} with {len(data)} entries")
+    print(f"Q-table saved to {output_path} with {len(data)} entries")
 
 def parse_state_for_last_action(state_key):
     """Parse state key to extract context about the game situation"""
@@ -509,8 +471,9 @@ def save_growth_data(games, states, entries, scores, filename="growth_data.csv")
     }
 
     df = pd.DataFrame(data)
-    df.to_csv(filename, index=False)
-    print(f"Growth data exported to {filename} ({len(games)} data points)")
+    output_path = get_output_path(filename)
+    df.to_csv(output_path, index=False)
+    print(f"Growth data exported to {output_path} ({len(games)} data points)")
     return df
 
 def save_trajectory_to_csv(trajectory, filename):
@@ -518,7 +481,8 @@ def save_trajectory_to_csv(trajectory, filename):
     Save a trajectory to a CSV file.
     This function is designed to export the full trajectory, including duplicates.
     """
-    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+    output_path = get_output_path(filename)
+    with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['state_key', 'action_key', 'action', 'game', 'round']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -531,7 +495,7 @@ def save_trajectory_to_csv(trajectory, filename):
                 'game': step.get('game', '?'),
                 # 'last_action': step.get('last_action', '')
             })
-    print(f"Trajectory saved to {filename} with {len(trajectory)} steps")
+    print(f"Trajectory saved to {output_path} with {len(trajectory)} steps")
 
 # ============================================================================
 # COMPREHENSIVE ANALYSIS FUNCTIONS
@@ -577,7 +541,7 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
     growth_stats = analyze_growth_patterns(games, states, entries, scores)
 
     # Plot growth
-    plot_qtable_growth(games, states, entries, scores)
+    # plot_qtable_growth(games, states, entries, scores) # This line was removed
 
     # Save data
     save_growth_data(games, states, entries, scores)
@@ -589,6 +553,154 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
     qtable_stats = analyze_qtable(agent.q_table, verbose=True)
 
     return agent, growth_stats, qtable_stats
+
+def calculate_theoretical_state_space():
+    """
+    Calculate the theoretical number of states and state-action pairs for the Golf game.
+
+    Returns:
+        dict: Dictionary containing theoretical counts and breakdown
+    """
+    print("="*70)
+    print("THEORETICAL STATE SPACE CALCULATION")
+    print("="*70)
+
+    # Game parameters
+    num_positions = 4  # 2x2 grid
+    num_cards = 52     # Standard deck
+    num_rounds = 4     # 4 rounds per game
+
+    # State components:
+    # 1. Public cards (flipped cards) - 0 to 4 cards
+    # 2. Private cards (known but not flipped) - 0 to 4 cards
+    # 3. Discard top card - 1 card (or None if no discard pile)
+    # 4. Round number - 1 to 4
+    # 5. Draw advantage (EV) - continuous value, but we'll discretize
+
+    print("State Space Components:")
+    print(f"  • Grid positions: {num_positions}")
+    print(f"  • Total cards in deck: {num_cards}")
+    print(f"  • Rounds per game: {num_rounds}")
+
+    # Calculate state space size
+    total_states = 0
+
+    # For each possible number of public cards (0 to 4)
+    for num_public in range(5):  # 0, 1, 2, 3, 4
+        num_private = num_positions - num_public
+
+        # Number of ways to choose public cards from 52 cards
+        if num_public == 0:
+            public_combinations = 1
+        else:
+            # C(52, num_public) * num_public! (order matters for positions)
+            public_combinations = 1
+            for i in range(num_public):
+                public_combinations *= (52 - i)
+
+        # Number of ways to choose private cards from remaining cards
+        if num_private == 0:
+            private_combinations = 1
+        else:
+            remaining_cards = 52 - num_public
+            private_combinations = 1
+            for i in range(num_private):
+                private_combinations *= (remaining_cards - i)
+
+        # Discard top card possibilities
+        # If no discard pile, it's None
+        # If discard pile exists, it's one of the remaining cards
+        discard_possibilities = 1  # None
+        if num_public + num_private < 52:  # Some cards still in deck
+            discard_possibilities += (52 - num_public - num_private)
+
+        # Round possibilities (1 to 4)
+        round_possibilities = num_rounds
+
+        # Draw advantage discretization
+        # We'll assume a reasonable discretization (e.g., -10 to +10 in 0.5 steps)
+        ev_possibilities = 41  # -10, -9.5, -9, ..., 9.5, 10
+
+        # Total states for this public/private combination
+        states_for_combination = (public_combinations *
+                                private_combinations *
+                                discard_possibilities *
+                                round_possibilities *
+                                ev_possibilities)
+
+        total_states += states_for_combination
+
+        print(f"  • {num_public} public, {num_private} private: {states_for_combination:,} states")
+
+    print(f"\nTotal theoretical states: {total_states:,}")
+
+    # Action space calculation
+    # For each state, possible actions depend on:
+    # 1. Number of available positions (unflipped cards)
+    # 2. Whether discard pile exists
+    # 3. Whether deck has cards
+
+    print(f"\nAction Space Analysis:")
+
+    # Calculate average actions per state
+    total_actions = 0
+    state_count = 0
+
+    for num_public in range(5):
+        num_private = num_positions - num_public
+        available_positions = num_private
+
+        # Actions per available position:
+        # - take_discard (if discard pile exists)
+        # - draw_deck_keep (if deck has cards)
+        # - draw_deck_discard_flip (if deck has cards and there are other positions to flip)
+
+        actions_per_position = 0
+        if available_positions > 0:
+            # Always can draw from deck if it has cards
+            actions_per_position += 2  # draw_keep + draw_discard_flip
+            # Can take from discard if discard pile exists
+            actions_per_position += 1  # take_discard
+
+        total_actions_for_combination = available_positions * actions_per_position
+
+        # Estimate number of states with this combination
+        # (This is a rough estimate - actual number depends on card combinations)
+        estimated_states = total_states // 5  # Rough estimate
+
+        total_actions += total_actions_for_combination * estimated_states
+        state_count += estimated_states
+
+        print(f"  • {num_public} public cards: {available_positions} positions, {actions_per_position} actions/position")
+
+    avg_actions_per_state = total_actions / state_count if state_count > 0 else 0
+    total_state_action_pairs = total_states * avg_actions_per_state
+
+    print(f"\nAverage actions per state: {avg_actions_per_state:.1f}")
+    print(f"Total theoretical state-action pairs: {total_state_action_pairs:,.0f}")
+
+    # Practical considerations
+    print(f"\nPractical Considerations:")
+    print(f"  • Many states are unreachable due to game rules")
+    print(f"  • Card combinations are constrained by deck composition")
+    print(f"  • Some state transitions are impossible")
+    print(f"  • Actual reachable states likely much smaller")
+
+    # Estimate reachable states (rough guess: 1-5% of theoretical)
+    estimated_reachable_states = total_states * 0.02  # 2% estimate
+    estimated_reachable_pairs = total_state_action_pairs * 0.02
+
+    print(f"\nEstimated reachable states: {estimated_reachable_states:,.0f}")
+    print(f"Estimated reachable state-action pairs: {estimated_reachable_pairs:,.0f}")
+
+    return {
+        'total_theoretical_states': total_states,
+        'total_theoretical_pairs': total_state_action_pairs,
+        'avg_actions_per_state': avg_actions_per_state,
+        'estimated_reachable_states': estimated_reachable_states,
+        'estimated_reachable_pairs': estimated_reachable_pairs,
+        'state_space_utilization': 0.02  # Estimated percentage
+    }
 
 # ============================================================================
 # MAIN EXECUTION FUNCTIONS
@@ -604,7 +716,7 @@ def quick_qtable_view(num_games=50):
     analyze_state_patterns(agent.q_table, verbose=True)
     # Always save Q-table to CSV
     save_qtable_to_csv(agent.q_table, filename="qtable_export.csv", agent=agent)
-    print("Q-table saved to qtable_export.csv")
+    print("Q-table saved to output/qtable_export.csv")
     return agent
 
 def quick_growth_view(num_games=100, checkpoint_interval=10):
@@ -651,7 +763,7 @@ def quick_growth_view(num_games=100, checkpoint_interval=10):
         wins[winner_idx] += 1
 
     avg_scores = [sum([scores[i] for scores in all_scores]) / num_games for i in range(len(agent_types))]
-    create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games)
+    # create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games) # This line was removed
 
     return agent, games, states, entries, scores
 
@@ -797,9 +909,31 @@ def main(num_games=200, verbose=True):
 
         # Create Q-table growth visualization
     print(f"\n📊 Creating Q-table growth visualization...")
-    plot_qtable_growth(game_numbers, qtable_states, qtable_entries,
-                      [scores[0] for scores in all_scores],
-                      save_filename=f"qtable_growth_{num_games}_games.png")
+    state_entry_growth_path = get_output_path(f"qtable_state_entry_growth_{num_games}_games.png")
+    plot_qtable_state_and_entry_growth(game_numbers, qtable_states, qtable_entries,
+                      save_filename=state_entry_growth_path)
+
+    # Create action type tracking visualization (with round_info=True)
+    print(f"\n📊 Creating action type tracking visualization...")
+    action_type_tracking_path = get_output_path(f"action_type_tracking_{num_games}_games.png")
+    plot_action_type_tracking(all_trajectories, round_info=True, save_filename=action_type_tracking_path)
+
+    # Combine both PNGs into a single figure (side by side)
+    print(f"\n📊 Combining growth and action type tracking plots...")
+    combined_path = get_output_path(f"combined_growth_actiontype_{num_games}_games.png")
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
+    img1 = mpimg.imread(state_entry_growth_path)
+    img2 = mpimg.imread(action_type_tracking_path)
+    axes[0].imshow(img1)
+    axes[0].axis('off')
+    axes[0].set_title('Q-table State & Entry Growth')
+    axes[1].imshow(img2)
+    axes[1].axis('off')
+    axes[1].set_title('Action Type Tracking (by Round)')
+    plt.tight_layout()
+    plt.savefig(combined_path, dpi=300, bbox_inches='tight')
+    print(f"Combined plot saved to {combined_path}")
+    plt.close(fig)
 
     # Step 5: Save Q-table and trajectory to CSV
     print(f"\n💾 STEP 5: Saving Q-table to CSV...")
@@ -818,13 +952,13 @@ def main(num_games=200, verbose=True):
     save_trajectory_to_csv(all_trajectories, f"trajectory_trained_{num_games}_games.csv")
 
     # Print all unique actions in the Q-table
-    unique_actions = set()
-    for actions in agent.q_table.values():
-        unique_actions.update(actions.keys())
-    print("\nAll unique actions in the Q-table:")
-    for action in sorted(unique_actions):
-        print(f"  {action}")
-    print(f"Total unique actions: {len(unique_actions)}")
+    # unique_actions = set()
+    # for actions in agent.q_table.values():
+    #     unique_actions.update(actions.keys())
+    # print("\nAll unique actions in the Q-table:")
+    # for action in sorted(unique_actions):
+    #     print(f"  {action}")
+    # print(f"Total unique actions: {len(unique_actions)}")
 
     # Step 6: Summary
     print(f"\n🎉 ANALYSIS COMPLETE!")
@@ -834,7 +968,7 @@ def main(num_games=200, verbose=True):
     print(f"   • Random agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
     print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
     # print(f"   • Visualizations saved as: {plot_filename}")
-    print(f"   • Q-table saved as: qtable_trained_{num_games}_games.csv")
+    print(f"   • Q-table saved as: output/qtable_trained_{num_games}_games.csv")
 
     return agent, qtable_stats, state_patterns, all_scores
 

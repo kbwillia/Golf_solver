@@ -335,7 +335,12 @@ class QLearningAgent:
 
         # Epsilon-greedy policy
         if self.training_mode and random.random() < self.epsilon:
-            action = random.choice(legal_actions)
+            # Use EVAgent for exploration
+            ev_agent = EVAgent()
+            action = ev_agent.choose_action(player, game_state)
+            # If EVAgent returns an illegal action (shouldn't happen), fallback to random
+            if action not in legal_actions:
+                action = random.choice(legal_actions)
         else:
             # Choose action with highest Q-value
             state_key = self.get_state_key(player, game_state)
@@ -349,7 +354,7 @@ class QLearningAgent:
                     best_value = q_value
                     best_action = action
 
-            action = best_action or random.choice(legal_actions)
+            action = best_action
 
 
 
