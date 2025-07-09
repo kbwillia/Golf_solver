@@ -391,7 +391,7 @@ class QLearningAgent:
 
 class EVAgent:
     def choose_action(self, player, game, trajectory=None):
-        ev = expected_value_draw_vs_discard(game)
+        ev = expected_value_draw_vs_discard(game, player)  # Pass the correct player
         available_positions = [i for i, known in enumerate(player.known) if not known]
         if not available_positions:
             return None  # No moves
@@ -429,3 +429,206 @@ class EVAgent:
             else:
                 # Fallback: choose first available position
                 return {'type': 'take_discard', 'position': available_positions[0]}
+
+
+class AdvancedEVAgent(EVAgent):
+    """
+    Advanced EV Agent with sophisticated features:
+    - Pair-aware flipping: Knows that flipping one half of a pair will result in zero score for that pair
+    - Trajectory recording: Records decision history for analysis
+    - Advanced position evaluation: Considers future pairing opportunities
+    - Risk assessment: Evaluates the risk of revealing high-value cards
+    """
+
+    def __init__(self):
+        self.decision_history = []  # Track all decisions for analysis
+        self.pair_memory = {}  # Remember potential pairs we've seen
+
+    def choose_action(self, player, game, trajectory=None):
+        # Record this decision point
+        decision_point = {
+            'round': game.round,
+            'turn': game.turn,
+            'player_cards': self._get_visible_cards(player),
+            'discard_top': str(game.discard_pile[-1]) if game.discard_pile else None,
+            'available_positions': [i for i, known in enumerate(player.known) if not known]
+        }
+
+        # Get base EV analysis
+        ev = expected_value_draw_vs_discard(game, player)
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+
+        if not available_positions:
+            return None  # No moves
+
+        # Enhanced decision making with advanced features
+        action = self._advanced_decision_making(player, game, ev, available_positions)
+
+        # Record the decision
+        decision_point['action'] = action
+        decision_point['ev_analysis'] = ev
+        self.decision_history.append(decision_point)
+
+        # Record in trajectory if provided (for compatibility with Q-learning framework)
+        if trajectory is not None:
+            trajectory.append({
+                'agent_type': 'advanced_ev',
+                'decision_point': decision_point,
+                'action': action
+            })
+
+        return action
+
+    def _get_visible_cards(self, player):
+        """Get all cards visible to this player (public + private)"""
+        visible_cards = []
+        for i, card in enumerate(player.grid):
+            if card and (player.known[i] or player.privately_visible[i]):
+                visible_cards.append({
+                    'position': i,
+                    'card': str(card),
+                    'rank': card.rank,
+                    'score': card.score(),
+                    'public': player.known[i]
+                })
+        return visible_cards
+
+    def _advanced_decision_making(self, player, game, ev, available_positions):
+        """Enhanced decision making with pair awareness and risk assessment"""
+        draw_ev = ev.get('draw_expected_value', 0)
+        discard_ev = ev.get('discard_expected_value', 0)
+
+        # Analyze potential pairs in current hand
+        pair_analysis = self._analyze_potential_pairs(player)
+
+        # Enhanced draw decision with pair awareness
+        if draw_ev < discard_ev:
+            action_type = ev.get('best_action_type', 'keep')
+
+            if action_type == 'flip':
+                # Advanced flip decision considering pairs
+                best_flip_pos = self._choose_best_flip_position(player, available_positions, pair_analysis)
+                return {'type': 'draw_deck', 'keep': False, 'flip_position': best_flip_pos}
+            else:
+                # Advanced keep decision considering pairs
+                best_pos = self._choose_best_keep_position(player, ev, available_positions, pair_analysis)
+                return {'type': 'draw_deck', 'position': best_pos, 'keep': True}
+        else:
+            # Enhanced discard decision
+            best_pos = self._choose_best_discard_position(player, ev, available_positions, pair_analysis)
+            return {'type': 'take_discard', 'position': best_pos}
+
+    def _analyze_potential_pairs(self, player):
+        """Analyze potential pairs in the current hand"""
+        visible_cards = self._get_visible_cards(player)
+        rank_counts = {}
+
+        # Count visible cards by rank
+        for card_info in visible_cards:
+            rank = card_info['rank']
+            rank_counts[rank] = rank_counts.get(rank, 0) + 1
+
+        # Find potential pairs (cards that could form pairs)
+        potential_pairs = {}
+        for rank, count in rank_counts.items():
+            if count >= 1:  # At least one card of this rank
+                potential_pairs[rank] = {
+                    'count': count,
+                    'positions': [card['position'] for card in visible_cards if card['rank'] == rank],
+                    'score': Card(rank, '♠').score(),
+                    'pair_value': 0 if count >= 2 else Card(rank, '♠').score()  # Zero if already paired
+                }
+
+        return potential_pairs
+
+    def _choose_best_flip_position(self, player, available_positions, pair_analysis):
+        """Choose the best position to flip considering pair implications"""
+        best_pos = available_positions[0]  # Default
+        best_score = float('inf')
+
+        for pos in available_positions:
+            if not player.grid[pos]:
+                continue
+
+            card = player.grid[pos]
+            rank = card.rank
+            card_score = card.score()
+
+            # Calculate the impact of flipping this card
+            impact_score = card_score
+
+            # If this card could complete a pair, flipping it might be beneficial
+            if rank in pair_analysis and pair_analysis[rank]['count'] == 1:
+                # This would complete a pair - the pair becomes worth 0 instead of 2 * card_score
+                impact_score = card_score - (2 * card_score)  # Net benefit of -card_score
+            elif rank in pair_analysis and pair_analysis[rank]['count'] >= 2:
+                # Already have a pair - flipping one half reduces the pair to a single card
+                impact_score = card_score  # Lose the pair bonus
+
+            if impact_score < best_score:
+                best_score = impact_score
+                best_pos = pos
+
+        return best_pos
+
+    def _choose_best_keep_position(self, player, ev, available_positions, pair_analysis):
+        """Choose the best position to keep drawn card considering pairs"""
+        # Use EV recommendation as base
+        best_pos = ev.get('best_draw_position')
+        if best_pos is not None and best_pos in available_positions:
+            return best_pos
+
+        # Fallback: choose position that maximizes pair potential
+        best_pos = available_positions[0]
+        best_pair_potential = -1
+
+        for pos in available_positions:
+            if not player.grid[pos]:
+                continue
+
+            current_card = player.grid[pos]
+            current_rank = current_card.rank
+
+            # Count how many cards of this rank we already have
+            rank_count = sum(1 for card_info in self._get_visible_cards(player)
+                           if card_info['rank'] == current_rank)
+
+            # Prefer positions that could form pairs
+            if rank_count >= 1:
+                return pos
+
+        return best_pos
+
+    def _choose_best_discard_position(self, player, ev, available_positions, pair_analysis):
+        """Choose the best position for discard card considering pairs"""
+        # Use EV recommendation as base
+        best_pos = ev.get('best_discard_position')
+        if best_pos is not None and best_pos in available_positions:
+            return best_pos
+
+        # Fallback: choose position that minimizes score impact
+        best_pos = available_positions[0]
+        best_score = float('inf')
+
+        for pos in available_positions:
+            if not player.grid[pos]:
+                continue
+
+            current_card = player.grid[pos]
+            current_score = current_card.score()
+
+            # Prefer replacing high-value cards
+            if current_score > best_score:
+                best_score = current_score
+                best_pos = pos
+
+        return best_pos
+
+    def get_decision_history(self):
+        """Get the complete decision history for analysis"""
+        return self.decision_history
+
+    def reset_history(self):
+        """Reset decision history (useful for new games)"""
+        self.decision_history = []
+        self.pair_memory = {}

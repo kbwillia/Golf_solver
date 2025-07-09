@@ -6,8 +6,8 @@ This module provides comprehensive analysis tools for Q-learning agents,
 including Q-table viewing, growth tracking, and performance analysis.
 """
 
-from RL_agents import QLearningAgent
-from RL.RL_game import GolfGame
+from agents import QLearningAgent
+from game import GolfGame
 from simulation import run_simulations_with_training
 import pandas as pd
 import numpy as np

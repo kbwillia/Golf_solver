@@ -51,85 +51,124 @@ def get_private_deck_counts(game):
 
     return full_deck_counts
 
-def prob_draw_lower_than_min_faceup(game):
-    """For each player, probability that next card is lower than their lowest card (face-up or not)."""
-    results = []
+def prob_draw_lower_than_min_faceup(game, player=None):
+    """For a specific player, probability that next card is lower than their lowest visible card."""
     deck = game.deck
     if not deck:
-        return ['0.0%' for _ in game.players]
-    for player in game.players:
-        player_cards = [card for card in player.grid if card]
-        if not player_cards:
-            results.append('0.0%')
-            continue
-        min_val = min(card.score() for card in player_cards)
-        lower = [card for card in deck if card.score() < min_val]
-        prob = len(lower) / len(deck)
-        results.append(f'{round(prob * 100, 1)}%')
-    return results
+        return '0.0%'
+
+    # Use specified player or default to first player for backwards compatibility
+    target_player = player if player is not None else game.players[0]
+
+    # For human player, include both known (public) and privately_visible cards
+    # For AI players, only include known (public) cards
+    if target_player.agent_type == 'human':
+        # Include cards that are either publicly known or privately visible
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and (target_player.known[i] or target_player.privately_visible[i])]
+    else:
+        # For AI players, only include publicly known cards
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and target_player.known[i]]
+
+    if not visible_cards:
+        return '0.0%'
+
+    min_val = min(card.score() for card in visible_cards)
+    lower = [card for card in deck if card.score() < min_val]
+    prob = len(lower) / len(deck)
+    return f'{round(prob * 100, 1)}%'
 
 
 
 
-def prob_draw_pair(game):
-    """For each player, probability that next card matches any rank in their grid."""
-    results = []
+def prob_draw_pair(game, player=None):
+    """For a specific player, probability that next card matches any rank in their visible grid."""
     deck = game.deck
     if not deck:
-        return ['0.0%' for _ in game.players]
-    for player in game.players:
-        ranks_in_grid = set(card.rank for card in player.grid if card)
-        matching = [card for card in deck if card.rank in ranks_in_grid]
-        prob = len(matching) / len(deck)
-        results.append(f'{round(prob * 100, 1)}%')
-    return results
+        return '0.0%'
+
+    # Use specified player or default to first player for backwards compatibility
+    target_player = player if player is not None else game.players[0]
+
+    # For human player, include both known (public) and privately_visible cards
+    # For AI players, only include known (public) cards
+    if target_player.agent_type == 'human':
+        # Include cards that are either publicly known or privately visible
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and (target_player.known[i] or target_player.privately_visible[i])]
+    else:
+        # For AI players, only include publicly known cards
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and target_player.known[i]]
+
+    ranks_in_grid = set(card.rank for card in visible_cards)
+    matching = [card for card in deck if card.rank in ranks_in_grid]
+    prob = len(matching) / len(deck)
+    return f'{round(prob * 100, 1)}%'
 
 
-def prob_improve_hand(game):
+def prob_improve_hand(game, player=None):
     """
-    For each player, return the probability that drawing the next card would improve their hand,
+    For a specific player, return the probability that drawing the next card would improve their hand,
     either by:
-    - Forming a pair with any card in their grid, or
-    - Being lower than any card in their grid (for a potential swap).
+    - Forming a pair with any card in their visible grid, or
+    - Being lower than any card in their visible grid (for a potential swap).
     """
-    results = []
     deck = game.deck
     if not deck:
-        return ['0.0%' for _ in game.players]
+        return '0.0%'
 
-    for player in game.players:
-        player_cards = [card for card in player.grid if card]
-        if not player_cards:
-            results.append('0.0%')
-            continue
+    # Use specified player or default to first player for backwards compatibility
+    target_player = player if player is not None else game.players[0]
 
-        all_ranks = set(card.rank for card in player_cards)
-        all_scores = [card.score() for card in player_cards]
+    # For human player, include both known (public) and privately_visible cards
+    # For AI players, only include known (public) cards
+    if target_player.agent_type == 'human':
+        # Include cards that are either publicly known or privately visible
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and (target_player.known[i] or target_player.privately_visible[i])]
+    else:
+        # For AI players, only include publicly known cards
+        visible_cards = [card for i, card in enumerate(target_player.grid)
+                       if card and target_player.known[i]]
 
-        improving_cards = 0
-        for card in deck:
-            makes_pair = card.rank in all_ranks
-            beats_known = any(card.score() < s for s in all_scores)
-            if makes_pair or beats_known:
-                improving_cards += 1
+    if not visible_cards:
+        return '0.0%'
 
-        prob = improving_cards / len(deck)
-        results.append(f'{round(prob * 100, 1)}%')
+    all_ranks = set(card.rank for card in visible_cards)
+    all_scores = [card.score() for card in visible_cards]
 
-    return results
+    improving_cards = 0
+    for card in deck:
+        makes_pair = card.rank in all_ranks
+        beats_known = any(card.score() < s for s in all_scores)
+        if makes_pair or beats_known:
+            improving_cards += 1
 
-
+    prob = improving_cards / len(deck)
+    return f'{round(prob * 100, 1)}%'
 
 
 
 def get_probabilities(game):
     """Return a dict of interesting probabilities/statistics for the current game state."""
+    # Calculate probabilities for each player to maintain backwards compatibility
+    prob_draw_lower_results = []
+    prob_draw_pair_results = []
+    prob_improve_hand_results = []
+
+    for player in game.players:
+        prob_draw_lower_results.append(prob_draw_lower_than_min_faceup(game, player))
+        prob_draw_pair_results.append(prob_draw_pair(game, player))
+        prob_improve_hand_results.append(prob_improve_hand(game, player))
+
     return {
         'deck_counts': get_deck_counts(game),
         'private_deck_counts': get_private_deck_counts(game),
-        'prob_draw_lower_than_min_faceup': prob_draw_lower_than_min_faceup(game),
-        'prob_draw_pair': prob_draw_pair(game),
-        'prob_improve_hand': prob_improve_hand(game),
+        'prob_draw_lower_than_min_faceup': prob_draw_lower_results,
+        'prob_draw_pair': prob_draw_pair_results,
+        'prob_improve_hand': prob_improve_hand_results,
         'expected_value_draw_vs_discard': expected_value_draw_vs_discard(game),
         'average_deck_score': round(average_score_of_deck(game), 2) if game.deck else 0,
     }
@@ -167,9 +206,10 @@ def expected_score_blind(grid, known, rank_probabilities):
                 used.add(pos2)
     return total_score
 
-def expected_value_draw_vs_discard(game):
+def expected_value_draw_vs_discard(game, player=None):
     """
-    Calculate the expected value (EV) of drawing from the deck vs taking the discard card for the human player.
+    Calculate the expected value (EV) of drawing from the deck vs taking the discard card for the specified player.
+    If no player is specified, defaults to game.players[0] (for backwards compatibility).
 
     In Golf, **lower scores are better**. Here, EV is defined as the **expected change in score**:
         - A **negative EV** means your score is expected to go down (good).
@@ -194,11 +234,12 @@ def expected_value_draw_vs_discard(game):
             'draw_advantage': 0
         }
 
-    human_player = game.players[0]
+    # Use specified player or default to first player for backwards compatibility
+    target_player = player if player is not None else game.players[0]
     discard_card = game.discard_pile[-1]
 
-    # Get available positions for human player (face-down cards)
-    available_positions = [i for i in range(4) if not human_player.known[i]]
+    # Get available positions for target player (face-down cards)
+    available_positions = [i for i in range(4) if not target_player.known[i]]
 
     if not available_positions:
         return {
@@ -214,7 +255,7 @@ def expected_value_draw_vs_discard(game):
     rank_probabilities = {rank: count / total_private if total_private > 0 else 0 for rank, count in private_deck_counts.items()}
 
     # Calculate current hand score using expected_score_blind
-    current_score = expected_score_blind(human_player.grid, human_player.known, rank_probabilities)
+    current_score = expected_score_blind(target_player.grid, target_player.known, rank_probabilities)
 
     # --- Discard EV ---
     # Try placing discard card in each available position and find best (most negative) change
@@ -224,16 +265,16 @@ def expected_value_draw_vs_discard(game):
 
     for pos in available_positions:
         # If the card is known, use its actual value
-        if human_player.known[pos] and human_player.grid[pos]:
-            current_card_score = human_player.grid[pos].score()
+        if target_player.known[pos] and target_player.grid[pos]:
+            current_card_score = target_player.grid[pos].score()
         else:
             # If unknown, use expected score
             current_card_score = sum(Card(rank, '♠').score() * prob for rank, prob in rank_probabilities.items())
         # Simulate swapping in the discard card
-        test_grid = human_player.grid.copy()
+        test_grid = target_player.grid.copy()
         test_grid[pos] = discard_card
         # Use expected_score_blind for the test grid
-        test_known = human_player.known.copy()
+        test_known = target_player.known.copy()
         test_known[pos] = True  # After swap, this card is known
         test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
         ev = test_score - current_score
@@ -269,14 +310,14 @@ def expected_value_draw_vs_discard(game):
                 current_best_draw_position = None
                 for pos in available_positions:
                     # If the card is known, use its actual value
-                    if human_player.known[pos] and human_player.grid[pos]:
-                        current_card_score = human_player.grid[pos].score()
+                    if target_player.known[pos] and target_player.grid[pos]:
+                        current_card_score = target_player.grid[pos].score()
                     else:
                         # If unknown, use expected score
                         current_card_score = sum(Card(r, '♠').score() * prob for r, prob in rank_probabilities.items())
-                    test_grid = human_player.grid.copy()
+                    test_grid = target_player.grid.copy()
                     test_grid[pos] = drawn_card
-                    test_known = human_player.known.copy()
+                    test_known = target_player.known.copy()
                     test_known[pos] = True  # After swap, this card is known
                     test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
                     ev = test_score - current_score
@@ -289,11 +330,11 @@ def expected_value_draw_vs_discard(game):
                 best_flip_ev = float('inf')
                 current_best_flip_position = None
                 for flip_pos in available_positions:
-                    if human_player.grid[flip_pos]:
+                    if target_player.grid[flip_pos]:
                         # Calculate expected score change when this card is revealed
-                        test_known = human_player.known.copy()
+                        test_known = target_player.known.copy()
                         test_known[flip_pos] = True  # This card becomes known
-                        test_score = expected_score_blind(human_player.grid, test_known, rank_probabilities)
+                        test_score = expected_score_blind(target_player.grid, test_known, rank_probabilities)
                         ev = test_score - current_score
                         if ev < best_flip_ev:
                             best_flip_ev = ev
@@ -357,16 +398,16 @@ def expected_value_draw_vs_discard(game):
         'best_action_type': best_action_type,  # "keep" or "flip"
     }
 
-def which_card_to_swap_for_discard(game):
+def which_card_to_swap_for_discard(game, player=None):
     """if the player wants to swap the discard card, which card should they swap it with?"""
     # get the discard card
     discard_card = game.discard_pile[-1]
-    # get the human player
-    human_player = game.players[0]
-    # get the available positions for the human player
-    available_positions = [i for i, known in enumerate(human_player.known) if not known]
-    # get the cards in the human player's grid
-    cards_in_grid = [card for card in human_player.grid if card]
+    # get the target player (or default to first player for backwards compatibility)
+    target_player = player if player is not None else game.players[0]
+    # get the available positions for the target player
+    available_positions = [i for i, known in enumerate(target_player.known) if not known]
+    # get the cards in the target player's grid
+    cards_in_grid = [card for card in target_player.grid if card]
     # get the private deck counts
     private_deck_counts = get_private_deck_counts(game)
 

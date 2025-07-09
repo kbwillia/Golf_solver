@@ -40,7 +40,7 @@ def create_game():
         agent_types = ["human", opponent]
         num_players = 2
     else:  # 1v3
-        agent_types = ["human", "random", "heuristic", "qlearning"]
+        agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
         num_players = 4
 
     # Create the game
@@ -56,9 +56,13 @@ def create_game():
             game.players[1].name = "Basic Logic AI"
         elif opponent == "qlearning":
             game.players[1].name = "Q-Learning AI"
+        elif opponent == "ev_ai":
+            game.players[1].name = "EV AI"
+        elif opponent == "advanced_ev":
+            game.players[1].name = "Advanced EV AI"
     else:
         # In 1v3, give proper names to each AI
-        ai_names = ["Random AI", "Basic Logic AI", "Q-Learning AI"]
+        ai_names = ["EV AI", "Advanced EV AI", "Random AI", "Basic Logic AI"]
         for i in range(1, num_players):
             game.players[i].name = ai_names[i-1]
 
@@ -424,7 +428,7 @@ def next_game():
             agent_types = ["human", game_session['game'].players[1].agent_type]
             num_players = 2
         else:
-            agent_types = ["human", "random", "heuristic", "qlearning"]
+            agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
             num_players = 4
 
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)

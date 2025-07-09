@@ -8,24 +8,28 @@ def play_human_vs_ai():
 
     # Choose opponent
     print("Choose your opponent:")
-    print("1. Random Agent")
-    print("2. Heuristic Agent")
-    print("3. Q-Learning Agent")
+    print("1. EV AI (Expected Value Bot)")
+    print("2. Random Agent")
+    print("3. Heuristic Agent")
+    print("4. Q-Learning Agent")
 
     while True:
         try:
-            choice = input("Enter 1, 2, or 3: ").strip()
+            choice = input("Enter 1, 2, 3, or 4: ").strip()
             if choice == "1":
-                opponent = "random"
+                opponent = "ev_ai"
                 break
             elif choice == "2":
-                opponent = "heuristic"
+                opponent = "random"
                 break
             elif choice == "3":
+                opponent = "heuristic"
+                break
+            elif choice == "4":
                 opponent = "qlearning"
                 break
             else:
-                print("Invalid choice! Enter 1, 2, or 3.")
+                print("Invalid choice! Enter 1, 2, 3, or 4.")
         except:
             print("Invalid input! Please try again.")
 
@@ -63,11 +67,11 @@ def play_human_vs_multiple_ai():
     print("Tip: Enter 'q' during your turn to quit the game early.\n")
 
     # Create 4-player game with human and 3 AI agents
-    agent_types = ["human", "random", "heuristic", "qlearning"]
+    agent_types = ["human", "ev_ai", "random", "heuristic"]
     game = GolfGame(num_players=4, agent_types=agent_types)
 
     print("You are Player 1 (P1)")
-    print("Other players: Random, Heuristic, Q-Learning")
+    print("Other players: EV AI, Random, Heuristic")
     print("Game starting...\n")
 
     # Play the game
@@ -76,9 +80,9 @@ def play_human_vs_multiple_ai():
 
         print(f"\n=== GAME OVER ===")
         print(f"Your score: {scores[0]}")
-        print(f"Random AI score: {scores[1]}")
-        print(f"Heuristic AI score: {scores[2]}")
-        print(f"Q-Learning AI score: {scores[3]}")
+        print(f"EV AI score: {scores[1]}")
+        print(f"Random AI score: {scores[2]}")
+        print(f"Heuristic AI score: {scores[3]}")
 
         winner_idx = scores.index(min(scores))
         if winner_idx == 0:

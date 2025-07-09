@@ -7,3 +7,5 @@ requests
 pytest-playwright
 playwright
 pytest
+matplotlib
+seaborn
