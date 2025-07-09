@@ -259,12 +259,14 @@ class HeuristicAgent:
 
 class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
-    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2):
+    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2, n_bootstrap_games=500):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
         self.q_table = defaultdict(lambda: defaultdict(float))
         self.training_mode = True
+        self.n_bootstrap_games = n_bootstrap_games
+        self.games_played = 0
 
     def get_state_key(self, player, game_state):
         from probabilities import expected_value_draw_vs_discard
@@ -327,38 +329,33 @@ class QLearningAgent:
         return actions
 
     def choose_action(self, player, game_state, trajectory=None):
-        # Get legal actions first
         legal_actions = self.get_legal_actions(player, game_state)
-
         if not legal_actions:
             return None
 
-        # Epsilon-greedy policy
-        if self.training_mode and random.random() < self.epsilon:
-            # Use EVAgent for exploration
+        # Bootstrapping phase: use EVAgent for first n_bootstrap_games
+        if self.games_played < self.n_bootstrap_games:
             ev_agent = EVAgent()
             action = ev_agent.choose_action(player, game_state)
-            # If EVAgent returns an illegal action (shouldn't happen), fallback to random
             if action not in legal_actions:
                 action = random.choice(legal_actions)
         else:
-            # Choose action with highest Q-value
-            state_key = self.get_state_key(player, game_state)
-            best_action = None
-            best_value = float('-inf')
+            # Standard epsilon-greedy Q-learning
+            if self.training_mode and random.random() < self.epsilon:
+                action = random.choice(legal_actions)
+            else:
+                state_key = self.get_state_key(player, game_state)
+                best_action = None
+                best_value = float('-inf')
+                for action_candidate in legal_actions:
+                    action_key = self.get_action_key(action_candidate)
+                    q_value = self.q_table[state_key][action_key]
+                    if q_value > best_value:
+                        best_value = q_value
+                        best_action = action_candidate
+                action = best_action
 
-            for action in legal_actions:
-                action_key = self.get_action_key(action)
-                q_value = self.q_table[state_key].get(action_key, 0.0)
-                if q_value > best_value:
-                    best_value = q_value
-                    best_action = action
-
-            action = best_action
-
-
-
-        # Record the chosen action in the trajectory
+        # Record trajectory if provided
         if trajectory is not None:
             state_key = self.get_state_key(player, game_state)
             action_key = self.get_action_key(action)
@@ -366,10 +363,12 @@ class QLearningAgent:
                 'state_key': state_key,
                 'action_key': action_key,
                 'action': action,
-                'round': game_state.round
+                'round': getattr(game_state, 'round', None)
             })
-
         return action
+
+    def notify_game_end(self):
+        self.games_played += 1
 
     def update(self, state_key, action_key, reward, next_state_key, next_actions):
         """Update Q-values using Q-learning update rule"""

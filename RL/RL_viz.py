@@ -194,15 +194,15 @@ def plot_action_type_tracking(trajectory, round_info=False, save_filename="actio
     # Create the plot
     plt.figure(figsize=(15, 10) if round_info else (12, 8))
 
-    # Define color shades for each action type by round
-    blue_shades = ['#1f77b4', '#3399ff', '#0055cc', '#66b3ff']
-    green_shades = ['#2ca02c', '#66cc66', '#228B22', '#98fb98']
-    red_shades = ['#d62728', '#ff6666', '#b22222', '#ff9999']
-
-    # Define markers for different rounds
-    markers = ['o', 's', '^', 'd']
-
     if round_info:
+        # Define color shades for each action type by round (lightest for R1, darkest for R4)
+        blue_shades = ['#66b3ff', '#3399ff', '#0055cc', '#1f77b4']  # R1, R2, R3, R4
+        green_shades = ['#98fb98', '#66cc66', '#228B22', '#2ca02c']  # R1, R2, R3, R4
+        red_shades = ['#ff9999', '#ff6666', '#b22222', '#d62728']    # R1, R2, R3, R4
+
+        # Define markers for different rounds
+        markers = ['o', 's', '^', 'd']
+
         # Plot 12 action types (3 actions × 4 rounds)
         for i, action_type in enumerate(['take_discard', 'draw_deck_keep', 'draw_deck_discard_flip']):
             if action_type == 'take_discard':

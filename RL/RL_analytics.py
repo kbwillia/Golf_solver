@@ -137,17 +137,7 @@ def analyze_qtable(q_table, verbose=True):
         # Show top and bottom Q-values
         sorted_pairs = sorted(state_action_pairs, key=lambda x: x[2], reverse=True)
 
-        print(f"\nTop 10 highest Q-values:")
-        print("State | Action | Q-value")
-        print("-" * 70)
-        for i, (state, action, qval) in enumerate(sorted_pairs[:10]):
-            print(f"{state:<35} | {action:<20} | {qval:7.3f}")
 
-        print(f"\nTop 10 lowest Q-values:")
-        print("State | Action | Q-value")
-        print("-" * 70)
-        for i, (state, action, qval) in enumerate(sorted_pairs[-10:]):
-            print(f"{state:<35} | {action:<20} | {qval:7.3f}")
 
     return stats
 
@@ -860,6 +850,7 @@ def main(num_games=200, verbose=True):
                     reward = -5.0
 
             agent.train_on_trajectory(trajectory, reward, game_scores[0])
+            agent.notify_game_end()
 
 
         # Track data for visualization
@@ -964,6 +955,10 @@ def main(num_games=200, verbose=True):
     print(f"\n🎉 ANALYSIS COMPLETE!")
     print(f"   • Trained for {num_games} games")
     print(f"   • Q-table has {len(agent.q_table)} states")
+    # Calculate and print theoretical state space
+    theoretical_stats = calculate_theoretical_state_space()
+    total_theoretical_states = theoretical_stats['total_theoretical_states']
+    print(f"   • Total theoretical states: {total_theoretical_states:,}")
     print(f"   • Q-learning agent won {wins[0]} games ({wins[0]/num_games*100:.1f}%)")
     print(f"   • Random agent won {wins[1]} games ({wins[1]/num_games*100:.1f}%)")
     print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
