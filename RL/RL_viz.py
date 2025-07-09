@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+import math
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -322,4 +323,109 @@ def plot_learning_curves(game_numbers, all_scores, agent_types, save_filename="l
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Learning curves plot saved to {output_path}")
+    plt.show()
+
+def calculate_theoretical_state_space():
+    """Calculate the theoretical state space size"""
+    print("=== THEORETICAL STATE SPACE CALCULATION ===\n")
+
+    # Card ranks (suits don't matter in state representation)
+    ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+    num_ranks = len(ranks)
+
+    print(f"Card ranks: {num_ranks} different ranks")
+    print(f"Grid size: 4 cards per player")
+    print(f"Max rounds: 4")
+
+    # Calculate combinations for known cards
+    # For each card position, we can have:
+    # - Unknown card ('?')
+    # - Any of the 13 ranks
+
+    # But we need to consider that the state uses:
+    # 1. Sorted list of known card ranks (order doesn't matter)
+    # 2. Count of unknown cards
+    # 3. Top discard card rank (or 'None')
+    # 4. Round number
+
+    print("\nState components:")
+    print("1. Known cards (sorted list of ranks)")
+    print("2. Unknown card count (0-4)")
+    print("3. Discard pile top (13 ranks + 'None')")
+    print("4. Round number (1-4)")
+
+    # For known cards: we can have 0-4 known cards
+    # Each subset of ranks can appear in any combination
+    total_known_combinations = 0
+
+    for num_known in range(5):  # 0 to 4 known cards
+        print(f"\n  {num_known} known cards:")
+
+        if num_known == 0:
+            combinations = 1  # Empty set
+        else:
+            # Combinations of ranks with repetition allowed
+            # (multiset - same rank can appear multiple times)
+            combinations = math.comb(num_ranks + num_known - 1, num_known)
+
+        total_known_combinations += combinations
+        print(f"    Combinations: {combinations:,}")
+
+    print(f"\nTotal known card combinations: {total_known_combinations:,}")
+
+    # Discard pile possibilities
+    discard_possibilities = num_ranks + 1  # 13 ranks + 'None'
+
+    # Round possibilities
+    round_possibilities = 4  # rounds 1-4
+
+    # Total theoretical state space
+    total_states = total_known_combinations * discard_possibilities * round_possibilities
+
+    print(f"Discard possibilities: {discard_possibilities}")
+    print(f"Round possibilities: {round_possibilities}")
+    print(f"\nTheoretical total states: {total_states:,}")
+
+    # Action space per state
+    max_actions_per_state = 8  # 4 positions × 2 action types (take_discard, draw_deck)
+    total_state_action_pairs = total_states * max_actions_per_state
+
+    print(f"Max actions per state: {max_actions_per_state}")
+    print(f"Theoretical state-action pairs: {total_state_action_pairs:,}")
+
+    return total_states
+
+
+
+def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
+    """Plot Q-value distribution"""
+    if not q_table:
+        print("No Q-table data to plot!")
+        return
+
+    # Extract all Q-values
+    all_qvalues = [q for actions in q_table.values() for q in actions.values()]
+
+    if not all_qvalues:
+        print("No Q-values found!")
+        return
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Histogram of Q-values
+    ax1.hist(all_qvalues, bins=30, alpha=0.7, edgecolor='black')
+    ax1.set_xlabel('Q-value')
+    ax1.set_ylabel('Frequency')
+    ax1.set_title('Q-value Distribution')
+    ax1.grid(True, alpha=0.3)
+
+    # Box plot of Q-values
+    ax2.boxplot(all_qvalues)
+    ax2.set_ylabel('Q-value')
+    ax2.set_title('Q-value Box Plot')
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(save_filename, dpi=300, bbox_inches='tight')
+    print(f"Q-value distribution plots saved to {save_filename}")
     plt.show()

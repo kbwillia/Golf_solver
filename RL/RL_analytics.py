@@ -10,12 +10,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents import QLearningAgent, EVAgent
+from agents import *
 from game import GolfGame
 import pandas as pd
 import numpy as np
 import csv
-from RL.RL_viz import plot_qtable_state_and_entry_growth, plot_qvalue_distribution, plot_action_type_tracking
+from RL.RL_viz import *
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
@@ -27,57 +27,7 @@ def get_output_path(filename):
     """Helper function to get full path for output files"""
     return os.path.join(output_dir, filename)
 
-def train_agent_directly(num_games, verbose=True):
-    """Train a Q-learning agent directly and return it"""
-    if verbose:
-        print(f"Training Q-learning agent for {num_games} games...")
 
-    agent = QLearningAgent()
-
-    for game_num in range(num_games):
-        # Create trajectories for training
-        trajectory = []
-
-        # Create and play game
-        game = GolfGame(num_players=2, agent_types=['qlearning', 'ev_ai'], q_agents=[None, agent])
-        game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
-
-        # Train the agent
-        winner_idx = game_scores.index(min(game_scores))
-        if trajectory:
-            # Calculate reward
-            if winner_idx == 1:  # Q-learning agent won
-                reward = 10.0
-            else:
-                # Reward based on score
-                if game_scores[1] <= 5:
-                    reward = 2.0
-                elif game_scores[1] <= 10:
-                    reward = 0.0
-                elif game_scores[1] <= 15:
-                    reward = -2.0
-                else:
-                    reward = -5.0
-
-            agent.train_on_trajectory(trajectory, reward, game_scores[1])
-
-        if verbose and (game_num + 1) % 10 == 0:
-            print(f"Completed {game_num + 1} games")
-
-    if verbose:
-        print(f"Training complete! Q-table has {len(agent.q_table)} states")
-
-    return agent
-
-# ============================================================================
-# Q-TABLE TRAINING AND ACCESS
-# ============================================================================
-
-
-
-# ============================================================================
-# Q-TABLE ANALYSIS AND DISPLAY
-# ============================================================================
 
 def analyze_qtable(q_table, verbose=True):
     """Analyze Q-table contents and show interesting patterns"""
@@ -137,28 +87,9 @@ def analyze_qtable(q_table, verbose=True):
         # Show top and bottom Q-values
         sorted_pairs = sorted(state_action_pairs, key=lambda x: x[2], reverse=True)
 
-
-
     return stats
 
-def display_full_qtable(q_table):
-    """Display complete Q-table contents"""
-    print(f"\n" + "="*70)
-    print("COMPLETE Q-TABLE CONTENTS")
-    print("="*70)
 
-    if not q_table:
-        print("Q-table is empty!")
-        return
-
-    print(f"{'State':<35} | {'Action':<20} | {'Q-value'}")
-    print("-" * 70)
-
-    for state_key in sorted(q_table.keys()):
-        actions = q_table[state_key]
-        for action_key in sorted(actions.keys()):
-            q_value = actions[action_key]
-            print(f"{state_key:<35} | {action_key:<20} | {q_value:8.3f}")
 
 def analyze_state_patterns(q_table, verbose=True):
     """Analyze patterns in the states"""
@@ -226,65 +157,6 @@ def analyze_state_patterns(q_table, verbose=True):
         'known_card_counts': known_card_counts
     }
 
-# ============================================================================
-# Q-TABLE GROWTH TRACKING
-# ============================================================================
-
-# def track_qtable_growth(num_games=250, checkpoint_interval=25, verbose=True):
-#     """Track Q-table growth during training"""
-#     if verbose:
-#         print(f"Tracking Q-table growth over {num_games} games...")
-
-#     agent = QLearningAgent()
-
-#     # Track growth
-#     game_checkpoints = []
-#     state_counts = []
-#     entry_counts = []
-#     scores = []
-
-#     for game_num in range(num_games):
-#         # Create trajectories for training
-#         trajectory = []
-
-#         # Create and play game
-#         game = GolfGame(num_players=2, agent_types=['ev_ai', 'qlearning'], q_agents=[None, agent])
-#         game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
-
-#         # Train the agent
-#         winner_idx = game_scores.index(min(game_scores))
-#         if trajectory:
-#             # Calculate reward
-#             if winner_idx == 1:  # Q-learning agent won
-#                 reward = 10.0
-#             else:
-#                 # Reward based on score
-#                 if game_scores[1] <= 5:
-#                     reward = 2.0
-#                 elif game_scores[1] <= 10:
-#                     reward = 0.0
-#                 elif game_scores[1] <= 15:
-#                     reward = -2.0
-#                 else:
-#                     reward = -5.0
-
-#             agent.train_on_trajectory(trajectory, reward, game_scores[1])
-
-#         # Track at checkpoints
-#         if (game_num + 1) % checkpoint_interval == 0:
-#             states = len(agent.q_table)
-#             entries = sum(len(actions) for actions in agent.q_table.values())
-#             score = game_scores[1]
-
-#             game_checkpoints.append(game_num + 1)
-#             state_counts.append(states)
-#             entry_counts.append(entries)
-#             scores.append(score)
-
-#             if verbose:
-#                 print(f"Game {game_num+1:3d}: {states:3d} states, {entries:4d} entries, score: {score:5.1f}")
-
-#     return agent, game_checkpoints, state_counts, entry_counts, scores
 
 def analyze_growth_patterns(games, states, entries, scores=None):
     """Analyze Q-table growth patterns"""
@@ -341,47 +213,6 @@ def analyze_growth_patterns(games, states, entries, scores=None):
 
     return analysis
 
-# ============================================================================
-# PLOTTING AND VISUALIZATION
-# ============================================================================
-
-
-def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
-    """Plot Q-value distribution"""
-    if not q_table:
-        print("No Q-table data to plot!")
-        return
-
-    # Extract all Q-values
-    all_qvalues = [q for actions in q_table.values() for q in actions.values()]
-
-    if not all_qvalues:
-        print("No Q-values found!")
-        return
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Histogram of Q-values
-    ax1.hist(all_qvalues, bins=30, alpha=0.7, edgecolor='black')
-    ax1.set_xlabel('Q-value')
-    ax1.set_ylabel('Frequency')
-    ax1.set_title('Q-value Distribution')
-    ax1.grid(True, alpha=0.3)
-
-    # Box plot of Q-values
-    ax2.boxplot(all_qvalues)
-    ax2.set_ylabel('Q-value')
-    ax2.set_title('Q-value Box Plot')
-    ax2.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(save_filename, dpi=300, bbox_inches='tight')
-    print(f"Q-value distribution plots saved to {save_filename}")
-    plt.show()
-
-# ============================================================================
-# DATA EXPORT
-# ============================================================================
 
 def save_qtable_to_csv(q_table, filename, agent, state_action_last_action_map=None):
     """
@@ -487,6 +318,165 @@ def save_trajectory_to_csv(trajectory, filename):
             })
     print(f"Trajectory saved to {output_path} with {len(trajectory)} steps")
 
+# Import training function from the new training module
+from RL.train import train_qlearning_agent
+
+def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent"):
+    """
+    Analyze a trained Q-learning agent and generate visualizations.
+
+    Args:
+        agent: Trained QLearningAgent
+        training_stats: Statistics from training phase
+        save_prefix: Prefix for saved files
+
+    Returns:
+        analysis_results: Dictionary with analysis results
+    """
+    print("="*70)
+    print("TRAINED AGENT ANALYSIS PHASE")
+    print("="*70)
+
+    # 1. Q-table analysis
+    qtable_stats = analyze_qtable(agent.q_table, verbose=True)
+    state_patterns = analyze_state_patterns(agent.q_table, verbose=True)
+
+    # 2. Training progress visualizations
+    games = list(range(1, len(training_stats['scores']) + 1))
+
+    # Plot Q-table growth during training
+    plot_qtable_growth(
+        games,
+        training_stats['qtable_states'],
+        training_stats['qtable_entries'],
+        training_stats['scores'],
+        save_filename=f"{save_prefix}_qtable_growth.png"
+    )
+
+    # Plot learning curves
+    plot_learning_curves(
+        games,
+        [[score] for score in training_stats['scores']],  # Single agent format
+        ["qlearning"],
+        save_filename=f"{save_prefix}_learning_curve.png"
+    )
+
+    # 3. Q-value distribution
+    plot_qvalue_distribution(
+        agent.q_table,
+        save_filename=f"{save_prefix}_qvalue_distribution.png"
+    )
+
+    # 4. Save Q-table
+    save_qtable_to_csv(
+        agent.q_table,
+        f"{save_prefix}_qtable.csv",
+        agent
+    )
+
+    # 5. Theoretical state space comparison
+    theoretical_stats = calculate_theoretical_state_space()
+    actual_states = len(agent.q_table)
+    utilization = actual_states / theoretical_stats if theoretical_stats > 0 else 0
+
+    print(f"\n📊 STATE SPACE UTILIZATION:")
+    print(f"   • Theoretical max states: {theoretical_stats:,}")
+    print(f"   • Actual states discovered: {actual_states:,}")
+    print(f"   • Utilization: {utilization:.2%}")
+
+    analysis_results = {
+        'qtable_stats': qtable_stats,
+        'state_patterns': state_patterns,
+        'training_stats': training_stats,
+        'state_space_utilization': utilization,
+        'theoretical_states': theoretical_stats,
+        'actual_states': actual_states
+    }
+
+    return analysis_results
+
+# ============================================================================
+# COMPREHENSIVE TRAINING + ANALYSIS WORKFLOW
+# ============================================================================
+
+def complete_training_and_analysis_workflow(
+    training_games=1000,
+    opponent_type="ev_ai",
+    verbose=True,
+    save_prefix="complete_analysis",
+    # Q-learning hyperparameters
+    learning_rate=0.1,
+    discount_factor=0.9,
+    epsilon=0.2,
+    epsilon_decay_factor=0.995,
+    # Bootstrapping and imitation learning
+    n_bootstrap_games=250,
+    use_imitation_learning=True,
+    # Training configuration
+    epsilon_decay_interval=100,
+    progress_report_interval=100
+):
+    """
+    Complete workflow: Train agent first, then analyze thoroughly.
+
+    Args:
+        training_games: Number of games for training
+        opponent_type: Type of opponent
+        verbose: Whether to print progress
+        save_prefix: Prefix for saved files
+
+        # Q-learning hyperparameters
+        learning_rate: Learning rate for Q-value updates
+        discount_factor: Discount factor for future rewards
+        epsilon: Initial exploration rate
+        epsilon_decay_factor: Factor to decay epsilon
+
+        # Bootstrapping and imitation learning
+        n_bootstrap_games: Number of games to use EVAgent for bootstrapping
+        use_imitation_learning: Whether to use EVAgent for initial imitation
+
+        # Training configuration
+        epsilon_decay_interval: How often to decay epsilon
+        progress_report_interval: How often to report progress
+
+    Returns:
+        agent: Trained QLearningAgent
+        results: Complete analysis results
+    """
+    print("🚀 STARTING COMPLETE TRAINING + ANALYSIS WORKFLOW")
+    print("="*70)
+
+    # Phase 1: Training
+    agent, training_stats = train_qlearning_agent(
+        num_games=training_games,
+        opponent_type=opponent_type,
+        verbose=verbose,
+        learning_rate=learning_rate,
+        discount_factor=discount_factor,
+        epsilon=epsilon,
+        epsilon_decay_factor=epsilon_decay_factor,
+        n_bootstrap_games=n_bootstrap_games,
+        use_imitation_learning=use_imitation_learning,
+        epsilon_decay_interval=epsilon_decay_interval,
+        progress_report_interval=progress_report_interval
+    )
+
+    # Phase 2: Analysis
+    analysis_results = analyze_trained_agent(
+        agent=agent,
+        training_stats=training_stats,
+        save_prefix=save_prefix
+    )
+
+    # Phase 3: Summary
+    print(f"\n🎉 WORKFLOW COMPLETE!")
+    print(f"   • Training: {training_games} games vs {opponent_type}")
+    print(f"   • Final win rate: {training_stats['wins']/training_games:.2%}")
+    print(f"   • Q-table size: {len(agent.q_table)} states")
+    print(f"   • Files saved with prefix: {save_prefix}")
+
+    return agent, analysis_results
+
 # ============================================================================
 # COMPREHENSIVE ANALYSIS FUNCTIONS
 # ============================================================================
@@ -497,8 +487,12 @@ def full_qtable_analysis(num_games=100, show_full_table=False):
     print("COMPREHENSIVE Q-TABLE ANALYSIS")
     print("="*70)
 
-    # Train agent
-    agent = train_agent_directly(num_games, verbose=True)
+    # Train agent using the training module
+    agent, training_stats = train_qlearning_agent(
+        num_games=num_games,
+        opponent_type="ev_ai",
+        verbose=True
+    )
 
     # Analyze Q-table
     stats = analyze_qtable(agent.q_table, verbose=True)
@@ -546,282 +540,48 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
 
 
 
-# ============================================================================
-# MAIN EXECUTION FUNCTIONS
-# ============================================================================
 
-def quick_qtable_view(num_games=50):
-    """Quick Q-table viewer for testing"""
-    print("QUICK Q-TABLE VIEWER")
-    print("="*50)
 
-    agent = train_agent_directly(num_games, verbose=True)
-    analyze_qtable(agent.q_table, verbose=True)
-    analyze_state_patterns(agent.q_table, verbose=True)
-    # Always save Q-table to CSV
-    save_qtable_to_csv(agent.q_table, filename="qtable_export.csv", agent=agent)
-    print("Q-table saved to output/qtable_export.csv")
-    return agent
-
-# def quick_growth_view(num_games=100, checkpoint_interval=10):
-#     """Quick growth viewer for testing"""
-#     print("QUICK GROWTH VIEWER")
-#     print("="*50)
-
-#     agent_types = ["qlearning", "random"]
-#     all_scores = []
-#     wins = [0, 0]
-#     game_numbers = []
-
-#     for game_num in range(num_games):
-#         # Create trajectories for training
-#         trajectory = []
-
-#         # Create and play game
-#         game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[None, agent])
-#         game_scores = game.play_game(verbose=False, trajectories=[None, trajectory])
-
-#         # Train the agent
-#         winner_idx = game_scores.index(min(game_scores))
-#         if trajectory:
-#             # Calculate reward
-#             if winner_idx == 1:  # Q-learning agent won
-#                 reward = 10.0
-#             else:
-#                 # Reward based on score
-#                 if game_scores[1] <= 5:
-#                     reward = 2.0
-#                 elif game_scores[1] <= 10:
-#                     reward = 0.0
-#                 elif game_scores[1] <= 15:
-#                     reward = -2.0
-#                 else:
-#                     reward = -5.0
-
-#             agent.train_on_trajectory(trajectory, reward, game_scores[1])
-
-#         scores = [game_scores[0], game_scores[1]]
-#         all_scores.append(scores)
-#         game_numbers.append(game_num + 1)
-#         winner_idx = scores.index(min(scores))
-#         wins[winner_idx] += 1
-
-#     avg_scores = [sum([scores[i] for scores in all_scores]) / num_games for i in range(len(agent_types))]
-#     # create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games) # This line was removed
-
-#     return agent, games, states, entries, scores
-
-def main(num_games=200, verbose=True):
-    """
-    Main function that runs complete Q-learning analysis with visualizations
-
-    Args:
-        num_games: Number of games to train on
-        verbose: Whether to print detailed analysis
-    """
+def main(num_games=200, verbose=True, opponent_type="ev_ai"):
     print("="*70)
     print("Q-LEARNING AGENT COMPLETE ANALYSIS")
     print("="*70)
 
-    # Step 1: Train the agent with visualization
-    print(f"\n🎯 STEP 1: Training Q-learning agent for {num_games} games...")
+    # Use the complete workflow function instead
+    agent, results = complete_training_and_analysis_workflow(
+        training_games=num_games,
+        opponent_type=opponent_type,
+        verbose=verbose,
+        save_prefix=f"analysis_{num_games}_games"
+    )
 
-    agent_types = ["qlearning", "random"]
-    all_scores = []
-    wins = [0, 0]
-    game_numbers = []
-
-    # Track Q-table growth
-    qtable_states = []
-    qtable_entries = []
-
-    # Track state-to-last-action mapping for debugging
-    state_last_action_map = {}
-
-    # Create the Q-learning agent
-    agent = QLearningAgent()
-
-    # Import EVAgent for the opponent
-    opponent_agent = EVAgent()
-
-    all_trajectories = []
-    for game_num in range(num_games):
-        # Create trajectories for training
-        trajectory = []
-
-        # Q-learning agent is always player 0, EVAgent is player 1
-        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[agent, opponent_agent])
-        game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
-
-        # Capture last actions for each state in trajectory
-        # Since we can't get last_action reliably due to timing, construct it from the action
-        for step in trajectory:
-            state_key = step['state_key']
-            action = step['action']
-
-            # Extract round from state key (format: "('3', '6', '7')_-1.5_J_4" where 4 is the round)
-            try:
-                round_num = state_key.split('_')[-1] if '_' in state_key else '?'
-            except:
-                round_num = '?'
-
-            # Construct action description with game and round info
-            if action['type'] == 'take_discard':
-                action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent took from discard and placed at position {action['position']+1}"
-            elif action['type'] == 'draw_deck':
-                if action.get('keep', True):
-                    action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent drew from deck and kept at position {action['position']+1}"
-                else:
-                    action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent drew from deck, discarded it, and flipped position {action['flip_position']+1}"
-            else:
-                action_desc = f"g_{game_num+1}_r_{round_num}: Q-learning agent: {action}"
-
-            state_last_action_map[state_key] = action_desc
-
-        # Debug: Check if trajectory was populated
-        if game_num < 3 and trajectory:  # Only print for first few games
-            print(f"  Game {game_num + 1}: Trajectory length = {len(trajectory)}")
-            print(f"    First state: {trajectory[0]['state_key']}")
-            print(f"    First action: {trajectory[0]['action']}")
-            print(f"    Q-table size before training: {len(agent.q_table)}")
-
-        # Train the agent
-        winner_idx = game_scores.index(min(game_scores))
-        if trajectory:
-            # Calculate reward
-            if winner_idx == 0:  # Q-learning agent won
-                reward = 10.0
-            else:
-                # Reward based on score
-                if game_scores[0] <= 5:
-                    reward = 2.0
-                elif game_scores[0] <= 10:
-                    reward = 0.0
-                elif game_scores[0] <= 15:
-                    reward = -2.0
-                else:
-                    reward = -5.0
-
-            agent.train_on_trajectory(trajectory, reward, game_scores[0])
-            agent.notify_game_end()
-
-
-        # Track data for visualization
-        scores = [game_scores[0], game_scores[1]]
-        all_scores.append(scores)
-        game_numbers.append(game_num + 1)
-        winner_idx = scores.index(min(scores))
-        wins[winner_idx] += 1
-
-        # Track Q-table growth
-        qtable_states.append(len(agent.q_table))
-        qtable_entries.append(sum(len(actions) for actions in agent.q_table.values()))
-
-        all_trajectories.extend([
-            {
-                'state_key': step['state_key'],
-                'action_key': step['action_key'],
-                'action': step['action'],
-                'round': step.get('round', '?'),
-                'game': game_num+1,
-                'last_action': step.get('last_action', '')
-            }
-            for step in trajectory
-        ])
-
-        if verbose and (game_num + 1) % 50 == 0:
-            print(f"  Completed {game_num + 1} games")
-
-    print(f"✅ Training complete! Q-table has {len(agent.q_table)} states")
-
-    # Step 2: Analyze Q-table
-    print(f"\n📊 STEP 2: Analyzing Q-table...")
-    qtable_stats = analyze_qtable(agent.q_table, verbose=verbose)
-
-    # Step 3: Analyze state patterns
-    print(f"\n🔍 STEP 3: Analyzing state patterns...")
-    state_patterns = analyze_state_patterns(agent.q_table, verbose=verbose)
-
-    # Step 4: Create visualizations
-    print(f"\n📈 STEP 4: Creating visualizations...")
-    avg_scores = [sum([scores[i] for scores in all_scores]) / num_games for i in range(len(agent_types))]
-
-    # Create score distribution visualization (easily commentable)
-    # Uncomment the line below to disable score distribution visualization
-    # plot_filename = None
-    # plot_filename = create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, num_games)
-
-        # Create Q-table growth visualization
-    print(f"\n📊 Creating Q-table growth visualization...")
-    state_entry_growth_path = get_output_path(f"qtable_state_entry_growth_{num_games}_games.png")
-    plot_qtable_state_and_entry_growth(game_numbers, qtable_states, qtable_entries,
-                      save_filename=state_entry_growth_path)
-
-    # Create action type tracking visualization (with round_info=True)
-    print(f"\n📊 Creating action type tracking visualization...")
-    action_type_tracking_path = get_output_path(f"action_type_tracking_{num_games}_games.png")
-    plot_action_type_tracking(all_trajectories, round_info=True, save_filename=action_type_tracking_path)
-
-    # Combine both PNGs into a single figure (side by side)
-    print(f"\n📊 Combining growth and action type tracking plots...")
-    combined_path = get_output_path(f"combined_growth_actiontype_{num_games}_games.png")
-    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
-    img1 = mpimg.imread(state_entry_growth_path)
-    img2 = mpimg.imread(action_type_tracking_path)
-    axes[0].imshow(img1)
-    axes[0].axis('off')
-    axes[0].set_title('Q-table State & Entry Growth')
-    axes[1].imshow(img2)
-    axes[1].axis('off')
-    axes[1].set_title('Action Type Tracking (by Round)')
-    plt.tight_layout()
-    plt.savefig(combined_path, dpi=300, bbox_inches='tight')
-    print(f"Combined plot saved to {combined_path}")
-    plt.close(fig)
-
-    # Step 5: Save Q-table and trajectory to CSV
-    print(f"\n💾 STEP 5: Saving Q-table to CSV...")
-    # Build a (state_key, action_key) -> last_action map from the full trajectory
-    state_action_last_action_map = {}
-    for step in all_trajectories:
-        key = (step['state_key'], step['action_key'])
-        # You can use step['last_action'] if present, or construct a description
-        if 'last_action' in step and step['last_action']:
-            desc = step['last_action']
-        else:
-            # Construct a description with game/round info
-            desc = f"g_{step.get('game', '?')}_r_{step.get('round', '?')}: {step['action']}"
-        state_action_last_action_map[key] = desc
-    save_qtable_to_csv(agent.q_table, f"qtable_trained_{num_games}_games.csv", agent, state_action_last_action_map)
-    save_trajectory_to_csv(all_trajectories, f"trajectory_trained_{num_games}_games.csv")
-
-    # Print all unique actions in the Q-table
-    # unique_actions = set()
-    # for actions in agent.q_table.values():
-    #     unique_actions.update(actions.keys())
-    # print("\nAll unique actions in the Q-table:")
-    # for action in sorted(unique_actions):
-    #     print(f"  {action}")
-    # print(f"Total unique actions: {len(unique_actions)}")
-
-    # Step 6: Summary
-    print(f"\n🎉 ANALYSIS COMPLETE!")
-    print(f"   • Trained for {num_games} games")
-    print(f"   • Q-table has {len(agent.q_table)} states")
-    # Calculate and print theoretical state space
-    # theoretical_stats = calculate_theoretical_state_space()
-    # total_theoretical_states = theoretical_stats['total_theoretical_states']
-
-    print(f"   • Average scores: Q-learning={avg_scores[0]:.2f}, Random={avg_scores[1]:.2f}")
-    # print(f"   • Visualizations saved as: {plot_filename}")
-    print(f"   • Q-table saved as: output/qtable_trained_{num_games}_games.csv")
-
-    # After training, plot learning curves
-    from RL.RL_viz import plot_learning_curves
-    plot_learning_curves(game_numbers, all_scores, agent_types, save_filename=get_output_path(f"learning_curves_{num_games}_games.png"))
-
-    return agent, qtable_stats, state_patterns, all_scores
+    return agent, results
 
 if __name__ == "__main__":
-    # Run the complete analysis
-    agent, qtable_stats, state_patterns, all_scores = main(num_games=500, verbose=True)
+    # Run the complete training + analysis workflow
+    print("Starting Q-learning agent training and analysis...")
+    agent, results = complete_training_and_analysis_workflow(
+        training_games=1000,  # Train for 1000 games
+        opponent_type="ev_ai",  # Train against EV agent
+        verbose=True,
+        save_prefix="trained_agent_1000_games",
+        # Q-learning hyperparameters
+        learning_rate=0.1,
+        discount_factor=0.9,
+        epsilon=0.2,
+        epsilon_decay_factor=0.995,
+        # Bootstrapping and imitation learning
+        n_bootstrap_games=500,  # Use EVAgent for first 250 games
+        use_imitation_learning=True,  # Enable bootstrapping
+        # Training configuration
+        epsilon_decay_interval=100,  # Decay epsilon every 100 games
+        progress_report_interval=100  # Report progress every 100 games
+    )
+
+    print("\n" + "="*70)
+    print("FINAL RESULTS SUMMARY")
+    print("="*70)
+    print(f"Trained agent has {len(agent.q_table)} states in Q-table")
+    print(f"Win rate: {results['training_stats']['wins']/results['training_stats']['games_played']:.2%}")
+    print(f"State space utilization: {results['state_space_utilization']:.2%}")
+    print("All visualizations and data saved to output/ directory")
