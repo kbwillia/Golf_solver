@@ -484,7 +484,7 @@ if __name__ == "__main__":
     # Run the training function with GPU support
     print("Starting Q-learning agent training with GPU acceleration...")
     agent, training_stats = train_qlearning_agent(
-        num_games=1000,  # Train for 1000 games
+        num_games=2000,  # Train for 1000 games
         opponent_type="ev_ai",  # Train against EV agent
         verbose=True,
         use_gpu=True,  # Enable GPU acceleration
