@@ -159,7 +159,7 @@ class GolfGame:
                         self.last_action_turn = current_turn_id
 
         # Display updated grids after the action
-        # self.display_all_grids()
+        # self.display_all_grids() # tst
 
     def all_players_done(self):
         return all(all(p.known) for p in self.players)
