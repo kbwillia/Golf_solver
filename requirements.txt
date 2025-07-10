@@ -9,3 +9,4 @@ playwright
 pytest
 matplotlib
 seaborn
+tqdm

@@ -146,4 +146,4 @@ def quick_test(agent_types, num_games):
     return avg_scores, wins, plot_filename
 
 if __name__ == "__main__":
-    quick_test(["ev_ai", "random", "heuristic", "advanced_ev"], 100)
+    quick_test(["ev_ai", "advanced_ev", "heuristic", "ev_ai"], 500)

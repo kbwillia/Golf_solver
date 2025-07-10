@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents import *
 from game import GolfGame
 import numpy as np
+from tqdm import trange
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -73,23 +74,38 @@ def train_qlearning_agent(
     print("Q-LEARNING AGENT TRAINING PHASE")
     print("="*70)
 
-    # Initialize agent with custom parameters
-    agent = QLearningAgent(
-        learning_rate=learning_rate,
-        discount_factor=discount_factor,
-        epsilon=epsilon,
-        n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
-    )
-
-    # Set up opponent
-    if opponent_type == "ev_ai":
+    if opponent_type == "qlearning_shared":
+        # Create one shared agent
+        agent = QLearningAgent(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
+        )
+        agents = [agent, agent]  # Both players use the same agent
+        agent_types = ["qlearning", "qlearning"]
+    elif opponent_type == "ev_ai":
+        agent = QLearningAgent(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
+        )
         opponent_agent = EVAgent()
+        agents = [agent, opponent_agent]
+        agent_types = ["qlearning", "ev_ai"]
     elif opponent_type == "random":
+        agent = QLearningAgent(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
+        )
         opponent_agent = RandomAgent()
+        agents = [agent, opponent_agent]
+        agent_types = ["qlearning", "random"]
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
-
-    agent_types = ["qlearning", opponent_type]
 
     # Training statistics
     training_stats = {
@@ -97,6 +113,7 @@ def train_qlearning_agent(
         'wins': 0,
         'losses': 0,
         'scores': [],
+        'opponent_scores': [],
         'qtable_states': [],
         'qtable_entries': [],
         'epsilon_values': []
@@ -115,42 +132,39 @@ def train_qlearning_agent(
         print(f"  • Bootstrapping: Disabled")
     print(f"  • Progress reports: Every {progress_report_interval} games")
 
-    for game_num in range(num_games):
+    # Use tqdm progress bar if not verbose, else use normal range
+    game_iter = range(num_games) if verbose else trange(num_games, desc="Training Q-learning agent")
+    for game_num in game_iter:
         # Create trajectory for this game
-        trajectory = []
+        trajectory1 = []
+        trajectory2 = []
 
         # Play game
-        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=[agent, opponent_agent])
-        game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
+        game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
+        game_scores = game.play_game(verbose=False, trajectories=[trajectory1, trajectory2])
 
-        # Determine winner and calculate reward
-        winner_idx = game_scores.index(min(game_scores))
-        qlearning_score = game_scores[0]
-        opponent_score = game_scores[1]
-
-        if winner_idx == 0:  # Q-learning agent won
-            reward = 10.0
-            training_stats['wins'] += 1
-        else:
-            training_stats['losses'] += 1
-            # Reward based on score
-            if qlearning_score <= 5:
-                reward = 2.0
-            elif qlearning_score <= 10:
-                reward = 0.0
-            elif qlearning_score <= 15:
-                reward = -2.0
-            else:
-                reward = -5.0
-
-        # Train the agent
-        if trajectory:
-            agent.train_on_trajectory(trajectory, reward, qlearning_score)
-            agent.notify_game_end()
+        # For each trajectory, update the shared agent
+        for idx, (traj, score) in enumerate(zip([trajectory1, trajectory2], game_scores)):
+            if traj:
+                winner_idx = game_scores.index(min(game_scores))
+                if idx == winner_idx:
+                    reward = 10.0
+                else:
+                    if score <= 5:
+                        reward = 2.0
+                    elif score <= 10:
+                        reward = 0.0
+                    elif score <= 15:
+                        reward = -2.0
+                    else:
+                        reward = -5.0
+                agent.train_on_trajectory(traj, reward, score)
+                agent.notify_game_end()
 
         # Record statistics
         training_stats['games_played'] += 1
-        training_stats['scores'].append(qlearning_score)
+        training_stats['scores'].append(game_scores[0]) # Q-learning score
+        training_stats['opponent_scores'].append(game_scores[1]) # Opponent score
 
         # Track Q-table growth
         states, entries = agent.get_q_table_size()

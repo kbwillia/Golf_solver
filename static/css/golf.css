@@ -1447,3 +1447,22 @@ body, html {
     50% { transform: scale(1.1); }
     100% { transform: scale(1); }
 }
+
+/* Hide scrollbar and prevent interaction for all descendants */
+.action-history,
+.action-history * {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  pointer-events: none !important;
+}
+.action-history::-webkit-scrollbar,
+.action-history *::-webkit-scrollbar {
+  display: none !important;
+}
+
+.button-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* space between buttons */
+  align-items: center;
+}

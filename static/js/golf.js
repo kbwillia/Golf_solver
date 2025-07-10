@@ -2166,3 +2166,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 showHeaderButtons(true);
+
+function enableActionHistory() {
+  const chat = document.querySelector('.action-history');
+  chat.style.pointerEvents = 'auto';
+  chat.style.overflow = 'auto';
+  chat.style.scrollbarWidth = '';
+  chat.style.msOverflowStyle = '';
+}

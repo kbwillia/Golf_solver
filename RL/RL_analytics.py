@@ -18,6 +18,8 @@ import csv
 from RL.RL_viz import *
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from tqdm import trange
+import time
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -321,7 +323,7 @@ def save_trajectory_to_csv(trajectory, filename):
 # Import training function from the new training module
 from RL.train import train_qlearning_agent
 
-def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent"):
+def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", opponent_type="ev_ai"):
     """
     Analyze a trained Q-learning agent and generate visualizations.
 
@@ -354,10 +356,14 @@ def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent"):
     )
 
     # Plot learning curves
+    # Combine scores from both agents into the expected format
+    all_scores = [[qlearning_score, opponent_score] for qlearning_score, opponent_score in
+                  zip(training_stats['scores'], training_stats['opponent_scores'])]
+
     plot_learning_curves(
         games,
-        [[score] for score in training_stats['scores']],  # Single agent format
-        ["qlearning"],
+        all_scores,  # Both agents' scores
+        ["qlearning", opponent_type],
         save_filename=f"{save_prefix}_learning_curve.png"
     )
 
@@ -445,6 +451,7 @@ def complete_training_and_analysis_workflow(
     """
     print("🚀 STARTING COMPLETE TRAINING + ANALYSIS WORKFLOW")
     print("="*70)
+    start_time = time.time()
 
     # Phase 1: Training
     agent, training_stats = train_qlearning_agent(
@@ -465,7 +472,8 @@ def complete_training_and_analysis_workflow(
     analysis_results = analyze_trained_agent(
         agent=agent,
         training_stats=training_stats,
-        save_prefix=save_prefix
+        save_prefix=save_prefix,
+        opponent_type=opponent_type
     )
 
     # Phase 3: Summary
@@ -474,6 +482,10 @@ def complete_training_and_analysis_workflow(
     print(f"   • Final win rate: {training_stats['wins']/training_games:.2%}")
     print(f"   • Q-table size: {len(agent.q_table)} states")
     print(f"   • Files saved with prefix: {save_prefix}")
+
+    end_time = time.time()
+    elapsed = end_time - start_time
+    print(f"\n⏱️ Total runtime: {elapsed:.2f} seconds")
 
     return agent, analysis_results
 
@@ -560,8 +572,10 @@ def main(num_games=200, verbose=True, opponent_type="ev_ai"):
 if __name__ == "__main__":
     # Run the complete training + analysis workflow
     print("Starting Q-learning agent training and analysis...")
+    training_games = 50000 # matched to 2.8% of state space
+    n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
-        training_games=1000,  # Train for 1000 games
+        training_games=training_games,  # Train for 1000 games
         opponent_type="ev_ai",  # Train against EV agent
         verbose=True,
         save_prefix="trained_agent_1000_games",
@@ -569,9 +583,9 @@ if __name__ == "__main__":
         learning_rate=0.1,
         discount_factor=0.9,
         epsilon=0.2,
-        epsilon_decay_factor=0.995,
+        epsilon_decay_factor=1.0, #0.995
         # Bootstrapping and imitation learning
-        n_bootstrap_games=500,  # Use EVAgent for first 250 games
+        n_bootstrap_games=n_bootstrap_games,  # Use EVAgent for first 250 games
         use_imitation_learning=True,  # Enable bootstrapping
         # Training configuration
         epsilon_decay_interval=100,  # Decay epsilon every 100 games

@@ -173,18 +173,21 @@ def get_probabilities(game):
         'average_deck_score': round(average_score_of_deck(game), 2) if game.deck else 0,
     }
 
-def expected_score_blind(grid, known, rank_probabilities):
+def expected_score_blind(grid, known, rank_probabilities, privately_visible=None):
     """
     Compute the expected score of a grid, using:
       - True values for known cards
       - Probability-weighted expected values for unknown cards
-      - For pairs: only count a pair if both cards are known and match; otherwise, do not apply the pair bonus
+      - For pairs: count a pair if both cards are known or (for human) privately visible
     """
     from models import Card
     scores = []
     ranks = []
     for i in range(4):
         if known[i] and grid[i]:
+            scores.append(grid[i].score())
+            ranks.append(grid[i].rank)
+        elif privately_visible is not None and privately_visible[i] and grid[i]:
             scores.append(grid[i].score())
             ranks.append(grid[i].rank)
         else:
@@ -194,16 +197,19 @@ def expected_score_blind(grid, known, rank_probabilities):
             # For pairing, treat as unknown (None)
             ranks.append(None)
     total_score = sum(scores)
-    # Only count pairs if both cards are known and match
+    # Only count pairs if both cards are known or privately visible
     used = set()
     for pos1 in range(4):
         for pos2 in range(pos1+1, 4):
             if (ranks[pos1] is not None and ranks[pos2] is not None and
                 ranks[pos1] == ranks[pos2] and pos1 not in used and pos2 not in used):
-                # Subtract both scores (they become zero)
-                total_score -= (scores[pos1] + scores[pos2])
-                used.add(pos1)
-                used.add(pos2)
+                # For human, check privately_visible as well
+                if (known[pos1] or (privately_visible is not None and privately_visible[pos1])) and \
+                   (known[pos2] or (privately_visible is not None and privately_visible[pos2])):
+                    # Subtract both scores (they become zero)
+                    total_score -= (scores[pos1] + scores[pos2])
+                    used.add(pos1)
+                    used.add(pos2)
     return total_score
 
 def expected_value_draw_vs_discard(game, player=None):
@@ -255,7 +261,7 @@ def expected_value_draw_vs_discard(game, player=None):
     rank_probabilities = {rank: count / total_private if total_private > 0 else 0 for rank, count in private_deck_counts.items()}
 
     # Calculate current hand score using expected_score_blind
-    current_score = expected_score_blind(target_player.grid, target_player.known, rank_probabilities)
+    current_score = expected_score_blind(target_player.grid, target_player.known, rank_probabilities, getattr(target_player, 'privately_visible', None))
 
     # --- Discard EV ---
     # Try placing discard card in each available position and find best (most negative) change
@@ -264,8 +270,10 @@ def expected_value_draw_vs_discard(game, player=None):
     from models import Card
 
     for pos in available_positions:
-        # If the card is known, use its actual value
-        if target_player.known[pos] and target_player.grid[pos]:
+        # For human, treat privately_visible as known
+        is_known = target_player.known[pos]
+        is_private = hasattr(target_player, 'privately_visible') and target_player.privately_visible[pos]
+        if (is_known or is_private) and target_player.grid[pos]:
             current_card_score = target_player.grid[pos].score()
         else:
             # If unknown, use expected score
@@ -273,10 +281,14 @@ def expected_value_draw_vs_discard(game, player=None):
         # Simulate swapping in the discard card
         test_grid = target_player.grid.copy()
         test_grid[pos] = discard_card
-        # Use expected_score_blind for the test grid
         test_known = target_player.known.copy()
         test_known[pos] = True  # After swap, this card is known
-        test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
+        # For human, update privately_visible as well
+        test_privately_visible = getattr(target_player, 'privately_visible', None)
+        if test_privately_visible is not None:
+            test_privately_visible = test_privately_visible.copy()
+            test_privately_visible[pos] = True
+        test_score = expected_score_blind(test_grid, test_known, rank_probabilities, test_privately_visible)
         ev = test_score - current_score
         if ev < best_discard_ev or best_discard_position is None:
             best_discard_ev = ev
@@ -319,7 +331,7 @@ def expected_value_draw_vs_discard(game, player=None):
                     test_grid[pos] = drawn_card
                     test_known = target_player.known.copy()
                     test_known[pos] = True  # After swap, this card is known
-                    test_score = expected_score_blind(test_grid, test_known, rank_probabilities)
+                    test_score = expected_score_blind(test_grid, test_known, rank_probabilities, getattr(target_player, 'privately_visible', None))
                     ev = test_score - current_score
                     if ev < best_draw_ev:
                         best_draw_ev = ev
@@ -334,7 +346,7 @@ def expected_value_draw_vs_discard(game, player=None):
                         # Calculate expected score change when this card is revealed
                         test_known = target_player.known.copy()
                         test_known[flip_pos] = True  # This card becomes known
-                        test_score = expected_score_blind(target_player.grid, test_known, rank_probabilities)
+                        test_score = expected_score_blind(target_player.grid, test_known, rank_probabilities, getattr(target_player, 'privately_visible', None))
                         ev = test_score - current_score
                         if ev < best_flip_ev:
                             best_flip_ev = ev
