@@ -572,7 +572,7 @@ def main(num_games=200, verbose=True, opponent_type="ev_ai"):
 if __name__ == "__main__":
     # Run the complete training + analysis workflow
     print("Starting Q-learning agent training and analysis...")
-    training_games = 500 # matched to 2.8% of state space
+    training_games = 1500 # matched to 2.8% of state space
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
         training_games=training_games,  # Train for 1000 games
