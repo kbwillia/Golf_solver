@@ -1306,6 +1306,27 @@ body, html {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
+/* Replay button - make it bigger and more prominent */
+.game-control-btn.replay-btn {
+    padding: 9px 18px;     /* Slightly smaller padding */
+    font-size: 1.05em;     /* Slightly smaller font */
+    min-width: 110px;      /* Slightly narrower */
+    border-radius: 8px;
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+}
+
+.game-control-btn.replay-btn:hover {
+    background: #0056b3;    /* Darker blue on hover */
+    border-color: #004085;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+}
+
 /* Last action panel styling */
 .last-action-panel {
     background: rgba(255, 255, 255, 0.9);

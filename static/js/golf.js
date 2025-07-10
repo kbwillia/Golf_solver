@@ -255,6 +255,9 @@ async function startGame() {
     // Reset AI turn flag
     aiTurnInProgress = false;
 
+    // Hide replay button when starting new game
+    onGameStart();
+
     const gameMode = document.getElementById('gameMode').value;
     const opponentType = document.getElementById('opponentType').value;
     const playerName = document.getElementById('playerName').value || 'Human';
@@ -463,6 +466,14 @@ function updateGameDisplay() {
 
         // Update Next Hole button visibility
         updateNextHoleButton();
+
+        // Check if game or match is over and show replay button
+        if (currentGameState.game_over) {
+            if (currentGameState.num_games === 1 || currentGameState.current_game === currentGameState.num_games) {
+                // Single game or last game of match - show replay button
+                onGameOver();
+            }
+        }
 
         // Game display updated successfully
     } catch (error) {
@@ -1850,6 +1861,7 @@ async function pollAITurns() {
 
 // Add the replayGame function
 function replayGame() {
+    onGameStart(); // Hide the replay button immediately
     // Reset turn tracking for replay
     lastTurnIndex = null;
 
@@ -2174,3 +2186,23 @@ function enableActionHistory() {
   chat.style.scrollbarWidth = '';
   chat.style.msOverflowStyle = '';
 }
+
+function showReplayButton(show) {
+    document.getElementById('replayContainer').style.display = show ? 'block' : 'none';
+}
+
+// Call this when the game is over (single game mode)
+function onGameOver() {
+    showReplayButton(true);
+}
+
+// Call this when the match is over (multi-game mode)
+function onMatchOver() {
+    showReplayButton(true);
+}
+
+// Hide it at the start of a new game/match
+function onGameStart() {
+    showReplayButton(false);
+}
+

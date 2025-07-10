@@ -484,7 +484,6 @@ class AdvancedEVAgent(EVAgent):
     """
     Advanced EV Agent with sophisticated features:
     - Pair-aware flipping: Knows that flipping one half of a pair will result in zero score for that pair
-    - Trajectory recording: Records decision history for analysis
     - Advanced position evaluation: Considers future pairing opportunities
     - Risk assessment: Evaluates the risk of revealing high-value cards
     """

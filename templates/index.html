@@ -121,8 +121,12 @@
                                 <div class="next-hole-container" id="nextHoleContainer" style="display: none;">
                                     <div class="button-column">
                                         <button onclick="nextGame()" class="btn btn-success next-hole-btn">Continue to Next Hole</button>
-                                        <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button>
                                     </div>
+                                </div>
+
+                                <!-- Place this outside of nextHoleContainer, after or below your main game area -->
+                                <div class="replay-container" id="replayContainer" style="display: none; text-align: center; margin-top: 20px;">
+                                    <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button>
                                 </div>
                             </div>
                         </div>
