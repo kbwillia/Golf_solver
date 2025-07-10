@@ -133,7 +133,7 @@ def train_qlearning_agent(
     print(f"  • Progress reports: Every {progress_report_interval} games")
 
     # Use tqdm progress bar if not verbose, else use normal range
-    game_iter = range(num_games) if verbose else trange(num_games, desc="Training Q-learning agent")
+    game_iter = trange(num_games, desc="Training Q-learning agent")
     for game_num in game_iter:
         # Create trajectory for this game
         trajectory1 = []

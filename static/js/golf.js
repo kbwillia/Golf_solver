@@ -12,7 +12,7 @@ let lastTurnIndex = null; // Last turn index to detect turn changes
 let setupHideTimeout = null; // Timeout for hiding setup cards
 let setupCardsHidden = false; // Whether setup cards are hidden
 let setupViewInterval = null; // Interval for setup view timer
-let cardVisibilityDuration = 1.2; // Default duration, updated from user input
+let cardVisibilityDuration = 1.5; // Default duration, updated from user input
 const SNAP_THRESHOLD = 30; // pixels
 let isMyTurn = false;
 let actionInProgress = false; // Prevents multiple simultaneous actions
@@ -262,7 +262,7 @@ async function startGame() {
     const opponentType = document.getElementById('opponentType').value;
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
-    cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.2;
+    cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
     try {
         const response = await fetch('/create_game', {
