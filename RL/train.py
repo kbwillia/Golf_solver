@@ -20,6 +20,7 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import defaultdict
 import time
+import random # Added for random.choice
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -78,77 +79,177 @@ class GPUQLearningAgent(QLearningAgent):
         self.optimizer = None
         self.criterion = nn.MSELoss()
 
-    def get_q_value(self, state, action):
+    def get_action_key(self, action):
+        """Convert action to a string key (inherited from parent)"""
+        return super().get_action_key(action)
+
+    def get_state_key(self, player, game_state):
+        """Get state key (inherited from parent)"""
+        return super().get_state_key(player, game_state)
+
+    def get_legal_actions(self, player, game_state):
+        """Get legal actions (inherited from parent)"""
+        return super().get_legal_actions(player, game_state)
+
+    def choose_action(self, player, game_state, trajectory=None):
+        """Override choose_action to use GPU tensor-based Q-table"""
+        legal_actions = self.get_legal_actions(player, game_state)
+        if not legal_actions:
+            return None
+
+        # Bootstrapping phase: use EVAgent for first n_bootstrap_games
+        if self.games_played < self.n_bootstrap_games:
+            ev_agent = EVAgent()
+            action = ev_agent.choose_action(player, game_state)
+            if action not in legal_actions:
+                action = random.choice(legal_actions)
+        else:
+            # Custom epsilon-greedy: 1/3 take_discard, 1/3 draw_deck_keep, 1/3 draw_deck_discard_flip
+            if self.training_mode and random.random() < self.epsilon:
+                # Group legal actions by type
+                type_groups = {
+                    'take_discard': [],
+                    'draw_deck_keep': [],
+                    'draw_deck_discard_flip': []
+                }
+                for a in legal_actions:
+                    if a['type'] == 'take_discard':
+                        type_groups['take_discard'].append(a)
+                    elif a['type'] == 'draw_deck' and a.get('keep', True):
+                        type_groups['draw_deck_keep'].append(a)
+                    elif a['type'] == 'draw_deck' and not a.get('keep', True):
+                        type_groups['draw_deck_discard_flip'].append(a)
+                # Pick a type at random (only among those with available actions)
+                available_types = [k for k, v in type_groups.items() if v]
+                chosen_type = random.choice(available_types)
+                action = random.choice(type_groups[chosen_type])
+            else:
+                state_key = self.get_state_key(player, game_state)
+                best_action = None
+                best_value = float('-inf')
+                for action_candidate in legal_actions:
+                    action_key = self.get_action_key(action_candidate)
+                    q_value = self.get_q_value(state_key, action_key)
+                    if q_value > best_value:
+                        best_value = q_value
+                        best_action = action_candidate
+                action = best_action
+
+        # Record trajectory if provided
+        if trajectory is not None:
+            state_key = self.get_state_key(player, game_state)
+            action_key = self.get_action_key(action)
+            trajectory.append({
+                'state_key': state_key,
+                'action_key': action_key,
+                'action': action,
+                'round': getattr(game_state, 'round', None)
+            })
+        return action
+
+    def get_q_value(self, state_key, action_key):
         """Get Q-value using GPU tensors"""
-        state_key = str(state)
         if state_key not in self.q_table:
             # Initialize with zeros on GPU
             self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
 
-        return self.q_table[state_key][action].item()
+        action_idx = self._action_key_to_index(action_key)
+        return self.q_table[state_key][action_idx].item()
 
-    def update_q_value(self, state, action, new_value):
+    def update_q_value(self, state_key, action_key, new_value):
         """Update Q-value using GPU tensors"""
-        state_key = str(state)
         if state_key not in self.q_table:
             self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
 
         # Update the tensor value
-        self.q_table[state_key][action] = new_value
-
-    def get_best_action(self, state, legal_actions):
-        """Get best action using GPU tensors"""
-        state_key = str(state)
-        if state_key not in self.q_table:
-            self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
-
-        # Get Q-values for all actions
-        q_values = self.q_table[state_key]
-
-        # Mask illegal actions with very low values
-        mask = torch.ones(12, dtype=torch.bool, device=self.device)
-        mask[legal_actions] = False
-        q_values_masked = q_values.clone()
-        q_values_masked[mask] = float('-inf')
-
-        # Return best legal action
-        return torch.argmax(q_values_masked).item()
+        action_idx = self._action_key_to_index(action_key)
+        self.q_table[state_key][action_idx] = new_value
 
     def train_on_trajectory(self, trajectory, reward, final_score):
         """Train on trajectory using GPU acceleration"""
         if not trajectory:
             return
 
-        # Convert trajectory to tensors for batch processing
-        states = []
-        actions = []
-        next_states = []
+        # Update Q-values for each step in the trajectory
+        for i, step in enumerate(trajectory):
+            state_key = step['state_key']
+            action_key = step['action_key']
 
-        for state, action, next_state in trajectory:
-            states.append(state_to_tensor(state, self.device))
-            actions.append(action)
-            next_states.append(state_to_tensor(next_state, self.device))
+            # Calculate immediate reward for this action
+            # Give small positive reward for taking actions (encourages exploration)
+            # The main learning comes from the final reward
+            immediate_reward = 0.1  # Small positive reward for taking action
 
-        # Batch process updates
-        for i, (state, action, next_state) in enumerate(zip(states, actions, next_states)):
-            current_q = self.get_q_value(str(state), action)
-
-            # Calculate target Q-value
-            if i == len(trajectory) - 1:  # Final state
-                target_q = reward
+            # Get next state and actions (if not the last step)
+            if i < len(trajectory) - 1:
+                next_step = trajectory[i + 1]
+                next_state_key = next_step['state_key']
+                next_actions = [next_step['action']]
             else:
-                # Get max Q-value for next state
-                next_state_key = str(next_state)
-                if next_state_key in self.q_table:
-                    next_q_values = self.q_table[next_state_key]
-                    max_next_q = torch.max(next_q_values).item()
-                else:
-                    max_next_q = 0.0
-                target_q = reward + self.discount_factor * max_next_q
+                next_state_key = state_key  # Terminal state
+                next_actions = []
+                # Add final reward to the last action
+                immediate_reward += reward
 
-            # Update Q-value
-            new_q = current_q + self.learning_rate * (target_q - current_q)
-            self.update_q_value(str(state), action, new_q)
+            # Update Q-value using GPU tensors
+            self._update_q_value_gpu(state_key, action_key, immediate_reward, next_state_key, next_actions)
+
+    def _update_q_value_gpu(self, state_key, action_key, reward, next_state_key, next_actions):
+        """Update Q-values using GPU tensors"""
+        # Initialize state if not exists
+        if state_key not in self.q_table:
+            self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+        if next_state_key not in self.q_table:
+            self.q_table[next_state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+
+        # Get current Q-value
+        action_idx = self._action_key_to_index(action_key)
+        current_q = self.q_table[state_key][action_idx].item()
+
+        # Calculate max next Q-value
+        max_next_q = 0.0
+        if next_actions:
+            next_q_values = []
+            for action in next_actions:
+                next_action_idx = self._action_key_to_index(self.get_action_key(action))
+                next_q_values.append(self.q_table[next_state_key][next_action_idx].item())
+            max_next_q = max(next_q_values) if next_q_values else 0.0
+
+        # Update Q-value
+        new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+        self.q_table[state_key][action_idx] = new_q
+
+    def _action_key_to_index(self, action_key):
+        """Convert action key to tensor index"""
+        # Parse action key format: "type_position" or "type_flip_position"
+        if isinstance(action_key, str):
+            parts = action_key.split('_')
+            if len(parts) >= 2:
+                action_type = parts[0]
+                if action_type == 'take_discard':
+                    # take_discard_0, take_discard_1, etc. -> indices 0-3
+                    try:
+                        pos = int(parts[1])
+                        return pos
+                    except ValueError:
+                        pass
+                elif action_type == 'draw_deck':
+                    if len(parts) >= 3 and parts[1] == 'flip':
+                        # draw_deck_flip_0, draw_deck_flip_1, etc. -> indices 8-11
+                        try:
+                            pos = int(parts[2])
+                            return pos + 8
+                        except ValueError:
+                            pass
+                    else:
+                        # draw_deck_0, draw_deck_1, etc. -> indices 4-7
+                        try:
+                            pos = int(parts[1])
+                            return pos + 4
+                        except ValueError:
+                            pass
+        # Fallback: hash the action key to get an index
+        return hash(action_key) % 12
 
     def get_q_table_size(self):
         """Get Q-table size information"""
