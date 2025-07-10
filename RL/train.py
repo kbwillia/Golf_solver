@@ -14,13 +14,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents import *
 from game import GolfGame
 import numpy as np
-from tqdm import trange
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import defaultdict
 import time
 import random # Added for random.choice
+from tqdm import trange
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -136,7 +136,7 @@ class GPUQLearningAgent(QLearningAgent):
                 action = best_action
 
         # Record trajectory if provided
-        if trajectory is not None:
+        if action is not None and trajectory is not None:
             state_key = self.get_state_key(player, game_state)
             action_key = self.get_action_key(action)
             trajectory.append({
@@ -150,8 +150,7 @@ class GPUQLearningAgent(QLearningAgent):
     def get_q_value(self, state_key, action_key):
         """Get Q-value using GPU tensors"""
         if state_key not in self.q_table:
-            # Initialize with zeros on GPU
-            self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
 
         action_idx = self._action_key_to_index(action_key)
         return self.q_table[state_key][action_idx].item()
@@ -159,7 +158,7 @@ class GPUQLearningAgent(QLearningAgent):
     def update_q_value(self, state_key, action_key, new_value):
         """Update Q-value using GPU tensors"""
         if state_key not in self.q_table:
-            self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
 
         # Update the tensor value
         action_idx = self._action_key_to_index(action_key)
@@ -198,13 +197,17 @@ class GPUQLearningAgent(QLearningAgent):
         """Update Q-values using GPU tensors"""
         # Initialize state if not exists
         if state_key not in self.q_table:
-            self.q_table[state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
         if next_state_key not in self.q_table:
-            self.q_table[next_state_key] = torch.zeros(12, dtype=torch.float32, device=self.device)
+            self.q_table[next_state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
 
         # Get current Q-value
         action_idx = self._action_key_to_index(action_key)
         current_q = self.q_table[state_key][action_idx].item()
+
+        # If this action hasn't been explored yet, treat as 0.0 for computation
+        if np.isnan(current_q):
+            current_q = 0.0
 
         # Calculate max next Q-value
         max_next_q = 0.0
@@ -212,7 +215,10 @@ class GPUQLearningAgent(QLearningAgent):
             next_q_values = []
             for action in next_actions:
                 next_action_idx = self._action_key_to_index(self.get_action_key(action))
-                next_q_values.append(self.q_table[next_state_key][next_action_idx].item())
+                next_q_val = self.q_table[next_state_key][next_action_idx].item()
+                # If next action hasn't been explored, treat as 0.0
+                if not np.isnan(next_q_val):
+                    next_q_values.append(next_q_val)
             max_next_q = max(next_q_values) if next_q_values else 0.0
 
         # Update Q-value
@@ -252,9 +258,24 @@ class GPUQLearningAgent(QLearningAgent):
         return hash(action_key) % 12
 
     def get_q_table_size(self):
-        """Get Q-table size information"""
-        total_entries = sum(len(q_tensor) for q_tensor in self.q_table.values())
-        return len(self.q_table), total_entries
+        """Get Q-table size information (only count states with explored actions)"""
+        total_entries = 0
+        states_with_actions = 0
+
+        for q_tensor in self.q_table.values():
+            if isinstance(q_tensor, torch.Tensor):
+                # Count only non-NaN values (explored actions)
+                explored_actions = sum(1 for v in q_tensor if not torch.isnan(v))
+                if explored_actions > 0:
+                    states_with_actions += 1
+                    total_entries += explored_actions
+            else:
+                # Fallback for dict-based Q-tables
+                if len(q_tensor) > 0:
+                    states_with_actions += 1
+                    total_entries += len(q_tensor)
+
+        return states_with_actions, total_entries
 
 # ============================================================================
 # DEDICATED TRAINING PHASE

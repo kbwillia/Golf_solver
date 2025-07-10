@@ -32,7 +32,7 @@ def get_output_path(filename):
 
 
 def analyze_qtable(q_table, verbose=True):
-    """Analyze Q-table contents and show interesting patterns"""
+    """Analyze Q-table contents and show interesting patterns (supports dict or tensor Q-tables)"""
     if verbose:
         print("\n" + "="*70)
         print("Q-TABLE ANALYSIS")
@@ -44,7 +44,15 @@ def analyze_qtable(q_table, verbose=True):
         return {}
 
     total_states = len(q_table)
-    total_entries = sum(len(actions) for actions in q_table.values())
+    # For tensor Q-tables, each value is a tensor, not a dict
+    def get_num_actions(actions):
+        if isinstance(actions, dict):
+            return len(actions)
+        elif hasattr(actions, 'shape'):
+            return actions.shape[0]
+        else:
+            return 0
+    total_entries = sum(get_num_actions(actions) for actions in q_table.values())
 
     stats = {
         'total_states': total_states,
@@ -62,9 +70,17 @@ def analyze_qtable(q_table, verbose=True):
     state_action_pairs = []
 
     for state_key, actions in q_table.items():
-        for action_key, q_value in actions.items():
-            all_qvalues.append(q_value)
-            state_action_pairs.append((state_key, action_key, q_value))
+        if isinstance(actions, dict):
+            for action_key, q_value in actions.items():
+                if not np.isnan(q_value):  # Only include non-NaN values
+                    all_qvalues.append(q_value)
+                    state_action_pairs.append((state_key, action_key, q_value))
+        elif hasattr(actions, 'shape'):
+            for action_idx in range(actions.shape[0]):
+                q_value = actions[action_idx].item()
+                if not np.isnan(q_value):  # Only include non-NaN values
+                    state_action_pairs.append((state_key, action_idx, q_value))
+                    all_qvalues.append(q_value)
 
     if not all_qvalues:
         if verbose:
@@ -226,38 +242,23 @@ def save_qtable_to_csv(q_table, filename, agent, state_action_last_action_map=No
         agent: The QLearningAgent instance (for debug state info)
         state_action_last_action_map: Optional mapping of states to last actions
     """
-    data = []
-
-    for state_key, actions in q_table.items():
-        for action, q_value in actions.items():
-            # Use the improved last_action map
-            last_action = "Unknown"
-            if state_action_last_action_map:
-                key = (state_key, action)
-                if key in state_action_last_action_map:
-                    last_action = state_action_last_action_map[key]
-            row = {
-                'state': state_key,
-                'action': action,
-                'q_value': q_value,
-                'last_action': last_action
-            }
-            data.append(row)
-
-    # Sort by Q-value descending
-    data.sort(key=lambda x: x['q_value'], reverse=True)
-
-    # Write to CSV
     output_path = get_output_path(filename)
     with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['state', 'action', 'q_value', 'last_action']
+        fieldnames = ['state', 'action', 'q_value']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
         writer.writeheader()
-        for row in data:
-            writer.writerow(row)
+        for state, actions in q_table.items():
+            if isinstance(actions, dict):
+                for action, q_value in actions.items():
+                    if not np.isnan(q_value):  # Only save explored actions
+                        writer.writerow({'state': state, 'action': action, 'q_value': q_value})
+            elif hasattr(actions, 'shape'):
+                for action_idx in range(actions.shape[0]):
+                    q_value = actions[action_idx].item()
+                    if not np.isnan(q_value):  # Only save explored actions
+                        writer.writerow({'state': state, 'action': action_idx, 'q_value': q_value})
 
-    print(f"Q-table saved to {output_path} with {len(data)} entries")
+    print(f"Q-table saved to {output_path} with {sum(1 for _ in csv.DictReader(open(output_path))) - 1} entries")
 
 def parse_state_for_last_action(state_key):
     """Parse state key to extract context about the game situation"""
@@ -572,7 +573,7 @@ def main(num_games=200, verbose=True, opponent_type="ev_ai"):
 if __name__ == "__main__":
     # Run the complete training + analysis workflow
     print("Starting Q-learning agent training and analysis...")
-    training_games = 1500 # matched to 2.8% of state space
+    training_games = 500 # matched to 2.8% of state space
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
         training_games=training_games,  # Train for 1000 games

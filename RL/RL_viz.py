@@ -102,7 +102,13 @@ def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
         return
 
     # Extract all Q-values
-    all_qvalues = [q for actions in q_table.values() for q in actions.values()]
+    all_qvalues = []
+    for actions in q_table.values():
+        if isinstance(actions, dict):
+            all_qvalues.extend(actions.values())
+        elif hasattr(actions, 'shape'):
+            # Only include Q-values that have been updated (optionally: nonzero or above a threshold)
+            all_qvalues.extend([v.item() for v in actions])
 
     if not all_qvalues:
         print("No Q-values found!")
@@ -397,35 +403,29 @@ def calculate_theoretical_state_space():
 
 
 
-def plot_qvalue_distribution(q_table, save_filename="qvalue_distribution.png"):
-    """Plot Q-value distribution"""
+def plot_qvalue_density(q_table, save_filename="qtable_density.png"):
+    """Plot Q-table density (actions per state) over time or at a snapshot."""
+    import numpy as np
     if not q_table:
         print("No Q-table data to plot!")
         return
 
-    # Extract all Q-values
-    all_qvalues = [q for actions in q_table.values() for q in actions.values()]
+    def count_nonzero_actions(actions):
+        if isinstance(actions, dict):
+            return sum(1 for v in actions.values() if not np.isnan(v))
+        elif hasattr(actions, 'shape'):
+            return sum(1 for v in actions if not np.isnan(v.item()))
+        return 0
 
-    if not all_qvalues:
-        print("No Q-values found!")
-        return
+    actions_per_state = [count_nonzero_actions(actions) for actions in q_table.values()]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Histogram of Q-values
-    ax1.hist(all_qvalues, bins=30, alpha=0.7, edgecolor='black')
-    ax1.set_xlabel('Q-value')
-    ax1.set_ylabel('Frequency')
-    ax1.set_title('Q-value Distribution')
-    ax1.grid(True, alpha=0.3)
-
-    # Box plot of Q-values
-    ax2.boxplot(all_qvalues)
-    ax2.set_ylabel('Q-value')
-    ax2.set_title('Q-value Box Plot')
-    ax2.grid(True, alpha=0.3)
-
+    plt.figure(figsize=(8, 5))
+    plt.plot(actions_per_state, 'm.', alpha=0.7)
+    plt.xlabel('State Index')
+    plt.ylabel('Actions per State')
+    plt.title('Q-table Density')
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(save_filename, dpi=300, bbox_inches='tight')
-    print(f"Q-value distribution plots saved to {save_filename}")
+    print(f"Q-table density plot saved to {save_filename}")
     plt.show()
