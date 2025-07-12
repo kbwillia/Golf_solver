@@ -153,27 +153,27 @@ def analyze_state_patterns(q_table, verbose=True):
         except:
             continue
 
-    if verbose:
-        print("States by round:")
-        for round_num in sorted(rounds.keys()):
-            print(f"  Round {round_num}: {rounds[round_num]} states")
+    # if verbose:
+        # print("States by round:")
+        # for round_num in sorted(rounds.keys()):
+        #     # print(f"  Round {round_num}: {rounds[round_num]} states")
 
 
-        print(f"\nStates by known card count:")
-        for count in sorted(known_card_counts.keys()):
-            print(f"  {count} known: {known_card_counts[count]} states")
+        # print(f"\nStates by known card count:")
+        # for count in sorted(known_card_counts.keys()):
+        #     print(f"  {count} known: {known_card_counts[count]} states")
 
-        print(f"\nTop 10 discard cards:")
-        sorted_discards = sorted(discard_tops.items(), key=lambda x: x[1], reverse=True)
-        for discard, count in sorted_discards[:10]:
-            print(f"  {discard}: {count} states")
+        # print(f"\nTop 10 discard cards:")
+        # sorted_discards = sorted(discard_tops.items(), key=lambda x: x[1], reverse=True)
+        # for discard, count in sorted_discards[:10]:
+        #     print(f"  {discard}: {count} states")
 
-    return {
-        'rounds': rounds,
-        'unknown_counts': unknown_counts,
-        'discard_tops': discard_tops,
-        'known_card_counts': known_card_counts
-    }
+    # return {
+    #     'rounds': rounds,
+    #     'unknown_counts': unknown_counts,
+    #     'discard_tops': discard_tops,
+    #     'known_card_counts': known_card_counts
+    # }
 
 
 def analyze_growth_patterns(games, states, entries, scores=None):
@@ -588,7 +588,7 @@ def main(num_games=200, verbose=True, opponent_type="ev_ai", use_gpu=True, batch
 if __name__ == "__main__":
     # Run the complete batch training + analysis workflow
     print("Starting Q-learning agent batch training and analysis...")
-    training_games = 5000 # matched to 2.8% of state space
+    training_games = 500 # matched to 2.8% of state space
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
         training_games=training_games,  # Train for 500 games

@@ -181,6 +181,8 @@ def train_qlearning_agent(
 
     # Use tqdm progress bar
     game_iter = trange(num_games, desc="Training Q-learning agent")
+    total_sim_time = 0.0
+    total_q_time = 0.0
     for game_num in game_iter:
         start_time = time.time()
 
@@ -188,27 +190,35 @@ def train_qlearning_agent(
         trajectory1 = []
         trajectory2 = []
 
-        # Play game
+        # Time the game simulation
+        start_sim = time.perf_counter()
         game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
         game_scores = game.play_game(verbose=False, trajectories=[trajectory1, trajectory2])
+        end_sim = time.perf_counter()
+        sim_time = end_sim - start_sim
+        total_sim_time += sim_time
 
-        # For each trajectory, update the shared agent
+        # Time the Q-table lookup/update
+        start_q = time.perf_counter()
         for idx, (traj, score) in enumerate(zip([trajectory1, trajectory2], game_scores)):
             if traj:
                 winner_idx = game_scores.index(min(game_scores))
                 if idx == winner_idx:
                     reward = 10.0
                 else:
-                    if score <= 5:
-                        reward = 2.0
-                    elif score <= 10:
-                        reward = 0.0
-                    elif score <= 15:
-                        reward = -2.0
+                    if score == 0:
+                        reward = 10.0
+                    elif score <= 5:
+                        reward = 5.0
+                    elif score <= 20:
+                        reward = -4.0
                     else:
-                        reward = -5.0
+                        reward = -10.0
                 agent.train_on_trajectory(traj, reward, score)
                 agent.notify_game_end()
+        end_q = time.perf_counter()
+        q_time = end_q - start_q
+        total_q_time += q_time
 
         # Record statistics
         training_stats['games_played'] += 1
@@ -250,6 +260,8 @@ def train_qlearning_agent(
     print(f"   • Final epsilon: {agent.epsilon:.3f}")
     print(f"   • Total training time: {total_time:.2f}s")
     print(f"   • Average time per game: {total_time/num_games:.3f}s")
+    print(f"   • Total simulation time: {total_sim_time:.2f}s")
+    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
     if use_imitation_learning:
         bootstrap_games = min(n_bootstrap_games, num_games)
         qlearning_games = max(0, num_games - n_bootstrap_games)
@@ -345,10 +357,10 @@ def train_qlearning_agent_batch(
     print(f"Batch training against {opponent_type} for {num_games} games...")
     print(f"Batch size: {batch_size} games per batch")
     print(f"Acceleration: {'GPU' if use_gpu else 'CPU'}")
-    print(f"Q-learning parameters:")
-    print(f"  • Learning rate: {learning_rate}")
-    print(f"  • Discount factor: {discount_factor}")
-    print(f"  • Initial epsilon: {epsilon}")
+    # print(f"Q-learning parameters:")
+    # print(f"  • Learning rate: {learning_rate}")
+    # print(f"  • Discount factor: {discount_factor}")
+    # print(f"  • Initial epsilon: {epsilon}")
 
     # Process games in batches
     num_batches = (num_games + batch_size - 1) // batch_size
@@ -359,33 +371,29 @@ def train_qlearning_agent_batch(
         batch_size = num_games
         num_batches = 1
 
+    total_sim_time = 0.0
+    total_q_time = 0.0
     for batch_idx in trange(num_batches, desc="Training batches"):
         batch_start_time = time.time()
 
         # Determine games in this batch
         games_in_batch = min(batch_size, num_games - batch_idx * batch_size)
 
+        # Time the batch game simulation
+        start_sim = time.perf_counter()
         # Play batch of games
         batch_trajectories = []
         batch_rewards = []
         batch_scores = []
-
         for game_idx in range(games_in_batch):
-            # Create trajectory for this game
             trajectory = []
-
-            # Create opponent agent for this game
             if opponent_type == "ev_ai":
                 opponent_agent = EVAgent()
                 agents = [agent, opponent_agent]
-
-            # Play game
             game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
             game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
-
-            # Calculate reward
             winner_idx = game_scores.index(min(game_scores))
-            if winner_idx == 0:  # Q-learning agent won
+            if winner_idx == 0:
                 reward = 10.0
                 training_stats['wins'] += 1
             else:
@@ -398,22 +406,26 @@ def train_qlearning_agent_batch(
                 else:
                     reward = -5.0
                 training_stats['losses'] += 1
-
             batch_trajectories.append(trajectory)
             batch_rewards.append(reward)
             batch_scores.append(game_scores[0])
-
             training_stats['games_played'] += 1
             training_stats['scores'].append(game_scores[0])
             training_stats['opponent_scores'].append(game_scores[1])
+        end_sim = time.perf_counter()
+        sim_time = end_sim - start_sim
+        total_sim_time += sim_time
 
-        # Batch train on all trajectories
+        # Time the Q-table batch update
+        start_q = time.perf_counter()
         if use_gpu and hasattr(agent, 'train_on_batch_trajectories_vectorized'):
             agent.train_on_batch_trajectories_vectorized(batch_trajectories, batch_rewards, batch_scores)
         else:
-            # Fallback to individual training
             for trajectory, reward, score in zip(batch_trajectories, batch_rewards, batch_scores):
                 agent.train_on_trajectory(trajectory, reward, score)
+        end_q = time.perf_counter()
+        q_time = end_q - start_q
+        total_q_time += q_time
 
         # Notify game end for each game in batch
         for _ in range(games_in_batch):
@@ -473,6 +485,8 @@ def train_qlearning_agent_batch(
     print(f"   • Final epsilon: {agent.epsilon:.3f}")
     print(f"   • Total training time: {total_time:.2f}s")
     print(f"   • Average time per game: {total_time/num_games:.3f}s")
+    print(f"   • Total simulation time: {total_sim_time:.2f}s")
+    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
 
     return agent, training_stats
 

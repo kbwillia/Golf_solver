@@ -333,15 +333,10 @@ def plot_learning_curves(game_numbers, all_scores, agent_types, save_filename="l
 
 def calculate_theoretical_state_space():
     """Calculate the theoretical state space size"""
-    print("=== THEORETICAL STATE SPACE CALCULATION ===\n")
 
     # Card ranks (suits don't matter in state representation)
     ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
     num_ranks = len(ranks)
-
-    print(f"Card ranks: {num_ranks} different ranks")
-    print(f"Grid size: 4 cards per player")
-    print(f"Max rounds: 4")
 
     # Calculate combinations for known cards
     # For each card position, we can have:
@@ -354,18 +349,12 @@ def calculate_theoretical_state_space():
     # 3. Top discard card rank (or 'None')
     # 4. Round number
 
-    print("\nState components:")
-    print("1. Known cards (sorted list of ranks)")
-    print("2. Unknown card count (0-4)")
-    print("3. Discard pile top (13 ranks + 'None')")
-    print("4. Round number (1-4)")
-
     # For known cards: we can have 0-4 known cards
     # Each subset of ranks can appear in any combination
     total_known_combinations = 0
 
     for num_known in range(5):  # 0 to 4 known cards
-        print(f"\n  {num_known} known cards:")
+        # print(f"\n  {num_known} known cards:")
 
         if num_known == 0:
             combinations = 1  # Empty set
@@ -375,29 +364,29 @@ def calculate_theoretical_state_space():
             combinations = math.comb(num_ranks + num_known - 1, num_known)
 
         total_known_combinations += combinations
-        print(f"    Combinations: {combinations:,}")
+        # print(f"    Combinations: {combinations:,}")
 
-    print(f"\nTotal known card combinations: {total_known_combinations:,}")
+    # print(f"\nTotal known card combinations: {total_known_combinations:,}")
 
     # Discard pile possibilities
     discard_possibilities = num_ranks + 1  # 13 ranks + 'None'
 
     # Round possibilities
-    round_possibilities = 4  # rounds 1-4
+    round_possibilities = 4
 
     # Total theoretical state space
     total_states = total_known_combinations * discard_possibilities * round_possibilities
 
-    print(f"Discard possibilities: {discard_possibilities}")
-    print(f"Round possibilities: {round_possibilities}")
-    print(f"\nTheoretical total states: {total_states:,}")
+    # print(f"Discard possibilities: {discard_possibilities}")
+    # print(f"Round possibilities: {round_possibilities}")
+    # print(f"\nTheoretical total states: {total_states:,}")
 
     # Action space per state
     max_actions_per_state = 8  # 4 positions × 2 action types (take_discard, draw_deck)
     total_state_action_pairs = total_states * max_actions_per_state
 
-    print(f"Max actions per state: {max_actions_per_state}")
-    print(f"Theoretical state-action pairs: {total_state_action_pairs:,}")
+    # print(f"Max actions per state: {max_actions_per_state}")
+    # print(f"Theoretical state-action pairs: {total_state_action_pairs:,}")
 
     return total_states
 

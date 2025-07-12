@@ -60,11 +60,11 @@ def calculate_theoretical_state_space():
     # 3. Top discard card rank (or 'None')
     # 4. Round number
 
-    print("\nState components:")
-    print("1. Known cards (sorted list of ranks)")
-    print("2. Unknown card count (0-4)")
-    print("3. Discard pile top (13 ranks + 'None')")
-    print("4. Round number (1-4)")
+    # print("\nState components:")
+    # print("1. Known cards (sorted list of ranks)")
+    # print("2. Unknown card count (0-4)")
+    # print("3. Discard pile top (13 ranks + 'None')")
+    # print("4. Round number (1-4)")
 
     # For known cards: we can have 0-4 known cards
     # Each subset of ranks can appear in any combination
@@ -81,9 +81,9 @@ def calculate_theoretical_state_space():
             combinations = math.comb(num_ranks + num_known - 1, num_known)
 
         total_known_combinations += combinations
-        print(f"    Combinations: {combinations:,}")
+    #     print(f"    Combinations: {combinations:,}")
 
-    print(f"\nTotal known card combinations: {total_known_combinations:,}")
+    # print(f"\nTotal known card combinations: {total_known_combinations:,}")
 
     # Discard pile possibilities
     discard_possibilities = num_ranks + 1  # 13 ranks + 'None'
