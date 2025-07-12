@@ -588,7 +588,7 @@ def main(num_games=200, verbose=True, opponent_type="ev_ai", use_gpu=True, batch
 if __name__ == "__main__":
     # Run the complete batch training + analysis workflow
     print("Starting Q-learning agent batch training and analysis...")
-    training_games = 500 # matched to 2.8% of state space
+    training_games = 5000 # matched to 2.8% of state space
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
         training_games=training_games,  # Train for 500 games
@@ -596,7 +596,7 @@ if __name__ == "__main__":
         opponent_type="ev_ai",  # Train against EV agent
         verbose=True,
         save_prefix="trained_agent_500_games_batch",
-        use_gpu=True,  # Enable GPU acceleration
+        use_gpu=False,  # Enable GPU acceleration
         # Q-learning hyperparameters
         learning_rate=0.1,
         discount_factor=0.9,

@@ -97,7 +97,8 @@ def test_batch_vs_sequential():
         r = results[key]
         method_name = "Sequential" if batch_size == 1 else f"Batch {batch_size}"
         speedup = r.get('speedup_vs_cpu_seq', 1.0)
-        print(f"{'CPU '+method_name:<20} {r['time']:<8.1f} {r['games_per_sec']:<8.1f} {r['states']:<8} {r['entries']:<9} {r['win_rate']*100:<6.1f} {speedup:<15.1f}x")
+        speedup_str = f"{speedup:.1f}x" if speedup is not None else "N/A"
+        print(f"{'CPU '+method_name:<20} {r['time']:<8.1f} {r['games_per_sec']:<8.1f} {r['states']:<8} {r['entries']:<9} {r['win_rate']*100:<6.1f} {speedup_str:<15}")
 
     # GPU results (if available)
     if torch.cuda.is_available():
@@ -106,7 +107,8 @@ def test_batch_vs_sequential():
             r = results[key]
             method_name = "Sequential" if batch_size == 1 else f"Batch {batch_size}"
             speedup = r.get('speedup_vs_cpu_seq', 1.0)
-            print(f"{'GPU '+method_name:<20} {r['time']:<8.1f} {r['games_per_sec']:<8.1f} {r['states']:<8} {r['entries']:<9} {r['win_rate']*100:<6.1f} {speedup:<15.1f}x")
+            speedup_str = f"{speedup:.1f}x" if speedup is not None else "N/A"
+            print(f"{'GPU '+method_name:<20} {r['time']:<8.1f} {r['games_per_sec']:<8.1f} {r['states']:<8} {r['entries']:<9} {r['win_rate']*100:<6.1f} {speedup_str:<15}")
 
     # Find best overall method
     best_method = min(results.keys(), key=lambda x: results[x]['time'])
@@ -132,7 +134,6 @@ def test_batch_vs_sequential():
             best_gpu = min(gpu_methods, key=lambda x: results[x]['time'])
             best_gpu_result = results[best_gpu]
             print(f"\n🚀 BEST GPU METHOD: {best_gpu}")
-            print(f"   • Speedup vs CPU Sequential: {best_gpu_result['speedup_vs_cpu_seq']:.1f}x")
 
     return results
 

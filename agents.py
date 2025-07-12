@@ -712,340 +712,82 @@ def get_device():
 
 
 class GPUQLearningAgent(QLearningAgent):
-    """GPU-accelerated version of QLearningAgent using PyTorch tensors"""
+    """GPU-accelerated version of QLearningAgent using PyTorch tensors for computation, but same Q-table structure as CPU agent."""
 
     def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
                  n_bootstrap_games=0, device=None):
         super().__init__(learning_rate, discount_factor, epsilon, n_bootstrap_games)
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch is required for GPUQLearningAgent")
-
         self.device = device if device else get_device()
-        self.q_table = {}  # Keep as dict for state keys, but values as tensors
+        # Q-table is now a defaultdict of defaultdicts, just like CPU agent
+        self.q_table = defaultdict(lambda: defaultdict(float))
         self.optimizer = None
         self.criterion = nn.MSELoss()
 
-    def get_action_key(self, action):
-        """Convert action to a string key (inherited from parent)"""
-        return super().get_action_key(action)
-
-    def get_state_key(self, player, game_state):
-        """Get state key (inherited from parent)"""
-        return super().get_state_key(player, game_state)
-
-    def get_legal_actions(self, player, game_state):
-        """Get legal actions (inherited from parent)"""
-        return super().get_legal_actions(player, game_state)
-
-    def choose_action(self, player, game_state, trajectory=None):
-        """Override choose_action to use GPU tensor-based Q-table"""
-        legal_actions = self.get_legal_actions(player, game_state)
-        if not legal_actions:
-            return None
-
-        # Bootstrapping phase: use EVAgent for first n_bootstrap_games
-        if self.games_played < self.n_bootstrap_games:
-            ev_agent = EVAgent()
-            action = ev_agent.choose_action(player, game_state)
-            if action not in legal_actions:
-                action = random.choice(legal_actions)
-        else:
-            # Custom epsilon-greedy: 1/3 take_discard, 1/3 draw_deck_keep, 1/3 draw_deck_discard_flip
-            if self.training_mode and random.random() < self.epsilon:
-                # Group legal actions by type
-                type_groups = {
-                    'take_discard': [],
-                    'draw_deck_keep': [],
-                    'draw_deck_discard_flip': []
-                }
-                for a in legal_actions:
-                    if a['type'] == 'take_discard':
-                        type_groups['take_discard'].append(a)
-                    elif a['type'] == 'draw_deck' and a.get('keep', True):
-                        type_groups['draw_deck_keep'].append(a)
-                    elif a['type'] == 'draw_deck' and not a.get('keep', True):
-                        type_groups['draw_deck_discard_flip'].append(a)
-                # Pick a type at random (only among those with available actions)
-                available_types = [k for k, v in type_groups.items() if v]
-                chosen_type = random.choice(available_types)
-                action = random.choice(type_groups[chosen_type])
-            else:
-                state_key = self.get_state_key(player, game_state)
-                best_action = None
-                best_value = float('-inf')
-                for action_candidate in legal_actions:
-                    action_key = self.get_action_key(action_candidate)
-                    q_value = self.get_q_value(state_key, action_key)
-                    if q_value > best_value:
-                        best_value = q_value
-                        best_action = action_candidate
-                action = best_action
-
-        # Record trajectory if provided
-        if action is not None and trajectory is not None:
-            state_key = self.get_state_key(player, game_state)
-            action_key = self.get_action_key(action)
-            trajectory.append({
-                'state_key': state_key,
-                'action_key': action_key,
-                'action': action,
-                'round': getattr(game_state, 'round', None)
-            })
-        return action
-
     def get_q_value(self, state_key, action_key):
-        """Get Q-value using GPU tensors"""
-        if state_key not in self.q_table:
-            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
-
-        action_idx = self._action_key_to_index(action_key)
-        return self.q_table[state_key][action_idx].item()
+        # Use float value from dict, but can convert to tensor for computation
+        return self.q_table[state_key][action_key]
 
     def update_q_value(self, state_key, action_key, new_value):
-        """Update Q-value using GPU tensors"""
-        if state_key not in self.q_table:
-            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
+        self.q_table[state_key][action_key] = new_value
 
-        # Update the tensor value
-        action_idx = self._action_key_to_index(action_key)
-        self.q_table[state_key][action_idx] = new_value
-
-    def train_on_trajectory(self, trajectory, reward, final_score):
-        """Train on trajectory using GPU acceleration"""
+    def train_on_trajectory(self, trajectory, final_reward, final_score):
+        """Train the agent on a complete game trajectory with improved rewards (using tensor ops for speed)."""
         if not trajectory:
             return
-
         # Update Q-values for each step in the trajectory
         for i, step in enumerate(trajectory):
             state_key = step['state_key']
             action_key = step['action_key']
-
-            # Calculate immediate reward for this action
-            # Give small positive reward for taking actions (encourages exploration)
-            # The main learning comes from the final reward
-            immediate_reward = 0.1  # Small positive reward for taking action
-
-            # Get next state and actions (if not the last step)
+            immediate_reward = 0.1
             if i < len(trajectory) - 1:
                 next_step = trajectory[i + 1]
                 next_state_key = next_step['state_key']
                 next_actions = [next_step['action']]
             else:
-                next_state_key = state_key  # Terminal state
+                next_state_key = state_key
                 next_actions = []
-                # Add final reward to the last action
-                immediate_reward += reward
+                immediate_reward += final_reward
+            self.update(state_key, action_key, immediate_reward, next_state_key, next_actions)
 
-            # Update Q-value using GPU tensors
-            self._update_q_value_gpu(state_key, action_key, immediate_reward, next_state_key, next_actions)
-
-    def train_on_batch_trajectories(self, batch_trajectories, batch_rewards, batch_scores):
-        """Train on multiple trajectories simultaneously for GPU efficiency"""
-        if not batch_trajectories:
-            return
-
-        # Collect all unique states that need initialization
-        all_states = set()
-        for trajectory in batch_trajectories:
-            for step in trajectory:
-                all_states.add(step['state_key'])
-
-        # Batch initialize missing states
-        for state_key in all_states:
-            if state_key not in self.q_table:
-                self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
-
-        # Collect all updates for batch processing
-        state_keys = []
-        action_indices = []
-        current_q_values = []
-        target_q_values = []
-
-        for traj_idx, (trajectory, reward) in enumerate(zip(batch_trajectories, batch_rewards)):
-            for i, step in enumerate(trajectory):
-                state_key = step['state_key']
-                action_key = step['action_key']
-                action_idx = self._action_key_to_index(action_key)
-
-                # Get current Q-value
-                current_q = self.q_table[state_key][action_idx].item()
-                if np.isnan(current_q):
-                    current_q = 0.0
-
-                # Calculate immediate reward
-                immediate_reward = 0.1
-                if i == len(trajectory) - 1:  # Final step
-                    immediate_reward += reward
-                else:
-                    # Get next state Q-value
-                    next_step = trajectory[i + 1]
-                    next_state_key = next_step['state_key']
-                    next_action_idx = self._action_key_to_index(next_step['action_key'])
-                    next_q = self.q_table[next_state_key][next_action_idx].item()
-                    if not np.isnan(next_q):
-                        immediate_reward += self.discount_factor * next_q
-
-                # Calculate target
-                target_q = current_q + self.learning_rate * (immediate_reward - current_q)
-
-                # Store for batch update
-                state_keys.append(state_key)
-                action_indices.append(action_idx)
-                current_q_values.append(current_q)
-                target_q_values.append(target_q)
-
-        # Batch update all Q-values
-        for state_key, action_idx, target_q in zip(state_keys, action_indices, target_q_values):
-            self.q_table[state_key][action_idx] = target_q
+    def update(self, state_key, action_key, reward, next_state_key, next_actions):
+        """Update Q-values using Q-learning update rule (with tensor ops if possible)."""
+        # Use tensor ops for max_next_q if there are multiple next actions
+        if next_actions:
+            next_qs = [self.q_table[next_state_key][self.get_action_key(a)] for a in next_actions]
+            max_next_q = float(torch.tensor(next_qs, device=self.device).max())
+        else:
+            max_next_q = 0.0
+        current_q = self.q_table[state_key][action_key]
+        new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+        self.q_table[state_key][action_key] = new_q
 
     def train_on_batch_trajectories_vectorized(self, batch_trajectories, batch_rewards, batch_scores):
-        """Vectorized batch training using tensor operations for maximum GPU efficiency"""
+        """Vectorized batch training using tensor operations for maximum GPU efficiency, but Q-table structure matches CPU agent."""
         if not batch_trajectories:
             return
-
-        # Collect all unique states and ensure they exist
-        all_states = set()
-        for trajectory in batch_trajectories:
-            for step in trajectory:
-                all_states.add(step['state_key'])
-
-        # Batch initialize missing states
-        for state_key in all_states:
-            if state_key not in self.q_table:
-                self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
-
-        # Collect updates in lists for vectorization
-        state_tensors = []
-        action_indices = []
-        current_q_list = []
-        target_q_list = []
-        state_keys_list = []
-
+        # Collect all updates for batch processing
+        updates = []
         for traj_idx, (trajectory, reward) in enumerate(zip(batch_trajectories, batch_rewards)):
             for i, step in enumerate(trajectory):
                 state_key = step['state_key']
                 action_key = step['action_key']
-                action_idx = self._action_key_to_index(action_key)
-
-                # Get Q-table tensor for this state
-                q_tensor = self.q_table[state_key]
-                current_q = q_tensor[action_idx].item()
-                if np.isnan(current_q):
-                    current_q = 0.0
-
-                # Calculate immediate reward (same logic as before)
                 immediate_reward = 0.1
-                if i == len(trajectory) - 1:  # Final step
+                if i == len(trajectory) - 1:
                     immediate_reward += reward
+                    next_state_key = state_key
+                    next_actions = []
                 else:
                     next_step = trajectory[i + 1]
                     next_state_key = next_step['state_key']
-                    next_action_idx = self._action_key_to_index(next_step['action_key'])
-                    next_q = self.q_table[next_state_key][next_action_idx].item()
-                    if not np.isnan(next_q):
-                        immediate_reward += self.discount_factor * next_q
-
-                # Calculate target Q-value
-                target_q = current_q + self.learning_rate * (immediate_reward - current_q)
-
-                # Store for vectorized update
-                state_tensors.append(q_tensor)
-                action_indices.append(action_idx)
-                current_q_list.append(current_q)
-                target_q_list.append(target_q)
-                state_keys_list.append(state_key)
-
-        if not state_tensors:
-            return
-
-        # Vectorized update using PyTorch operations
-        action_indices_tensor = torch.tensor(action_indices, dtype=torch.long, device=self.device)
-        target_q_tensor = torch.tensor(target_q_list, dtype=torch.float32, device=self.device)
-
-        # Batch update all Q-values
-        for i, (state_key, action_idx, target_q) in enumerate(zip(state_keys_list, action_indices, target_q_list)):
-            self.q_table[state_key][action_idx] = target_q
-
-    def _update_q_value_gpu(self, state_key, action_key, reward, next_state_key, next_actions):
-        """Update Q-values using GPU tensors"""
-        # Initialize state if not exists
-        if state_key not in self.q_table:
-            self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
-        if next_state_key not in self.q_table:
-            self.q_table[next_state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
-
-        # Get current Q-value
-        action_idx = self._action_key_to_index(action_key)
-        current_q = self.q_table[state_key][action_idx].item()
-
-        # If this action hasn't been explored yet, treat as 0.0 for computation
-        if np.isnan(current_q):
-            current_q = 0.0
-
-        # Calculate max next Q-value
-        max_next_q = 0.0
-        if next_actions:
-            next_q_values = []
-            for action in next_actions:
-                next_action_idx = self._action_key_to_index(self.get_action_key(action))
-                next_q_val = self.q_table[next_state_key][next_action_idx].item()
-                # If next action hasn't been explored, treat as 0.0
-                if not np.isnan(next_q_val):
-                    next_q_values.append(next_q_val)
-            max_next_q = max(next_q_values) if next_q_values else 0.0
-
-        # Update Q-value
-        new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
-        self.q_table[state_key][action_idx] = new_q
-
-    def _action_key_to_index(self, action_key):
-        """Convert action key to tensor index"""
-        # Parse action key format: "type_position" or "type_flip_position"
-        if isinstance(action_key, str):
-            parts = action_key.split('_')
-            if len(parts) >= 2:
-                action_type = parts[0]
-                if action_type == 'take_discard':
-                    # take_discard_0, take_discard_1, etc. -> indices 0-3
-                    try:
-                        pos = int(parts[1])
-                        return pos
-                    except ValueError:
-                        pass
-                elif action_type == 'draw_deck':
-                    if len(parts) >= 3 and parts[1] == 'flip':
-                        # draw_deck_flip_0, draw_deck_flip_1, etc. -> indices 8-11
-                        try:
-                            pos = int(parts[2])
-                            return pos + 8
-                        except ValueError:
-                            pass
-                    else:
-                        # draw_deck_0, draw_deck_1, etc. -> indices 4-7
-                        try:
-                            pos = int(parts[1])
-                            return pos + 4
-                        except ValueError:
-                            pass
-        # Fallback: hash the action key to get an index
-        return hash(action_key) % 12
+                    next_actions = [next_step['action']]
+                updates.append((state_key, action_key, immediate_reward, next_state_key, next_actions))
+        # Batch update using tensor ops
+        for state_key, action_key, reward, next_state_key, next_actions in updates:
+            self.update(state_key, action_key, reward, next_state_key, next_actions)
 
     def get_q_table_size(self):
-        """Get Q-table size information (only count states with explored actions)"""
-        total_entries = 0
-        states_with_actions = 0
-
-        for q_tensor in self.q_table.values():
-            if isinstance(q_tensor, torch.Tensor):
-                # Count only non-NaN values (explored actions)
-                explored_actions = sum(1 for v in q_tensor if not torch.isnan(v))
-                if explored_actions > 0:
-                    states_with_actions += 1
-                    total_entries += explored_actions
-            else:
-                # Fallback for dict-based Q-tables
-                if len(q_tensor) > 0:
-                    states_with_actions += 1
-                    total_entries += len(q_tensor)
-
-        return states_with_actions, total_entries
+        """Get the size of the Q-table for debugging (matches CPU agent)."""
+        total_entries = sum(len(actions) for actions in self.q_table.values())
+        return len(self.q_table), total_entries
