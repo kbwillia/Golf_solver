@@ -24,26 +24,26 @@ def test_batch_vs_sequential():
     print(f"GPU Available: {torch.cuda.is_available()}")
 
     # Test CPU Sequential (baseline)
-    print(f"\n🔄 Testing CPU SEQUENTIAL training...")
-    start_time = time.time()
-    agent_cpu_seq, stats_cpu_seq = train_qlearning_agent(
-        num_games=num_games,
-        verbose=False,
-        use_gpu=False,  # Force CPU
-        progress_report_interval=200
-    )
-    cpu_seq_time = time.time() - start_time
-    cpu_seq_states, cpu_seq_entries = agent_cpu_seq.get_q_table_size()
+    # print(f"\n🔄 Testing CPU SEQUENTIAL training...")
+    # start_time = time.time()
+    # agent_cpu_seq, stats_cpu_seq = train_qlearning_agent(
+    #     num_games=num_games,
+    #     verbose=False,
+    #     use_gpu=False,  # Force CPU
+    #     progress_report_interval=200
+    # )
+    # cpu_seq_time = time.time() - start_time
+    # cpu_seq_states, cpu_seq_entries = agent_cpu_seq.get_q_table_size()
 
-    results['cpu_sequential'] = {
-        'time': cpu_seq_time,
-        'games_per_sec': num_games / cpu_seq_time,
-        'states': cpu_seq_states,
-        'entries': cpu_seq_entries,
-        'win_rate': stats_cpu_seq['wins'] / num_games
-    }
+    # results['cpu_sequential'] = {
+    #     'time': cpu_seq_time,
+    #     'games_per_sec': num_games / cpu_seq_time,
+    #     'states': cpu_seq_states,
+    #     'entries': cpu_seq_entries,
+    #     'win_rate': stats_cpu_seq['wins'] / num_games
+    # }
 
-    print(f"CPU Sequential: {cpu_seq_time:.2f}s ({num_games/cpu_seq_time:.1f} games/sec)")
+    # print(f"CPU Sequential: {cpu_seq_time:.2f}s ({num_games/cpu_seq_time:.1f} games/sec)")
 
     # Test CPU Batch Training
     for batch_size in batch_sizes:
