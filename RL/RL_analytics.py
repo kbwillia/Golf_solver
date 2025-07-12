@@ -408,9 +408,11 @@ def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", op
 
 def complete_training_and_analysis_workflow(
     training_games=1000,
+    batch_size=100,  # Number of games to play simultaneously
     opponent_type="ev_ai",
     verbose=True,
     save_prefix="complete_analysis",
+    use_gpu=True,  # Enable GPU acceleration
     # Q-learning hyperparameters
     learning_rate=0.1,
     discount_factor=0.9,
@@ -425,12 +427,15 @@ def complete_training_and_analysis_workflow(
 ):
     """
     Complete workflow: Train agent first, then analyze thoroughly.
+    Uses batch training for better GPU utilization.
 
     Args:
         training_games: Number of games for training
+        batch_size: Number of games to play simultaneously (for GPU efficiency)
         opponent_type: Type of opponent
         verbose: Whether to print progress
         save_prefix: Prefix for saved files
+        use_gpu: Whether to use GPU acceleration
 
         # Q-learning hyperparameters
         learning_rate: Learning rate for Q-value updates
@@ -450,15 +455,19 @@ def complete_training_and_analysis_workflow(
         agent: Trained QLearningAgent
         results: Complete analysis results
     """
-    print("🚀 STARTING COMPLETE TRAINING + ANALYSIS WORKFLOW")
+    print("🚀 STARTING COMPLETE BATCH TRAINING + ANALYSIS WORKFLOW")
     print("="*70)
     start_time = time.time()
 
-    # Phase 1: Training
-    agent, training_stats = train_qlearning_agent(
+    # Phase 1: Batch Training
+    from RL.train import train_qlearning_agent_batch
+
+    agent, training_stats = train_qlearning_agent_batch(
         num_games=training_games,
+        batch_size=batch_size,
         opponent_type=opponent_type,
         verbose=verbose,
+        use_gpu=use_gpu,
         learning_rate=learning_rate,
         discount_factor=discount_factor,
         epsilon=epsilon,
@@ -494,17 +503,21 @@ def complete_training_and_analysis_workflow(
 # COMPREHENSIVE ANALYSIS FUNCTIONS
 # ============================================================================
 
-def full_qtable_analysis(num_games=100, show_full_table=False):
-    """Perform complete Q-table analysis"""
+def full_qtable_analysis(num_games=100, show_full_table=False, use_gpu=True, batch_size=50):
+    """Perform complete Q-table analysis using batch training"""
     print("="*70)
-    print("COMPREHENSIVE Q-TABLE ANALYSIS")
+    print("COMPREHENSIVE Q-TABLE ANALYSIS (BATCH TRAINING)")
     print("="*70)
 
-    # Train agent using the training module
-    agent, training_stats = train_qlearning_agent(
+    # Train agent using batch training
+    from RL.train import train_qlearning_agent_batch
+
+    agent, training_stats = train_qlearning_agent_batch(
         num_games=num_games,
+        batch_size=batch_size,
         opponent_type="ev_ai",
-        verbose=True
+        verbose=True,
+        use_gpu=use_gpu
     )
 
     # Analyze Q-table
@@ -555,38 +568,42 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
 
 
 
-def main(num_games=200, verbose=True, opponent_type="ev_ai"):
+def main(num_games=200, verbose=True, opponent_type="ev_ai", use_gpu=True, batch_size=100):
     print("="*70)
-    print("Q-LEARNING AGENT COMPLETE ANALYSIS")
+    print("Q-LEARNING AGENT COMPLETE ANALYSIS (BATCH TRAINING)")
     print("="*70)
 
     # Use the complete workflow function instead
     agent, results = complete_training_and_analysis_workflow(
         training_games=num_games,
+        batch_size=batch_size,
         opponent_type=opponent_type,
         verbose=verbose,
-        save_prefix=f"analysis_{num_games}_games"
+        save_prefix=f"analysis_{num_games}_games_batch",
+        use_gpu=use_gpu
     )
 
     return agent, results
 
 if __name__ == "__main__":
-    # Run the complete training + analysis workflow
-    print("Starting Q-learning agent training and analysis...")
+    # Run the complete batch training + analysis workflow
+    print("Starting Q-learning agent batch training and analysis...")
     training_games = 500 # matched to 2.8% of state space
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
-        training_games=training_games,  # Train for 1000 games
+        training_games=training_games,  # Train for 500 games
+        batch_size=100,  # Batch size for GPU efficiency
         opponent_type="ev_ai",  # Train against EV agent
         verbose=True,
-        save_prefix="trained_agent_1000_games",
+        save_prefix="trained_agent_500_games_batch",
+        use_gpu=True,  # Enable GPU acceleration
         # Q-learning hyperparameters
         learning_rate=0.1,
         discount_factor=0.9,
         epsilon=0.2,
         epsilon_decay_factor=1.0, #0.995
         # Bootstrapping and imitation learning
-        n_bootstrap_games=n_bootstrap_games,  # Use EVAgent for first 250 games
+        n_bootstrap_games=n_bootstrap_games,  # Use EVAgent for first 375 games
         use_imitation_learning=True,  # Enable bootstrapping
         # Training configuration
         epsilon_decay_interval=100,  # Decay epsilon every 100 games
