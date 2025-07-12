@@ -353,6 +353,12 @@ def train_qlearning_agent_batch(
     # Process games in batches
     num_batches = (num_games + batch_size - 1) // batch_size
 
+    # Ensure batch_size doesn't exceed total games
+    if batch_size > num_games:
+        print(f"Warning: batch_size ({batch_size}) > num_games ({num_games}). Using batch_size = {num_games}")
+        batch_size = num_games
+        num_batches = 1
+
     for batch_idx in trange(num_batches, desc="Training batches"):
         batch_start_time = time.time()
 
@@ -428,8 +434,9 @@ def train_qlearning_agent_batch(
         if epsilon_decay_interval and (training_stats['games_played']) % epsilon_decay_interval == 0:
             agent.decay_epsilon(factor=epsilon_decay_factor)
 
-        # Progress updates
-        if verbose and (batch_idx + 1) % (progress_report_interval // batch_size) == 0:
+        # Progress updates - handle cases where batch_size > progress_report_interval
+        report_every_batches = max(1, progress_report_interval // batch_size)
+        if verbose and (batch_idx + 1) % report_every_batches == 0:
             games_so_far = training_stats['games_played']
             win_rate = training_stats['wins'] / games_so_far
             avg_score = np.mean(training_stats['scores'])
@@ -438,6 +445,18 @@ def train_qlearning_agent_batch(
             print(f"  Batch {batch_idx + 1}: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
                   f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
                   f"Avg time={avg_time:.3f}s")
+
+    # Final progress report if verbose and we haven't reported recently
+    if verbose and training_stats['games_played'] > 0:
+        games_so_far = training_stats['games_played']
+        win_rate = training_stats['wins'] / games_so_far
+        avg_score = np.mean(training_stats['scores'])
+        avg_time = np.mean(training_stats['training_times'])
+        final_states, final_entries = agent.get_q_table_size()
+        bootstrap_status = "BOOTSTRAP" if games_so_far < n_bootstrap_games else "Q-LEARNING"
+        print(f"  Final: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
+              f"Avg score={avg_score:.2f}, States={final_states}, Epsilon={agent.epsilon:.3f}, "
+              f"Avg time={avg_time:.3f}s")
 
     # Final training statistics
     final_win_rate = training_stats['wins'] / num_games

@@ -592,7 +592,7 @@ if __name__ == "__main__":
     n_bootstrap_games = training_games * 0.75
     agent, results = complete_training_and_analysis_workflow(
         training_games=training_games,  # Train for 500 games
-        batch_size=100,  # Batch size for GPU efficiency
+        batch_size=200,  # Batch size for GPU efficiency
         opponent_type="ev_ai",  # Train against EV agent
         verbose=True,
         save_prefix="trained_agent_500_games_batch",
