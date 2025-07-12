@@ -193,6 +193,133 @@ class GPUQLearningAgent(QLearningAgent):
             # Update Q-value using GPU tensors
             self._update_q_value_gpu(state_key, action_key, immediate_reward, next_state_key, next_actions)
 
+    def train_on_batch_trajectories(self, batch_trajectories, batch_rewards, batch_scores):
+        """Train on multiple trajectories simultaneously for GPU efficiency"""
+        if not batch_trajectories:
+            return
+
+        # Collect all unique states that need initialization
+        all_states = set()
+        for trajectory in batch_trajectories:
+            for step in trajectory:
+                all_states.add(step['state_key'])
+
+        # Batch initialize missing states
+        for state_key in all_states:
+            if state_key not in self.q_table:
+                self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
+
+        # Collect all updates for batch processing
+        state_keys = []
+        action_indices = []
+        current_q_values = []
+        target_q_values = []
+
+        for traj_idx, (trajectory, reward) in enumerate(zip(batch_trajectories, batch_rewards)):
+            for i, step in enumerate(trajectory):
+                state_key = step['state_key']
+                action_key = step['action_key']
+                action_idx = self._action_key_to_index(action_key)
+
+                # Get current Q-value
+                current_q = self.q_table[state_key][action_idx].item()
+                if np.isnan(current_q):
+                    current_q = 0.0
+
+                # Calculate immediate reward
+                immediate_reward = 0.1
+                if i == len(trajectory) - 1:  # Final step
+                    immediate_reward += reward
+                else:
+                    # Get next state Q-value
+                    next_step = trajectory[i + 1]
+                    next_state_key = next_step['state_key']
+                    next_action_idx = self._action_key_to_index(next_step['action_key'])
+                    next_q = self.q_table[next_state_key][next_action_idx].item()
+                    if not np.isnan(next_q):
+                        immediate_reward += self.discount_factor * next_q
+
+                # Calculate target
+                target_q = current_q + self.learning_rate * (immediate_reward - current_q)
+
+                # Store for batch update
+                state_keys.append(state_key)
+                action_indices.append(action_idx)
+                current_q_values.append(current_q)
+                target_q_values.append(target_q)
+
+        # Batch update all Q-values
+        for state_key, action_idx, target_q in zip(state_keys, action_indices, target_q_values):
+            self.q_table[state_key][action_idx] = target_q
+
+    def train_on_batch_trajectories_vectorized(self, batch_trajectories, batch_rewards, batch_scores):
+        """Vectorized batch training using tensor operations for maximum GPU efficiency"""
+        if not batch_trajectories:
+            return
+
+        # Collect all unique states and ensure they exist
+        all_states = set()
+        for trajectory in batch_trajectories:
+            for step in trajectory:
+                all_states.add(step['state_key'])
+
+        # Batch initialize missing states
+        for state_key in all_states:
+            if state_key not in self.q_table:
+                self.q_table[state_key] = torch.full((12,), float('nan'), dtype=torch.float32, device=self.device)
+
+        # Collect updates in lists for vectorization
+        state_tensors = []
+        action_indices = []
+        current_q_list = []
+        target_q_list = []
+        state_keys_list = []
+
+        for traj_idx, (trajectory, reward) in enumerate(zip(batch_trajectories, batch_rewards)):
+            for i, step in enumerate(trajectory):
+                state_key = step['state_key']
+                action_key = step['action_key']
+                action_idx = self._action_key_to_index(action_key)
+
+                # Get Q-table tensor for this state
+                q_tensor = self.q_table[state_key]
+                current_q = q_tensor[action_idx].item()
+                if np.isnan(current_q):
+                    current_q = 0.0
+
+                # Calculate immediate reward (same logic as before)
+                immediate_reward = 0.1
+                if i == len(trajectory) - 1:  # Final step
+                    immediate_reward += reward
+                else:
+                    next_step = trajectory[i + 1]
+                    next_state_key = next_step['state_key']
+                    next_action_idx = self._action_key_to_index(next_step['action_key'])
+                    next_q = self.q_table[next_state_key][next_action_idx].item()
+                    if not np.isnan(next_q):
+                        immediate_reward += self.discount_factor * next_q
+
+                # Calculate target Q-value
+                target_q = current_q + self.learning_rate * (immediate_reward - current_q)
+
+                # Store for vectorized update
+                state_tensors.append(q_tensor)
+                action_indices.append(action_idx)
+                current_q_list.append(current_q)
+                target_q_list.append(target_q)
+                state_keys_list.append(state_key)
+
+        if not state_tensors:
+            return
+
+        # Vectorized update using PyTorch operations
+        action_indices_tensor = torch.tensor(action_indices, dtype=torch.long, device=self.device)
+        target_q_tensor = torch.tensor(target_q_list, dtype=torch.float32, device=self.device)
+
+        # Batch update all Q-values
+        for i, (state_key, action_idx, target_q) in enumerate(zip(state_keys_list, action_indices, target_q_list)):
+            self.q_table[state_key][action_idx] = target_q
+
     def _update_q_value_gpu(self, state_key, action_key, reward, next_state_key, next_actions):
         """Update Q-values using GPU tensors"""
         # Initialize state if not exists
@@ -478,6 +605,204 @@ def train_qlearning_agent(
 
     return agent, training_stats
 
+
+def train_qlearning_agent_batch(
+    num_games=1000,
+    batch_size=100,  # Number of games to play simultaneously
+    opponent_type="ev_ai",
+    verbose=True,
+    use_gpu=True,
+    # Q-learning hyperparameters
+    learning_rate=0.1,
+    discount_factor=0.9,
+    epsilon=0.2,
+    epsilon_decay_factor=0.995,
+    # Bootstrapping and imitation learning
+    n_bootstrap_games=250,
+    use_imitation_learning=True,
+    # Training configuration
+    epsilon_decay_interval=100,
+    progress_report_interval=100
+):
+    """
+    Batch training for better GPU utilization - plays multiple games simultaneously.
+    """
+    print("="*70)
+    print("BATCH Q-LEARNING AGENT TRAINING PHASE")
+    print("="*70)
+
+    # Setup device
+    device = get_device() if use_gpu else torch.device("cpu")
+
+    # Choose agent class based on GPU preference
+    AgentClass = GPUQLearningAgent if use_gpu else QLearningAgent
+
+    # Create agent
+    if opponent_type == "qlearning_shared":
+        if use_gpu:
+            agent = AgentClass(
+                learning_rate=learning_rate,
+                discount_factor=discount_factor,
+                epsilon=epsilon,
+                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
+                device=device
+            )
+        else:
+            agent = AgentClass(
+                learning_rate=learning_rate,
+                discount_factor=discount_factor,
+                epsilon=epsilon,
+                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
+            )
+        agents = [agent, agent]
+        agent_types = ["qlearning", "qlearning"]
+    elif opponent_type == "ev_ai":
+        if use_gpu:
+            agent = AgentClass(
+                learning_rate=learning_rate,
+                discount_factor=discount_factor,
+                epsilon=epsilon,
+                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
+                device=device
+            )
+        else:
+            agent = AgentClass(
+                learning_rate=learning_rate,
+                discount_factor=discount_factor,
+                epsilon=epsilon,
+                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
+            )
+        agent_types = ["qlearning", "ev_ai"]
+    else:
+        raise ValueError(f"Unknown opponent type: {opponent_type}")
+
+    # Training statistics
+    training_stats = {
+        'games_played': 0,
+        'wins': 0,
+        'losses': 0,
+        'scores': [],
+        'opponent_scores': [],
+        'qtable_states': [],
+        'qtable_entries': [],
+        'epsilon_values': [],
+        'training_times': []
+    }
+
+    print(f"Batch training against {opponent_type} for {num_games} games...")
+    print(f"Batch size: {batch_size} games per batch")
+    print(f"Acceleration: {'GPU' if use_gpu else 'CPU'}")
+    print(f"Q-learning parameters:")
+    print(f"  • Learning rate: {learning_rate}")
+    print(f"  • Discount factor: {discount_factor}")
+    print(f"  • Initial epsilon: {epsilon}")
+
+    # Process games in batches
+    num_batches = (num_games + batch_size - 1) // batch_size
+
+    for batch_idx in trange(num_batches, desc="Training batches"):
+        batch_start_time = time.time()
+
+        # Determine games in this batch
+        games_in_batch = min(batch_size, num_games - batch_idx * batch_size)
+
+        # Play batch of games
+        batch_trajectories = []
+        batch_rewards = []
+        batch_scores = []
+
+        for game_idx in range(games_in_batch):
+            # Create trajectory for this game
+            trajectory = []
+
+            # Create opponent agent for this game
+            if opponent_type == "ev_ai":
+                opponent_agent = EVAgent()
+                agents = [agent, opponent_agent]
+
+            # Play game
+            game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
+            game_scores = game.play_game(verbose=False, trajectories=[trajectory, None])
+
+            # Calculate reward
+            winner_idx = game_scores.index(min(game_scores))
+            if winner_idx == 0:  # Q-learning agent won
+                reward = 10.0
+                training_stats['wins'] += 1
+            else:
+                if game_scores[0] <= 5:
+                    reward = 2.0
+                elif game_scores[0] <= 10:
+                    reward = 0.0
+                elif game_scores[0] <= 15:
+                    reward = -2.0
+                else:
+                    reward = -5.0
+                training_stats['losses'] += 1
+
+            batch_trajectories.append(trajectory)
+            batch_rewards.append(reward)
+            batch_scores.append(game_scores[0])
+
+            training_stats['games_played'] += 1
+            training_stats['scores'].append(game_scores[0])
+            training_stats['opponent_scores'].append(game_scores[1])
+
+        # Batch train on all trajectories
+        if use_gpu and hasattr(agent, 'train_on_batch_trajectories_vectorized'):
+            agent.train_on_batch_trajectories_vectorized(batch_trajectories, batch_rewards, batch_scores)
+        else:
+            # Fallback to individual training
+            for trajectory, reward, score in zip(batch_trajectories, batch_rewards, batch_scores):
+                agent.train_on_trajectory(trajectory, reward, score)
+
+        # Notify game end for each game in batch
+        for _ in range(games_in_batch):
+            agent.notify_game_end()
+
+        # Record statistics
+        batch_time = time.time() - batch_start_time
+        training_stats['training_times'].extend([batch_time / games_in_batch] * games_in_batch)
+
+        # Track Q-table growth
+        states, entries = agent.get_q_table_size()
+        for _ in range(games_in_batch):
+            training_stats['qtable_states'].append(states)
+            training_stats['qtable_entries'].append(entries)
+            training_stats['epsilon_values'].append(agent.epsilon)
+
+        # Decay epsilon periodically
+        if epsilon_decay_interval and (training_stats['games_played']) % epsilon_decay_interval == 0:
+            agent.decay_epsilon(factor=epsilon_decay_factor)
+
+        # Progress updates
+        if verbose and (batch_idx + 1) % (progress_report_interval // batch_size) == 0:
+            games_so_far = training_stats['games_played']
+            win_rate = training_stats['wins'] / games_so_far
+            avg_score = np.mean(training_stats['scores'])
+            avg_time = np.mean(training_stats['training_times'])
+            bootstrap_status = "BOOTSTRAP" if games_so_far < n_bootstrap_games else "Q-LEARNING"
+            print(f"  Batch {batch_idx + 1}: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
+                  f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
+                  f"Avg time={avg_time:.3f}s")
+
+    # Final training statistics
+    final_win_rate = training_stats['wins'] / num_games
+    final_avg_score = np.mean(training_stats['scores'])
+    final_states, final_entries = agent.get_q_table_size()
+    total_time = sum(training_stats['training_times'])
+
+    print(f"\n🎯 BATCH TRAINING COMPLETE!")
+    print(f"   • Games played: {num_games}")
+    print(f"   • Batch size: {batch_size}")
+    print(f"   • Win rate: {final_win_rate:.2%} ({training_stats['wins']}/{num_games})")
+    print(f"   • Average score: {final_avg_score:.2f}")
+    print(f"   • Final Q-table: {final_states} states, {final_entries} entries")
+    print(f"   • Final epsilon: {agent.epsilon:.3f}")
+    print(f"   • Total training time: {total_time:.2f}s")
+    print(f"   • Average time per game: {total_time/num_games:.3f}s")
+
+    return agent, training_stats
 
 
 if __name__ == "__main__":

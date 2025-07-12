@@ -425,6 +425,7 @@ def which_card_to_swap_for_discard(game, player=None):
 
     # get the expected value of drawing from deck vs taking the discard card
     #loop through each card and use probabilities of the private deck counts to get the expected value of swapping the discard card with that card
+    expected_values = []
     for card in cards_in_grid:
         # get the probability of the card being in the private deck
         probability = private_deck_counts[card.rank] / sum(private_deck_counts.values())
