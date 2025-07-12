@@ -15,7 +15,7 @@ def test_batch_vs_sequential():
     print("="*80)
 
     # Test parameters
-    num_games = 10000
+    num_games = 1000
     batch_sizes = [100, 200, 500, 1000]  # batch_size=1 is sequential
 
     results = {}
@@ -76,11 +76,15 @@ def test_batch_vs_sequential():
 
             print(f"GPU {method_name}: {gpu_time:.2f}s ({num_games/gpu_time:.1f} games/sec)")
 
-    # Calculate speedups
-    cpu_seq_time = results['cpu_batch_1']['time']
-    for key in results:
-        if key != 'cpu_batch_1':
-            results[key]['speedup_vs_cpu_seq'] = cpu_seq_time / results[key]['time']
+    # Calculate speedups only if cpu_batch_1 exists
+    if 'cpu_batch_1' in results:
+        cpu_seq_time = results['cpu_batch_1']['time']
+        for key in results:
+            if key != 'cpu_batch_1':
+                results[key]['speedup_vs_cpu_seq'] = cpu_seq_time / results[key]['time']
+    else:
+        for key in results:
+            results[key]['speedup_vs_cpu_seq'] = None  # Or skip this field
 
     # Summary
     print(f"\n📊 COMPREHENSIVE PERFORMANCE SUMMARY")
