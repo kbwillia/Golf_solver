@@ -15,8 +15,8 @@ def test_batch_vs_sequential():
     print("="*80)
 
     # Test parameters
-    num_games = 1000
-    batch_sizes = [1, 50, 100, 200]  # batch_size=1 is sequential
+    num_games = 10000
+    batch_sizes = [100, 200, 500, 1000]  # batch_size=1 is sequential
 
     results = {}
 
