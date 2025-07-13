@@ -12,3 +12,5 @@ seaborn
 tqdm
 torch>=1.9.0
 scipy
+cerebras-cloud-sdk
+python-dotenv
