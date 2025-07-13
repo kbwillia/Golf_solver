@@ -1558,3 +1558,11 @@ body, html {
   gap: 10px; /* space between buttons */
   align-items: center;
 }
+
+.probabilities-panel-box.hidden {
+  display: none !important;
+}
+
+/* .other-probabilities-column.hidden {
+  display: none !important;
+} */

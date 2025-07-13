@@ -1359,11 +1359,14 @@ function updateProbabilitiesPanel() {
     // Hide probabilities if game is over
     if (currentGameState && currentGameState.game_over) {
         if (unknownCardsPanel) unknownCardsPanel.classList.add('hidden');
-        if (otherProbabilitiesPanel) otherProbabilitiesPanel.classList.add('hidden');
+        // Only hide the content, not the column
+        const panelBox = otherProbabilitiesPanel.querySelector('.probabilities-panel-box');
+        if (panelBox) panelBox.classList.add('hidden');
         return;
     } else {
         if (unknownCardsPanel) unknownCardsPanel.classList.remove('hidden');
-        if (otherProbabilitiesPanel) otherProbabilitiesPanel.classList.remove('hidden');
+        const panelBox = otherProbabilitiesPanel.querySelector('.probabilities-panel-box');
+        if (panelBox) panelBox.classList.remove('hidden');
     }
 
     if (!currentGameState || !currentGameState.probabilities) {
@@ -1461,6 +1464,21 @@ function updateProbabilitiesPanel() {
 
         otherHtml += '</div>';
         otherProbabilitiesPanel.innerHTML = otherHtml;
+    }
+
+    // Hide probabilities panel box if game is over
+    if (currentGameState && currentGameState.game_over) {
+        // Hide the probabilities panel box
+        const panelBox = otherProbabilitiesPanel.querySelector('.probabilities-panel-box');
+        if (panelBox) {
+            panelBox.classList.add('hidden');
+        }
+    } else {
+        // Show it if not game over
+        const panelBox = otherProbabilitiesPanel.querySelector('.probabilities-panel-box');
+        if (panelBox) {
+            panelBox.classList.remove('hidden');
+        }
     }
 }
 
