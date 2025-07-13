@@ -418,3 +418,31 @@ def plot_qvalue_density(q_table, save_filename="qtable_density.png"):
     plt.savefig(save_filename, dpi=300, bbox_inches='tight')
     print(f"Q-table density plot saved to {save_filename}")
     plt.show()
+
+def plot_rewards_over_games(rewards, save_filename="rewards_over_games.png", moving_avg_window=20):
+    """
+    Plot the reward (final reward per game) over games, with optional moving average.
+    Args:
+        rewards: list of reward values (one per game)
+        save_filename: output filename for the plot
+        moving_avg_window: window size for moving average (default 20)
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    output_path = get_output_path(save_filename)
+    games = np.arange(1, len(rewards) + 1)
+    plt.figure(figsize=(10, 6))
+    plt.plot(games, rewards, label="Reward (raw)", color="tab:blue", alpha=0.4)
+    if len(rewards) >= moving_avg_window:
+        moving_avg = np.convolve(rewards, np.ones(moving_avg_window)/moving_avg_window, mode='valid')
+        games_avg = games[moving_avg_window-1:]
+        plt.plot(games_avg, moving_avg, label=f"Moving Avg (window={moving_avg_window})", color="tab:orange", linewidth=2)
+    plt.xlabel("Game Number")
+    plt.ylabel("Reward")
+    plt.title("Reward Over Games")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Reward over games plot saved to {output_path}")
+    plt.show()
