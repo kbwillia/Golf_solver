@@ -193,8 +193,8 @@ body, html {
 }
 
 .score-item.current-turn-score {
-    background: rgba(0, 123, 255, 0.1);
-    border-left: 3px solid #007bff;
+    background: rgba(0, 123, 255, 0.01); /* 0.91 is the opacity */
+    border-left: 3px solid #005eff;
     font-weight: bold;
 }
 

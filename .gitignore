@@ -2,5 +2,6 @@
 *.csv
 *.json
 *.png
+*.mp3
 #ignore .env file
 .env

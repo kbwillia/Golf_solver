@@ -505,16 +505,22 @@ function updateGameDisplay() {
     if (currentGameState && currentGameState.players && currentGameState.players.length > 0) {
         const human = currentGameState.players[0];
         if (human && Array.isArray(human.pairs)) {
-            // Compare with previous pairs
-            const newPairs = human.pairs.filter(
+            // Only consider pairs where both cards are public
+            const publicPairs = human.pairs.filter(pair => {
+                const [pos1, pos2] = pair;
+                return human.grid[pos1]?.public && human.grid[pos2]?.public;
+            });
+
+            // Compare with previous public pairs
+            const newPublicPairs = publicPairs.filter(
                 pair => !previousHumanPairs.some(
                     prevPair => prevPair[0] === pair[0] && prevPair[1] === pair[1]
                 )
             );
-            if (newPairs.length > 0) {
+            if (newPublicPairs.length > 0) {
                 playGolfClap();
             }
-            previousHumanPairs = human.pairs.slice();
+            previousHumanPairs = publicPairs.slice();
         }
     }
 }
