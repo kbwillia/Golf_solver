@@ -228,6 +228,19 @@ class GolfGame:
                 total_score -= (scores[pos1] + scores[pos2])
         return total_score
 
+    def get_pairs(self, grid):
+        """Get pairs in a grid without affecting the score calculation"""
+        ranks = [card.rank if card else None for card in grid]
+        pairs = []
+        used = set()
+        for pos1, pos2 in itertools.combinations(range(4), 2):
+            if (ranks[pos1] and ranks[pos2] and ranks[pos1] == ranks[pos2]
+                and pos1 not in used and pos2 not in used):
+                pairs.append((pos1, pos2))
+                used.add(pos1)
+                used.add(pos2)
+        return pairs
+
     def quick_test(agent_types, num_games):
         num_agents = len(agent_types)
         total_scores = [0] * num_agents

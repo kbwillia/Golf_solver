@@ -274,6 +274,11 @@ def get_game_state(game_id):
             else:
                 player_data['grid'].append(None)
 
+        # Add pairs info for human player
+        if i == 0:
+            pairs = game.get_pairs(player.grid)
+            player_data['pairs'] = pairs
+
         players_data.append(player_data)
 
     # Get discard pile top card

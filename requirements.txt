@@ -11,3 +11,4 @@ matplotlib
 seaborn
 tqdm
 torch>=1.9.0
+scipy

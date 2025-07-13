@@ -24,6 +24,7 @@ let humanDiscardPosition = null; // Track position for human discard animation
 let humanDiscardAction = null; // Track action type for human discard animation
 let humanDrawnCardPosition = null; // Track position for drawn card replacement animation
 let previousActionHistory = []; // Place this at the top of your JS file
+let previousHumanPairs = [];
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -499,6 +500,23 @@ function updateGameDisplay() {
     // If no animation, just update UI
     actuallyUpdateUI();
     previousGameState = JSON.parse(JSON.stringify(currentGameState));
+
+    // Detect new pair for human player
+    if (currentGameState && currentGameState.players && currentGameState.players.length > 0) {
+        const human = currentGameState.players[0];
+        if (human && Array.isArray(human.pairs)) {
+            // Compare with previous pairs
+            const newPairs = human.pairs.filter(
+                pair => !previousHumanPairs.some(
+                    prevPair => prevPair[0] === pair[0] && prevPair[1] === pair[1]
+                )
+            );
+            if (newPairs.length > 0) {
+                playGolfClap();
+            }
+            previousHumanPairs = human.pairs.slice();
+        }
+    }
 }
 
 function actuallyUpdateUI() {
@@ -2204,5 +2222,13 @@ function onMatchOver() {
 // Hide it at the start of a new game/match
 function onGameStart() {
     showReplayButton(false);
+}
+
+function playGolfClap() {
+    const audio = document.getElementById('golfClapAudio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play();
+    }
 }
 
