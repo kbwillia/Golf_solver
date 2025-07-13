@@ -22,6 +22,7 @@ class GolfGame:
         self.last_action = None
         self.action_history = []
         self.last_action_turn = None
+        self.drawn_card = None  # Add this line
 
     def create_agents(self, agent_types, q_agents=None):
         agents = []
@@ -105,6 +106,8 @@ class GolfGame:
         elif action['type'] == 'draw_deck' and self.deck:
             # Draw from deck
             new_card = self.deck.pop()
+            self.drawn_card = new_card  # Store the drawn card in the game state
+
             if action.get('keep', True):
                 # Keep the drawn card and swap with position
                 old_card = player.grid[action['position']]
@@ -120,6 +123,7 @@ class GolfGame:
                 else:
                     self.action_history.append(self.last_action)
                 self.last_action_turn = current_turn_id
+                self.drawn_card = None  # Reset after decision
             else:
                 # Discard the drawn card and flip a grid card
                 player.add_to_discard_memory(new_card)
@@ -130,6 +134,7 @@ class GolfGame:
                 else:
                     self.action_history.append(self.last_action)
                 self.last_action_turn = current_turn_id
+                self.drawn_card = None  # Reset after decision
 
                 # If player chose to flip one of their own cards, that card goes to discard pile
                 if 'flip_position' in action:

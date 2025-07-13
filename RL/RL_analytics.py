@@ -347,13 +347,12 @@ def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", op
     # 2. Training progress visualizations
     games = list(range(1, len(training_stats['scores']) + 1))
 
-    # Plot Q-table growth during training
-    plot_qtable_growth(
+    # Plot Q-table growth during training (combined state/entry growth)
+    plot_qtable_state_and_entry_growth(
         games,
         training_stats['qtable_states'],
         training_stats['qtable_entries'],
-        training_stats['scores'],
-        save_filename=f"{save_prefix}_qtable_growth.png"
+        save_filename=f"{save_prefix}_qtable_state_entry_growth.png"
     )
 
     # Plot learning curves
@@ -381,6 +380,35 @@ def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", op
         agent
     )
 
+    # 5. Action type tracking visualization
+    # Load the full trajectory from the output CSV
+    import csv
+    trajectory_path = get_output_path("trajectory_train.csv")
+    trajectory = []
+    if os.path.exists(trajectory_path):
+        with open(trajectory_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Reconstruct action as dict if possible, else keep as string
+                try:
+                    import ast
+                    action = ast.literal_eval(row['action']) if 'action' in row and row['action'].startswith('{') else row['action']
+                except:
+                    action = row['action']
+                trajectory.append({
+                    'state_key': row['state_key'],
+                    'action_key': row['action_key'],
+                    'action': action,
+                    'game': int(row['game']) if row['game'] != '?' else None,
+                    'round': int(row['round']) if row['round'] != '?' else None
+                })
+        # Plot action type tracking
+        plot_action_type_tracking(
+            trajectory,
+            round_info=True,
+            save_filename=f"{save_prefix}_action_type_tracking.png"
+        )
+
     # 5. Theoretical state space comparison
     theoretical_stats = calculate_theoretical_state_space()
     actual_states = len(agent.q_table)
@@ -399,6 +427,9 @@ def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", op
         'theoretical_states': theoretical_stats,
         'actual_states': actual_states
     }
+
+    # Save persistent Q-table for incremental learning
+    agent.save_q_table_csv()  # This will save to output/qtable_train.csv by default
 
     return analysis_results
 

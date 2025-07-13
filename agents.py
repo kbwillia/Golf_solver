@@ -3,6 +3,8 @@ import itertools
 from collections import defaultdict
 from models import Card
 from probabilities import expected_value_draw_vs_discard
+import csv
+import os
 
 # Add PyTorch imports for GPU support
 try:
@@ -295,12 +297,17 @@ class QLearningAgent:
         advantage_bucket = round(draw_advantage * 2) / 2  # Round to nearest 0.5
 
         # Discard card rank (since score isn't useful for Jacks)
-        discard_rank = game_state.discard_pile[-1].rank if game_state.discard_pile else 'None'
+        discard_rank = game_state.discard_pile[-1].rank if game_state.discard_pile else 'none'
 
         # Round number
         round_num = game_state.round
 
-        return f"pub_{public_cards}_priv_{private_cards}_{advantage_bucket}_{discard_rank}_{round_num}"
+        if getattr(game_state, 'drawn_card', None):
+            drawn_card_str = game_state.drawn_card.rank
+        else:
+            drawn_card_str = 'none'
+        # Add drawn_card_str to the state key
+        return f"pub_{public_cards}_priv_{private_cards}_adv_{advantage_bucket}_dis_{discard_rank}_drawn_{drawn_card_str}_round_{round_num}"
 
     def get_action_key(self, action):
         """Convert action to a string key"""
@@ -447,6 +454,37 @@ class QLearningAgent:
     def decay_epsilon(self, factor=0.995):
         """Decay epsilon for better exploration/exploitation balance"""
         self.epsilon = max(0.01, self.epsilon * factor)
+
+    def save_q_table_csv(self, filename="qtable_train.csv"):
+        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, filename)
+        with open(output_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['state_key', 'action_key', 'q_value'])
+            for state_key, actions in self.q_table.items():
+                for action_key, q_value in actions.items():
+                    writer.writerow([state_key, action_key, q_value])
+        print(f"Q-table saved to {output_path}")
+
+    def load_q_table_csv(self, filename="qtable_train.csv"):
+        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+        output_path = os.path.join(output_dir, filename)
+        if not os.path.exists(output_path):
+            print(f"No Q-table file found at {output_path}, starting fresh.")
+            return
+        with open(output_path, 'r', newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            header = next(reader, None)
+            for row in reader:
+                if len(row) < 3:
+                    continue
+                state_key, action_key, q_value = row[0], row[1], row[2]
+                try:
+                    self.q_table[state_key][action_key] = float(q_value)
+                except ValueError:
+                    continue
+        print(f"Loaded Q-table from {output_path}")
 
 class EVAgent:
     def choose_action(self, player, game, trajectory=None):

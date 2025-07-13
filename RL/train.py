@@ -21,6 +21,7 @@ from collections import defaultdict
 import time
 import random # Added for random.choice
 from tqdm import trange
+import csv
 
 # Create output directory if it doesn't exist
 output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
@@ -29,6 +30,54 @@ os.makedirs(output_dir, exist_ok=True)
 def get_output_path(filename):
     """Helper function to get full path for output files"""
     return os.path.join(output_dir, filename)
+
+def load_trajectory_csv(filename="trajectory_train.csv"):
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+    output_path = os.path.join(output_dir, filename)
+    trajectory = []
+    last_game_num = 0
+    if os.path.exists(output_path):
+        with open(output_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                try:
+                    game_num = int(row['game']) if row['game'] != '?' else 0
+                except:
+                    game_num = 0
+                last_game_num = max(last_game_num, game_num)
+                trajectory.append(row)
+    return trajectory, last_game_num
+
+def save_trajectory_csv_full(trajectory, filename="trajectory_train.csv"):
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+    with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['game', 'round', 'state_key', 'action_key', 'action']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for step in trajectory:
+            writer.writerow(step)
+
+def save_trajectory_csv(trajectory, game_num, filename="trajectory_train.csv"):
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+    file_exists = os.path.isfile(output_path)
+    with open(output_path, 'a', newline='') as csvfile:
+        fieldnames = ['game', 'round', 'state_key', 'action_key', 'action']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        for step in trajectory:
+            row = {
+                'game': game_num,
+                'round': step.get('round', ''),
+                'state_key': step.get('state_key', ''),
+                'action_key': step.get('action_key', ''),
+                'action': str(step.get('action', '')),
+            }
+            writer.writerow(row)
 
 # ============================================================================
 # GPU UTILITIES
@@ -152,6 +201,13 @@ def train_qlearning_agent(
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
 
+    # Load Q-table from previous run if available
+    agent.load_q_table_csv()
+
+    # Load trajectory from previous run if available
+    trajectory, last_game_num = load_trajectory_csv()
+    new_trajectory_steps = []
+
     # Training statistics
     training_stats = {
         'games_played': 0,
@@ -216,6 +272,19 @@ def train_qlearning_agent(
                         reward = -10.0
                 agent.train_on_trajectory(traj, reward, score)
                 agent.notify_game_end()
+                # Save trajectory for Q-learning agent (assume idx==0 is Q-learning agent)
+                if idx == 0:
+                    save_trajectory_csv(traj, game_num + 1)
+                # For each step in the trajectory, add the correct game number and append to new_trajectory_steps
+                for step in traj:
+                    step_to_save = {
+                        'game': game_num + 1,
+                        'round': step.get('round', ''),
+                        'state_key': step.get('state_key', ''),
+                        'action_key': step.get('action_key', ''),
+                        'action': str(step.get('action', '')),
+                    }
+                    new_trajectory_steps.append(step_to_save)
         end_q = time.perf_counter()
         q_time = end_q - start_q
         total_q_time += q_time
@@ -267,6 +336,10 @@ def train_qlearning_agent(
         qlearning_games = max(0, num_games - n_bootstrap_games)
         print(f"   • Bootstrapping phase: {bootstrap_games} games")
         print(f"   • Q-learning phase: {qlearning_games} games")
+
+    # Save the full trajectory after training
+    full_trajectory = trajectory + new_trajectory_steps
+    save_trajectory_csv_full(full_trajectory)
 
     return agent, training_stats
 
@@ -341,6 +414,13 @@ def train_qlearning_agent_batch(
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
 
+    # Load Q-table from previous run if available
+    agent.load_q_table_csv()
+
+    # Load trajectory from previous run if available
+    trajectory, last_game_num = load_trajectory_csv()
+    new_trajectory_steps = []
+
     # Training statistics
     training_stats = {
         'games_played': 0,
@@ -412,6 +492,18 @@ def train_qlearning_agent_batch(
             training_stats['games_played'] += 1
             training_stats['scores'].append(game_scores[0])
             training_stats['opponent_scores'].append(game_scores[1])
+            # Save trajectory for Q-learning agent (assume first agent is Q-learning)
+            save_trajectory_csv(trajectory, batch_idx * batch_size + game_idx + 1)
+            # For each step in the trajectory, add the correct game number and append to new_trajectory_steps
+            for step in trajectory:
+                step_to_save = {
+                    'game': last_game_num + batch_idx * batch_size + game_idx + 1,
+                    'round': step.get('round', ''),
+                    'state_key': step.get('state_key', ''),
+                    'action_key': step.get('action_key', ''),
+                    'action': str(step.get('action', '')),
+                }
+                new_trajectory_steps.append(step_to_save)
         end_sim = time.perf_counter()
         sim_time = end_sim - start_sim
         total_sim_time += sim_time
@@ -487,6 +579,10 @@ def train_qlearning_agent_batch(
     print(f"   • Average time per game: {total_time/num_games:.3f}s")
     print(f"   • Total simulation time: {total_sim_time:.2f}s")
     print(f"   • Total Q-table update time: {total_q_time:.2f}s")
+
+    # Save the full trajectory after training
+    full_trajectory = trajectory + new_trajectory_steps
+    save_trajectory_csv_full(full_trajectory)
 
     return agent, training_stats
 
