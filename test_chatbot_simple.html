@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Test</title>
+    <style>
+        .chatbot-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: 300px;
+            min-height: 300px;
+            max-width: 400px;
+        }
+
+        .chatbot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .chatbot-header h4 {
+            margin: 0;
+            color: #333;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .personality-select {
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+            background: white;
+            cursor: pointer;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.user-message {
+            align-items: flex-end;
+        }
+
+        .message.bot-message {
+            align-items: flex-start;
+        }
+
+        .message-content {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        .user-message .message-content {
+            background: #007bff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message .message-content {
+            background: #e9ecef;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.9em;
+            background: white;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .chat-send-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-block;
+            min-width: 60px;
+            z-index: 1000;
+            position: relative;
+        }
+
+        .chat-send-btn:hover {
+            background: #0056b3;
+        }
+
+        .chat-send-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot Test</h1>
+
+    <!-- Chatbot Panel -->
+    <div class="chatbot-panel">
+        <div class="chatbot-header">
+            <h4 id="chatbotName">Golf Coach</h4>
+            <select id="personalitySelect" class="personality-select">
+                <option value="helpful">Golf Coach</option>
+                <option value="competitive">Pro Golfer</option>
+                <option value="funny">Golf Buddy</option>
+                <option value="analytical">Game Analyst</option>
+            </select>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot-message">
+                <div class="message-content">
+                    Hi! I'm your golf assistant. Ask me anything about the game or strategy!
+                </div>
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" placeholder="Ask me about the game..." class="chat-input">
+            <button id="sendChatBtn" class="chat-send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Simple chatbot test loaded');
+
+        // Chatbot state
+        let chatbotEnabled = true;
+        let currentPersonality = 'helpful';
+        let gameId = 'test-game-123'; // Mock game ID for testing
+
+        // Initialize chatbot functionality
+        function initializeChatbot() {
+            console.log('🔧 Initializing chatbot...');
+
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendChatBtn');
+            const personalitySelect = document.getElementById('personalitySelect');
+
+            console.log('Chat elements found:', {
+                chatInput: !!chatInput,
+                sendBtn: !!sendBtn,
+                personalitySelect: !!personalitySelect
+            });
+
+            if (chatInput && sendBtn) {
+                console.log('✅ Setting up chat event listeners');
+
+                // Send message on Enter key
+                chatInput.addEventListener('keypress', function(e) {
+                    console.log('Keypress event:', e.key);
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        console.log('Enter pressed, calling sendChatMessage');
+                        sendChatMessage();
+                    }
+                });
+
+                // Send message on button click
+                sendBtn.addEventListener('click', function(e) {
+                    console.log('Send button clicked');
+                    e.preventDefault();
+                    sendChatMessage();
+                });
+
+                console.log('✅ Chat event listeners set up');
+            } else {
+                console.error('❌ Chat elements not found:', {
+                    chatInput: chatInput,
+                    sendBtn: sendBtn
+                });
+            }
+
+            if (personalitySelect) {
+                personalitySelect.addEventListener('change', function(e) {
+                    console.log('Personality changed to:', e.target.value);
+                    changePersonality(e.target.value);
+                });
+            }
+        }
+
+        // Send a message to the chatbot
+        async function sendChatMessage() {
+            console.log('📤 sendChatMessage called');
+
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendChatBtn');
+            const message = chatInput.value.trim();
+
+            console.log('Message:', message);
+            console.log('Game ID:', gameId);
+
+            if (!message) {
+                console.log('❌ No message to send');
+                return;
+            }
+
+            console.log('✅ Sending message to chatbot...');
+
+            // Disable input while processing
+            chatInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Add user message to chat
+            addMessageToChat('user', message);
+            chatInput.value = '';
+
+            try {
+                console.log('🌐 Making API request to /chatbot/send_message');
+                const response = await fetch('/chatbot/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        game_id: gameId,
+                        message: message
+                    })
+                });
+
+                console.log('📥 Response received:', response.status);
+                const data = await response.json();
+                console.log('📄 Response data:', data);
+
+                if (data.success) {
+                    addMessageToChat('bot', data.response, data.bot_name);
+                } else {
+                    addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
+                }
+            } catch (error) {
+                console.error('❌ Chatbot error:', error);
+                addMessageToChat('bot', 'Sorry, I\'m having trouble connecting right now.');
+            } finally {
+                // Re-enable input
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // Add a message to the chat display
+        function addMessageToChat(sender, message, botName = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = message;
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Change chatbot personality
+        async function changePersonality(personalityType) {
+            try {
+                const response = await fetch('/chatbot/change_personality', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        personality_type: personalityType
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const chatbotName = document.getElementById('chatbotName');
+                    if (chatbotName) {
+                        chatbotName.textContent = data.personality.name;
+                    }
+
+                    currentPersonality = personalityType;
+
+                    // Clear chat and add welcome message
+                    const chatMessages = document.getElementById('chatMessages');
+                    if (chatMessages) {
+                        chatMessages.innerHTML = '';
+                        addMessageToChat('bot', `Hi! I'm ${data.personality.name}. ${data.personality.description}`);
+                    }
+                } else {
+                    console.error('Failed to change personality:', data.error);
+                }
+            } catch (error) {
+                console.error('Error changing personality:', error);
+            }
+        }
+
+        // Manual test function
+        window.testChatbot = function() {
+            console.log('🧪 Manual chatbot test');
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendChatBtn');
+            const chatbotPanel = document.querySelector('.chatbot-panel');
+
+            console.log('Elements found:', {
+                chatInput: chatInput,
+                sendBtn: sendBtn,
+                chatbotPanel: chatbotPanel
+            });
+
+            if (chatInput && sendBtn) {
+                console.log('✅ Elements found, testing click...');
+                sendBtn.click();
+                console.log('Click event fired');
+            } else {
+                console.log('❌ Elements not found');
+            }
+        };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM Content Loaded - initializing chatbot');
+            initializeChatbot();
+        });
+
+        console.log('🎯 Simple chatbot test script loaded');
+    </script>
+</body>
+</html>

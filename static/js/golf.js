@@ -1,3 +1,4 @@
+// ===== GOLF GAME VARIABLES =====
 let currentGameState = null; // Holds the current game state from backend
 let gameId = null; // Unique game session ID
 let drawnCard = null; // Card drawn from deck
@@ -25,6 +26,12 @@ let humanDiscardAction = null; // Track action type for human discard animation
 let humanDrawnCardPosition = null; // Track position for drawn card replacement animation
 let previousActionHistory = []; // Place this at the top of your JS file
 let previousHumanPairs = [];
+
+// ===== CHATBOT VARIABLES =====
+let chatbotEnabled = true;
+let currentPersonality = 'helpful';
+
+console.log('🎯 Golf.js loaded successfully!');
 
 // Custom HTML legend plugin for Chart.js
 const htmlLegendPlugin = {
@@ -2124,11 +2131,11 @@ function setPlayerInteractivity(isMyTurn) {
         card.draggable = !!isMyTurn;
     });
 }
-
-discardCard.onclick = function() {
-    if (!isMyTurn) return;
-    // ...rest of logic...
-};
+//was causing error before so not sure about this.
+// discardCard.onclick = function() {
+//     if (!isMyTurn) return;
+//     // ...rest of logic...
+// };
 
 function handleGameEnd() {
     // Immediately fetch new game state, don't wait for polling
@@ -2264,5 +2271,346 @@ function playGolfClap() {
         audio.currentTime = 0;
         audio.play();
     }
+}
+
+// ===== CHATBOT FUNCTIONALITY =====
+
+// Chatbot state (already declared at top)
+
+// Initialize chatbot functionality
+function initializeChatbot() {
+    console.log('🔧 Initializing chatbot...');
+
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const personalitySelect = document.getElementById('personalitySelect');
+
+    console.log('Chat elements found:', {
+        chatInput: !!chatInput,
+        sendBtn: !!sendBtn,
+        personalitySelect: !!personalitySelect
+    });
+
+    if (chatInput && sendBtn) {
+        console.log('✅ Setting up chat event listeners');
+
+        // Send message on Enter key
+        chatInput.addEventListener('keypress', function(e) {
+            console.log('Keypress event:', e.key);
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                console.log('Enter pressed, calling sendChatMessage');
+                sendChatMessage();
+            }
+        });
+
+        // Send message on button click
+        sendBtn.addEventListener('click', function(e) {
+            console.log('Send button clicked');
+            e.preventDefault();
+            sendChatMessage();
+        });
+
+        console.log('✅ Chat event listeners set up');
+    } else {
+        console.error('❌ Chat elements not found:', {
+            chatInput: chatInput,
+            sendBtn: sendBtn
+        });
+    }
+
+    if (personalitySelect) {
+        personalitySelect.addEventListener('change', function(e) {
+            console.log('Personality changed to:', e.target.value);
+            changePersonality(e.target.value);
+        });
+    }
+
+    // Load initial personality
+    loadPersonalities();
+}
+
+// Send a message to the chatbot
+async function sendChatMessage() {
+    console.log('📤 sendChatMessage called');
+
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const message = chatInput.value.trim();
+
+    console.log('Message:', message);
+    console.log('Game ID:', gameId);
+
+    if (!message) {
+        console.log('❌ No message to send');
+        return;
+    }
+
+    if (!gameId) {
+        console.log('❌ No game ID available');
+        addMessageToChat('bot', 'Please start a game first before chatting.');
+        return;
+    }
+
+    console.log('✅ Sending message to chatbot...');
+
+    // Disable input while processing
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+
+    // Add user message to chat
+    addMessageToChat('user', message);
+    chatInput.value = '';
+
+    try {
+        console.log('🌐 Making API request to /chatbot/send_message');
+        const response = await fetch('/chatbot/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                game_id: gameId,
+                message: message
+            })
+        });
+
+        console.log('📥 Response received:', response.status);
+        const data = await response.json();
+        console.log('📄 Response data:', data);
+
+        if (data.success) {
+            addMessageToChat('bot', data.response, data.bot_name);
+        } else {
+            addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
+        }
+    } catch (error) {
+        console.error('❌ Chatbot error:', error);
+        addMessageToChat('bot', 'Sorry, I\'m having trouble connecting right now.');
+    } finally {
+        // Re-enable input
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+    }
+}
+
+// Add a message to the chat display
+function addMessageToChat(sender, message, botName = null) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = message;
+
+    messageDiv.appendChild(contentDiv);
+    chatMessages.appendChild(messageDiv);
+
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Load available personalities
+async function loadPersonalities() {
+    try {
+        const response = await fetch('/chatbot/personalities');
+        const data = await response.json();
+
+        if (data.success) {
+            const personalitySelect = document.getElementById('personalitySelect');
+            const chatbotName = document.getElementById('chatbotName');
+
+            if (personalitySelect) {
+                personalitySelect.innerHTML = '';
+                data.personalities.forEach(personality => {
+                    const option = document.createElement('option');
+                    option.value = personality.type;
+                    option.textContent = personality.name;
+                    personalitySelect.appendChild(option);
+                });
+            }
+
+            if (chatbotName) {
+                chatbotName.textContent = data.current.name;
+            }
+
+            currentPersonality = data.current.type || 'helpful';
+        }
+    } catch (error) {
+        console.error('Error loading personalities:', error);
+    }
+}
+
+// Change chatbot personality
+async function changePersonality(personalityType) {
+    try {
+        const response = await fetch('/chatbot/change_personality', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                personality_type: personalityType
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const chatbotName = document.getElementById('chatbotName');
+            if (chatbotName) {
+                chatbotName.textContent = data.personality.name;
+            }
+
+            currentPersonality = personalityType;
+
+            // Clear chat and add welcome message
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                chatMessages.innerHTML = '';
+                addMessageToChat('bot', `Hi! I'm ${data.personality.name}. ${data.personality.description}`);
+            }
+        } else {
+            console.error('Failed to change personality:', data.error);
+        }
+    } catch (error) {
+        console.error('Error changing personality:', error);
+    }
+}
+
+// Request proactive comment from chatbot
+async function requestProactiveComment(eventType = 'general') {
+    if (!gameId || !chatbotEnabled) return;
+
+    try {
+        const response = await fetch('/chatbot/proactive_comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                game_id: gameId,
+                event_type: eventType
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.comment) {
+            addMessageToChat('bot', data.comment, data.bot_name);
+        }
+    } catch (error) {
+        console.error('Error requesting proactive comment:', error);
+    }
+}
+
+// Initialize chatbot when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM Content Loaded - initializing chatbot');
+
+    try {
+        // Test if elements exist immediately
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendChatBtn');
+        const chatbotPanel = document.querySelector('.chatbot-panel');
+
+        console.log('Initial element check:', {
+            chatInput: !!chatInput,
+            sendBtn: !!sendBtn,
+            chatbotPanel: !!chatbotPanel
+        });
+
+        // Try to initialize
+        initializeChatbot();
+
+        // Also set up a periodic check for when the game board becomes visible
+        const checkForChatbot = setInterval(() => {
+            try {
+                const gameBoard = document.getElementById('gameBoard');
+                const chatInput = document.getElementById('chatInput');
+
+                if (gameBoard && gameBoard.style.display !== 'none' && chatInput) {
+                    console.log('🎮 Game board visible - re-initializing chatbot');
+                    clearInterval(checkForChatbot);
+                    initializeChatbot();
+                }
+            } catch (error) {
+                console.error('❌ Error in chatbot check interval:', error);
+            }
+        }, 1000);
+
+    } catch (error) {
+        console.error('❌ Error in DOMContentLoaded chatbot init:', error);
+    }
+});
+
+// Also initialize chatbot when game board is shown
+try {
+    const originalStartGame = startGame;
+    startGame = async function() {
+        try {
+            await originalStartGame();
+            console.log('🎮 Game started - re-initializing chatbot');
+            // Small delay to ensure DOM elements are rendered
+            setTimeout(initializeChatbot, 100);
+        } catch (error) {
+            console.error('❌ Error in startGame override:', error);
+        }
+    };
+} catch (error) {
+    console.error('❌ Error setting up startGame override:', error);
+}
+
+// Manual test function - you can call this from console
+window.testChatbot = function() {
+    console.log('🧪 Manual chatbot test');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const chatbotPanel = document.querySelector('.chatbot-panel');
+
+    console.log('Elements found:', {
+        chatInput: chatInput,
+        sendBtn: sendBtn,
+        chatbotPanel: chatbotPanel
+    });
+
+    if (chatInput && sendBtn) {
+        console.log('✅ Elements found, testing click...');
+        sendBtn.click();
+        console.log('Click event fired');
+    } else {
+        console.log('❌ Elements not found');
+    }
+};
+
+// Add proactive comments to game events
+const originalUpdateGameDisplay = updateGameDisplay;
+updateGameDisplay = function() {
+    originalUpdateGameDisplay();
+
+    // Request proactive comments for certain game events
+    if (currentGameState && previousGameState) {
+        // Check for turn changes
+        if (currentGameState.current_player !== previousGameState.current_player) {
+            requestProactiveComment('turn_start');
+        }
+
+        // Check for game over
+        if (currentGameState.game_over && !previousGameState.game_over) {
+            requestProactiveComment('game_over');
+        }
+    }
+};
+
+// Final test to ensure script loaded
+try {
+    console.log('🎯 Golf.js initialization complete!');
+    console.log('Type "testChatbot()" in console to test chatbot functionality');
+} catch (error) {
+    console.error('❌ Error in final initialization:', error);
 }
 

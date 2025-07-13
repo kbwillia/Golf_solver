@@ -4,11 +4,12 @@
 #   /static/golf_celebration_gifs.json # Celebration GIFs data (downsized_medium URLs)
 #   /templates/index.html             # Main HTML template (structure only, links to CSS/JS)
 
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_from_directory
 import uuid
 import json
 from game import GolfGame
 from probabilities import get_probabilities
+from chatbot import chatbot
 import time
 
 app = Flask(__name__)
@@ -22,6 +23,10 @@ AI_TURN_DELAY = 0.5  # seconds
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/test_chatbot_simple.html')
+def test_chatbot():
+    return send_from_directory('.', 'test_chatbot_simple.html')
 
 @app.route('/create_game', methods=['POST'])
 def create_game():
@@ -573,6 +578,95 @@ def update_round_cumulative_scores(game_session, game):
             game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
 
     print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
+
+# Chatbot Routes
+@app.route('/chatbot/send_message', methods=['POST'])
+def send_chatbot_message():
+    """Send a message to the chatbot and get a response"""
+    data = request.json
+    game_id = data.get('game_id')
+    message = data.get('message', '').strip()
+
+    if not message:
+        return jsonify({'error': 'Message cannot be empty'}), 400
+
+    # Get current game state if game_id is provided
+    game_state = None
+    if game_id and game_id in games:
+        game_state = get_game_state(game_id)
+
+    try:
+        response = chatbot.generate_response(message, game_state)
+        return jsonify({
+            'success': True,
+            'response': response,
+            'bot_name': chatbot.get_bot_info()['name']
+        })
+    except Exception as e:
+        return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
+
+@app.route('/chatbot/proactive_comment', methods=['POST'])
+def get_proactive_comment():
+    """Get a proactive comment from the chatbot based on game events"""
+    data = request.json
+    game_id = data.get('game_id')
+    event_type = data.get('event_type', 'general')
+
+    if not game_id or game_id not in games:
+        return jsonify({'error': 'Game not found'}), 404
+
+    try:
+        game_state = get_game_state(game_id)
+        comment = chatbot.generate_proactive_comment(game_state, event_type)
+
+        if comment:
+            return jsonify({
+                'success': True,
+                'comment': comment,
+                'bot_name': chatbot.get_bot_info()['name']
+            })
+        else:
+            return jsonify({'success': True, 'comment': None})
+
+    except Exception as e:
+        return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
+
+@app.route('/chatbot/personalities', methods=['GET'])
+def get_chatbot_personalities():
+    """Get available chatbot personalities"""
+    try:
+        personalities = chatbot.get_available_personalities()
+        current_personality = chatbot.get_bot_info()
+        return jsonify({
+            'success': True,
+            'personalities': personalities,
+            'current': current_personality
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error getting personalities: {str(e)}'}), 500
+
+@app.route('/chatbot/change_personality', methods=['POST'])
+def change_chatbot_personality():
+    """Change the chatbot personality"""
+    data = request.json
+    personality_type = data.get('personality_type')
+
+    if not personality_type:
+        return jsonify({'error': 'Personality type is required'}), 400
+
+    try:
+        success = chatbot.change_personality(personality_type)
+        if success:
+            new_personality = chatbot.get_bot_info()
+            return jsonify({
+                'success': True,
+                'message': f'Changed to {new_personality["name"]}',
+                'personality': new_personality
+            })
+        else:
+            return jsonify({'error': 'Invalid personality type'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error changing personality: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

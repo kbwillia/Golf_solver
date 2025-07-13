@@ -80,10 +80,34 @@
                         <div class="game-info" id="gameInfo"></div>
                     </div>
 
-                    <!-- Notification Area (left): badge, gifs -->
+                    <!-- Notification Area (left): badge, gifs, chat -->
                     <div class="notification-area">
                         <div id="ScoresAndRoundInfo"></div>
                         <!-- celebrationGif moved to right panel -->
+
+                        <!-- Chatbot Panel -->
+                        <div class="chatbot-panel">
+                            <div class="chatbot-header">
+                                <h4 id="chatbotName">Golf Coach</h4>
+                                <select id="personalitySelect" class="personality-select">
+                                    <option value="helpful">Golf Coach</option>
+                                    <option value="competitive">Pro Golfer</option>
+                                    <option value="funny">Golf Buddy</option>
+                                    <option value="analytical">Game Analyst</option>
+                                </select>
+                            </div>
+                            <div class="chat-messages" id="chatMessages">
+                                <div class="message bot-message">
+                                    <div class="message-content">
+                                        Hi! I'm your golf assistant. Ask me anything about the game or strategy!
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input-container">
+                                <input type="text" id="chatInput" placeholder="Ask me about the game..." class="chat-input">
+                                <button id="sendChatBtn" class="chat-send-btn">Send</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Gameplay Area (center): player grids, deck/discard, drawn card -->
