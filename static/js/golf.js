@@ -1356,6 +1356,16 @@ function updateProbabilitiesPanel() {
     const unknownCardsPanel = document.getElementById('unknownCardsPanel');
     const otherProbabilitiesPanel = document.getElementById('otherProbabilitiesPanel');
 
+    // Hide probabilities if game is over
+    if (currentGameState && currentGameState.game_over) {
+        if (unknownCardsPanel) unknownCardsPanel.classList.add('hidden');
+        if (otherProbabilitiesPanel) otherProbabilitiesPanel.classList.add('hidden');
+        return;
+    } else {
+        if (unknownCardsPanel) unknownCardsPanel.classList.remove('hidden');
+        if (otherProbabilitiesPanel) otherProbabilitiesPanel.classList.remove('hidden');
+    }
+
     if (!currentGameState || !currentGameState.probabilities) {
         if (unknownCardsPanel) unknownCardsPanel.innerHTML = '';
         if (otherProbabilitiesPanel) otherProbabilitiesPanel.innerHTML = '';

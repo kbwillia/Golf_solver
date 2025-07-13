@@ -87,6 +87,14 @@ body, html {
     box-sizing: border-box;
     overflow: visible !important; /* Allow children to overflow grid cell boundaries. aka the chart */
 }
+/* this is for debugging the grid layout delete later */
+.game-grid-container > div {
+  outline: 2px solid red !important;
+}
+
+.probabilities-content > div {
+  outline: 2px solid blue !important;
+}
 
 /* RESPONSIVE: Adjust for smaller screens */
 @media (max-width: 1200px) {
@@ -251,6 +259,7 @@ body, html {
     box-sizing: border-box;
     /* border: 2px solid #1a4d0a; */
     overflow: visible !important; /* Allow absolutely positioned chart to overflow into center column */
+    border: 2px solid green !important;
 }
 
 .probabilities-content {
@@ -1043,18 +1052,29 @@ body, html {
 
 
 /* Example for a specific class */
+/*
+ * .celebration-gif: Wrapper div for the celebration GIF image.
+ * Adds rounded corners and clips overflow to fit the rounded shape.
+ */
 .celebration-gif {
     border-radius: 16px; /* Adjust the px value for more/less rounding */
     overflow: hidden;    /* Ensures the corners are clipped */
 }
 
+/*
+ * #celebrationGif img: Targets any <img> inside the #celebrationGif container.
+ * Rounds the image corners, hides overflow, and ensures the image is displayed as a block.
+ */
 #celebrationGif img {
     border-radius: 18px !important;
     overflow: hidden !important;
     display: block !important;
 }
 
-/* Celebration GIFs */
+/*
+ * .celebration-gif-img: Targets the GIF image itself (by class).
+ * Rounds the image, hides overflow, sets max size, centers it, and ensures the image fits within its box without distortion.
+ */
 .celebration-gif-img {
     border-radius: 18px;
     overflow: hidden;
@@ -1065,12 +1085,63 @@ body, html {
     object-fit: contain;
     background: transparent;
 }
+
+/*
+ * .celebration-gif-container: Wrapper around the GIF and possibly a caption.
+ * Centers text inside the container and adds spacing above and to the right.
+ */
 .celebration-gif-container {
     text-align: center;
-    margin-top: 2px;
+    margin-top: 112px;
+    margin-right: 10px;
 }
 
+/*
+ * #celebrationGif: Main container for the celebration GIF.
+ * Places the container in the right grid column, positions it, makes it fill the column, aligns its content to the right, and adds a border for debugging.
+ */
+#celebrationGif {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  width: 100%;           /* Fill the grid column */
+  margin: 50px 0 0 10;    /* Move down from the top, right, bottom, left*/
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end; /* Push content to the right */
+  align-items: flex-start;
+  pointer-events: none;
+  /* border: 2px solid red !important; */
+  border-radius: 18px !important;
+  overflow: hidden; /* Ensures child image corners are clipped */
+}
 
+/*
+ * #celebrationGif img, .celebration-gif-img: Targets the GIF image for consistent sizing.
+ * Sets the width of the GIF image to 300px, but allows it to shrink if the container is smaller.
+ */
+#celebrationGif img, .celebration-gif-img {
+  width: 100%;
+  max-width: 280px;
+  max-height: 260px;
+  border-radius: 18px !important;
+  display: block;
+}
+
+.probabilities-area {
+  position: relative;
+}
+
+.probabilities-content {
+  display: flex;
+  align-items: flex-start; /* Columns only as tall as their content */
+  height: auto;
+}
+
+.other-probabilities-column {
+  height: auto;
+  min-height: 0;
+}
 
 
 /* Game Over Buttons */
