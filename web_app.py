@@ -88,6 +88,9 @@ def create_game():
         'cumulative_updated_for_game': False  # NEW: Track if cumulative updated for this game
     }
 
+    # Reset chatbot conversation history
+    chatbot.conversation_history = []
+
     return jsonify({
         'success': True,
         'game_id': game_id,

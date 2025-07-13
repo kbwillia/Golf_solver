@@ -31,6 +31,9 @@ let previousHumanPairs = [];
 let chatbotEnabled = true;
 let currentPersonality = 'helpful';
 
+let lastNantzCommentTime = 0;
+let lastNantzDiscard = null;
+
 console.log('🎯 Golf.js loaded successfully!');
 
 // Custom HTML legend plugin for Chart.js
@@ -325,6 +328,9 @@ async function startGame() {
                 throw error; // Re-throw to see the full error
             }
 
+            // Clear chatbot UI on new game
+            clearChatUI();
+
             // Check if it's an AI's turn right after game creation
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                 pollAITurns();
@@ -528,6 +534,21 @@ function updateGameDisplay() {
                 playGolfClap();
             }
             previousHumanPairs = publicPairs.slice();
+        }
+    }
+
+    // At the end of updateGameDisplay, add:
+    if (currentPersonality === 'nantz') {
+        const now = Date.now();
+        const discard = currentGameState && currentGameState.discard_top
+            ? currentGameState.discard_top.rank + currentGameState.discard_top.suit
+            : null;
+
+        // Only comment if discard changed and cooldown passed
+        if (discard !== lastNantzDiscard && now - lastNantzCommentTime > 4000) { // 4s cooldown
+            requestProactiveComment('general');
+            lastNantzCommentTime = now;
+            lastNantzDiscard = discard;
         }
     }
 }
@@ -1958,6 +1979,13 @@ function replayGame() {
     const numGames = currentGameState.num_games || 1;
     // Start a new game with the same settings
     startGameWithSettings(gameMode, opponentType, playerName, numGames);
+
+    // Check if it's a multi-hole match
+    if (currentGameState && (currentGameState.num_games === 1 || !currentGameState.num_games)) {
+        // Single game mode: clear chat
+        clearChatUI();
+    }
+    // else: multi-hole match, do NOT clear chat
 }
 
 async function nextGame() {
@@ -2332,6 +2360,10 @@ function initializeChatbot() {
 
 // Send a message to the chatbot
 async function sendChatMessage() {
+    if (currentPersonality === 'nantz') {
+        addMessageToChat('bot', "Jim Nantz only provides live commentary. Enjoy the broadcast!");
+        return;
+    }
     console.log('📤 sendChatMessage called');
 
     const chatInput = document.getElementById('chatInput');
@@ -2468,11 +2500,27 @@ async function changePersonality(personalityType) {
 
             currentPersonality = personalityType;
 
-            // Clear chat and add welcome message
-            const chatMessages = document.getElementById('chatMessages');
-            if (chatMessages) {
-                chatMessages.innerHTML = '';
-                addMessageToChat('bot', `Hi! I'm ${data.personality.name}. ${data.personality.description}`);
+            // Disable chat input for Jim Nantz
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendChatBtn');
+            if (personalityType === 'nantz') {
+                if (chatInput) chatInput.disabled = true;
+                if (sendBtn) sendBtn.disabled = true;
+                // Update default message
+                const chatMessages = document.getElementById('chatMessages');
+                if (chatMessages) {
+                    chatMessages.innerHTML = '';
+                    addMessageToChat('bot', "Hello friends. Welcome to a tradition unlike any other. I'll be providing live Masters-style commentary as the game unfolds.");
+                }
+            } else {
+                if (chatInput) chatInput.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                // Clear chat and add welcome message
+                const chatMessages = document.getElementById('chatMessages');
+                if (chatMessages) {
+                    chatMessages.innerHTML = '';
+                    addMessageToChat('bot', `Hi! I'm ${data.personality.name}. ${data.personality.description}`);
+                }
             }
         } else {
             console.error('Failed to change personality:', data.error);
@@ -2612,5 +2660,13 @@ try {
     console.log('Type "testChatbot()" in console to test chatbot functionality');
 } catch (error) {
     console.error('❌ Error in final initialization:', error);
+}
+
+function clearChatUI() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.innerHTML = '';
+        addMessageToChat('bot', "Hi! I'm your golf assistant. Ask me anything about the game or strategy!");
+    }
 }
 
