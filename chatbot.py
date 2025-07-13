@@ -9,6 +9,9 @@ class GolfChatbot:
     def __init__(self, bot_type: str = "helpful"):
         self.bot_type = bot_type
         self.conversation_history = []
+        self.base_prompt = (
+            "Respond in 2 sentences or less. Be concise and clear. Limit your answer to 200 characters."
+        )
         self.personalities = {
             "helpful": {
                 "name": "Golf Coach",
@@ -92,9 +95,12 @@ Current Game State:
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
+        # Always add the base prompt
+        context += self.base_prompt + "\n"
+
         if proactive:
             # For proactive responses, we don't have a user message
-            context += "Provide a brief, relevant comment about the current game situation. Keep it under 2 sentences."
+            context += "Provide a brief, relevant comment about the current game situation."
         else:
             # Add conversation history for context
             if self.conversation_history:
@@ -159,6 +165,9 @@ Current Game State:
             context = f"{bot_info['system_prompt']}\n\n"
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
             context += prompt
+
+            # Always add the base prompt
+            context += self.base_prompt + "\n"
 
             response = call_cerebras_llm(
                 prompt=context,
