@@ -581,7 +581,7 @@ def full_growth_analysis(num_games=200, checkpoint_interval=10):
     # Analyze growth patterns
     growth_stats = analyze_growth_patterns(games, states, entries, scores)
 
-    # Plot growth
+    # Plot growth asdfasdf
     # plot_qtable_growth(games, states, entries, scores) # This line was removed
 
     # Save data
