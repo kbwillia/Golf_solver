@@ -2,6 +2,7 @@ import json
 from typing import Dict, List, Optional, Any
 from llm_cerebras import call_cerebras_llm
 import random
+import os
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
@@ -47,6 +48,13 @@ class GolfChatbot:
                 )
             }
         }
+        # Load rules once
+        rules_path = os.path.join(os.path.dirname(__file__), 'game_rules.txt')
+        try:
+            with open(rules_path, 'r', encoding='utf-8') as f:
+                self.game_rules = f.read().strip()
+        except Exception as e:
+            self.game_rules = "(Game rules unavailable)"
 
     def get_bot_info(self) -> Dict[str, str]:
         """Get information about the current bot"""
@@ -105,7 +113,7 @@ Current Game State:
         system_prompt = bot_info["system_prompt"]
 
         # Build the context
-        context = system_prompt + "\n\n"
+        context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
 
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
@@ -133,7 +141,7 @@ Current Game State:
                 prompt=context,
                 model="llama3.1-8b",
                 structured=False,
-                stream=False,
+                stream=True,
                 temperature=0.7
             )
 
