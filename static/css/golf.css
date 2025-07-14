@@ -134,6 +134,7 @@ body, html {
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
+    justify-content: space-between;
     border-radius: 12px;
     padding: 16px;
     min-height: 0;
@@ -1181,6 +1182,7 @@ body, html {
 
 .probabilities-title {
     margin-top: 0;
+    margin-bottom: 0;
     font-size: 1.1em;
     font-weight: bold;
     color: #fff;
@@ -1190,6 +1192,7 @@ body, html {
         -1px  1px 0 black,
          1px  1px 0 black; /* Black outline in all directions */
     font-weight: bold;
+    /* border: 9px solid #a90dc8; */
 
 }
 /* probabilities cards left table   */
@@ -1503,6 +1506,29 @@ body, html {
     flex-direction: column;
     gap: 4px;
     overflow-y: auto;
+
+    /* Custom scrollbar styling - grey and subtle */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.01) transparent;
+}
+
+/* Webkit scrollbar styling for action history (Chrome, Safari, Edge) */
+.action-history-list::-webkit-scrollbar {
+    width: 3px;
+}
+
+.action-history-list::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 2px;
+}
+
+.action-history-list::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.1);
+    border-radius: 2px;
+}
+
+.action-history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.2);
 }
 .action-history-item {
     font-size: 0.8em;
@@ -1568,19 +1594,28 @@ body, html {
   display: none !important;
 } */
 
+/* Top content wrapper for notification area */
+.notification-top-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
 /* Chatbot Panel Styles */
 .chatbot-panel {
     /* background: rgba(255, 255, 255, 0.95); */
     background: rgba(230, 249, 230, 0.10) !important;
 
     border-radius: 12px;
-    padding: 16px;
-    margin-top: 16px;
+    padding: 6px;
+    margin-top: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     height: 300px;
     min-height: 300px;
+    flex-shrink: 0;
 }
 
 .chatbot-header {
@@ -1605,7 +1640,7 @@ body, html {
     border-radius: 4px;
     font-size: 0.9em;
     /* background: white; */
-    background: rgba(230, 249, 230, 0.35) !important;
+    background: rgba(230, 249, 230, 0.55) !important;
 
     cursor: pointer;
 }
@@ -1617,9 +1652,33 @@ body, html {
     padding: 2px;
     /* background: #f8f9fa; */
     background: rgba(230, 249, 230, 0.01) !important;
-
     border-radius: 8px;
     /* border: 1px solid #e0e0e0; */
+
+    /* Custom scrollbar styling */
+    scrollbar-width: thin;
+    /* scrollbar-color: rgba(40, 167, 69, 0.5) transparent; */
+    scrollbar-color: rgba(40, 167, 69, 0.015) transparent;
+
+}
+
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+.chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(40, 167, 69, 0.15);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(40, 167, 69, 0.7);
 }
 
 .message {
@@ -1639,29 +1698,60 @@ body, html {
 .message-content {
     max-width: 85%;
     padding: 8px 12px;
-    border-radius: 12px;
+    border-radius: 18px;
     font-size: 0.9em;
     line-height: 1.3;
     word-wrap: break-word;
+    position: relative;
 }
 
 .user-message .message-content {
     background: #0b501b;
     color: white;
     border-bottom-right-radius: 4px;
+    margin-right: 8px;
+}
+
+.user-message .message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-left-color: #0b501b;
+    border-right: 0;
+    border-bottom: 0;
+    margin-bottom: 0;
 }
 
 .bot-message .message-content {
     background: #d4edda;
     color: #155724;
     border-bottom-left-radius: 4px;
+    margin-left: 8px;
+}
+
+.bot-message .message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right-color: #d4edda;
+    border-left: 0;
+    border-bottom: 0;
+    margin-bottom: 0;
 }
 
 .chat-input-container {
     display: flex;
     gap: 8px;
     align-items: center;
-    background: rgba(230, 249, 230, 0.35) !important;
+    background: rgba(230, 249, 230, 0.00) !important;
 
 }
 
@@ -1672,7 +1762,7 @@ body, html {
     border-radius: 6px;
     font-size: 0.9em;
     /* background: white; */
-    background: rgba(230, 249, 230, 0.55) !important;
+    background: rgba(230, 249, 230, 0.75) !important;
 
 }
 
