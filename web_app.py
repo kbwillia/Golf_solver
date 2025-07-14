@@ -599,12 +599,19 @@ def send_chatbot_message():
         game_state = get_game_state(game_id)
 
     try:
-        response = chatbot.generate_response(message, game_state)
+        # --- BEGIN MODIFICATION ---
+        # Patch: get both response and prompt for debugging
+        response, prompt = chatbot.generate_response(message, game_state, return_prompt=True)
+        print("\n==== PROMPT SENT TO LLM ====")
+        print(prompt)
+        print("==== END PROMPT ====" )
         return jsonify({
             'success': True,
             'response': response,
-            'bot_name': chatbot.get_bot_info()['name']
+            'bot_name': chatbot.get_bot_info()['name'],
+            'prompt': prompt  # Add the prompt to the API response
         })
+        # --- END MODIFICATION ---
     except Exception as e:
         return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
 

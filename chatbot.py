@@ -66,19 +66,21 @@ class GolfChatbot:
             player_info = []
             for i, player in enumerate(players):
                 name = player.get('name', f'Player {i+1}')
-                hand = player.get('hand', [])
+                grid = player.get('grid', [])
                 score = player.get('score', 0)
                 is_current = i == current_player
 
-                # Format hand cards (show only face-up cards for other players)
-                if i == 0:  # Human player - show all cards
-                    hand_str = ", ".join([f"{card['rank']}{card['suit']}" for card in hand])
-                else:  # AI players - show only face-up cards
-                    visible_cards = [f"{card['rank']}{card['suit']}" for card in hand if card.get('visible', False)]
-                    hidden_cards = ["?"] * (len(hand) - len(visible_cards))
-                    hand_str = ", ".join(visible_cards + hidden_cards)
+                # Format grid cards (show only face-up cards for other players)
+                if i == 0:  # Human player - show only public cards (no private peeks)
+                    grid_str = ", ".join(
+                        f"{card['rank']}{card['suit']}" if card and card.get('public') else "?" for card in grid
+                    )
+                else:  # AI players - show only public cards
+                    grid_str = ", ".join(
+                        f"{card['rank']}{card['suit']}" if card and card.get('public') else "?" for card in grid
+                    )
 
-                player_info.append(f"{name}: {hand_str} (Score: {score}){' [CURRENT TURN]' if is_current else ''}")
+                player_info.append(f"{name}: {grid_str} (Score: {score}){' [CURRENT TURN]' if is_current else ''}")
 
             # Format discard pile
             discard_str = "None" if not discard_pile else f"{discard_pile[-1]['rank']}{discard_pile[-1]['suit']}"
@@ -96,7 +98,7 @@ Current Game State:
         except Exception as e:
             return f"Error formatting game state: {str(e)}"
 
-    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, proactive: bool = False) -> str:
+    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, proactive: bool = False, return_prompt: bool = False) -> str:
         """Generate a chatbot response based on user input and game state"""
 
         bot_info = self.get_bot_info()
@@ -148,10 +150,16 @@ Current Game State:
                 if len(self.conversation_history) > 10:
                     self.conversation_history = self.conversation_history[-10:]
 
-            return response
+            if return_prompt:
+                return response, context
+            else:
+                return response
 
         except Exception as e:
-            return f"Sorry, I'm having trouble responding right now. Error: {str(e)}"
+            if return_prompt:
+                return f"Sorry, I'm having trouble responding right now. Error: {str(e)}", context
+            else:
+                return f"Sorry, I'm having trouble responding right now. Error: {str(e)}"
 
     def generate_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
         """Generate a proactive comment based on game events"""
