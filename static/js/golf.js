@@ -26,13 +26,15 @@ let humanDiscardAction = null; // Track action type for human discard animation
 let humanDrawnCardPosition = null; // Track position for drawn card replacement animation
 let previousActionHistory = []; // Place this at the top of your JS file
 let previousHumanPairs = [];
+let previousActionHistoryLength = 0;
 
 // ===== CHATBOT VARIABLES =====
 let chatbotEnabled = true;
 let currentPersonality = 'nantz';
 
-let lastNantzCommentTime = 0;
+let lastNantzCommentTime = 0; // Place this at the top of your JS file if not already present
 let lastNantzTurn = null;
+let proactiveCommentTimeout = null;
 
 console.log('🎯 Golf.js loaded successfully!');
 
@@ -544,7 +546,48 @@ function updateGameDisplay() {
         }
     }
 
+    console.log('DEBUG: updateGameDisplay called');
+    console.log('DEBUG: currentGameState:', currentGameState);
+    console.log('DEBUG: previousGameState:', previousGameState);
+    if (currentGameState && previousGameState) {
+        console.log('DEBUG: current_player:', currentGameState.current_player, 'previous_player:', previousGameState.current_player);
+    }
 
+    if (
+        currentGameState &&
+        currentGameState.action_history &&
+        currentPersonality === 'nantz'
+    ) {
+        const currentLength = currentGameState.action_history.length;
+        if (currentLength > previousActionHistoryLength) {
+            previousActionHistoryLength = currentLength;
+            if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
+            proactiveCommentTimeout = setTimeout(() => {
+                const now = Date.now();
+                if (now - lastNantzCommentTime > 4000) { // 4s cooldown
+                    console.log('Jim Nantz: Proactive comment triggered for new action');
+                    requestProactiveComment('card_played');
+                    lastNantzCommentTime = now;
+                } else {
+                    console.log('Jim Nantz: Skipped comment due to cooldown');
+                }
+            }, 800); // 600ms debounce window
+        }
+    }
+
+    // Always trigger a summary comment when the game is over
+    if (
+        currentGameState &&
+        currentGameState.game_over &&
+        previousGameState &&
+        !previousGameState.game_over &&
+        currentPersonality === 'nantz'
+    ) {
+        console.log('Jim Nantz: Proactive comment triggered for game over');
+        requestProactiveComment('game_over');
+    }
+
+    console.log('After move, action_history.length:', currentGameState.action_history.length);
 }
 
 function actuallyUpdateUI() {
@@ -2301,6 +2344,7 @@ function playGolfClap() {
 
 // Initialize chatbot functionality
 function initializeChatbot() {
+    proactiveCommentSent = false;
     console.log('🔧 Initializing chatbot...');
 
     const chatInput = document.getElementById('chatInput');
@@ -2474,6 +2518,7 @@ async function loadPersonalities() {
 
 // Change chatbot personality
 async function changePersonality(personalityType) {
+    proactiveCommentSent = false;
     try {
         const response = await fetch('/chatbot/change_personality', {
             method: 'POST',
@@ -2506,7 +2551,7 @@ async function changePersonality(personalityType) {
                 const chatMessages = document.getElementById('chatMessages');
                 if (chatMessages) {
                     chatMessages.innerHTML = '';
-                    addMessageToChat('bot', "Hello friends. Welcome to a tradition unlike any other. I'll be providing live Masters-style commentary as the game unfolds.");
+                    // Removed Jim Nantz intro message
                 }
             } else {
                 if (chatInput) chatInput.disabled = false;
@@ -2606,14 +2651,10 @@ document.addEventListener('DOMContentLoaded', function() {
 try {
     const originalStartGame = startGame;
     startGame = async function() {
-        try {
-            await originalStartGame();
-            console.log('🎮 Game started - re-initializing chatbot');
-            // Small delay to ensure DOM elements are rendered
-            setTimeout(initializeChatbot, 100);
-        } catch (error) {
-            console.error('❌ Error in startGame override:', error);
-        }
+        proactiveCommentSent = false;
+        await originalStartGame();
+        console.log('🎮 Game started - re-initializing chatbot');
+        setTimeout(initializeChatbot, 100);
     };
 } catch (error) {
     console.error('❌ Error setting up startGame override:', error);
@@ -2646,41 +2687,57 @@ const originalUpdateGameDisplay = updateGameDisplay;
 updateGameDisplay = function() {
     originalUpdateGameDisplay();
 
-    // Request proactive comments for certain game events (only for Jim Nantz)
-    if (currentGameState && previousGameState && currentPersonality === 'nantz') {
-        // Check for turn changes with cooldown
-        if (currentGameState.current_player !== previousGameState.current_player) {
-            const now = Date.now();
-            if (now - lastNantzCommentTime > 4000) { // 4s cooldown
-                console.log('Jim Nantz: Proactive comment triggered for turn change');
-                requestProactiveComment('turn_start');
-                lastNantzCommentTime = now;
-            }
+    if (
+        currentGameState &&
+        currentGameState.action_history &&
+        currentPersonality === 'nantz'
+    ) {
+        const currentLength = currentGameState.action_history.length;
+        if (currentLength > previousActionHistoryLength) {
+            previousActionHistoryLength = currentLength;
+            if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
+            proactiveCommentTimeout = setTimeout(() => {
+                const now = Date.now();
+                if (now - lastNantzCommentTime > 4000) { // 4s cooldown
+                    console.log('Jim Nantz: Proactive comment triggered for new action');
+                    requestProactiveComment('card_played');
+                    lastNantzCommentTime = now;
+                } else {
+                    console.log('Jim Nantz: Skipped comment due to cooldown');
+                }
+            }, 800); // 600ms debounce window
         }
+    }
 
-        // Check for game over
-        if (currentGameState.game_over && !previousGameState.game_over) {
-            console.log('Jim Nantz: Proactive comment triggered for game over');
-            requestProactiveComment('game_over');
-        }
+    // Always trigger a summary comment when the game is over
+    if (
+        currentGameState &&
+        currentGameState.game_over &&
+        previousGameState &&
+        !previousGameState.game_over &&
+        currentPersonality === 'nantz'
+    ) {
+        console.log('Jim Nantz: Proactive comment triggered for game over');
+        requestProactiveComment('game_over');
     }
 };
 
 // Final test to ensure script loaded
-try {
-    console.log('🎯 Golf.js initialization complete!');
-    console.log('Type "testChatbot()" in console to test chatbot functionality');
-} catch (error) {
-    console.error('❌ Error in final initialization:', error);
-}
+// try {
+//     console.log('🎯 Golf.js initialization complete!');
+//     console.log('Type "testChatbot()" in console to test chatbot functionality');
+// } catch (error) {
+//     console.error('❌ Error in final initialization:', error);
+// }
+
+// let proactiveCommentSent = false;
 
 function clearChatUI() {
     const chatMessages = document.getElementById('chatMessages');
     if (chatMessages) {
         chatMessages.innerHTML = '';
         if (currentPersonality === 'nantz') {
-            addMessageToChat('bot', "Hello friends. Welcome to a tradition unlike any other. I'll be providing live Masters-style commentary as the game unfolds.");
-            requestProactiveComment('turn_start');
+            // No intro message for Jim Nantz
         } else {
             addMessageToChat('bot', "Hi! I'm your golf assistant. Ask me anything about the game or strategy!");
         }
@@ -2741,5 +2798,23 @@ const personalitySelect = document.getElementById('personalitySelect');
 if (personalitySelect) {
     personalitySelect.value = 'nantz';
     currentPersonality = 'nantz';
+}
+
+function onMoveComplete(newGameState, lastAction) {
+    previousGameState = deepCopy(currentGameState);
+    currentGameState = newGameState;
+    updateGameDisplay();
+
+    // Trigger Jim Nantz commentary based on the action
+    if (currentPersonality === 'nantz') {
+        if (lastAction === 'card_played') {
+            requestProactiveComment('card_played');
+        } else if (lastAction === 'card_drawn') {
+            requestProactiveComment('card_drawn');
+        } else if (lastAction === 'turn_start') {
+            requestProactiveComment('turn_start');
+        }
+        // ...add more as needed
+    }
 }
 

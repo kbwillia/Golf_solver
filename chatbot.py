@@ -20,7 +20,7 @@ class GolfChatbot:
                 "system_prompt": "You are a competitive professional golfer assistant for the Golf card game. You provide tactical advice, analyze game situations, and help players think strategically. Be confident, analytical, and focus on winning strategies."
             },
             "funny": {
-                "name": "Golf Buddy",
+                "name": "Golf Bro",
                 "description": "A fun and entertaining golf buddy who makes jokes and keeps spirits high",
                 "system_prompt": "You are a fun golf buddy assistant for the Golf card game. You provide advice with humor, make jokes about the game, and keep the player entertained. Be witty, encouraging, and make the game more enjoyable."
             },
@@ -59,6 +59,12 @@ class GolfChatbot:
             discard_pile = game_state.get('discard_pile', [])
             deck_size = game_state.get('deck_size', 0)
             round_num = game_state.get('round', 1)
+            max_rounds = game_state.get('max_rounds', None)
+            game_over = game_state.get('game_over', False)
+            scores = game_state.get('scores', [])
+            winner_index = game_state.get('winner', None)
+            action_history = game_state.get('action_history', [])
+            num_actions = len(action_history)
 
             # Format player information
             player_info = []
@@ -83,14 +89,33 @@ class GolfChatbot:
             # Format discard pile
             discard_str = "None" if not discard_pile else f"{discard_pile[-1]['rank']}{discard_pile[-1]['suit']}"
 
+            # Winner info
+            winner_name = None
+            if game_over and winner_index is not None and 0 <= winner_index < len(players):
+                winner_name = players[winner_index].get('name', f'Player {winner_index+1}')
+
+            # Build the game state text
             game_state_text = f"""
 Current Game State:
-- Round: {round_num}
+- Round: {round_num}{f' / {max_rounds}' if max_rounds else ''}
 - Deck size: {deck_size} cards
 - Discard pile top card: {discard_str}
+- Number of actions taken: {num_actions}
 - Players:
-{chr(10).join(f"  {info}" for info in player_info)}
+{chr(10).join(f'  {info}' for info in player_info)}
 """
+            if scores:
+                game_state_text += f"- Scores: {', '.join(str(s) for s in scores)}\n"
+            if game_over:
+                game_state_text += "- GAME OVER\n"
+                if winner_name:
+                    game_state_text += f"- Winner: {winner_name}\n"
+                else:
+                    game_state_text += "- Winner: Unknown\n"
+                game_state_text += f"- Total rounds played: {round_num}\n"
+                game_state_text += f"- Final scores: {', '.join(f'{players[i].get('name', f'Player {i+1}')}={scores[i]}' for i in range(len(players)))}\n"
+                game_state_text += f"- Total actions taken: {num_actions}\n"
+
             return game_state_text
 
         except Exception as e:
@@ -159,7 +184,7 @@ Current Game State:
             else:
                 return f"Sorry, I'm having trouble responding right now. Error: {str(e)}"
 
-    def generate_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
+    def generate_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general", return_prompt: bool = False) -> Optional[str]:
         """Generate a proactive comment based on game events"""
 
         print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
@@ -168,7 +193,7 @@ Current Game State:
         # Define when to make proactive comments (80% chance for Jim Nantz)
         random_val = random.random()
         print(f"DEBUG: Random value: {random_val}, threshold: 0.2")
-        if random_val > 0.2:
+        if random_val > 1: # 20% chance to skip comment
             print("DEBUG: Skipping comment due to random chance")
             return None
 
@@ -180,8 +205,11 @@ Current Game State:
             "card_drawn": "Comment briefly on the card that was just drawn. Give a quick strategic insight.",
             "card_played": "Comment briefly on the card that was just played. Note if it was a good or risky move.",
             "score_update": "Comment briefly on the score change. Be encouraging or analytical.",
-            "game_over": "Comment briefly on the game ending. Congratulate the winner or encourage improvement.",
-            "general": "Provide a brief, relevant comment about the current game situation."
+            "game_over": (
+                "The game has ended. Summarize the game, announce the winner by name, "
+                "and provide a brief, memorable closing comment in the style of a Masters broadcast."
+            ),
+            "general": "Provide a brief, relevant comment about the current game situation. Focus more on the current and latest moves"
         }
 
         prompt = event_prompts.get(event_type, event_prompts["general"])
@@ -203,11 +231,17 @@ Current Game State:
             )
 
             print(f"DEBUG: Generated proactive comment: {response.strip()}")
-            return response.strip()
+            if return_prompt:
+                return response.strip(), context
+            else:
+                return response.strip()
 
         except Exception as e:
             print(f"DEBUG: Error generating proactive comment: {e}")
-            return None
+            if return_prompt:
+                return None, ""
+            else:
+                return None
 
     def change_personality(self, new_type: str) -> bool:
         """Change the chatbot personality"""

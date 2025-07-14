@@ -617,7 +617,6 @@ def send_chatbot_message():
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
-    """Get a proactive comment from the chatbot based on game events"""
     data = request.json
     game_id = data.get('game_id')
     event_type = data.get('event_type', 'general')
@@ -627,8 +626,10 @@ def get_proactive_comment():
 
     try:
         game_state = get_game_state(game_id)
-        comment = chatbot.generate_proactive_comment(game_state, event_type)
-
+        comment, prompt = chatbot.generate_proactive_comment(game_state, event_type, return_prompt=True)
+        print("\n==== PROACTIVE PROMPT SENT TO LLM ====")
+        print(prompt)
+        print("==== END PROMPT ====")
         if comment:
             return jsonify({
                 'success': True,
