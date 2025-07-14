@@ -632,6 +632,8 @@ def get_proactive_comment():
             return jsonify({'success': True, 'comment': None})
 
     except Exception as e:
+        print("Error in /chatbot/proactive_comment:", e)
+        import traceback; traceback.print_exc()
         return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
 
 @app.route('/chatbot/personalities', methods=['GET'])
@@ -646,6 +648,8 @@ def get_chatbot_personalities():
             'current': current_personality
         })
     except Exception as e:
+        print("Error in /chatbot/personalities:", e)
+        import traceback; traceback.print_exc()
         return jsonify({'error': f'Error getting personalities: {str(e)}'}), 500
 
 @app.route('/chatbot/change_personality', methods=['POST'])
@@ -669,6 +673,8 @@ def change_chatbot_personality():
         else:
             return jsonify({'error': 'Invalid personality type'}), 400
     except Exception as e:
+        print("Error in /chatbot/change_personality:", e)
+        import traceback; traceback.print_exc()
         return jsonify({'error': f'Error changing personality: {str(e)}'}), 500
 
 if __name__ == '__main__':

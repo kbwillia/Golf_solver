@@ -29,10 +29,10 @@ let previousHumanPairs = [];
 
 // ===== CHATBOT VARIABLES =====
 let chatbotEnabled = true;
-let currentPersonality = 'helpful';
+let currentPersonality = 'nantz';
 
 let lastNantzCommentTime = 0;
-let lastNantzDiscard = null;
+let lastNantzTurn = null;
 
 console.log('🎯 Golf.js loaded successfully!');
 
@@ -330,6 +330,10 @@ async function startGame() {
 
             // Clear chatbot UI on new game
             clearChatUI();
+            updateChatInputState();
+            if (currentPersonality === 'nantz') {
+                requestProactiveComment('turn_start');
+            }
 
             // Check if it's an AI's turn right after game creation
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
@@ -343,6 +347,9 @@ async function startGame() {
         console.error('Error starting game:', error, error.stack);
         alert('Error starting game: ' + (error.message || error));
     }
+
+    // After the game board is shown and chat is cleared:
+    setJimNantzDefault();
 }
 
 async function refreshGameState() {
@@ -537,20 +544,7 @@ function updateGameDisplay() {
         }
     }
 
-    // At the end of updateGameDisplay, add:
-    if (currentPersonality === 'nantz') {
-        const now = Date.now();
-        const discard = currentGameState && currentGameState.discard_top
-            ? currentGameState.discard_top.rank + currentGameState.discard_top.suit
-            : null;
 
-        // Only comment if discard changed and cooldown passed
-        if (discard !== lastNantzDiscard && now - lastNantzCommentTime > 4000) { // 4s cooldown
-            requestProactiveComment('general');
-            lastNantzCommentTime = now;
-            lastNantzDiscard = discard;
-        }
-    }
 }
 
 function actuallyUpdateUI() {
@@ -2499,6 +2493,7 @@ async function changePersonality(personalityType) {
             }
 
             currentPersonality = personalityType;
+            updateChatInputState();
 
             // Disable chat input for Jim Nantz
             const chatInput = document.getElementById('chatInput');
@@ -2532,7 +2527,12 @@ async function changePersonality(personalityType) {
 
 // Request proactive comment from chatbot
 async function requestProactiveComment(eventType = 'general') {
-    if (!gameId || !chatbotEnabled) return;
+    if (!gameId || !chatbotEnabled) {
+        console.log('Proactive comment skipped: gameId or chatbot not enabled');
+        return;
+    }
+
+    console.log('Requesting proactive comment for event:', eventType);
 
     try {
         const response = await fetch('/chatbot/proactive_comment', {
@@ -2547,9 +2547,14 @@ async function requestProactiveComment(eventType = 'general') {
         });
 
         const data = await response.json();
+        console.log('Proactive comment response:', data);
 
         if (data.success && data.comment) {
             addMessageToChat('bot', data.comment, data.bot_name);
+        } else if (data.success && !data.comment) {
+            console.log('Proactive comment: No comment generated (30% chance)');
+        } else {
+            console.error('Proactive comment failed:', data.error);
         }
     } catch (error) {
         console.error('Error requesting proactive comment:', error);
@@ -2640,15 +2645,21 @@ const originalUpdateGameDisplay = updateGameDisplay;
 updateGameDisplay = function() {
     originalUpdateGameDisplay();
 
-    // Request proactive comments for certain game events
-    if (currentGameState && previousGameState) {
-        // Check for turn changes
+    // Request proactive comments for certain game events (only for Jim Nantz)
+    if (currentGameState && previousGameState && currentPersonality === 'nantz') {
+        // Check for turn changes with cooldown
         if (currentGameState.current_player !== previousGameState.current_player) {
-            requestProactiveComment('turn_start');
+            const now = Date.now();
+            if (now - lastNantzCommentTime > 4000) { // 4s cooldown
+                console.log('Jim Nantz: Proactive comment triggered for turn change');
+                requestProactiveComment('turn_start');
+                lastNantzCommentTime = now;
+            }
         }
 
         // Check for game over
         if (currentGameState.game_over && !previousGameState.game_over) {
+            console.log('Jim Nantz: Proactive comment triggered for game over');
             requestProactiveComment('game_over');
         }
     }
@@ -2666,7 +2677,42 @@ function clearChatUI() {
     const chatMessages = document.getElementById('chatMessages');
     if (chatMessages) {
         chatMessages.innerHTML = '';
-        addMessageToChat('bot', "Hi! I'm your golf assistant. Ask me anything about the game or strategy!");
+        if (currentPersonality === 'nantz') {
+            addMessageToChat('bot', "Hello friends. Welcome to a tradition unlike any other. I'll be providing live Masters-style commentary as the game unfolds.");
+            requestProactiveComment('turn_start');
+        } else {
+            addMessageToChat('bot', "Hi! I'm your golf assistant. Ask me anything about the game or strategy!");
+        }
+    }
+    updateChatInputState();
+}
+
+function setJimNantzDefault() {
+    const personalitySelect = document.getElementById('personalitySelect');
+    if (personalitySelect) {
+        personalitySelect.value = 'nantz';
+        currentPersonality = 'nantz'; // Ensure JS variable is in sync
+        console.log('Jim Nantz: Set as default personality');
+        // Trigger the change event to update UI and logic
+        const event = new Event('change');
+        personalitySelect.dispatchEvent(event);
+    }
+    updateChatInputState();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setJimNantzDefault();
+});
+
+function updateChatInputState() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+    if (currentPersonality === 'nantz') {
+        if (chatInput) chatInput.disabled = true;
+        if (sendBtn) sendBtn.disabled = true;
+    } else {
+        if (chatInput) chatInput.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
     }
 }
 

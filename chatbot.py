@@ -13,10 +13,11 @@ class GolfChatbot:
             "Respond in 2 sentences or less. Be concise and clear. Limit your answer to 200 characters."
         )
         self.personalities = {
+
             "helpful": {
                 "name": "Golf Coach",
-                "description": "A helpful and encouraging golf coach who provides strategic advice",
-                "system_prompt": "You are a helpful golf coach assistant for the Golf card game. You provide strategic advice, explain rules, and encourage players. Be friendly, concise, and focus on helping the player make good decisions."
+                "description": "A helpful golf coach who provides guidance and encouragement",
+                "system_prompt": "You are a helpful golf coach assistant for the Golf card game. You provide clear guidance, explain strategies, and encourage players to improve their game. Be supportive, educational, and focus on helping players understand the game better."
             },
             "competitive": {
                 "name": "Pro Golfer",
@@ -155,8 +156,14 @@ Current Game State:
     def generate_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
         """Generate a proactive comment based on game events"""
 
-        # Define when to make proactive comments (30% chance)
-        if random.random() > 0.3:
+        print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
+        print(f"DEBUG: Current bot_type: {self.bot_type}")
+
+        # Define when to make proactive comments (80% chance for Jim Nantz)
+        random_val = random.random()
+        print(f"DEBUG: Random value: {random_val}, threshold: 0.2")
+        if random_val > 0.2:
+            print("DEBUG: Skipping comment due to random chance")
             return None
 
         bot_info = self.get_bot_info()
@@ -189,18 +196,24 @@ Current Game State:
                 temperature=0.8
             )
 
+            print(f"DEBUG: Generated proactive comment: {response.strip()}")
             return response.strip()
 
         except Exception as e:
+            print(f"DEBUG: Error generating proactive comment: {e}")
             return None
 
     def change_personality(self, new_type: str) -> bool:
         """Change the chatbot personality"""
+        print(f"DEBUG: Attempting to change personality to: {new_type}")
         if new_type in self.personalities:
             self.bot_type = new_type
             self.conversation_history = []  # Clear history when changing personality
+            print(f"DEBUG: Successfully changed personality to: {new_type}")
             return True
-        return False
+        else:
+            print(f"DEBUG: Failed to change personality - {new_type} not found in {list(self.personalities.keys())}")
+            return False
 
     def get_available_personalities(self) -> List[Dict[str, str]]:
         """Get list of available personalities"""
