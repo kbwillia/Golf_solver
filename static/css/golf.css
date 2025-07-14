@@ -88,13 +88,7 @@ body, html {
     overflow: visible !important; /* Allow children to overflow grid cell boundaries. aka the chart */
 }
 /* this is for debugging the grid layout delete later */
-.game-grid-container > div {
-  outline: 2px solid red !important;
-}
 
-.probabilities-content > div {
-  outline: 2px solid blue !important;
-}
 
 /* RESPONSIVE: Adjust for smaller screens */
 @media (max-width: 1200px) {
@@ -154,8 +148,8 @@ body, html {
 /* Game Info Display in notification area */
 #gameInfoDisplay {
     /* background: #f8f9fa; */
-    background: rgba(230, 249, 230, 0.35) !important;
-    /* border: 1px solid #dee2e6; */
+    background: rgba(230, 249, 230, 0.05) !important;
+    border: 9px solid #ce2727;
     border-radius: 8px;
     padding: 8px 12px;
     text-align: center;
@@ -164,9 +158,9 @@ body, html {
     color: #495057;
 }
 #yourTurnBadge {
-    min-height: 12px;
-    max-height: 12px;
-    font-size: 1.0em;
+    min-height: 8px;
+    max-height: 8px;
+    font-size: 0.5em;
     font-weight: bold;
     color: #fff;
     /* background: #007bff, 0.75; */
@@ -179,7 +173,7 @@ body, html {
 
 /* Player Scores Display in Notification Area */
 .scores-panel {
-    background: rgba(230, 249, 230, 0.75);
+    background: rgba(230, 249, 230, 0.05);
     /* border: 1px solid #dee2e6; */
     border-radius: 8px;
     padding: 12px;
@@ -190,7 +184,7 @@ body, html {
 .scores-panel h4 {
     margin-top: 0;
     margin-bottom: 8px;
-    font-size: 1.1em;
+    font-size: 0.7em;
     color: #333;
 }
 
@@ -260,7 +254,7 @@ body, html {
     box-sizing: border-box;
     /* border: 2px solid #1a4d0a; */
     overflow: visible !important; /* Allow absolutely positioned chart to overflow into center column */
-    border: 2px solid green !important;
+    /* border: 2px solid green !important; */
 }
 
 .probabilities-content {
@@ -1292,30 +1286,34 @@ body, html {
     /* border: 1px solid rgba(255, 255, 255, 0.2); */
 }
 
+/* Scores and Round Info this is  */
 #ScoresAndRoundInfo {
-    background: rgba(230, 249, 230, 0.75) !important;
-    border-radius: 12px;
-    padding: 10px 14px 8px 14px;
-    margin-bottom: 12px;
-    font-size: 1em;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    background: rgba(230, 249, 230, 0.65) !important; /* Very light green transparent background */
+    border-radius: 12px;                             /* Rounded corners */
+    padding: 4px 14px 8px 14px;                     /* Padding: top, right, bottom, left */
+    margin-bottom: 12px;                             /* Space below the panel */
+    font-size: 0.85em;                               /* Base font size for the panel (smaller text) */
+    display: flex;                                   /* Use flexbox layout */
+    flex-direction: column;                          /* Stack children vertically */
+    gap: 6px;                                        /* Space between children */
+    /* border: 3px solid #ce2727;                       Red border */
 }
 
+/* Styles the element inside #ScoresAndRoundInfo with class "round-info" (usually the title/header) */
 #ScoresAndRoundInfo .round-info {
-    font-size: 1.08em;
-    font-weight: bold;
-    color: #1a4d0a;
-    margin-bottom: 4px;
-    text-align: center;
+    font-size: 1.08em;      /* Slightly larger than the base font size of the panel */
+    font-weight: bold;      /* Bold text */
+    color: #1a4d0a;         /* Dark green color */
+    margin-bottom: 4px;     /* Space below the title */
+    text-align: center;     /* Center the text */
 }
 
+/* Styles the element inside #ScoresAndRoundInfo with class "scores-panel" (the area with player names/scores) */
 #ScoresAndRoundInfo .scores-panel {
-    background: none;
-    box-shadow: none;
-    padding: 0;
-    margin: 0;
+    background: none;       /* No background */
+    box-shadow: none;       /* No shadow */
+    padding: 0;             /* No padding */
+    margin: 0;              /* No margin */
 }
 
 #ScoresAndRoundInfo .score-item {
@@ -1327,9 +1325,12 @@ body, html {
 }
 
 #ScoresAndRoundInfo .score-item.current-turn-score {
-    background: rgba(0, 123, 255, 0.10);
+    background: rgba(0, 123, 255, 0.250);
     border-left: 3px solid #007bff;
     font-weight: bold;
+    border-radius: 14px;
+    padding: 2px 4px;
+    /* border: 3px solid #ff0000; */
 }
 
 /* Game Control Buttons in ScoresAndRoundInfo */
@@ -1638,7 +1639,7 @@ body, html {
     padding: 4px 8px;
     /* border: 1px solid #ccc; */
     border-radius: 4px;
-    font-size: 0.9em;
+    font-size: 0.75em;
     /* background: white; */
     background: rgba(230, 249, 230, 0.55) !important;
 
@@ -1699,7 +1700,7 @@ body, html {
     max-width: 85%;
     padding: 8px 12px;
     border-radius: 18px;
-    font-size: 0.9em;
+    font-size: 0.75em;
     line-height: 1.3;
     word-wrap: break-word;
     position: relative;
