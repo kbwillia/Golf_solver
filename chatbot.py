@@ -15,7 +15,7 @@ class GolfChatbot:
         )
         self.personalities = {
             "competitive": {
-                "name": "Pro Golfer",
+                "name": "Golf Pro",
                 "description": "A competitive professional golfer who gives tactical advice",
                 "system_prompt": "You are a competitive professional golfer assistant for the Golf card game. You provide tactical advice, analyze game situations, and help players think strategically. Be confident, analytical, and focus on winning strategies."
             },

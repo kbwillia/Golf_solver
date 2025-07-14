@@ -1796,6 +1796,7 @@ body, html {
 .chat-send-btn:disabled {
     background: #6c757d;
     cursor: not-allowed;
+    opacity: 0.0 !important; /* Adds 60% opacity, making it slightly transparent */
 }
 
 /* Responsive adjustments for chatbot */
@@ -1810,9 +1811,16 @@ body, html {
     }
 }
 
-/* Make chat input and send button completely transparent and unclickable when disabled (Jim Nantz) */
+/* Make chat input and send button transparent and unclickable when disabled (Jim Nantz) */
 .chat-disabled {
-    opacity: 0 !important;
+    opacity: 0.750 !important;
     pointer-events: none !important;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s !important;
 }
+
+#chatInput {
+    font-size: 0.77em;  /* or your preferred size */
+}
+
+
+

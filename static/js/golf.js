@@ -2709,11 +2709,29 @@ function updateChatInputState() {
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
     if (currentPersonality === 'nantz') {
-        if (chatInput) chatInput.disabled = true;
-        if (sendBtn) sendBtn.disabled = true;
+        if (chatInput) {
+            chatInput.disabled = true;
+            chatInput.classList.add('chat-disabled');
+            chatInput.placeholder = "Jim Nantz is announcing, not chatting.";
+            chatInput.title = "Jim Nantz is announcing, not chatting.";
+        }
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.classList.add('chat-disabled');
+            sendBtn.title = "Jim Nantz is announcing, not chatting.";
+        }
     } else {
-        if (chatInput) chatInput.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
+        if (chatInput) {
+            chatInput.disabled = false;
+            chatInput.classList.remove('chat-disabled');
+            chatInput.placeholder = "Ask me about the game...";
+            chatInput.title = "";
+        }
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('chat-disabled');
+            sendBtn.title = "";
+        }
     }
 }
 
