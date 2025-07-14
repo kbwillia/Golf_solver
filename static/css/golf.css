@@ -1809,3 +1809,10 @@ body, html {
         max-height: 150px;
     }
 }
+
+/* Make chat input and send button completely transparent and unclickable when disabled (Jim Nantz) */
+.chat-disabled {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s;
+}

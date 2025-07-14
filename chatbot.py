@@ -14,12 +14,6 @@ class GolfChatbot:
             "Respond in 2 sentences or less. Be concise and clear. Limit your answer to 200 characters."
         )
         self.personalities = {
-
-            "helpful": {
-                "name": "Golf Coach",
-                "description": "A helpful golf coach who provides guidance and encouragement",
-                "system_prompt": "You are a helpful golf coach assistant for the Golf card game. You provide clear guidance, explain strategies, and encourage players to improve their game. Be supportive, educational, and focus on helping players understand the game better."
-            },
             "competitive": {
                 "name": "Pro Golfer",
                 "description": "A competitive professional golfer who gives tactical advice",
@@ -29,11 +23,6 @@ class GolfChatbot:
                 "name": "Golf Buddy",
                 "description": "A fun and entertaining golf buddy who makes jokes and keeps spirits high",
                 "system_prompt": "You are a fun golf buddy assistant for the Golf card game. You provide advice with humor, make jokes about the game, and keep the player entertained. Be witty, encouraging, and make the game more enjoyable."
-            },
-            "analytical": {
-                "name": "Game Analyst",
-                "description": "A data-driven analyst who provides detailed statistical insights",
-                "system_prompt": "You are a game analyst assistant for the Golf card game. You provide detailed statistical analysis, probability calculations, and data-driven insights. Be precise, analytical, and focus on the mathematical aspects of the game."
             },
             "nantz": {
                 "name": "Jim Nantz",
@@ -58,7 +47,8 @@ class GolfChatbot:
 
     def get_bot_info(self) -> Dict[str, str]:
         """Get information about the current bot"""
-        return self.personalities.get(self.bot_type, self.personalities["helpful"])
+        # Default to 'nantz' if bot_type is missing or invalid
+        return self.personalities.get(self.bot_type, self.personalities["nantz"])
 
     def format_game_state_for_prompt(self, game_state: Dict[str, Any]) -> str:
         """Format the current game state into a readable prompt for the LLM"""
@@ -233,9 +223,11 @@ Current Game State:
 
     def get_available_personalities(self) -> List[Dict[str, str]]:
         """Get list of available personalities"""
+        # Only return the three allowed personalities
+        allowed = ["competitive", "funny", "nantz"]
         return [
             {"type": bot_type, "name": info["name"], "description": info["description"]}
-            for bot_type, info in self.personalities.items()
+            for bot_type, info in self.personalities.items() if bot_type in allowed
         ]
 
 # Global chatbot instance

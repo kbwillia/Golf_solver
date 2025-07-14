@@ -2464,7 +2464,8 @@ async function loadPersonalities() {
                 chatbotName.textContent = data.current.name;
             }
 
-            currentPersonality = data.current.type || 'helpful';
+            personalitySelect.value = data.current.type || 'nantz';
+            currentPersonality = data.current.type || 'nantz';
         }
     } catch (error) {
         console.error('Error loading personalities:', error);
@@ -2714,5 +2715,13 @@ function updateChatInputState() {
         if (chatInput) chatInput.disabled = false;
         if (sendBtn) sendBtn.disabled = false;
     }
+}
+
+document.getElementById('chatbot-personality').value = 'nantz';
+
+const personalitySelect = document.getElementById('personalitySelect');
+if (personalitySelect) {
+    personalitySelect.value = 'nantz';
+    currentPersonality = 'nantz';
 }
 
