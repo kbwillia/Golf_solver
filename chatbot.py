@@ -65,6 +65,18 @@ class GolfChatbot:
             winner_index = game_state.get('winner', None)
             action_history = game_state.get('action_history', [])
             num_actions = len(action_history)
+            last_action_str = ""
+            if action_history:
+                last_action = action_history[-1]
+                if isinstance(last_action, dict):
+                    player = last_action.get('player', 'Unknown')
+                    action_type = last_action.get('action', 'action')
+                    card = last_action.get('card', None)
+                    card_str = f"{card['rank']}{card['suit']}" if card else ""
+                    last_action_str = f"- Most recent action: {player} {action_type} {card_str}".strip()
+                else:
+                    # If it's a string, just use it directly
+                    last_action_str = f"- Most recent action: {last_action}"
 
             # Format player information
             player_info = []
@@ -115,6 +127,8 @@ Current Game State:
                 game_state_text += f"- Total rounds played: {round_num}\n"
                 game_state_text += f"- Final scores: {', '.join(f'{players[i].get('name', f'Player {i+1}')}={scores[i]}' for i in range(len(players)))}\n"
                 game_state_text += f"- Total actions taken: {num_actions}\n"
+            if last_action_str:
+                game_state_text += last_action_str + "\n"
 
             return game_state_text
 
@@ -192,7 +206,7 @@ Current Game State:
 
         # Define when to make proactive comments (80% chance for Jim Nantz)
         random_val = random.random()
-        print(f"DEBUG: Random value: {random_val}, threshold: 0.2")
+        print(f"DEBUG: Random value: {random_val}, threshold: on line 209 chatbot.py")
         if random_val > 1: # 20% chance to skip comment
             print("DEBUG: Skipping comment due to random chance")
             return None

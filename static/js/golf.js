@@ -2023,6 +2023,11 @@ function replayGame() {
         clearChatUI();
     }
     // else: multi-hole match, do NOT clear chat
+
+    previousActionHistoryLength = 0;
+    lastNantzCommentTime = 0;
+    if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
+    proactiveCommentTimeout = null;
 }
 
 async function nextGame() {
