@@ -1824,11 +1824,7 @@ body, html {
     background: #1e7e34;
 }
 
-.chat-send-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-    opacity: 0.0 !important; /* Adds 60% opacity, making it slightly transparent */
-}
+
 
 /* Responsive adjustments for chatbot */
 @media (max-width: 1200px) {

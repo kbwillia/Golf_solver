@@ -2426,6 +2426,7 @@ async function sendChatMessage() {
             personality_type: personalityType
         });
 
+        console.log('🔄 Awaiting response...');
         const response = await fetch('/chatbot/send_message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2437,16 +2438,30 @@ async function sendChatMessage() {
         });
 
         console.log('📥 Response received:', response.status);
+        console.log('📥 Response ok:', response.ok);
+
+        if (!response.ok) {
+            console.error('❌ Response not ok:', response.status, response.statusText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
         console.log('📄 Response data:', data);
+        console.log('📄 Response data.bot:', data.bot);
+        console.log('📄 Response data.bot_name:', data.bot_name);
+        console.log('📄 Response data.message:', data.message);
 
         if (data.success) {
             if (data.responses) {
                 data.responses.forEach(resp => {
-                    addMessageToChat('bot', resp.message, resp.bot); // ✅ CORRECT
+                    // For opponent responses, use bot_name field
+                    const botName = resp.bot_name || resp.bot;
+                    addMessageToChat('bot', resp.message, botName);
                 });
             } else if (data.message) {
-                addMessageToChat('bot', data.message, data.bot_name);
+                // Try both bot and bot_name fields to handle different response formats
+                const botName = data.bot || data.bot_name;
+                addMessageToChat('bot', data.message, botName);
             } else {
                 addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
             }
@@ -2475,7 +2490,7 @@ function addMessageToChat(sender, message, botName = null) {
     // If sender is 'user', treat as human; otherwise, treat as bot
     const isHuman = sender === 'user';
     const isBot = !isHuman;
-    const displayBotName = botName || (isBot ? sender : null);
+    const displayBotName = botName || (isBot ? 'bot' : null);
 
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-message';
@@ -2806,16 +2821,25 @@ function clearChatUI() {
 }
 
 function setJimNantzDefault() {
-    const personalitySelect = document.getElementById('personalitySelect');
-    if (personalitySelect) {
-        personalitySelect.value = 'Jim Nantz';
-        currentPersonality = 'Jim Nantz'; // Ensure JS variable is in sync
-        console.log('Jim Nantz: Set as default personality');
-        // Trigger the change event to update UI and logic
-        const event = new Event('change');
-        personalitySelect.dispatchEvent(event);
+    // Jim Nantz is now the automatic commentator, not a chat option
+    // So we don't need to set him as default in the dropdown
+    // Just ensure chat is enabled by default
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.classList.remove('chat-disabled');
+        chatInput.placeholder = "Ask me about the game...";
+        chatInput.title = "";
     }
-    updateChatInputState();
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('chat-disabled');
+        sendBtn.title = "";
+    }
+
+    console.log('Chat enabled by default - Jim Nantz is automatic commentator');
 }
 
 
@@ -2824,30 +2848,18 @@ function updateChatInputState() {
     console.log('updateChatInputState called. currentPersonality:', currentPersonality);
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
-    if (currentPersonality === 'Jim Nantz') {
-        if (chatInput) {
-            chatInput.disabled = true;
-            chatInput.classList.add('chat-disabled');
-            chatInput.placeholder = "Jim Nantz is announcing, not chatting.";
-            chatInput.title = "Jim Nantz is announcing, not chatting.";
-        }
-        if (sendBtn) {
-            sendBtn.disabled = true;
-            sendBtn.classList.add('chat-disabled');
-            sendBtn.title = "Jim Nantz is announcing, not chatting.";
-        }
-    } else {
-        if (chatInput) {
-            chatInput.disabled = false;
-            chatInput.classList.remove('chat-disabled');
-            chatInput.placeholder = "Ask me about the game...";
-            chatInput.title = "";
-        }
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.classList.remove('chat-disabled');
-            sendBtn.title = "";
-        }
+
+    // All chat options are now interactive, no need to disable
+    if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.classList.remove('chat-disabled');
+        chatInput.placeholder = "Ask me about the game...";
+        chatInput.title = "";
+    }
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('chat-disabled');
+        sendBtn.title = "";
     }
 }
 
