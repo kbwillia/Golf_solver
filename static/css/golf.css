@@ -1625,6 +1625,7 @@ body, html {
     height: 350px; /* Smaller height when action history is expanded */
 }
 
+
 .chatbot-header {
     display: flex;
     justify-content: space-between;
@@ -1632,15 +1633,27 @@ body, html {
     margin-bottom: 12px;
     padding-bottom: 0px;
     /* border-bottom: 1px solid #e0e0e0; */
+    color: white; /* Makes the text white */
+    font-weight: bold; /* Makes the text bold */
 }
-
-.chatbot-header h4 {
+/* .chatbot-header h4 {
     margin: 0;
     color: #333;
     font-size: 1.1em;
     font-weight: bold;
+} */
+#chatOpponentSelect {
+    /* Your CSS styles here */
+    padding: 2px;
+    /* background: rgba(230, 249, 230, 0.71) !important; */
+    background: rgba(11, 80, 27, 0.51) !important;
+    color: white;
+    /* font-weight: bold; */
+    font-size: 0.7em;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
 }
-
 
 .chat-messages {
     flex: 1;
@@ -1782,6 +1795,7 @@ body, html {
 .chat-send-btn {
     padding: 8px 16px;
     background: #0b501b;
+    /*rgba(11, 80, 27, 1) same as above*/
     color: white;
     border: none;
     border-radius: 6px;
