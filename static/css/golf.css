@@ -1906,49 +1906,84 @@ body, html {
     background: linear-gradient(transparent, rgba(230, 249, 230, 0.8));
     pointer-events: none;
 }
-
+/*
+/* Player grid header styles */
 /* Player grid header styles */
 .player-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(11, 80, 27, 0.10); /* subtle green tint */
+    justify-content: space-between; /* Distributes items along the main axis */
+    align-items: center; /* Vertically centers all items */
+    background: rgba(11, 80, 27, 0.0); /* subtle green tint */
     border-radius: 8px 8px 0 0;
     padding: 4px 10px 2px 10px;
     font-size: 0.98em;
     margin-bottom: 2px;
-    min-height: 28px;
-    border-bottom: 1px solid #c2e5c2;
+    min-height: 28px; /* Maintain consistent height */
+    /* border-bottom: 1px solid #c2e5c2; */
+    position: relative; /* Needed for any potential absolute positioning of children, though we'll avoid it for core layout */
 }
+
 .player-name {
-    font-weight: bold;
-    color: #0b501b;
+    color: #fff;
     letter-spacing: 0.01em;
-    display: flex;
-    align-items: center;
+    display: flex; /* Keep this as flex for name and potential icon/strong tag */
+    align-items: center; /* Vertically align content within player-name */
     gap: 4px;
+    text-shadow:
+        -1px -1px 0 black,
+        1px -1px 0 black,
+        -1px 1px 0 black,
+        1px 1px 0 black;
+    /* Ensure it doesn't shrink or grow unexpectedly */
+    flex-shrink: 0;
+    flex-grow: 0;
 }
+
 .player-score {
-    color: #2d2d2d;
-    font-size: 0.93em;
+    color: #fff;
+    font-size: 0.98em;
     font-weight: 500;
-    background: rgba(255,255,255,0.7);
     border-radius: 5px;
     padding: 1px 7px;
-    margin-left: 8px;
+    text-shadow:
+        -1px -1px 0 black,
+        1px -1px 0 black,
+        -1px 1px 0 black,
+        1px 1px 0 black;
+
+    /* These auto margins are the key for centering a middle item in a 3-item flex container */
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0; /* Prevent it from shrinking */
+    flex-grow: 0; /* Prevent it from growing */
 }
-.player-header .turn-label {
-    color: #197d3a;
+
+.player-turn-status {
+    color: #fff; /* Green color for "Your Turn" */
     font-size: 0.92em;
     font-weight: 500;
-    margin-left: 6px;
+    /* Explicitly make it not auto-margin itself when there's an auto-margin on the score */
+    margin-left: 0; /* Override any default margin-left: auto; */
+    flex-shrink: 0; /* Prevents it from shrinking */
+    flex-grow: 0; /* Prevents it from growing */
+    /* Reserve space to prevent shifting */
+    min-width: 60px; /* Adjust this value to the expected width of "(Your Turn)" */
+    text-align: right; /* Align text to the right within its reserved space */
+    box-sizing: border-box; /* Include padding and border in the total width */
+    text-shadow:
+    -1px -1px 0 black,
+    1px -1px 0 black,
+    -1px 1px 0 black,
+    1px 1px 0 black;
 }
-.player-header .player-name strong {
+
+/* Ensure these are targeted correctly */
+.player-name strong {
     font-size: 1em;
-    color: #0b501b;
+    color: #fff;
 }
-.player-header .player-name .trophy {
+
+.player-name .trophy {
     margin-left: 3px;
     font-size: 1.1em;
 }
-

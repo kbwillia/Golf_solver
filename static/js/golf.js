@@ -678,6 +678,8 @@ function updatePlayerGrids() {
                 turnIndicator = ' <span class="turn-label">(AI Turn)</span>';
             }
         }
+        // Get player color for name
+        const playerColor = getPlayerColor(index);
         // --- END NEW ---
         const gridHtml = player.grid.map((card, pos) => {
             if (!card) return '<div class="card face-down"></div>'; // Empty slot
@@ -736,12 +738,13 @@ function updatePlayerGrids() {
         }).join('');
         // --- NEW: Add player header above grid ---
         playerDiv.innerHTML = `
-            <div class="player-header">
-                <span class="player-name"><strong>${displayName}</strong>${winnerIcon}${turnIndicator}</span>
-                <span class="player-score">Score: ${scoreText}</span>
-            </div>
-            <div class="grid-container">${gridHtml}</div>
-        `;
+        <div class="player-header">
+            <span class="player-name"><strong>${displayName}</strong>${winnerIcon}</span>
+            <span class="player-score">Score: ${scoreText}</span>
+            <span class="player-turn-status">${turnIndicator}</span>
+        </div>
+        <div class="grid-container">${gridHtml}</div>
+    `;
         // --- END NEW ---
         container.appendChild(playerDiv);
     });
