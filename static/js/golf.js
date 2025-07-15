@@ -2543,38 +2543,39 @@ async function sendChatMessage() {
 
 // Add a message to the chat display
 function addMessageToChat(sender, message, botName = null) {
+    console.log('[addMessageToChat] called with sender:', sender, 'message:', message, 'botName:', botName);
     const chatMessages = document.getElementById('chatMessages');
-    if (!chatMessages) return;
-
-    // Always use 'bot-message' for all bots
-    let messageClass = 'message';
-    if (sender === 'bot') {
-        messageClass += ' bot-message';
-    } else if (sender === 'user') {
-        messageClass += ' user-message';
-    } else {
-        messageClass += ` ${sender}-message`; // Only for other types, if needed
+    if (!chatMessages) {
+        console.error('Chat container #chatMessages not found!');
+        return;
     }
 
-    const messageDiv = document.createElement('div');
-    messageDiv.className = messageClass;
+    // Determine if this is a bot message
+    const isBot = sender !== 'You' && sender !== 'Kyle'; // Adjust as needed
+
+    // Main message wrapper
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'chat-message';
+    if (isBot) {
+        msgDiv.classList.add('bot-message');
+    }
 
     // Optionally show bot name
     if (botName && sender === 'bot') {
         const nameDiv = document.createElement('div');
         nameDiv.className = 'bot-name';
         nameDiv.textContent = botName;
-        messageDiv.appendChild(nameDiv);
+        msgDiv.appendChild(nameDiv);
     }
 
+    // Message content
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     contentDiv.textContent = message;
+    msgDiv.appendChild(contentDiv);
 
-    messageDiv.appendChild(contentDiv);
-    chatMessages.appendChild(messageDiv);
-
-    // Scroll to bottom
+    // Add to chat
+    chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
