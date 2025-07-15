@@ -659,7 +659,13 @@ def send_chatbot_message():
             game_state,       # game_state
             personality_type  # personality
         )
-        return jsonify({'success': True, 'message': response})
+        # Get the bot info to include the name
+        bot_info = chatbot.get_bot_info()
+        return jsonify({
+            'success': True,
+            'message': response,
+            'bot_name': bot_info['name']
+        })
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
@@ -694,7 +700,8 @@ def get_proactive_comment():
             if comment:
                 comments.append({
                     'bot_name': player.name,
-                    'message': comment
+                    'message': comment,
+                    'bot_name': player.name # not sure about this...
                 })
             chatbot.change_personality(original_personality)
 

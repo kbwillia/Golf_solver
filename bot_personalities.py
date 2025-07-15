@@ -561,9 +561,9 @@ def create_bot(bot_type: str) -> BaseBot:
         "Jim Nantz": JimNantzBot,
         "Golf Bro": GolfBroBot,
         "Golf Pro": GolfProBot,
-        "helpful": GenericBot,
-        "competitive": GolfProBot,  # Map old names to new bots if needed
-        "funny": GolfBroBot,
+        "helpful": GolfProBot,  # Keep for backward compatibility
+        "competitive": GolfProBot,  # Keep for backward compatibility
+        "funny": GolfBroBot,  # Keep for backward compatibility
         "nantz": JimNantzBot,
         "opponent": GenericBot
     }
@@ -576,12 +576,3 @@ def create_bot(bot_type: str) -> BaseBot:
         return GenericBot()
 
 
-# Load bot configurations from JSON (for backward compatibility)
-def load_bot_configs() -> Dict[str, Dict[str, str]]:
-    """Load bot configurations from JSON file"""
-    try:
-        with open('bot_personalities.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading bot personalities: {e}")
-        return {}

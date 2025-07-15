@@ -2523,7 +2523,7 @@ async function sendChatMessage() {
                     addMessageToChat('bot', resp.message, resp.bot); // ✅ CORRECT
                 });
             } else if (data.message) {
-                addMessageToChat('bot', data.message);
+                addMessageToChat('bot', data.message, data.bot_name);
             } else {
                 addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
             }
@@ -3010,7 +3010,7 @@ async function requestProactiveComment(eventType = 'general') {
     if (data.comments && data.comments.length > 0) {
         data.comments.forEach(comment => {
             // Your function to display the comment in the chat
-            addMessageToChat(comment.bot_name, comment.message);
+            addMessageToChat('bot', comment.message, comment.bot_name);
         });
     }
 }
