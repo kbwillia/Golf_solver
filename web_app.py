@@ -652,11 +652,11 @@ def send_chatbot_message():
     else:
         # Existing logic for single personality
         response = chatbot.generate_response(
-            message=message,
-            game_state=game_state,
-            personality=personality_type
+            message,          # user_message
+            game_state,       # game_state
+            personality_type  # personality
         )
-        return jsonify({'message': response})
+        return jsonify({'success': True, 'message': response})
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
