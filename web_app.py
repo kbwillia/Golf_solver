@@ -25,10 +25,10 @@ AI_TURN_DELAY = 0.5  # seconds
 
 # Add this mapping somewhere in your backend
 BOT_PERSONALITIES = {
-    "Peter Parker": "friendly",
-    "Happy Gilmore": "funny",
-    "Tiger Woods": "stoic",
-    "Shooter McGavin": "cocky"
+    "Peter Parker": "Peter Parker",
+    "Happy Gilmore": "Happy Gilmore",
+    "Tiger Woods": "Tiger Woods",
+    "Shooter McGavin": "Shooter McGavin"
 }
 
 @app.route('/')

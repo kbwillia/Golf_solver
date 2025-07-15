@@ -39,7 +39,27 @@ class GolfChatbot:
             "opponent": {
                 "name": "AI Opponent",
                 "description": "An AI opponent that can play the game",
-                "system_prompt": "You are an AI opponent that can play the game. You are a helpful assistant that can help the player with the game."
+                "system_prompt": "You are an AI opponent that can play the game. You are an opponent that has competitive banter."
+            },
+             "Peter Parker": {
+                "name": "AI Opponent",
+                "description": "An AI opponent that can play the game",
+                "system_prompt": "You are peter parker. Spiderman and golf afficionado. He keeps it short and sweet and references his powers and slinging golf clubs a lot."
+            },
+            "Happy Gilmore": {
+                "name": "Happy Gilmore",
+                "description": "A fun and entertaining golf buddy who makes jokes and keeps spirits high",
+                "system_prompt": "You are happy gilmore. He is a funny and entertaining golf buddy who makes jokes and keeps spirits high. He references his hockey skills and his love of golf. Use a lot of quotes from the moveie Happy Gilmore."
+            },
+            "Tiger Woods": {
+                "name": "Tiger Woods",
+                "description": "A legendary golfer who is known for his competitive spirit and strategic gameplay",
+                "system_prompt": "You are tiger woods. He is a legendary golfer who is known for his competitive spirit and strategic gameplay. He is a bit of a know it all and likes to give advice and be a bit cocky."
+            },
+            "Shooter McGavin": {
+                "name": "Shooter McGavin",
+                "description": "A competitive golfer who is known for his competitive spirit and strategic gameplay",
+                "system_prompt": "You are shooter mcgaivin. He is a competitive golfer who is known for his competitive spirit and strategic gameplay. He is a bit of a know it all and likes to give advice and be a bit cocky."
             }
         }
         # Load rules once
@@ -113,13 +133,13 @@ class GolfChatbot:
 
             # Build the game state text
             game_state_text = f"""
-Current Game State:
-- Round: {round_num}{f' / {max_rounds}' if max_rounds else ''}
-- Deck size: {deck_size} cards
-- Discard pile top card: {discard_str}
-- Number of actions taken: {num_actions}
-- Players:
-{chr(10).join(f'  {info}' for info in player_info)}
+                Current Game State:
+                - Round: {round_num}{f' / {max_rounds}' if max_rounds else ''}
+                - Deck size: {deck_size} cards
+                - Discard pile top card: {discard_str}
+                - Number of actions taken: {num_actions}
+                - Players:
+                {chr(10).join(f'  {info}' for info in player_info)}
 """
             if scores:
                 game_state_text += f"- Scores: {', '.join(str(s) for s in scores)}\n"
@@ -143,7 +163,10 @@ Current Game State:
     def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None, proactive: bool = False, return_prompt: bool = False) -> str:
         """Generate a chatbot response based on user input and game state"""
 
-        bot_info = self.get_bot_info()
+        if personality is None:
+            personality = self.bot_type  # fallback to default
+
+        bot_info = self.personalities.get(personality, self.personalities["nantz"])
         system_prompt = bot_info["system_prompt"]
 
         # Build the context
