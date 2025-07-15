@@ -1658,7 +1658,7 @@ body, html {
 .chat-messages {
     flex: 1;
     overflow-y: auto;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     padding: 2px;
     /* background: #f8f9fa; */
     background: rgba(230, 249, 230, 0.01) !important;
@@ -1766,6 +1766,7 @@ body, html {
     margin-left: 8px;         /* Indent to align with bubble */
     letter-spacing: 0.5px;    /* Optional: slight spacing */
 }
+
 
 .chat-input-container {
     display: flex;
@@ -1987,3 +1988,15 @@ body, html {
     margin-left: 3px;
     font-size: 1.1em;
 }
+
+.user-name-bottom  {
+    font-size: 0.6em;         /* Make the name smaller */
+    color: #ffff;              /* Subtle gray color */
+    font-weight: bold;        /* Optional: make it bold */
+    margin-bottom: 2px;       /* Small space below the name */
+    margin-right: 8px;         /* Indent to align with bubble */
+    letter-spacing: 0.5px;    /* Optional: slight spacing */
+    text-align: right;
+}
+
+/*  */

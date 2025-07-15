@@ -2543,29 +2543,23 @@ async function sendChatMessage() {
 
 // Add a message to the chat display
 function addMessageToChat(sender, message, botName = null) {
-    console.log('[addMessageToChat] called with sender:', sender, 'message:', message, 'botName:', botName);
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) {
         console.error('Chat container #chatMessages not found!');
         return;
     }
 
-    // Determine if this is a bot message
-    const isBot = sender !== 'You' && sender !== 'Kyle'; // Adjust as needed
+    // If sender is 'user', treat as human; otherwise, treat as bot
+    const isHuman = sender === 'user';
+    const isBot = !isHuman;
+    const displayBotName = botName || (isBot ? sender : null);
 
-    // Main message wrapper
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-message';
     if (isBot) {
         msgDiv.classList.add('bot-message');
-    }
-
-    // Optionally show bot name
-    if (botName && sender === 'bot') {
-        const nameDiv = document.createElement('div');
-        nameDiv.className = 'bot-name';
-        nameDiv.textContent = botName;
-        msgDiv.appendChild(nameDiv);
+    } else {
+        msgDiv.classList.add('user-message');
     }
 
     // Message content
@@ -2574,7 +2568,22 @@ function addMessageToChat(sender, message, botName = null) {
     contentDiv.textContent = message;
     msgDiv.appendChild(contentDiv);
 
-    // Add to chat
+    // Show bot name below for all bot messages
+    if (displayBotName && isBot) {
+        const nameDivBottom = document.createElement('div');
+        nameDivBottom.className = 'bot-name bot-name-bottom';
+        nameDivBottom.textContent = displayBotName;
+        msgDiv.appendChild(nameDivBottom);
+    }
+
+    // Optionally show user label below for user messages
+    if (isHuman) {
+        const nameDivBottom = document.createElement('div');
+        nameDivBottom.className = 'user-name user-name-bottom';
+        nameDivBottom.textContent = 'you';
+        msgDiv.appendChild(nameDivBottom);
+    }
+
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
