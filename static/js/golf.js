@@ -2488,7 +2488,51 @@ function addMessageToChat(sender, message, botName = null) {
     // Message content
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.textContent = message;
+
+    // Check if message contains an image/GIF URL
+    const imageRegex = /(https?:\/\/[^\s]+\.(?:gif|jpg|jpeg|png|webp))/i;
+    const imageMatch = message.match(imageRegex);
+
+    if (imageMatch) {
+        // Split message into text and image parts
+        const imageUrl = imageMatch[1];
+        const textBefore = message.substring(0, imageMatch.index).trim();
+        const textAfter = message.substring(imageMatch.index + imageUrl.length).trim();
+
+        // Add text before image
+        if (textBefore) {
+            const textDiv = document.createElement('div');
+            textDiv.textContent = textBefore;
+            contentDiv.appendChild(textDiv);
+        }
+
+        // Add image
+        const imgElement = document.createElement('img');
+        imgElement.src = imageUrl;
+        imgElement.alt = 'Chat image';
+        imgElement.className = 'chat-image';
+        imgElement.style.maxWidth = '200px';
+        imgElement.style.maxHeight = '150px';
+        imgElement.style.borderRadius = '8px';
+        imgElement.style.marginTop = '8px';
+        imgElement.style.marginBottom = '8px';
+        contentDiv.appendChild(imgElement);
+
+        // Add text after image
+        if (textAfter) {
+            const textDiv = document.createElement('div');
+            textDiv.textContent = textAfter;
+            contentDiv.appendChild(textDiv);
+        }
+
+        // Make bubble background invisible when GIF is present
+        contentDiv.style.background = 'transparent';
+        contentDiv.style.border = 'none';
+    } else {
+        // Regular text message
+        contentDiv.textContent = message;
+    }
+
     msgDiv.appendChild(contentDiv);
 
     // Show bot name below for all bot messages
@@ -2509,6 +2553,12 @@ function addMessageToChat(sender, message, botName = null) {
 
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Random threshold function for GIF triggers (placeholder for future event-based system)
+function shouldSendGif() {
+    // Random 15% chance for now - can be replaced with event-based logic later
+    return Math.random() < 0.15;
 }
 
 // Change chatbot personality

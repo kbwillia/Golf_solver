@@ -2009,4 +2009,19 @@ body, html {
     text-align: right;
 }
 
+/* Chat image styling */
+.chat-image {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 8px;
+    margin: 8px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.chat-image:hover {
+    transform: scale(1.05);
+    cursor: pointer;
+}
+
 /*  */
