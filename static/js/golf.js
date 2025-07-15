@@ -2484,10 +2484,10 @@ async function sendChatMessage() {
         if (data.success) {
             if (data.responses) {
                 data.responses.forEach(resp => {
-                    addMessageToChat(resp.bot, resp.message);
+                    addMessageToChat('bot', resp.message, resp.bot); // ✅ CORRECT
                 });
             } else if (data.message) {
-                addMessageToChat('Bot', data.message);
+                addMessageToChat('bot', data.message);
             } else {
                 addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
             }
@@ -2510,8 +2510,26 @@ function addMessageToChat(sender, message, botName = null) {
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) return;
 
+    // Always use 'bot-message' for all bots
+    let messageClass = 'message';
+    if (sender === 'bot') {
+        messageClass += ' bot-message';
+    } else if (sender === 'user') {
+        messageClass += ' user-message';
+    } else {
+        messageClass += ` ${sender}-message`; // Only for other types, if needed
+    }
+
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender}-message`;
+    messageDiv.className = messageClass;
+
+    // Optionally show bot name
+    if (botName && sender === 'bot') {
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'bot-name';
+        nameDiv.textContent = botName;
+        messageDiv.appendChild(nameDiv);
+    }
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
@@ -2523,38 +2541,6 @@ function addMessageToChat(sender, message, botName = null) {
     // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
-
-// Load available personalities. commented out to b/c i added opponent select
-// async function loadPersonalities() {
-//     try {
-//         const response = await fetch('/chatbot/personalities');
-//         const data = await response.json();
-
-//         if (data.success) {
-//             const personalitySelect = document.getElementById('personalitySelect');
-//             const chatbotName = document.getElementById('chatbotName');
-
-//             if (personalitySelect) {
-//                 personalitySelect.innerHTML = '';
-//                 data.personalities.forEach(personality => {
-//                     const option = document.createElement('option');
-//                     option.value = personality.type;
-//                     option.textContent = personality.name;
-//                     personalitySelect.appendChild(option);
-//                 });
-//             }
-
-//             if (chatbotName) {
-//                 chatbotName.textContent = data.current.name;
-//             }
-
-//             personalitySelect.value = data.current.type || 'nantz';
-//             currentPersonality = data.current.type || 'nantz';
-//         }
-//     } catch (error) {
-//         console.error('Error loading personalities:', error);
-//     }
-// }
 
 // Change chatbot personality
 async function changePersonality(personalityType) {

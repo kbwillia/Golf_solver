@@ -1635,16 +1635,6 @@ body, html {
     font-weight: bold;
 }
 
-.personality-select {
-    padding: 4px 8px;
-    /* border: 1px solid #ccc; */
-    border-radius: 4px;
-    font-size: 0.75em;
-    /* background: white; */
-    background: rgba(230, 249, 230, 0.55) !important;
-
-    cursor: pointer;
-}
 
 .chat-messages {
     flex: 1;
@@ -1674,7 +1664,7 @@ body, html {
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-    background: rgba(40, 167, 69, 0.15);
+    background: rgba(40, 167, 69, 0.75);
     border-radius: 3px;
 }
 
@@ -1727,6 +1717,7 @@ body, html {
     margin-bottom: 0;
 }
 
+/*this is the jim nantz message formatting i want for all the other bots */
 .bot-message .message-content {
     background: #d4edda;
     color: #155724;
