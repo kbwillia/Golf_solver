@@ -1739,6 +1739,15 @@ body, html {
     margin-bottom: 0;
 }
 
+.bot-name {
+    font-size: 0.6em;         /* Make the name smaller */
+    color: #ffff;              /* Subtle gray color */
+    font-weight: bold;        /* Optional: make it bold */
+    margin-bottom: 2px;       /* Small space below the name */
+    margin-left: 8px;         /* Indent to align with bubble */
+    letter-spacing: 0.5px;    /* Optional: slight spacing */
+}
+
 .chat-input-container {
     display: flex;
     gap: 8px;

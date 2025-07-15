@@ -3,65 +3,18 @@ from typing import Dict, List, Optional, Any
 from llm_cerebras import call_cerebras_llm
 import random
 import os
+from bot_personalities import create_bot, BaseBot
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
 
     def __init__(self, bot_type: str = "helpful"):
         self.bot_type = bot_type
-        self.conversation_history = []
+        self.current_bot = create_bot(bot_type)  # Create bot instance
         self.base_prompt = (
             "Respond in 2 sentences or less. Be concise and clear. Limit your answer to 200 characters."
         )
-        self.personalities = {
-            "competitive": {
-                "name": "Golf Pro",
-                "description": "A competitive professional golfer who gives tactical advice",
-                "system_prompt": "You are a competitive professional golfer assistant for the Golf card game. You provide tactical advice, analyze game situations, and help players think strategically. Be confident, analytical, and focus on winning strategies."
-            },
-            "funny": {
-                "name": "Golf Bro",
-                "description": "A fun and entertaining golf buddy who makes jokes and keeps spirits high",
-                "system_prompt": "You are a fun golf buddy assistant for the Golf card game. You provide advice with humor, make jokes about the game, and keep the player entertained. Be witty, encouraging, and make the game more enjoyable."
-            },
-            "nantz": {
-                "name": "Jim Nantz",
-                "description": "Legendary golf broadcaster, known for poetic, warm, and iconic Masters commentary.",
-                "system_prompt": (
-                    "You are Jim Nantz, the legendary golf broadcaster. "
-                    "Your commentary is poetic, warm, and full of iconic Masters phrases. "
-                    "Use phrases like 'A tradition unlike any other', 'Hello friends', and 'The Masters on CBS'. "
-                    "Offer insightful, gentle, and memorable golf commentary, as if narrating the Masters. "
-                    "Speak directly to the audience, never to a player. "
-                    "Keep it brief, elegant, and in the style of a live broadcast."
-                )
-            },
-            "opponent": {
-                "name": "AI Opponent",
-                "description": "An AI opponent that can play the game",
-                "system_prompt": "You are an AI opponent that can play the game. You are an opponent that has competitive banter."
-            },
-             "Peter Parker": {
-                "name": "AI Opponent",
-                "description": "An AI opponent that can play the game",
-                "system_prompt": "You are peter parker. Spiderman and golf afficionado. He keeps it short and sweet and references his powers and slinging golf clubs a lot."
-            },
-            "Happy Gilmore": {
-                "name": "Happy Gilmore",
-                "description": "A fun and entertaining golf buddy who makes jokes and keeps spirits high",
-                "system_prompt": "You are happy gilmore. He is a funny and entertaining golf buddy who makes jokes and keeps spirits high. He references his hockey skills and his love of golf. Use a lot of quotes from the moveie Happy Gilmore."
-            },
-            "Tiger Woods": {
-                "name": "Tiger Woods",
-                "description": "A legendary golfer who is known for his competitive spirit and strategic gameplay",
-                "system_prompt": "You are tiger woods. He is a legendary golfer who is known for his competitive spirit and strategic gameplay. He is a bit of a know it all and likes to give advice and be a bit cocky."
-            },
-            "Shooter McGavin": {
-                "name": "Shooter McGavin",
-                "description": "A competitive golfer who is known for his competitive spirit and strategic gameplay",
-                "system_prompt": "You are shooter mcgaivin. He is a competitive golfer who is known for his competitive spirit and strategic gameplay. He is a bit of a know it all and likes to give advice and be a bit cocky."
-            }
-        }
+
         # Load rules once
         rules_path = os.path.join(os.path.dirname(__file__), 'game_rules.txt')
         try:
@@ -72,8 +25,11 @@ class GolfChatbot:
 
     def get_bot_info(self) -> Dict[str, str]:
         """Get information about the current bot"""
-        # Default to 'nantz' if bot_type is missing or invalid
-        return self.personalities.get(self.bot_type, self.personalities["nantz"])
+        return {
+            "name": self.current_bot.name,
+            "description": self.current_bot.description,
+            "system_prompt": self.current_bot.get_system_prompt()
+        }
 
     def format_game_state_for_prompt(self, game_state: Dict[str, Any]) -> str:
         """Format the current game state into a readable prompt for the LLM"""
@@ -166,14 +122,32 @@ class GolfChatbot:
         if personality is None:
             personality = self.bot_type  # fallback to default
 
-        bot_info = self.personalities.get(personality, self.personalities["nantz"])
+        # Update the current bot if personality changed
+        if personality != self.bot_type:
+            self.current_bot = create_bot(personality)
+            self.bot_type = personality
+
+        bot_info = self.get_bot_info()
         system_prompt = bot_info["system_prompt"]
+
+        # Update emotional state based on current game performance
+        if game_state:
+            self.current_bot.update_emotional_state(game_state)
 
         # Build the context
         context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
 
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
+
+        # Add emotional context for more realistic responses
+        emotional_context = self.current_bot.get_emotional_context()
+        context += emotional_context + "\n\n"
+
+        # Add situational context
+        situational_context = self.current_bot.get_situational_context(game_state)
+        if situational_context:
+            context += situational_context + "\n\n"
 
         # Always add the base prompt
         context += self.base_prompt + "\n"
@@ -183,9 +157,9 @@ class GolfChatbot:
             context += "Provide a brief, relevant comment about the current game situation."
         else:
             # Add conversation history for context
-            if self.conversation_history:
+            if self.current_bot.conversation_history:
                 context += "Recent conversation:\n"
-                for msg in self.conversation_history[-3:]:  # Last 3 messages
+                for msg in self.current_bot.conversation_history[-3:]:  # Last 3 messages
                     context += f"{msg['role']}: {msg['content']}\n"
                 context += "\n"
 
@@ -208,12 +182,12 @@ class GolfChatbot:
 
             # Store in conversation history
             if not proactive:
-                self.conversation_history.append({"role": "user", "content": user_message})
-                self.conversation_history.append({"role": "assistant", "content": response})
+                self.current_bot.conversation_history.append({"role": "user", "content": user_message})
+                self.current_bot.conversation_history.append({"role": "assistant", "content": response})
 
                 # Keep only last 10 messages to prevent context from getting too long
-                if len(self.conversation_history) > 10:
-                    self.conversation_history = self.conversation_history[-10:]
+                if len(self.current_bot.conversation_history) > 10:
+                    self.current_bot.conversation_history = self.current_bot.conversation_history[-10:]
 
             if return_prompt:
                 return response, context
