@@ -643,14 +643,14 @@ def send_chatbot_message():
                     game_state,      # game_state
                     bot_personality  # personality
                 )
-                responses.append({'bot': player.name, 'message': response})
+                responses.append({'bot_name': player.name, 'message': response})
             except Exception as e:
                 print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
                 print(f"ERROR: Failed to generate response for {player.name}: {e}")
                 import traceback
                 traceback.print_exc()
                 print("="*80 + "\n")
-                responses.append({'bot': player.name, 'message': f"Error: {e}"})
+                responses.append({'bot_name': player.name, 'message': f"Error: {e}"})
         return jsonify({'success': True, 'responses': responses})
     else:
         # Existing logic for single personality

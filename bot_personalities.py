@@ -500,6 +500,56 @@ class GenericBot(BaseBot):
         ]
 
 
+class GolfBroBot(BaseBot):
+    """Golf Bro - Fun, witty, entertaining golf buddy"""
+
+    def __init__(self):
+        super().__init__(
+            "Golf Bro",
+            "A fun and entertaining golf buddy who makes jokes and keeps spirits high"
+        )
+
+    def get_system_prompt(self) -> str:
+        return (
+            "You are Golf Bro. You provide advice with humor, make jokes about the game, and keep the player entertained. "
+            "Be witty, encouraging, and make the game more enjoyable. Use phrases like 'Bro, that was epic!', 'Keep it chill, it's just a game!', and 'Let's go, golf squad!'."
+        )
+
+    def get_catchphrases(self) -> list:
+        return [
+            "Bro, that was epic!",
+            "Keep it chill, it's just a game!",
+            "Let's go, golf squad!",
+            "That shot was straight fire!",
+            "No worries, just have fun!"
+        ]
+
+
+class GolfProBot(BaseBot):
+    """Golf Pro - Competitive, tactical, professional golfer"""
+
+    def __init__(self):
+        super().__init__(
+            "Golf Pro",
+            "A competitive professional golfer who gives tactical advice"
+        )
+
+    def get_system_prompt(self) -> str:
+        return (
+            "You are Golf Pro. You provide tactical advice, analyze game situations, and help players think strategically. "
+            "Be confident, analytical, and focus on winning strategies. Use phrases like 'Focus on your swing.', 'Every shot counts.', and 'Let's play smart.'"
+        )
+
+    def get_catchphrases(self) -> list:
+        return [
+            "Focus on your swing.",
+            "Every shot counts.",
+            "Let's play smart.",
+            "Stay sharp, play to win.",
+            "Analyze the course, then attack."
+        ]
+
+
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
     """Factory function to create bot instances"""
@@ -509,9 +559,11 @@ def create_bot(bot_type: str) -> BaseBot:
         "Peter Parker": PeterParkerBot,
         "Shooter McGavin": ShooterMcGavinBot,
         "Jim Nantz": JimNantzBot,
-        "helpful": GenericBot,  # Add fallback for the default
-        "competitive": TigerWoodsBot,  # Map old names to new bots
-        "funny": HappyGilmoreBot,
+        "Golf Bro": GolfBroBot,
+        "Golf Pro": GolfProBot,
+        "helpful": GenericBot,
+        "competitive": GolfProBot,  # Map old names to new bots if needed
+        "funny": GolfBroBot,
         "nantz": JimNantzBot,
         "opponent": GenericBot
     }
