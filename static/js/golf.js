@@ -492,8 +492,10 @@ function updateGameDisplay() {
 
         // Update player grids
         updatePlayerGrids();
-        // Update combined scores and round info display
-        updateScoresAndRoundInfo();
+        // Update game and round info in header
+        updateGameAndRoundInfo();
+        // Update last action panel
+        updateLastActionPanel();
         // Update probabilities panel
         updateProbabilitiesPanel();
 
@@ -805,112 +807,36 @@ function updatePlayerGrids() {
     }
 }
 
-function updateScoresAndRoundInfo() {
-    // Debug the game state when game is over
-    if (currentGameState.game_over) {
-        console.log('🎮 GAME OVER DEBUG:', {
-            winner: currentGameState.winner,
-            scores: currentGameState.scores,
-            public_scores: currentGameState.public_scores,
-            match_winner: currentGameState.match_winner,
-            players: currentGameState.players.map(p => p.name)
-        });
-    }
-    const container = document.getElementById('ScoresAndRoundInfo');
-    if (!container || !currentGameState || !currentGameState.players) {
+function updateGameAndRoundInfo() {
+    const container = document.getElementById('GameAndRoundInfo');
+    if (!container || !currentGameState) {
         return;
     }
 
-    // Info text (round/game info)
+    // Game and round info for header
     const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-    let infoText = `<div class="round-info" style="font-weight:bold; font-size:1.1em;">Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}&nbsp;&nbsp;Scores</div>`;
+    const gameText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
 
-    // Scores
-    const isMultiGame = (currentGameState.num_games && currentGameState.num_games > 1);
-    let scoresHtml = '<div class="scores-panel">';
-    scoresHtml += '<table class="scores-table">';
-    scoresHtml += '<tr class="scores-subheader">';
-    scoresHtml += '<th></th><th>Current</th>';
-    if (isMultiGame) {
-        scoresHtml += '<th>Total</th>';
-    }
-    scoresHtml += '</tr>';
-    currentGameState.players.forEach((player, index) => {
-        let displayName = player.name;
-        // Remove agent_type label logic: always use player.name
-        let scoreText = 'Hidden';
-        let winnerIcon = '';
-        if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
-            scoreText = currentGameState.public_scores[index];
-            if (currentGameState.game_over && index === currentGameState.winner) {
-                winnerIcon = ' 🏆🏆🏆';
-                // Show celebration GIF if human (player 0) wins the game
-                if (index === 0) {
-                    console.log(`🎉 GAME WIN: Human won! Winner: ${currentGameState.winner}, Player index: ${index}, Scores: ${JSON.stringify(currentGameState.scores)}`);
-                    showCelebrationGif();
-                } else {
-                    console.log(`🏆 GAME WIN: AI won! Winner: ${currentGameState.winner}, Player index: ${index}, Scores: ${JSON.stringify(currentGameState.scores)}`);
-                }
-            }
-        }
-        // Cumulative score (if multi-game)
-        let cumulativeText = '';
-        if (isMultiGame && currentGameState.cumulative_scores && typeof currentGameState.cumulative_scores[index] !== 'undefined') {
-            cumulativeText = currentGameState.cumulative_scores[index];
-        }
-        const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
-        let turnIndicator = '';
-        if (isCurrentTurn) {
-            if (index === 0) {
-                turnIndicator = ' <span class="turn-label">(Your Turn)</span>';
-            } else {
-                turnIndicator = ' <span class="turn-label">(AI Turn)</span>';
-            }
-        }
-        scoresHtml += `<tr class="score-item${isCurrentTurn ? ' current-turn-score' : ''}">` +
-            `<td style="text-align:left;"><strong>${displayName}:</strong>${winnerIcon}${turnIndicator}</td>` +
-            `<td style="text-align:right;">${scoreText}</td>`;
-        if (isMultiGame) {
-            scoresHtml += `<td style="text-align:right;">${cumulativeText}</td>`;
-        }
-        scoresHtml += `</tr>`;
-    });
-    scoresHtml += '</table></div>';
+    container.textContent = gameText;
+}
 
-    // Check for overall match winner (multi-game) and show celebration
-    if (currentGameState.match_winner && currentGameState.match_winner.includes && currentGameState.match_winner.includes(0)) {
-        if (currentGameState.match_winner.length === 1 && currentGameState.match_winner[0] === 0) {
-            // Human is the sole winner
-            console.log(`🏆 MATCH WIN: Human won overall match! Match winner: ${currentGameState.match_winner}`);
-            showCelebrationGif();
-        } else {
-            // It's a tie or human is not the sole winner
-            console.log(`🤝 MATCH TIE: Match ended in tie! Match winner: ${currentGameState.match_winner}`);
-        }
+function updateLastActionPanel() {
+    const container = document.getElementById('LastActionPanel');
+    if (!container || !currentGameState) {
+        return;
     }
 
-    // Last action display
-    let lastActionHtml = '';
-    if (currentGameState.last_action) {
-        lastActionHtml = `
-            <div class="last-action-panel">
-                <div class="last-action-header">Last Action:</div>
-                <div class="last-action-text">${currentGameState.last_action}</div>
-            </div>
-        `;
-    }
-
-    // Action history display (collapsible)
+    // Action history display (collapsible) - only this, no last action panel
     let actionHistoryHtml = '';
     if (currentGameState.action_history && currentGameState.action_history.length > 0) {
         const isExpanded = window.actionHistoryExpanded || false;
-        const toggleText = isExpanded ? 'Collapse' : 'Expand';
+        const toggleIcon = isExpanded ? '▲' : '▼';
         const toggleClass = isExpanded ? 'expanded' : '';
         const containerClass = isExpanded ? 'action-history-expanded' : 'action-history-minimized';
 
         actionHistoryHtml = `
             <div class="action-history-container ${containerClass}">
-                <button class="action-history-toggle ${toggleClass}" onclick="toggleActionHistory()">${toggleText}</button>
+                <button class="action-history-toggle ${toggleClass}" onclick="toggleActionHistory()">${toggleIcon}</button>
                 <div class="action-history-panel">
                     <div class="last-action-header">Action History:</div>
                     <div class="action-history-list" id="actionHistoryList">
@@ -929,10 +855,7 @@ function updateScoresAndRoundInfo() {
         }
     }
 
-    // Flex row: round info left, scores right
-    let flexRowHtml = `<div class="scores-round-flex">${infoText}${scoresHtml}</div>`;
-
-    container.innerHTML = flexRowHtml + actionHistoryHtml; // Remove + buttonsHtml
+    container.innerHTML = actionHistoryHtml;
 
     setTimeout(() => {
         const actionHistoryList = container.querySelector('.action-history-list');
@@ -958,9 +881,9 @@ function updateScoresAndRoundInfo() {
             actionHistoryListElem.scrollTop = actionHistoryListElem.scrollHeight;
         }
     }
-
-
 }
+
+
 
 async function takeDiscard() {
     // Check if the discard card is disabled
@@ -2958,7 +2881,7 @@ function toggleActionHistory() {
         if (window.actionHistoryExpanded) {
             container.classList.remove('action-history-minimized');
             container.classList.add('action-history-expanded');
-            toggle.textContent = 'Collapse';
+            toggle.textContent = '▲';
             toggle.classList.add('expanded');
 
             // Make chatbot smaller when action history expands
@@ -2976,7 +2899,7 @@ function toggleActionHistory() {
         } else {
             container.classList.remove('action-history-expanded');
             container.classList.add('action-history-minimized');
-            toggle.textContent = 'Expand';
+            toggle.textContent = '▼';
             toggle.classList.remove('expanded');
 
             // Make chatbot larger when action history collapses

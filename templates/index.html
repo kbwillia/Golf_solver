@@ -13,7 +13,10 @@
     <div class="container">
         <!-- Header Section (Title) --> <!-- Game title -->
         <div class="header">
-            <h1>🏌️ Golf Card Game</h1>
+            <div class="header-content">
+                <h1>🏌️ Golf Card Game</h1>
+                <div id="GameAndRoundInfo" class="header-game-info"></div>
+            </div>
             <div class="header-buttons" id="headerButtons">
                 <button onclick="restartGame()" class="btn btn-secondary game-control-btn new-game-btn">New Game</button>
                 <!-- <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button> -->
@@ -80,8 +83,10 @@
 
                     <!-- Notification Area (left): badge, gifs, chat -->
                     <div class="notification-area">
-                        <div id="ScoresAndRoundInfo"></div>
                         <!-- celebrationGif moved to right panel -->
+
+                        <!-- Last Action Panel -->
+                        <div id="LastActionPanel"></div>
 
                         <!-- Chatbot Panel -->
                         <div class="chatbot-panel">

@@ -128,7 +128,7 @@ body, html {
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
-    justify-content: space-between;
+    justify-content: flex-end;
     border-radius: 12px;
     padding: 16px;
     min-height: 0;
@@ -1286,54 +1286,8 @@ body, html {
     /* border: 1px solid rgba(255, 255, 255, 0.2); */
 }
 
-/* Scores and Round Info this is  */
-#ScoresAndRoundInfo {
-    background: rgba(230, 249, 230, 0.65) !important; /* Very light green transparent background */
-    border-radius: 12px;                             /* Rounded corners */
-    padding: 4px 14px 8px 14px;                     /* Padding: top, right, bottom, left */
-    margin-bottom: 12px;                             /* Space below the panel */
-    font-size: 0.85em;                               /* Base font size for the panel (smaller text) */
-    display: flex;                                   /* Use flexbox layout */
-    flex-direction: column;                          /* Stack children vertically */
-    gap: 6px;                                        /* Space between children */
-    /* border: 3px solid #ce2727;                       Red border */
-}
 
-/* Styles the element inside #ScoresAndRoundInfo with class "round-info" (usually the title/header) */
-#ScoresAndRoundInfo .round-info {
-    font-size: 1.08em;      /* Slightly larger than the base font size of the panel */
-    font-weight: bold;      /* Bold text */
-    color: #1a4d0a;         /* Dark green color */
-    margin-bottom: 4px;     /* Space below the title */
-    text-align: center;     /* Center the text */
-}
-
-/* Styles the element inside #ScoresAndRoundInfo with class "scores-panel" (the area with player names/scores) */
-#ScoresAndRoundInfo .scores-panel {
-    background: none;       /* No background */
-    box-shadow: none;       /* No shadow */
-    padding: 0;             /* No padding */
-    margin: 0;              /* No margin */
-}
-
-#ScoresAndRoundInfo .score-item {
-    font-size: 1em;
-    margin: 2px 0;
-    padding: 2px 0;
-    border-radius: 4px;
-    text-align: left;
-}
-
-#ScoresAndRoundInfo .score-item.current-turn-score {
-    background: rgba(0, 123, 255, 0.250);
-    border-left: 3px solid #007bff;
-    font-weight: bold;
-    border-radius: 14px;
-    padding: 2px 4px;
-    /* border: 3px solid #ff0000; */
-}
-
-/* Game Control Buttons in ScoresAndRoundInfo */
+/* Game Control Buttons */
 .game-control-buttons {
     display: flex;
     flex-direction: column;
@@ -1359,7 +1313,6 @@ body, html {
     transition: all 0.2s ease;
     min-width: 80px;
 }
-
 
 /* Next Game button - full width and prominent styling */
 .game-control-btn.next-game-btn {
@@ -1401,32 +1354,6 @@ body, html {
     border-color: #004085;
     transform: translateY(-2px);
     box-shadow: 0 5px 12px rgba(0,0,0,0.2);
-}
-
-/* Last action panel styling */
-.last-action-panel {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 12px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.last-action-header {
-    font-weight: bold;
-    font-size: 0.78em;      /* smaller font */
-    color: #495057;
-    margin-bottom: 2px;     /* less space below */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.last-action-text {
-    font-size: 0.85em;
-    color: #333;
-    line-height: 1.4;
-    word-wrap: break-word;
 }
 
 /* === Custom Chart Legend Styling === */
@@ -1491,12 +1418,11 @@ body, html {
 }
 
 .action-history-panel {
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid #dee2e6;
+    background: rgba(255, 255, 255, 0.75);
     border-radius: 8px;
-    padding: 0px 0px;
-    margin: 0px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    padding: 8px 12px;
+    margin: 8px 0;
+    /* box-shadow: 0 2px 4px rgba(0,0,0,0.08); */
     max-width: 100%;
 }
 .action-history-list {
@@ -1505,7 +1431,7 @@ body, html {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0px;
     overflow-y: auto;
 
     /* Custom scrollbar styling - grey and subtle */
@@ -1532,19 +1458,82 @@ body, html {
     background: rgba(128, 128, 128, 0.2);
 }
 .action-history-item {
-    font-size: 0.8em;
+    font-size: 0.7em;
     color: #333;
-    background: rgba(230, 249, 230, 0.25);
+    /* background: rgba(230, 249, 230, 0.25); */
     border-radius: 4px;
-    padding: 0px 0px;
+    padding: 4px 4px;
     word-break: break-word;
+    line-height: 0.9;
 }
+
 
 .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-right: 16px;
+    padding: 8px 16px;
+    /* background: rgba(230, 249, 230, 0.1); */
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+}
+
+.header-content h1 {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.header-game-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* background: rgba(230, 249, 230, 0.65); */
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #1a4d0a;
+    white-space: nowrap;
+    min-width: 200px;
+    margin-right: 420px;
+}
+
+/* Responsive design for header on smaller screens */
+@media (max-width: 1200px) {
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .header-game-info {
+        min-width: 250px;
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 8px;
+    }
+
+    .header-content h1 {
+        font-size: 1.5em;
+    }
+
+    .header-game-info {
+        min-width: 200px;
+        font-size: 0.9em;
+        padding: 6px 12px;
+    }
 }
 
 .header-buttons {
@@ -1591,9 +1580,6 @@ body, html {
   display: none !important;
 }
 
-/* .other-probabilities-column.hidden {
-  display: none !important;
-} */
 
 /* Top content wrapper for notification area */
 .notification-top-content {
@@ -1614,10 +1600,12 @@ body, html {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    height: 380px; /* Default height when action history is collapsed */
-    min-height: 200px; /* Minimum height to prevent it from getting too small */
-    flex-shrink: 1; /* Allow it to shrink when action history expands */
+    max-height: 550px;
+    height: 475px; /* Default height when action history is collapsed */
+    min-height: 375px; /* Minimum height to prevent it from getting too small */
+    flex-shrink: 0; /* Don't allow it to shrink - keep it at bottom */
     transition: height 0.3s ease; /* Smooth transition when height changes */
+    margin-top: auto; /* Push to bottom */
 }
 
 /* Chatbot panel will be dynamically resized via JavaScript */
@@ -1628,13 +1616,19 @@ body, html {
 
 .chatbot-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 32px;
     margin-bottom: 12px;
     padding-bottom: 0px;
     /* border-bottom: 1px solid #e0e0e0; */
     color: white; /* Makes the text white */
     font-weight: bold; /* Makes the text bold */
+    text-shadow:
+        -1px -1px 0 black,  /* Top-left */
+        1px -1px 0 black,   /* Top-right */
+        -1px 1px 0 black,   /* Bottom-left */
+        1px 1px 0 black;    /* Bottom-right */
 }
 /* .chatbot-header h4 {
     margin: 0;
@@ -1868,12 +1862,12 @@ body, html {
 }
 
 .action-history-minimized {
-    max-height: 60px; /* Just enough for one action */
+    max-height: 90px; /* Just enough for one action */
     overflow: hidden;
 }
 
 .action-history-expanded {
-    max-height: 300px; /* Full height when expanded */
+    max-height: 350px; /* Full height when expanded */
     overflow-y: auto;
 }
 
@@ -1881,7 +1875,7 @@ body, html {
     position: absolute;
     top: 5px;
     right: 5px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.75);
     border: 1px solid #ddd;
     border-radius: 4px;
     padding: 2px 6px;
@@ -1920,7 +1914,7 @@ body, html {
     left: 0;
     right: 0;
     height: 20px;
-    background: linear-gradient(transparent, rgba(230, 249, 230, 0.8));
+    /* background: linear-gradient(transparent, rgba(230, 249, 230, 0.8)); */
     pointer-events: none;
 }
 /*
