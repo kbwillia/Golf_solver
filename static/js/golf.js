@@ -659,6 +659,26 @@ function updatePlayerGrids() {
             playerDiv.style.setProperty('--animation-offset', `${animationOffset}s`);
         }
         const isHuman = index === 0; // Human is always player 0
+        // --- NEW: Player name and score header ---
+        let displayName = player.name;
+        let scoreText = 'Hidden';
+        let winnerIcon = '';
+        if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
+            scoreText = currentGameState.public_scores[index];
+            if (currentGameState.game_over && index === currentGameState.winner) {
+                winnerIcon = ' 🏆';
+            }
+        }
+        const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
+        let turnIndicator = '';
+        if (isCurrentTurn) {
+            if (index === 0) {
+                turnIndicator = ' <span class="turn-label">(Your Turn)</span>';
+            } else {
+                turnIndicator = ' <span class="turn-label">(AI Turn)</span>';
+            }
+        }
+        // --- END NEW ---
         const gridHtml = player.grid.map((card, pos) => {
             if (!card) return '<div class="card face-down"></div>'; // Empty slot
             let cardClass = 'card';
@@ -714,10 +734,15 @@ function updatePlayerGrids() {
             }
             return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
         }).join('');
-        // Remove player names and scores from gameplay area - now in notification area
+        // --- NEW: Add player header above grid ---
         playerDiv.innerHTML = `
+            <div class="player-header">
+                <span class="player-name"><strong>${displayName}</strong>${winnerIcon}${turnIndicator}</span>
+                <span class="player-score">Score: ${scoreText}</span>
+            </div>
             <div class="grid-container">${gridHtml}</div>
         `;
+        // --- END NEW ---
         container.appendChild(playerDiv);
     });
     // Robust delayed turn animation for human (border pulse)
