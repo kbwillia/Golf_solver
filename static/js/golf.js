@@ -578,7 +578,6 @@ function updateGameDisplay() {
                 if (now - lastNantzCommentTime > 4000) { // 4s cooldown
                     console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
-                    triggerBotConversation('card_played'); // Add bot conversations
                     lastNantzCommentTime = now;
                 } else {
                     console.log('Skipped comment due to cooldown');
@@ -597,7 +596,6 @@ function updateGameDisplay() {
     ) {
         console.log('Proactive comment triggered for game over');
         requestProactiveComment('game_over');
-        triggerBotConversation('game_over'); // Add bot conversations
     }
 
     console.log('After move, action_history.length:', currentGameState.action_history.length);
@@ -2640,30 +2638,88 @@ async function requestProactiveComment(eventType = 'general') {
         return;
     }
 
-    console.log('Requesting proactive comment for event:', eventType);
+    // Only allow non-Nantz bots to comment if the opponent dropdown is visible
+    const chatOpponentSelect = document.getElementById('chatOpponentSelect');
+    let allowOpponents = false;
+    if (chatOpponentSelect && chatOpponentSelect.style.display !== 'none') {
+        allowOpponents = true;
+    }
+
+    const allowedBots = getAllowedBotsForProactive();
+    const payload = {
+        game_id: gameId,
+        event_type: eventType,
+        allowed_bots: allowedBots
+    };
+    console.log('[requestProactiveComment] Sending payload:', payload);
 
     try {
         const response = await fetch('/chatbot/proactive_comment', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                game_id: gameId,
-                event_type: eventType
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
         console.log('Proactive comment response:', data);
 
+        // Always request a Jim Nantz comment if not present
+        let nantzComment = null;
         if (data.success && data.comments && data.comments.length > 0) {
-            // Handle multiple bot comments
             data.comments.forEach(comment => {
-                addMessageToChat('bot', comment.message, comment.bot_name);
+                if (comment.bot_name === 'Jim Nantz') {
+                    nantzComment = comment;
+                }
+            });
+            // If Jim Nantz comment is missing, request it directly
+            if (!nantzComment) {
+                fetch('/chatbot/proactive_comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        game_id: gameId,
+                        event_type: eventType,
+                        force_nantz: true
+                    })
+                })
+                .then(resp => resp.json())
+                .then(nantzData => {
+                    if (nantzData.success && nantzData.comments) {
+                        nantzData.comments.forEach(nc => {
+                            if (nc.bot_name === 'Jim Nantz') {
+                                addMessageToChat('bot', nc.message, nc.bot_name);
+                            }
+                        });
+                    }
+                });
+            }
+            // Show comments: Jim Nantz always, others only if allowed
+            data.comments.forEach(comment => {
+                if (comment.bot_name === 'Jim Nantz' || allowOpponents) {
+                    addMessageToChat('bot', comment.message, comment.bot_name);
+                }
             });
         } else if (data.success && (!data.comments || data.comments.length === 0)) {
-            console.log('Proactive comment: No comments generated (bots decided not to comment)');
+            // If no comments, try to get Jim Nantz
+            fetch('/chatbot/proactive_comment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    game_id: gameId,
+                    event_type: eventType,
+                    force_nantz: true
+                })
+            })
+            .then(resp => resp.json())
+            .then(nantzData => {
+                if (nantzData.success && nantzData.comments) {
+                    nantzData.comments.forEach(nc => {
+                        if (nc.bot_name === 'Jim Nantz') {
+                            addMessageToChat('bot', nc.message, nc.bot_name);
+                        }
+                    });
+                }
+            });
         } else {
             console.error('Proactive comment failed:', data.error);
         }
@@ -2672,7 +2728,23 @@ async function requestProactiveComment(eventType = 'general') {
     }
 }
 
-
+function getAllowedBotsForProactive() {
+    const allowed = ['Jim Nantz'];
+    const chatOpponentSelect = document.getElementById('chatOpponentSelect');
+    let dropdownVisible = false;
+    let selected = null;
+    if (chatOpponentSelect) {
+        dropdownVisible = chatOpponentSelect.style.display !== 'none';
+        selected = chatOpponentSelect.value;
+    }
+    if (dropdownVisible) {
+        if (selected && selected !== 'Jim Nantz') {
+            allowed.push(selected);
+        }
+    }
+    console.log('[getAllowedBotsForProactive] Dropdown visible:', dropdownVisible, '| Selected:', selected, '| Allowed bots:', allowed);
+    return allowed;
+}
 
 // Initialize chatbot when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -2823,7 +2895,7 @@ function clearChatUI() {
     const chatMessages = document.getElementById('chatMessages');
     if (chatMessages) {
         chatMessages.innerHTML = '';
-        if (currentPersonality === 'nantz') {
+        if (currentPersonality === 'Jim Nantz' || currentPersonality === 'Jim Nantz') {
             // No intro message for Jim Nantz
         } else {
             addMessageToChat('bot', "Hi! I'm your golf assistant. Ask me anything about the game or strategy!");
@@ -2835,8 +2907,8 @@ function clearChatUI() {
 function setJimNantzDefault() {
     const personalitySelect = document.getElementById('personalitySelect');
     if (personalitySelect) {
-        personalitySelect.value = 'nantz';
-        currentPersonality = 'nantz'; // Ensure JS variable is in sync
+        personalitySelect.value = 'Jim Nantz';
+        currentPersonality = 'Jim Nantz'; // Ensure JS variable is in sync
         console.log('Jim Nantz: Set as default personality');
         // Trigger the change event to update UI and logic
         const event = new Event('change');
@@ -2853,7 +2925,7 @@ function updateChatInputState() {
     console.log('updateChatInputState called. currentPersonality:', currentPersonality);
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
-    if (currentPersonality === 'nantz') {
+    if (currentPersonality === 'Jim Nantz') {
         if (chatInput) {
             chatInput.disabled = true;
             chatInput.classList.add('chat-disabled');

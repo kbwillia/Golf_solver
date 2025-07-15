@@ -674,26 +674,36 @@ def get_proactive_comment():
         game_session = games[game_id]
         game = game_session['game']
 
-        # Get all AI players that could comment
-        ai_players = [p for p in game.players[1:] if p.name in ["Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin", "Jim Nantz"]]
+        # Use allowed_bots from frontend!
+        allowed_bots = data.get('allowed_bots', ["Jim Nantz"])
+        print("ALLOWED BOTS RECEIVED:", allowed_bots)  # Debug print
+        ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
+        print("AI PLAYERS SELECTED:", [p.name for p in ai_players])  # Debug print
 
         comments = []
 
-        # Have each bot decide if they want to comment
+        # Existing AI player comments
         for player in ai_players:
-            # Temporarily change the chatbot to this bot's personality
             original_personality = chatbot.bot_type
             chatbot.change_personality(player.name)
-
-            # Generate a comment from this bot
             comment = chatbot.generate_proactive_comment(game_state, event_type)
             if comment:
                 comments.append({
                     'bot_name': player.name,
                     'message': comment
                 })
+            chatbot.change_personality(original_personality)
 
-            # Restore original personality
+        # Special case: Always allow Jim Nantz to comment if requested, even if not a player
+        if "Jim Nantz" in allowed_bots:
+            original_personality = chatbot.bot_type
+            chatbot.change_personality("Jim Nantz")
+            comment = chatbot.generate_proactive_comment(game_state, event_type)
+            if comment:
+                comments.append({
+                    'bot_name': "Jim Nantz",
+                    'message': comment
+                })
             chatbot.change_personality(original_personality)
 
         # Return all comments that were generated
