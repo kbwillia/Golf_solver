@@ -1605,13 +1605,13 @@ function initializeCumulativeScoreChart() {
             plugins: {
                 legend: {
                     display: false, // Hide default legend
-                    position: 'right',
+                    position: 'left', // Changed from 'right' to 'left'
                     labels: {
                         boxWidth: 10,
                         padding: 4,
                         usePointStyle: true,
                         font: {
-                            size: 10
+                            size: 7  // Reduced from 10 to 8
                         },
                         color: '#ffffff'
                     }
