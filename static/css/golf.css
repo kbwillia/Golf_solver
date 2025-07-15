@@ -313,7 +313,7 @@ body, html {
     width: 280px;
     height: 280px;
     margin: 0px 0;
-    padding: 0px 0px; /* Reduced horizontal padding from 6px 8px to bring cards closer to edges */
+    padding: 0px 0px; /* Reduced horizontal padding from 6px 8px to bring cards adfcloser to edges */
     /* border: 2px solid #db4848; */
     border-radius: 50%;
     /* background: rgba(60, 121, 81, 0.55); */
