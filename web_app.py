@@ -115,6 +115,7 @@ def create_game():
 
     # Reset chatbot conversation history
     chatbot.conversation_history = []
+    chatbot.reset_for_new_game()  # Reset bot state for new game
 
     return jsonify({
         'success': True,
@@ -615,7 +616,7 @@ def send_chatbot_message():
     print("DEBUG: Received data:", data)
     game_id = data.get('game_id')
     message = data.get('message')
-    personality_type = data.get('personality_type', 'nantz')
+    personality_type = data.get('personality_type', 'Jim Nantz')
 
     if not message:
         return jsonify({'error': 'Message cannot be empty'}), 400
@@ -632,7 +633,8 @@ def send_chatbot_message():
         responses = []
         for player in game.players[1:]:  # skip human
             print(f"DEBUG: Bot name: {player.name}")
-            bot_personality = BOT_PERSONALITIES.get(player.name, "friendly")
+            # Use the player's name directly as the personality
+            bot_personality = player.name
             print(f"DEBUG: Bot personality: {bot_personality}")
             try:
                 response = chatbot.generate_response(
@@ -669,18 +671,39 @@ def get_proactive_comment():
 
     try:
         game_state = get_game_state(game_id)
-        comment, prompt = chatbot.generate_proactive_comment(game_state, event_type, return_prompt=True)
-        print("\n==== PROACTIVE PROMPT SENT TO LLM ====")
-        print(prompt)
-        print("==== END PROMPT ====")
-        if comment:
+        game_session = games[game_id]
+        game = game_session['game']
+
+        # Get all AI players that could comment
+        ai_players = [p for p in game.players[1:] if p.name in ["Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin", "Jim Nantz"]]
+
+        comments = []
+
+        # Have each bot decide if they want to comment
+        for player in ai_players:
+            # Temporarily change the chatbot to this bot's personality
+            original_personality = chatbot.bot_type
+            chatbot.change_personality(player.name)
+
+            # Generate a comment from this bot
+            comment = chatbot.generate_proactive_comment(game_state, event_type)
+            if comment:
+                comments.append({
+                    'bot_name': player.name,
+                    'message': comment
+                })
+
+            # Restore original personality
+            chatbot.change_personality(original_personality)
+
+        # Return all comments that were generated
+        if comments:
             return jsonify({
                 'success': True,
-                'comment': comment,
-                'bot_name': chatbot.get_bot_info()['name']
+                'comments': comments
             })
         else:
-            return jsonify({'success': True, 'comment': None})
+            return jsonify({'success': True, 'comments': []})
 
     except Exception as e:
         print("Error in /chatbot/proactive_comment:", e)

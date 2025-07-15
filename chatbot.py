@@ -8,7 +8,7 @@ from bot_personalities import create_bot, BaseBot
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
 
-    def __init__(self, bot_type: str = "helpful"):
+    def __init__(self, bot_type: str = "Jim Nantz"):
         self.bot_type = bot_type
         self.current_bot = create_bot(bot_type)  # Create bot instance
         self.base_prompt = (
@@ -149,6 +149,10 @@ class GolfChatbot:
         if situational_context:
             context += situational_context + "\n\n"
 
+        # Add response style context for personality-driven responses
+        style_context = self.current_bot.get_response_style_context()
+        context += style_context + "\n\n"
+
         # Always add the base prompt
         context += self.base_prompt + "\n"
 
@@ -206,12 +210,18 @@ class GolfChatbot:
         print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
         print(f"DEBUG: Current bot_type: {self.bot_type}")
 
-        # Define when to make proactive comments (80% chance for Jim Nantz)
-        random_val = random.random()
-        print(f"DEBUG: Random value: {random_val}, threshold: on line 209 chatbot.py")
-        if random_val > 1: # 20% chance to skip comment
-            print("DEBUG: Skipping comment due to random chance")
+        # Use the bot's proactive behavior system
+        import time
+        current_time = time.time()
+
+        if not self.current_bot.should_make_proactive_comment(event_type, game_state, current_time):
+            print("DEBUG: Bot decided not to make a proactive comment")
             return None
+
+        print("DEBUG: Bot decided to make a proactive comment")
+
+        # Record the comment
+        self.current_bot.record_proactive_comment(current_time)
 
         bot_info = self.get_bot_info()
 
@@ -233,6 +243,19 @@ class GolfChatbot:
         try:
             context = f"{bot_info['system_prompt']}\n\n"
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
+
+            # Add emotional and situational context
+            emotional_context = self.current_bot.get_emotional_context()
+            context += emotional_context + "\n\n"
+
+            situational_context = self.current_bot.get_situational_context(game_state)
+            if situational_context:
+                context += situational_context + "\n\n"
+
+            # Add response style context
+            style_context = self.current_bot.get_response_style_context()
+            context += style_context + "\n\n"
+
             context += prompt
 
             # Always add the base prompt
@@ -262,23 +285,31 @@ class GolfChatbot:
     def change_personality(self, new_type: str) -> bool:
         """Change the chatbot personality"""
         print(f"DEBUG: Attempting to change personality to: {new_type}")
-        if new_type in self.personalities:
+        try:
+            self.current_bot = create_bot(new_type)
             self.bot_type = new_type
-            self.conversation_history = []  # Clear history when changing personality
             print(f"DEBUG: Successfully changed personality to: {new_type}")
             return True
-        else:
-            print(f"DEBUG: Failed to change personality - {new_type} not found in {list(self.personalities.keys())}")
+        except Exception as e:
+            print(f"DEBUG: Failed to change personality - {new_type}: {e}")
             return False
+
+    def reset_for_new_game(self):
+        """Reset bot state for a new game"""
+        self.current_bot.reset_for_new_game()
 
     def get_available_personalities(self) -> List[Dict[str, str]]:
         """Get list of available personalities"""
-        # Only return the three allowed personalities
-        allowed = ["competitive", "funny", "nantz"]
+        # Define the allowed personalities
+        allowed_bots = ["Jim Nantz", "Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin"]
         return [
-            {"type": bot_type, "name": info["name"], "description": info["description"]}
-            for bot_type, info in self.personalities.items() if bot_type in allowed
+            {
+                "type": bot_name,
+                "name": bot_name,
+                "description": create_bot(bot_name).description
+            }
+            for bot_name in allowed_bots
         ]
 
-# Global chatbot instance
-chatbot = GolfChatbot("helpful")
+# Create a global chatbot instance
+chatbot = GolfChatbot("Jim Nantz")

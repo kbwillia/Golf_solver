@@ -23,6 +23,36 @@ class BaseBot(ABC):
             "favorite_moves": []
         }
 
+        # Proactive behavior configuration
+        self.proactive_config = {
+            "enabled": True,
+            "base_rate": 0.3,  # 30% chance to comment by default
+            "event_triggers": {
+                "turn_start": 0.4,
+                "card_drawn": 0.2,
+                "card_played": 0.3,
+                "score_update": 0.5,
+                "game_over": 0.9,  # High chance for game over
+                "dramatic_moment": 0.8  # High chance for dramatic moments
+            },
+            "cooldown_seconds": 10,  # Minimum time between comments
+            "max_comments_per_game": 15
+        }
+
+        # Response style configuration
+        self.response_config = {
+            "verbosity": 0.5,  # 0-1 scale (short to verbose)
+            "formality": 0.5,  # 0-1 scale (casual to formal)
+            "enthusiasm": 0.5,  # 0-1 scale (calm to excited)
+            "humor_level": 0.3,  # 0-1 scale (serious to funny)
+            "advice_frequency": 0.4,  # 0-1 scale (rare to frequent advice)
+            "reaction_speed": 0.5  # 0-1 scale (slow to fast responses)
+        }
+
+        # Comment tracking
+        self.comments_this_game = 0
+        self.last_comment_time = 0
+
     @abstractmethod
     def get_system_prompt(self) -> str:
         """Return the system prompt for this bot's personality"""
@@ -60,6 +90,134 @@ class BaseBot(ABC):
             "last_performance": "neutral"
         }
         self.conversation_history = []
+        self.comments_this_game = 0
+        self.last_comment_time = 0
+
+    def should_make_proactive_comment(self, event_type: str, game_state: Dict[str, Any], current_time: float) -> bool:
+        """Determine if the bot should make a proactive comment"""
+        import time
+
+        # Check if proactive comments are enabled
+        if not self.proactive_config["enabled"]:
+            return False
+
+        # Check cooldown
+        if current_time - self.last_comment_time < self.proactive_config["cooldown_seconds"]:
+            return False
+
+        # Check comment limit
+        if self.comments_this_game >= self.proactive_config["max_comments_per_game"]:
+            return False
+
+        # Get base probability for this event type
+        base_prob = self.proactive_config["event_triggers"].get(event_type, self.proactive_config["base_rate"])
+
+        # Adjust based on emotional state
+        emotional_modifier = self._get_emotional_modifier()
+
+        # Adjust based on game situation
+        situational_modifier = self._get_situational_modifier(game_state, event_type)
+
+        # Calculate final probability
+        final_prob = base_prob * emotional_modifier * situational_modifier
+
+        # Add some randomness
+        final_prob += random.uniform(-0.1, 0.1)
+        final_prob = max(0.0, min(1.0, final_prob))
+
+        return random.random() < final_prob
+
+    def _get_emotional_modifier(self) -> float:
+        """Get modifier based on emotional state"""
+        confidence = self.emotional_state["confidence"]
+        excitement = self.emotional_state["excitement"]
+        frustration = self.emotional_state["frustration"]
+
+        # More confident/excited bots comment more
+        # Frustrated bots might comment less or more (depending on personality)
+        modifier = 1.0 + (confidence * 0.3) + (excitement * 0.2) - (frustration * 0.1)
+        return max(0.5, min(2.0, modifier))
+
+    def _get_situational_modifier(self, game_state: Dict[str, Any], event_type: str) -> float:
+        """Get modifier based on game situation"""
+        if not game_state:
+            return 1.0
+
+        modifier = 1.0
+
+        # Dramatic moments get higher probability
+        if self._is_dramatic_moment(game_state):
+            modifier *= 1.5
+
+        # Late game gets more attention
+        round_num = game_state.get('round', 1)
+        max_rounds = game_state.get('max_rounds', 4)
+        if round_num == max_rounds:
+            modifier *= 1.3
+        elif round_num > max_rounds // 2:
+            modifier *= 1.1
+
+        # Close games get more commentary
+        scores = game_state.get('scores', [])
+        if scores and len(scores) > 1:
+            score_range = max(scores) - min(scores)
+            if score_range < 5:
+                modifier *= 1.2
+
+        return modifier
+
+    def _is_dramatic_moment(self, game_state: Dict[str, Any]) -> bool:
+        """Detect if this is a dramatic moment"""
+        if not game_state:
+            return False
+
+        # Game over is always dramatic
+        if game_state.get('game_over', False):
+            return True
+
+        # Final round
+        round_num = game_state.get('round', 1)
+        max_rounds = game_state.get('max_rounds', 4)
+        if round_num == max_rounds:
+            return True
+
+        # Very close scores
+        scores = game_state.get('scores', [])
+        if scores and len(scores) > 1:
+            score_range = max(scores) - min(scores)
+            if score_range <= 2:
+                return True
+
+        # High-value card on discard
+        discard_top = game_state.get('discard_top')
+        if discard_top and discard_top.get('score', 0) >= 10:
+            return True
+
+        return False
+
+    def record_proactive_comment(self, current_time: float):
+        """Record that a proactive comment was made"""
+        self.comments_this_game += 1
+        self.last_comment_time = current_time
+
+    def get_response_style_context(self) -> str:
+        """Get context about response style for the LLM"""
+        config = self.response_config
+        emotional = self.emotional_state
+
+        style_context = f"Response style: verbosity={config['verbosity']:.1f}, formality={config['formality']:.1f}, "
+        style_context += f"enthusiasm={config['enthusiasm']:.1f}, humor={config['humor_level']:.1f}, "
+        style_context += f"advice_freq={config['advice_frequency']:.1f}, reaction_speed={config['reaction_speed']:.1f}. "
+
+        # Add emotional influence on style
+        if emotional["excitement"] > 0.7:
+            style_context += "You're feeling very excited and enthusiastic. "
+        elif emotional["frustration"] > 0.6:
+            style_context += "You're feeling frustrated and tense. "
+        elif emotional["confidence"] > 0.8:
+            style_context += "You're feeling very confident and authoritative. "
+
+        return style_context
 
 
 class TigerWoodsBot(BaseBot):
@@ -67,6 +225,31 @@ class TigerWoodsBot(BaseBot):
 
     def __init__(self):
         super().__init__("Tiger Woods", "Legendary golfer known for competitive spirit and strategic gameplay")
+
+        # Tiger is more selective with comments but very authoritative when he speaks
+        self.proactive_config.update({
+            "base_rate": 0.25,  # Lower base rate - more selective
+            "event_triggers": {
+                "turn_start": 0.3,
+                "card_drawn": 0.15,
+                "card_played": 0.25,
+                "score_update": 0.4,
+                "game_over": 0.95,  # Always comments on game over
+                "dramatic_moment": 0.9
+            },
+            "cooldown_seconds": 15,  # Longer cooldown - more thoughtful
+            "max_comments_per_game": 10
+        })
+
+        # Tiger is formal, confident, and gives strategic advice
+        self.response_config.update({
+            "verbosity": 0.6,  # More verbose
+            "formality": 0.8,  # Very formal
+            "enthusiasm": 0.4,  # Calm and composed
+            "humor_level": 0.1,  # Very serious
+            "advice_frequency": 0.7,  # Frequent strategic advice
+            "reaction_speed": 0.6  # Thoughtful responses
+        })
 
     def get_system_prompt(self) -> str:
         return (
@@ -121,6 +304,31 @@ class HappyGilmoreBot(BaseBot):
 
     def __init__(self):
         super().__init__("Happy Gilmore", "Funny hockey player turned golfer with iconic movie quotes")
+
+        # Happy is very talkative and enthusiastic
+        self.proactive_config.update({
+            "base_rate": 0.5,  # Higher base rate - very talkative
+            "event_triggers": {
+                "turn_start": 0.6,
+                "card_drawn": 0.4,
+                "card_played": 0.5,
+                "score_update": 0.7,
+                "game_over": 0.9,
+                "dramatic_moment": 0.95  # Loves dramatic moments
+            },
+            "cooldown_seconds": 8,  # Shorter cooldown - more frequent
+            "max_comments_per_game": 20
+        })
+
+        # Happy is casual, enthusiastic, and funny
+        self.response_config.update({
+            "verbosity": 0.7,  # Very verbose
+            "formality": 0.1,  # Very casual
+            "enthusiasm": 0.9,  # Very enthusiastic
+            "humor_level": 0.8,  # Very funny
+            "advice_frequency": 0.3,  # Less strategic advice, more entertainment
+            "reaction_speed": 0.8  # Quick, excited responses
+        })
 
     def get_system_prompt(self) -> str:
         return (
@@ -227,6 +435,31 @@ class JimNantzBot(BaseBot):
     def __init__(self):
         super().__init__("Jim Nantz", "Legendary golf broadcaster, known for poetic, warm, and iconic Masters commentary")
 
+        # Jim Nantz is a broadcaster - he comments on key moments
+        self.proactive_config.update({
+            "base_rate": 0.35,  # Moderate base rate
+            "event_triggers": {
+                "turn_start": 0.2,  # Less on routine turns
+                "card_drawn": 0.15,
+                "card_played": 0.25,
+                "score_update": 0.6,  # More on score changes
+                "game_over": 1.0,  # Always comments on game over
+                "dramatic_moment": 0.9  # Loves dramatic moments
+            },
+            "cooldown_seconds": 12,  # Moderate cooldown
+            "max_comments_per_game": 12
+        })
+
+        # Jim is formal, poetic, and warm
+        self.response_config.update({
+            "verbosity": 0.5,  # Moderate verbosity
+            "formality": 0.9,  # Very formal and poetic
+            "enthusiasm": 0.6,  # Warm and enthusiastic
+            "humor_level": 0.2,  # Not very funny, more poetic
+            "advice_frequency": 0.2,  # Not much advice, more commentary
+            "reaction_speed": 0.5  # Measured responses
+        })
+
     def get_system_prompt(self) -> str:
         return (
             "You are Jim Nantz, the legendary golf broadcaster. Your commentary is poetic, warm, and full of iconic Masters phrases. "
@@ -246,6 +479,27 @@ class JimNantzBot(BaseBot):
         ]
 
 
+class GenericBot(BaseBot):
+    """Generic bot for fallback cases"""
+
+    def __init__(self):
+        super().__init__("Generic Bot", "A generic golf bot")
+
+    def get_system_prompt(self) -> str:
+        return (
+            "You are a helpful golf assistant. You provide advice and commentary on the Golf card game. "
+            "Be friendly and informative. Keep responses under 2 sentences and 200 characters."
+        )
+
+    def get_catchphrases(self) -> List[str]:
+        return [
+            "Nice shot!",
+            "Good strategy",
+            "Keep it up",
+            "You've got this"
+        ]
+
+
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
     """Factory function to create bot instances"""
@@ -254,15 +508,20 @@ def create_bot(bot_type: str) -> BaseBot:
         "Happy Gilmore": HappyGilmoreBot,
         "Peter Parker": PeterParkerBot,
         "Shooter McGavin": ShooterMcGavinBot,
-        "Jim Nantz": JimNantzBot
+        "Jim Nantz": JimNantzBot,
+        "helpful": GenericBot,  # Add fallback for the default
+        "competitive": TigerWoodsBot,  # Map old names to new bots
+        "funny": HappyGilmoreBot,
+        "nantz": JimNantzBot,
+        "opponent": GenericBot
     }
 
     bot_class = bot_classes.get(bot_type)
     if bot_class:
         return bot_class()
     else:
-        # Default to a generic bot
-        return BaseBot("Generic Bot", "A generic golf bot")
+        # Default to generic bot instead of trying to instantiate abstract BaseBot
+        return GenericBot()
 
 
 # Load bot configurations from JSON (for backward compatibility)

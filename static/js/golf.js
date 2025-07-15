@@ -30,7 +30,7 @@ let previousActionHistoryLength = 0;
 
 // ===== CHATBOT VARIABLES =====
 let chatbotEnabled = true;
-let currentPersonality = 'nantz';
+let currentPersonality = 'Jim Nantz';
 
 let lastNantzCommentTime = 0; // Place this at the top of your JS file if not already present
 let lastNantzTurn = null;
@@ -567,7 +567,7 @@ function updateGameDisplay() {
     if (
         currentGameState &&
         currentGameState.action_history &&
-        currentPersonality === 'nantz'
+        chatbotEnabled
     ) {
         const currentLength = currentGameState.action_history.length;
         if (currentLength > previousActionHistoryLength) {
@@ -576,13 +576,14 @@ function updateGameDisplay() {
             proactiveCommentTimeout = setTimeout(() => {
                 const now = Date.now();
                 if (now - lastNantzCommentTime > 4000) { // 4s cooldown
-                    console.log('Jim Nantz: Proactive comment triggered for new action');
+                    console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
+                    triggerBotConversation('card_played'); // Add bot conversations
                     lastNantzCommentTime = now;
                 } else {
-                    console.log('Jim Nantz: Skipped comment due to cooldown');
+                    console.log('Skipped comment due to cooldown');
                 }
-            }, 800); // 600ms debounce window
+            }, 800); // 800ms debounce window
         }
     }
 
@@ -592,10 +593,11 @@ function updateGameDisplay() {
         currentGameState.game_over &&
         previousGameState &&
         !previousGameState.game_over &&
-        currentPersonality === 'nantz'
+        chatbotEnabled
     ) {
-        console.log('Jim Nantz: Proactive comment triggered for game over');
+        console.log('Proactive comment triggered for game over');
         requestProactiveComment('game_over');
+        triggerBotConversation('game_over'); // Add bot conversations
     }
 
     console.log('After move, action_history.length:', currentGameState.action_history.length);
@@ -2418,10 +2420,6 @@ function initializeChatbot() {
 
 // Send a message to the chatbot
 async function sendChatMessage() {
-    if (currentPersonality === 'nantz') {
-        addMessageToChat('bot', "Jim Nantz only provides live commentary. Enjoy the broadcast!");
-        return;
-    }
     console.log('📤 sendChatMessage called');
 
     const chatInput = document.getElementById('chatInput');
@@ -2621,10 +2619,13 @@ async function requestProactiveComment(eventType = 'general') {
         const data = await response.json();
         console.log('Proactive comment response:', data);
 
-        if (data.success && data.comment) {
-            addMessageToChat('bot', data.comment, data.bot_name);
-        } else if (data.success && !data.comment) {
-            console.log('Proactive comment: No comment generated (30% chance)');
+        if (data.success && data.comments && data.comments.length > 0) {
+            // Handle multiple bot comments
+            data.comments.forEach(comment => {
+                addMessageToChat('bot', comment.message, comment.bot_name);
+            });
+        } else if (data.success && (!data.comments || data.comments.length === 0)) {
+            console.log('Proactive comment: No comments generated (bots decided not to comment)');
         } else {
             console.error('Proactive comment failed:', data.error);
         }
@@ -2632,6 +2633,8 @@ async function requestProactiveComment(eventType = 'general') {
         console.error('Error requesting proactive comment:', error);
     }
 }
+
+
 
 // Initialize chatbot when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -2662,6 +2665,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('🎮 Game board visible - re-initializing chatbot');
                     clearInterval(checkForChatbot);
                     initializeChatbot();
+
+                    // Start periodic proactive comments
+                    startPeriodicProactiveComments();
                 }
             } catch (error) {
                 console.error('❌ Error in chatbot check interval:', error);
@@ -2672,6 +2678,23 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('❌ Error in DOMContentLoaded chatbot init:', error);
     }
 });
+
+// Start periodic proactive comments
+function startPeriodicProactiveComments() {
+    // Clear any existing interval
+    if (window.proactiveCommentInterval) {
+        clearInterval(window.proactiveCommentInterval);
+    }
+
+    // Start new interval - trigger proactive comments every 30-60 seconds
+    window.proactiveCommentInterval = setInterval(() => {
+        if (gameId && chatbotEnabled && currentGameState && !currentGameState.game_over) {
+            const eventTypes = ['general', 'turn_start', 'card_played', 'score_update'];
+            const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+            requestProactiveComment(randomEvent);
+        }
+    }, 30000 + Math.random() * 30000); // 30-60 seconds
+}
 
 // Also initialize chatbot when game board is shown
 try {
@@ -2716,7 +2739,7 @@ updateGameDisplay = function() {
     if (
         currentGameState &&
         currentGameState.action_history &&
-        currentPersonality === 'nantz'
+        chatbotEnabled
     ) {
         const currentLength = currentGameState.action_history.length;
         if (currentLength > previousActionHistoryLength) {
@@ -2725,13 +2748,13 @@ updateGameDisplay = function() {
             proactiveCommentTimeout = setTimeout(() => {
                 const now = Date.now();
                 if (now - lastNantzCommentTime > 4000) { // 4s cooldown
-                    console.log('Jim Nantz: Proactive comment triggered for new action');
+                    console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
                     lastNantzCommentTime = now;
                 } else {
-                    console.log('Jim Nantz: Skipped comment due to cooldown');
+                    console.log('Skipped comment due to cooldown');
                 }
-            }, 800); // 600ms debounce window
+            }, 800); // 800ms debounce window
         }
     }
 
@@ -2741,9 +2764,9 @@ updateGameDisplay = function() {
         currentGameState.game_over &&
         previousGameState &&
         !previousGameState.game_over &&
-        currentPersonality === 'nantz'
+        chatbotEnabled
     ) {
-        console.log('Jim Nantz: Proactive comment triggered for game over');
+        console.log('Proactive comment triggered for game over');
         requestProactiveComment('game_over');
     }
 };
@@ -2832,8 +2855,8 @@ function onMoveComplete(newGameState, lastAction) {
     currentGameState = newGameState;
     updateGameDisplay();
 
-    // Trigger Jim Nantz commentary based on the action
-    if (currentPersonality === 'nantz') {
+    // Trigger proactive comments based on the action
+    if (chatbotEnabled) {
         if (lastAction === 'card_played') {
             requestProactiveComment('card_played');
         } else if (lastAction === 'card_drawn') {
@@ -2841,11 +2864,43 @@ function onMoveComplete(newGameState, lastAction) {
         } else if (lastAction === 'turn_start') {
             requestProactiveComment('turn_start');
         }
-        // ...add more as needed
+
+        // Check for dramatic moments
+        if (currentGameState.scores && currentGameState.scores.length > 1) {
+            const scoreRange = Math.max(...currentGameState.scores) - Math.min(...currentGameState.scores);
+            if (scoreRange <= 2) {
+                requestProactiveComment('dramatic_moment');
+            }
+        }
     }
 }
 
 function getSelectedChatbotPersonality() {
     return document.getElementById('chatOpponentSelect').value;
+}
+
+function updateChatInputVisibility() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const personality = getSelectedChatbotPersonality();
+
+    // All personalities now support chat
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+    chatInput.style.opacity = '1';
+    sendBtn.style.opacity = '1';
+    chatInput.style.pointerEvents = 'auto';
+    sendBtn.style.pointerEvents = 'auto';
+
+    // Update placeholder based on personality
+    const placeholders = {
+        'Jim Nantz': 'Ask Jim about the game...',
+        'Tiger Woods': 'Ask Tiger for advice...',
+        'Happy Gilmore': 'Chat with Happy...',
+        'Peter Parker': 'Ask Peter about golf...',
+        'Shooter McGavin': 'Talk to Shooter...'
+    };
+
+    chatInput.placeholder = placeholders[personality] || 'Type your message...';
 }
 
