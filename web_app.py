@@ -11,6 +11,9 @@ from game import GolfGame
 from probabilities import get_probabilities
 from chatbot import chatbot
 import time
+import logging
+# log = logging.getLogger('werkzeug')
+# log.setLevel(logging.ERROR)  # Only show errors, not every request
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -19,6 +22,14 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 games = {}
 
 AI_TURN_DELAY = 0.5  # seconds
+
+# Add this mapping somewhere in your backend
+BOT_PERSONALITIES = {
+    "Peter Parker": "friendly",
+    "Happy Gilmore": "funny",
+    "Tiger Woods": "stoic",
+    "Shooter McGavin": "cocky"
+}
 
 @app.route('/')
 def index():
@@ -36,6 +47,7 @@ def create_game():
     opponent = data.get('opponent', 'random')
     player_name = data.get('player_name', 'Human')
     num_games = int(data.get('num_games', 1))
+    bot_name = data.get('bot_name', 'peter_parker')
 
     # Generate unique game ID
     game_id = str(uuid.uuid4())
@@ -66,10 +78,23 @@ def create_game():
         elif opponent == "advanced_ev":
             game.players[1].name = "Advanced EV AI"
     else:
-        # In 1v3, give proper names to each AI
-        ai_names = ["EV AI", "Advanced EV AI", "Random AI", "Basic Logic AI"]
+        # In 1v3, give custom names to each AI
+        ai_names = [
+            "Peter Parker",      # Easy (random)
+            "Happy Gilmore",    # Medium (basic logic)
+            "Tiger Woods",      # Hard (ev_ai)
+            "Shooter McGavin"   # Advanced (advanced_ev)
+        ]
         for i in range(1, num_players):
             game.players[i].name = ai_names[i-1]
+
+    # Set the AI player's name
+    if game_mode == '1v1':
+        game.players[1].name = {
+            'peter_parker': 'Peter Parker',
+            'happy_gilmore': 'Happy Gilmore',
+            'tiger_woods': 'Tiger Woods'
+        }.get(bot_name, 'AI Opponent')
 
     # No need to run AI turns here; handled by /run_ai_turn
     game_over = False
@@ -319,7 +344,7 @@ def get_game_state(game_id):
     # Use round_cumulative_scores if available (during game), otherwise cumulative_scores (between games)
     display_cumulative_scores = game_session.get('round_cumulative_scores', cumulative_scores)
 
-    print(f"DEBUG: get_game_state: current_game={current_game}, game_over={game_session['game_over']}, cumulative_scores={game_session['cumulative_scores']}, round_cumulative_scores={game_session.get('round_cumulative_scores')}, cumulative_updated_for_game={game_session.get('cumulative_updated_for_game')}")
+    # print(f"DEBUG: get_game_state: current_game={current_game}, game_over={game_session['game_over']}, cumulative_scores={game_session['cumulative_scores']}, round_cumulative_scores={game_session.get('round_cumulative_scores')}, cumulative_updated_for_game={game_session.get('cumulative_updated_for_game')}")
 
     deck_top_card = None
     if len(game.deck) > 0:
@@ -366,9 +391,10 @@ def get_game_state(game_id):
             for i, s in enumerate(scores):
                 game_session['cumulative_scores'][i] += s
             game_session['cumulative_updated_for_game'] = True
-            print(f"DEBUG: get_game_state: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
+            # print(f"DEBUG: get_game_state: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
         else:
-            print("DEBUG: get_game_state: Cumulative scores already updated for this game.")
+            # print("DEBUG: get_game_state: Cumulative scores already updated for this game.")
+            pass
         # Set flag that we're waiting for user to continue to next game
         game_session['waiting_for_next_game'] = True
     else:
@@ -580,15 +606,16 @@ def update_round_cumulative_scores(game_session, game):
             # This ensures cumulative scores always accumulate across games
             game_session['round_cumulative_scores'][i] = game_session['cumulative_scores'][i] + score
 
-    print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
+    # print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
 
 # Chatbot Routes
 @app.route('/chatbot/send_message', methods=['POST'])
 def send_chatbot_message():
-    """Send a message to the chatbot and get a response"""
     data = request.json
+    print("DEBUG: Received data:", data)
     game_id = data.get('game_id')
-    message = data.get('message', '').strip()
+    message = data.get('message')
+    personality_type = data.get('personality_type', 'nantz')
 
     if not message:
         return jsonify({'error': 'Message cannot be empty'}), 400
@@ -598,22 +625,38 @@ def send_chatbot_message():
     if game_id and game_id in games:
         game_state = get_game_state(game_id)
 
-    try:
-        # --- BEGIN MODIFICATION ---
-        # Patch: get both response and prompt for debugging
-        response, prompt = chatbot.generate_response(message, game_state, return_prompt=True)
-        print("\n==== PROMPT SENT TO LLM ====")
-        print(prompt)
-        print("==== END PROMPT ====" )
-        return jsonify({
-            'success': True,
-            'response': response,
-            'bot_name': chatbot.get_bot_info()['name'],
-            'prompt': prompt  # Add the prompt to the API response
-        })
-        # --- END MODIFICATION ---
-    except Exception as e:
-        return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
+    if personality_type == 'opponent':
+        print("DEBUG: Handling opponent chat message")
+        game_session = games[game_id]
+        game = game_session['game']
+        responses = []
+        for player in game.players[1:]:  # skip human
+            print(f"DEBUG: Bot name: {player.name}")
+            bot_personality = BOT_PERSONALITIES.get(player.name, "friendly")
+            print(f"DEBUG: Bot personality: {bot_personality}")
+            try:
+                response = chatbot.generate_response(
+                    message,         # user_message
+                    game_state,      # game_state
+                    bot_personality  # personality
+                )
+                responses.append({'bot': player.name, 'message': response})
+            except Exception as e:
+                print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
+                print(f"ERROR: Failed to generate response for {player.name}: {e}")
+                import traceback
+                traceback.print_exc()
+                print("="*80 + "\n")
+                responses.append({'bot': player.name, 'message': f"Error: {e}"})
+        return jsonify({'success': True, 'responses': responses})
+    else:
+        # Existing logic for single personality
+        response = chatbot.generate_response(
+            message=message,
+            game_state=game_state,
+            personality=personality_type
+        )
+        return jsonify({'message': response})
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
@@ -662,13 +705,11 @@ def get_chatbot_personalities():
 
 @app.route('/chatbot/change_personality', methods=['POST'])
 def change_chatbot_personality():
-    """Change the chatbot personality"""
     data = request.json
-    personality_type = data.get('personality_type')
-
-    if not personality_type:
-        return jsonify({'error': 'Personality type is required'}), 400
-
+    personality_type = data.get('personality_type', 'nantz')
+    valid_types = ['nantz', 'opponent', 'helpful', 'funny']
+    if personality_type not in valid_types:
+        return jsonify({'success': False, 'error': 'Invalid personality type.'}), 400
     try:
         success = chatbot.change_personality(personality_type)
         if success:

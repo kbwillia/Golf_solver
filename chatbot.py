@@ -35,6 +35,11 @@ class GolfChatbot:
                     "Speak directly to the audience, never to a player. "
                     "Keep it brief, elegant, and in the style of a live broadcast."
                 )
+            },
+            "opponent": {
+                "name": "AI Opponent",
+                "description": "An AI opponent that can play the game",
+                "system_prompt": "You are an AI opponent that can play the game. You are a helpful assistant that can help the player with the game."
             }
         }
         # Load rules once
@@ -135,7 +140,7 @@ Current Game State:
         except Exception as e:
             return f"Error formatting game state: {str(e)}"
 
-    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, proactive: bool = False, return_prompt: bool = False) -> str:
+    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None, proactive: bool = False, return_prompt: bool = False) -> str:
         """Generate a chatbot response based on user input and game state"""
 
         bot_info = self.get_bot_info()

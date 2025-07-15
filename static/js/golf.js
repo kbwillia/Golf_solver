@@ -272,7 +272,17 @@ async function startGame() {
     onGameStart();
 
     const gameMode = document.getElementById('gameMode').value;
-    const opponentType = document.getElementById('opponentType').value;
+
+    // Get bot name and map to difficulty
+    const botNameSelect = document.getElementById('botNameSelect');
+    const botName = botNameSelect ? botNameSelect.value : 'peter_parker';
+    const botNameToDifficulty = {
+        'peter_parker': 'random',
+        'happy_gilmore': 'basic_logic',
+        'tiger_woods': 'ev_ai'
+    };
+    const opponentType = botNameToDifficulty[botName];
+
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
@@ -286,6 +296,7 @@ async function startGame() {
             body: JSON.stringify({
                 mode: gameMode,
                 opponent: opponentType,
+                bot_name: botName,
                 player_name: playerName,
                 num_games: numGames
             })
@@ -796,15 +807,7 @@ function updateScoresAndRoundInfo() {
     scoresHtml += '</tr>';
     currentGameState.players.forEach((player, index) => {
         let displayName = player.name;
-        if (player.agent_type === 'ev_ai') {
-            displayName = 'EV AI';
-        } else if (player.agent_type === 'heuristic') {
-            displayName = 'Basic Logic AI';
-        } else if (player.agent_type === 'qlearning') {
-            displayName = 'Q-Learning AI';
-        } else if (player.agent_type === 'random') {
-            displayName = 'Random-move AI';
-        }
+        // Remove agent_type label logic: always use player.name
         let scoreText = 'Hidden';
         let winnerIcon = '';
         if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
@@ -2398,7 +2401,19 @@ function initializeChatbot() {
     }
 
     // Load initial personality
-    loadPersonalities();
+    // loadPersonalities();
+
+    // Always (re)attach the event listener for the dropdown
+    const chatOpponentSelect = document.getElementById('chatOpponentSelect');
+    if (chatOpponentSelect) {
+        chatOpponentSelect.onchange = function(e) {
+            const selected = e.target.value;
+            console.log('Dropdown changed to:', selected);
+            currentPersonality = selected;
+            updateChatInputState();
+            // changePersonality(selected);  // <--- REMOVE or COMMENT OUT this line!
+        };
+    }
 }
 
 // Send a message to the chatbot
@@ -2435,18 +2450,30 @@ async function sendChatMessage() {
 
     // Add user message to chat
     addMessageToChat('user', message);
+
+    // Debug before clearing
+    console.log('Message before clearing input:', message);
     chatInput.value = '';
+    console.log('Message after clearing input:', chatInput.value);
 
     try {
         console.log('🌐 Making API request to /chatbot/send_message');
+        const personalityType = getSelectedChatbotPersonality();
+
+        // Debug what will be sent
+        console.log('Sending to backend:', {
+            game_id: gameId,
+            message: message,
+            personality_type: personalityType
+        });
+
         const response = await fetch('/chatbot/send_message', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 game_id: gameId,
-                message: message
+                message: message,
+                personality_type: personalityType
             })
         });
 
@@ -2455,9 +2482,17 @@ async function sendChatMessage() {
         console.log('📄 Response data:', data);
 
         if (data.success) {
-            addMessageToChat('bot', data.response, data.bot_name);
+            if (data.responses) {
+                data.responses.forEach(resp => {
+                    addMessageToChat(resp.bot, resp.message);
+                });
+            } else if (data.message) {
+                addMessageToChat('Bot', data.message);
+            } else {
+                addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
+            }
         } else {
-            addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
+            addMessageToChat('bot', 'Sorry, I\'m having trouble connecting right now.');
         }
     } catch (error) {
         console.error('❌ Chatbot error:', error);
@@ -2489,37 +2524,37 @@ function addMessageToChat(sender, message, botName = null) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Load available personalities
-async function loadPersonalities() {
-    try {
-        const response = await fetch('/chatbot/personalities');
-        const data = await response.json();
+// Load available personalities. commented out to b/c i added opponent select
+// async function loadPersonalities() {
+//     try {
+//         const response = await fetch('/chatbot/personalities');
+//         const data = await response.json();
 
-        if (data.success) {
-            const personalitySelect = document.getElementById('personalitySelect');
-            const chatbotName = document.getElementById('chatbotName');
+//         if (data.success) {
+//             const personalitySelect = document.getElementById('personalitySelect');
+//             const chatbotName = document.getElementById('chatbotName');
 
-            if (personalitySelect) {
-                personalitySelect.innerHTML = '';
-                data.personalities.forEach(personality => {
-                    const option = document.createElement('option');
-                    option.value = personality.type;
-                    option.textContent = personality.name;
-                    personalitySelect.appendChild(option);
-                });
-            }
+//             if (personalitySelect) {
+//                 personalitySelect.innerHTML = '';
+//                 data.personalities.forEach(personality => {
+//                     const option = document.createElement('option');
+//                     option.value = personality.type;
+//                     option.textContent = personality.name;
+//                     personalitySelect.appendChild(option);
+//                 });
+//             }
 
-            if (chatbotName) {
-                chatbotName.textContent = data.current.name;
-            }
+//             if (chatbotName) {
+//                 chatbotName.textContent = data.current.name;
+//             }
 
-            personalitySelect.value = data.current.type || 'nantz';
-            currentPersonality = data.current.type || 'nantz';
-        }
-    } catch (error) {
-        console.error('Error loading personalities:', error);
-    }
-}
+//             personalitySelect.value = data.current.type || 'nantz';
+//             currentPersonality = data.current.type || 'nantz';
+//         }
+//     } catch (error) {
+//         console.error('Error loading personalities:', error);
+//     }
+// }
 
 // Change chatbot personality
 async function changePersonality(personalityType) {
@@ -2763,11 +2798,12 @@ function setJimNantzDefault() {
     updateChatInputState();
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    setJimNantzDefault();
-});
+// document.addEventListener('DOMContentLoaded', function() {
+//     setJimNantzDefault();
+// });
 
 function updateChatInputState() {
+    console.log('updateChatInputState called. currentPersonality:', currentPersonality);
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
     if (currentPersonality === 'nantz') {
@@ -2797,13 +2833,13 @@ function updateChatInputState() {
     }
 }
 
-document.getElementById('chatbot-personality').value = 'nantz';
+// document.getElementById('chatbot-personality').value = 'nantz';
 
-const personalitySelect = document.getElementById('personalitySelect');
-if (personalitySelect) {
-    personalitySelect.value = 'nantz';
-    currentPersonality = 'nantz';
-}
+// const personalitySelect = document.getElementById('personalitySelect');
+// if (personalitySelect) {
+//     personalitySelect.value = 'nantz';
+//     currentPersonality = 'nantz';
+// }
 
 function onMoveComplete(newGameState, lastAction) {
     previousGameState = deepCopy(currentGameState);
@@ -2821,5 +2857,9 @@ function onMoveComplete(newGameState, lastAction) {
         }
         // ...add more as needed
     }
+}
+
+function getSelectedChatbotPersonality() {
+    return document.getElementById('chatOpponentSelect').value;
 }
 

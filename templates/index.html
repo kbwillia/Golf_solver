@@ -39,14 +39,12 @@
                 </p>
                 <!-- Opponent Type Dropdown (hidden for 1v3) -->
                 <p id="opponentSection">
-                    <label>Opponent Type:</label>
-                    <select id="opponentType">
-                        <option value="ev_ai">EV AI (Expected Value Bot)</option>
-                        <option value="random">Random-move AI</option>
-                        <option value="heuristic">Basic Logic AI</option>
-                        <option value="qlearning">Q-Learning AI</option>
-
-                    </select> <!-- AI type selection -->
+                    <label for="botNameSelect">Choose your opponent:</label>
+                    <select id="botNameSelect">
+                        <option value="peter_parker">Peter Parker (Easy)</option>
+                        <option value="happy_gilmore">Happy Gilmore (Medium)</option>
+                        <option value="tiger_woods">Tiger Woods (Hard)</option>
+                    </select>
                 </p>
                 <!-- Number of Holes Dropdown -->
                 <p>
@@ -88,11 +86,15 @@
                         <!-- Chatbot Panel -->
                         <div class="chatbot-panel">
                             <div class="chatbot-header">
-                                <select id="personalitySelect" class="personality-select">
-                                    <option value="nantz" selected>Jim Nantz</option>
+                                <label for="chatOpponentSelect">Chat with:</label>
+                                <select id="chatOpponentSelect">
+                                    <option value="nantz">Jim Nantz (Announcer)</option>
+                                    <option value="opponent">Opponents</option>
                                     <option value="helpful">Golf Pro</option>
-                                    <option value="competitive">Golf Pro</option>
                                     <option value="funny">Golf Bro</option>
+                                </select>
+                                <select id="opponentBotSelect" style="display:none;">
+                                    <!-- Populated dynamically with bot names -->
                                 </select>
                             </div>
                             <div class="chat-messages" id="chatMessages">
