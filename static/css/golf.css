@@ -1454,7 +1454,7 @@ body, html {
   align-items: center;     /* Vertically center the label with the box */
   gap: 6px;                /* Space between color box and label */
   margin-bottom: 2px;      /* Space between legend items */
-  font-size: 0.78em;       /* Reduced from 0.92em to 0.78em for smaller text */
+  font-size: .65em;       /* Reduced from 0.92em to 0.78em for smaller text */
   font-weight: 500;
   color: #fff;             /* White text for contrast */
 }
@@ -1614,9 +1614,15 @@ body, html {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    height: 300px;
-    min-height: 300px;
-    flex-shrink: 0;
+    height: 380px; /* Default height when action history is collapsed */
+    min-height: 200px; /* Minimum height to prevent it from getting too small */
+    flex-shrink: 1; /* Allow it to shrink when action history expands */
+    transition: height 0.3s ease; /* Smooth transition when height changes */
+}
+
+/* Chatbot panel will be dynamically resized via JavaScript */
+.chatbot-panel.action-history-expanded {
+    height: 350px; /* Smaller height when action history is expanded */
 }
 
 .chatbot-header {
@@ -1822,5 +1828,68 @@ body, html {
     font-size: 0.77em;  /* or your preferred size */
 }
 
+/* === Collapsible Action History Styling === */
 
+.action-history-container {
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.action-history-minimized {
+    max-height: 60px; /* Just enough for one action */
+    overflow: hidden;
+}
+
+.action-history-expanded {
+    max-height: 300px; /* Full height when expanded */
+    overflow-y: auto;
+}
+
+.action-history-toggle {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.action-history-toggle:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+.action-history-toggle.expanded {
+    background: rgba(0, 123, 255, 0.8);
+    color: white;
+    border-color: #0056b3;
+}
+
+/* Minimized state shows only the most recent action */
+.action-history-minimized .action-history-item:not(:last-child) {
+    display: none;
+}
+
+.action-history-minimized .action-history-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 8px;
+}
+
+/* Add a subtle gradient fade at the bottom when minimized */
+.action-history-minimized::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, rgba(230, 249, 230, 0.8));
+    pointer-events: none;
+}
 

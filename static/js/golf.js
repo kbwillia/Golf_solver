@@ -872,23 +872,33 @@ function updateScoresAndRoundInfo() {
         `;
     }
 
-    // Action history display (scrollable)
+    // Action history display (collapsible)
     let actionHistoryHtml = '';
     if (currentGameState.action_history && currentGameState.action_history.length > 0) {
+        const isExpanded = window.actionHistoryExpanded || false;
+        const toggleText = isExpanded ? 'Collapse' : 'Expand';
+        const toggleClass = isExpanded ? 'expanded' : '';
+        const containerClass = isExpanded ? 'action-history-expanded' : 'action-history-minimized';
+
         actionHistoryHtml = `
-            <div class="action-history-panel">
-                <div class="last-action-header">Action History:</div>
-                <div class="action-history-list" id="actionHistoryList">
-                    ${currentGameState.action_history.map(action => `<div class="action-history-item">${action}</div>`).join('')}
+            <div class="action-history-container ${containerClass}">
+                <button class="action-history-toggle ${toggleClass}" onclick="toggleActionHistory()">${toggleText}</button>
+                <div class="action-history-panel">
+                    <div class="last-action-header">Action History:</div>
+                    <div class="action-history-list" id="actionHistoryList">
+                        ${currentGameState.action_history.map(action => `<div class="action-history-item">${action}</div>`).join('')}
+                    </div>
                 </div>
             </div>
         `;
     }
 
-    // Auto-scroll action history to bottom
-    const actionHistoryPanel = container.querySelector('.action-history-panel');
-    if (actionHistoryPanel) {
-        actionHistoryPanel.scrollTop = actionHistoryPanel.scrollHeight;
+    // Auto-scroll action history to bottom only if expanded
+    if (window.actionHistoryExpanded) {
+        const actionHistoryPanel = container.querySelector('.action-history-panel');
+        if (actionHistoryPanel) {
+            actionHistoryPanel.scrollTop = actionHistoryPanel.scrollHeight;
+        }
     }
 
     // Flex row: round info left, scores right
@@ -2902,5 +2912,60 @@ function updateChatInputVisibility() {
     };
 
     chatInput.placeholder = placeholders[personality] || 'Type your message...';
+}
+
+// Toggle between ElevenLabs and browser TTS
+function toggleVoiceSystem() {
+    useElevenLabs = !useElevenLabs;
+    console.log('Voice system:', useElevenLabs ? 'ElevenLabs' : 'Browser TTS');
+
+    // Update UI if you have a toggle button
+    const voiceToggle = document.getElementById('voiceToggle');
+    if (voiceToggle) {
+        voiceToggle.textContent = useElevenLabs ? '🎙️ AI Voice' : '🔊 Browser Voice';
+    }
+}
+
+// Toggle action history between minimized and expanded
+function toggleActionHistory() {
+    window.actionHistoryExpanded = !window.actionHistoryExpanded;
+
+    const container = document.querySelector('.action-history-container');
+    const toggle = document.querySelector('.action-history-toggle');
+    const chatbotPanel = document.querySelector('.chatbot-panel');
+
+    if (container && toggle) {
+        if (window.actionHistoryExpanded) {
+            container.classList.remove('action-history-minimized');
+            container.classList.add('action-history-expanded');
+            toggle.textContent = 'Collapse';
+            toggle.classList.add('expanded');
+
+            // Make chatbot smaller when action history expands
+            if (chatbotPanel) {
+                chatbotPanel.classList.add('action-history-expanded');
+            }
+
+            // Scroll to bottom when expanding
+            setTimeout(() => {
+                const actionHistoryList = container.querySelector('.action-history-list');
+                if (actionHistoryList) {
+                    actionHistoryList.scrollTop = actionHistoryList.scrollHeight;
+                }
+            }, 100);
+        } else {
+            container.classList.remove('action-history-expanded');
+            container.classList.add('action-history-minimized');
+            toggle.textContent = 'Expand';
+            toggle.classList.remove('expanded');
+
+            // Make chatbot larger when action history collapses
+            if (chatbotPanel) {
+                chatbotPanel.classList.remove('action-history-expanded');
+            }
+        }
+    }
+
+    console.log('Action history:', window.actionHistoryExpanded ? 'expanded' : 'minimized');
 }
 
