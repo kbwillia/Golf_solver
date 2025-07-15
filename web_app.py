@@ -379,6 +379,7 @@ def get_game_state(game_id):
         'waiting_for_next_game': game_session.get('waiting_for_next_game', False),
         'last_action': getattr(game, 'last_action', None),
         'action_history': getattr(game, 'action_history', []),
+        'game_id': game_id  # where game_id is the UUID string
     }
         # Set winner for current game if over
     if game_session['game_over']:
@@ -662,7 +663,10 @@ def send_chatbot_message():
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
+    print("==== /chatbot/proactive_comment endpoint hit ====")
+    print("Request data:", request.get_json())
     data = request.json
+    print('data', data)
     game_id = data.get('game_id')
     event_type = data.get('event_type', 'general')
 
@@ -676,7 +680,7 @@ def get_proactive_comment():
 
         # Use allowed_bots from frontend!
         allowed_bots = data.get('allowed_bots', ["Jim Nantz"])
-        print("ALLOWED BOTS RECEIVED:", allowed_bots)  # Debug print
+        print("ALLOWED BOTS RECEIVED(579):", allowed_bots)  # Debug print
         ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
         print("AI PLAYERS SELECTED:", [p.name for p in ai_players])  # Debug print
 
@@ -758,6 +762,8 @@ def change_chatbot_personality():
         print("Error in /chatbot/change_personality:", e)
         import traceback; traceback.print_exc()
         return jsonify({'error': f'Error changing personality: {str(e)}'}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
