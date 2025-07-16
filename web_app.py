@@ -830,7 +830,7 @@ def get_giphy_gif():
         params = {
             'api_key': api_key,
             'q': search_query,
-            'limit': 5,
+            'limit': 15,
             'rating': 'g'
         }
 
@@ -885,7 +885,7 @@ def user_gif_search():
         params = {
             'api_key': api_key,
             'q': search_query,
-            'limit': 5,
+            'limit': 5,  # Get 5 GIFs for user to choose from
             'rating': 'g'
         }
 
@@ -895,19 +895,19 @@ def user_gif_search():
         data = response.json()
 
         if data.get('data'):
-            # Return a random GIF from the results
-            import random
-            gif = random.choice(data['data'])
-
-            # Clean the URL by removing tracking parameters
-            gif_url = gif['images']['downsized_medium']['url']
-            # Remove everything after ?cid= to clean up tracking parameters
-            if '?' in gif_url:
-                gif_url = gif_url.split('?')[0]
+            # Return all GIFs found (up to 5)
+            gif_urls = []
+            for gif in data['data']:
+                # Clean the URL by removing tracking parameters
+                gif_url = gif['images']['downsized_medium']['url']
+                # Remove everything after ?cid= to clean up tracking parameters
+                if '?' in gif_url:
+                    gif_url = gif_url.split('?')[0]
+                gif_urls.append(gif_url)
 
             return jsonify({
                 'success': True,
-                'gif_url': gif_url,
+                'gif_urls': gif_urls,  # Return array of URLs
                 'search_query': search_query
             })
         else:

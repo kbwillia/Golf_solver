@@ -3276,18 +3276,24 @@ document.getElementById('sendGifBtn').addEventListener('click', function() {
         const data = await response.json();
         const gifResults = document.getElementById('gifResults');
         gifResults.innerHTML = '';
-        if (data.success && data.gif_url) {
-          const img = document.createElement('img');
-          img.src = data.gif_url;
-          img.style.maxWidth = '150px';
-          img.style.cursor = 'pointer';
-          img.onclick = function() {
-            sendUserGifToChat(data.gif_url);
-            document.getElementById('gifModal').style.display = 'none';
-          };
-          gifResults.appendChild(img);
+        if (data.success && data.gif_urls && data.gif_urls.length > 0) {
+          // Display multiple GIFs in a grid
+          data.gif_urls.forEach(gifUrl => {
+            const img = document.createElement('img');
+            img.src = gifUrl;
+            img.style.maxWidth = '120px';
+            img.style.maxHeight = '120px';
+            img.style.margin = '5px';
+            img.style.cursor = 'pointer';
+            img.style.borderRadius = '8px';
+            img.onclick = function() {
+              sendUserGifToChat(gifUrl);
+              document.getElementById('gifModal').style.display = 'none';
+            };
+            gifResults.appendChild(img);
+          });
         } else {
-          gifResults.textContent = 'No GIF found.';
+          gifResults.textContent = 'No GIFs found.';
         }
       }
     });
@@ -3309,19 +3315,24 @@ document.getElementById('gifSearchBtn').addEventListener('click', async function
   const data = await response.json();
   const gifResults = document.getElementById('gifResults');
   gifResults.innerHTML = '';
-  if (data.success && data.gif_url) {
-    // For multiple GIFs, loop through data.gif_urls
-    const img = document.createElement('img');
-    img.src = data.gif_url;
-    img.style.maxWidth = '150px';
-    img.style.cursor = 'pointer';
-    img.onclick = function() {
-      sendUserGifToChat(data.gif_url);
-      document.getElementById('gifModal').style.display = 'none';
-    };
-    gifResults.appendChild(img);
+  if (data.success && data.gif_urls && data.gif_urls.length > 0) {
+    // Display multiple GIFs in a grid
+    data.gif_urls.forEach(gifUrl => {
+      const img = document.createElement('img');
+      img.src = gifUrl;
+      img.style.maxWidth = '120px';
+      img.style.maxHeight = '120px';
+      img.style.margin = '5px';
+      img.style.cursor = 'pointer';
+      img.style.borderRadius = '8px';
+      img.onclick = function() {
+        sendUserGifToChat(gifUrl);
+        document.getElementById('gifModal').style.display = 'none';
+      };
+      gifResults.appendChild(img);
+    });
   } else {
-    gifResults.textContent = 'No GIF found.';
+    gifResults.textContent = 'No GIFs found.';
   }
 });
 
@@ -3345,18 +3356,24 @@ document.getElementById('gifSearchInput').addEventListener('keypress', async fun
     const data = await response.json();
     const gifResults = document.getElementById('gifResults');
     gifResults.innerHTML = '';
-    if (data.success && data.gif_url) {
-      const img = document.createElement('img');
-      img.src = data.gif_url;
-      img.style.maxWidth = '150px';
-      img.style.cursor = 'pointer';
-      img.onclick = function() {
-        sendUserGifToChat(data.gif_url);
-        document.getElementById('gifModal').style.display = 'none';
-      };
-      gifResults.appendChild(img);
+    if (data.success && data.gif_urls && data.gif_urls.length > 0) {
+      // Display multiple GIFs in a grid
+      data.gif_urls.forEach(gifUrl => {
+        const img = document.createElement('img');
+        img.src = gifUrl;
+        img.style.maxWidth = '120px';
+        img.style.maxHeight = '120px';
+        img.style.margin = '5px';
+        img.style.cursor = 'pointer';
+        img.style.borderRadius = '8px';
+        img.onclick = function() {
+          sendUserGifToChat(gifUrl);
+          document.getElementById('gifModal').style.display = 'none';
+        };
+        gifResults.appendChild(img);
+      });
     } else {
-      gifResults.textContent = 'No GIF found.';
+      gifResults.textContent = 'No GIFs found.';
     }
   }
 });
@@ -3377,18 +3394,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = await response.json();
         const gifResults = document.getElementById('gifResults');
         gifResults.innerHTML = '';
-        if (data.success && data.gif_url) {
-          const img = document.createElement('img');
-          img.src = data.gif_url;
-          img.style.maxWidth = '150px';
-          img.style.cursor = 'pointer';
-          img.onclick = function() {
-            sendUserGifToChat(data.gif_url);
-            document.getElementById('gifModal').style.display = 'none';
-          };
-          gifResults.appendChild(img);
+        if (data.success && data.gif_urls && data.gif_urls.length > 0) {
+          // Display multiple GIFs in a grid
+          data.gif_urls.forEach(gifUrl => {
+            const img = document.createElement('img');
+            img.src = gifUrl;
+            img.style.maxWidth = '120px';
+            img.style.maxHeight = '120px';
+            img.style.margin = '5px';
+            img.style.cursor = 'pointer';
+            img.style.borderRadius = '8px';
+            img.onclick = function() {
+              sendUserGifToChat(gifUrl);
+              document.getElementById('gifModal').style.display = 'none';
+            };
+            gifResults.appendChild(img);
+          });
         } else {
-          gifResults.textContent = 'No GIF found.';
+          gifResults.textContent = 'No GIFs found.';
         }
       }
     });
