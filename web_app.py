@@ -639,19 +639,11 @@ def send_chatbot_message():
         game = game_session['game']
         responses = []
 
-        # Get responses from all AI players in the game plus chat-only bots
+        # Get responses from all AI players in the game ONLY (no chat-only bots)
         all_bots = list(game.players[1:])  # All AI players from the game
 
-        # Add chat-only bots that aren't already in the game
-        chat_only_bots = ['Golf Bro', 'Golf Pro']
-        existing_names = [player.name for player in all_bots]
-        for bot_name in chat_only_bots:
-            if bot_name not in existing_names:
-                # Create a mock player object for chat-only bots
-                class MockPlayer:
-                    def __init__(self, name):
-                        self.name = name
-                all_bots.append(MockPlayer(bot_name))
+        # Golf Bro and Golf Pro are now ONLY available via @ mentions
+        # They are NOT included in general opponent responses
 
         for player in all_bots:
             print(f"DEBUG: Bot name: {player.name}")

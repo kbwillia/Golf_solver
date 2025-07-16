@@ -3429,22 +3429,22 @@ function updateChatParticipantsHeader() {
 
     let participants = [];
 
-    // Add current game opponents dynamically
+    // Add current game opponents only
     if (currentGameState && currentGameState.players) {
         for (let i = 1; i < currentGameState.players.length; i++) {
             participants.push(currentGameState.players[i].name);
         }
     }
 
-    // Always add Golf Bro and Golf Pro
-    participants.push('Golf Bro', 'Golf Pro');
+    // Always add Golf Bro and Golf Pro with @ symbols
+    participants.push('@Golf Bro', '@Golf Pro');
 
     // Create the display text - show actual opponent names instead of static "Opponents"
     let displayText = '';
     if (participants.length > 0) {
         displayText += participants.join(', ');
     } else {
-        displayText += 'Golf Bro, Golf Pro';
+        displayText += '@Golf Bro, @Golf Pro';
     }
 
     chatParticipants.textContent = displayText;
