@@ -3198,8 +3198,8 @@ async function requestProactiveComment(eventType = 'general') {
                 jimNantzCommentVoice(comment.message);
             }
 
-            // Send GIF as a separate message if needed
-            if (shouldSendGif()) {
+            // Prevent Jim Nantz from sending GIFs
+            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && shouldSendGif()) {
                 // Extract relevant search terms from the message
                 const searchTerms = extractSearchTerms(comment.message, comment.bot_name);
                 const relevantGif = await getRelevantGif(searchTerms, comment.bot_name);
