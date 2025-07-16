@@ -3268,10 +3268,10 @@ document.getElementById('sendGifBtn').addEventListener('click', function() {
       if (e.key === 'Enter') {
         e.preventDefault();
         const searchTerm = e.target.value;
-        const response = await fetch('/chatbot/get_giphy_gif', {
+        const response = await fetch('/gif/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+          body: JSON.stringify({ query: searchTerm })
         });
         const data = await response.json();
         const gifResults = document.getElementById('gifResults');
@@ -3301,10 +3301,10 @@ document.getElementById('closeGifModal').addEventListener('click', function() {
 
 document.getElementById('gifSearchBtn').addEventListener('click', async function() {
   const searchTerm = document.getElementById('gifSearchInput').value;
-  const response = await fetch('/chatbot/get_giphy_gif', {
+  const response = await fetch('/gif/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+    body: JSON.stringify({ query: searchTerm })
   });
   const data = await response.json();
   const gifResults = document.getElementById('gifResults');
@@ -3337,10 +3337,10 @@ document.getElementById('gifSearchInput').addEventListener('keypress', async fun
   if (e.key === 'Enter') {
     e.preventDefault();
     const searchTerm = e.target.value;
-    const response = await fetch('/chatbot/get_giphy_gif', {
+    const response = await fetch('/gif/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+      body: JSON.stringify({ query: searchTerm })
     });
     const data = await response.json();
     const gifResults = document.getElementById('gifResults');
@@ -3369,10 +3369,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.key === 'Enter') {
         e.preventDefault();
         const searchTerm = e.target.value;
-        const response = await fetch('/chatbot/get_giphy_gif', {
+        const response = await fetch('/gif/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+          body: JSON.stringify({ query: searchTerm })
         });
         const data = await response.json();
         const gifResults = document.getElementById('gifResults');
