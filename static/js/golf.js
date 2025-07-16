@@ -3266,3 +3266,36 @@ async function requestProactiveComment(eventType = 'general') {
     }
 }
 
+//geting tts from topmediai api and playing it
+fetch('/api/tts', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({text: "Hello Friends!"})
+})
+.then(response => response.json())
+.then(data => {
+  if (data.audio_url) {
+    const audio = new Audio(data.audio_url);
+    audio.play();
+  } else {
+    alert("TTS failed");
+  }
+});
+
+document.getElementById('tts-btn').addEventListener('click', function() {
+  fetch('/api/tts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: "Hello Friends!"})
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.audio_url) {
+      const audio = new Audio(data.audio_url);
+      audio.play();
+    } else {
+      alert("TTS failed");
+    }
+  });
+});
+

@@ -1,6 +1,12 @@
 import requests
 import csv
 import json
+import os
+
+#use the env to get the api key
+from dotenv import load_dotenv
+load_dotenv()
+api_key = os.getenv("TOP_MEDIA")
 
 # url = "https://api.topmediai.com/v1/voices_list"
 # headers = {"x-api-key": "6445fed100b649c59a84fc001042c6c5"}
@@ -31,16 +37,16 @@ response = requests.request("POST", url, json=payload, headers=headers)
 
 print(response.text)
 
-# Parse the response and download the audio if successful
-result = response.json()
-if result.get("status") == 200 and "oss_url" in result.get("data", {}):
-    audio_url = result["data"]["oss_url"]
-    audio_response = requests.get(audio_url)
-    with open("output.wav", "wb") as f:
-        f.write(audio_response.content)
-    print("Audio saved as output.wav. Play it to hear the result!")
-else:
-    print("No audio URL found in response.")
+# # Parse the response and download the audio if successful
+# result = response.json()
+# if result.get("status") == 200 and "oss_url" in result.get("data", {}):
+#     audio_url = result["data"]["oss_url"]
+#     audio_response = requests.get(audio_url)
+#     with open("output.wav", "wb") as f:
+#         f.write(audio_response.content)
+#     print("Audio saved as output.wav. Play it to hear the result!")
+# else:
+#     print("No audio URL found in response.")
 
 
 

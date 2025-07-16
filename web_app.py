@@ -14,6 +14,7 @@ import time
 import logging
 import os
 from dotenv import load_dotenv
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
@@ -862,6 +863,35 @@ def get_giphy_gif():
     except Exception as e:
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/tts', methods=['POST'])
+def tts():
+    try:
+        text = request.json['text']
+        payload = {
+            "text": text,
+            "speaker": "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a",  # Use your real speaker ID
+            "emotion": "Friendly"
+        }
+        headers = {
+            "x-api-key": os.getenv("TOP_MEDIA"),
+            "Content-Type": "application/json"
+        }
+        print("Sending payload:", payload)
+        print("With headers:", headers)
+        response = requests.post("https://api.topmediai.com/v1/text2speech", json=payload, headers=headers)
+        print("Raw response:", response.text)
+        result = response.json()
+        print("TopMediai API response:", result)
+        if result.get("status") == 200 and "oss_url" in result.get("data", {}):
+            audio_url = result["data"]["oss_url"]
+            return jsonify({"audio_url": audio_url})
+        else:
+            return jsonify({"error": "TTS failed", "details": result}), 500
+    except Exception as e:
+        import traceback
+        print("Exception in /api/tts:", e)
+        traceback.print_exc()
+        return jsonify({"error": "Server error", "details": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
