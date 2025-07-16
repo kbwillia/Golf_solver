@@ -1592,10 +1592,10 @@ body, html {
 
 /* Chatbot Panel Styles */
 .chatbot-panel {
-    /* background: rgba(255, 255, 255, 0.95); */
-    background: rgba(230, 249, 230, 0.10) !important;
+    /* Gradient background from transparent at bottom to #0b501b at top */
+    background: linear-gradient(to top, transparent 0%, rgba(11, 80, 27, 0.1) 30%, rgba(11, 80, 27, 0.3) 60%, rgba(11, 80, 27, 0.6) 85%, rgba(11, 80, 27, 0.8) 100%) !important;
 
-    border-radius: 12px;
+    border-radius: 22px;
     padding: 6px;
     margin-top: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -1622,33 +1622,24 @@ body, html {
     align-items: center;
     gap: 32px;
     margin-bottom: 12px;
+    margin-top: 12px;
     padding-bottom: 0px;
-    /* border-bottom: 1px solid #e0e0e0; */
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
     color: white; /* Makes the text white */
-    font-weight: bold; /* Makes the text bold */
-    text-shadow:
-        -1px -1px 0 black,  /* Top-left */
-        1px -1px 0 black,   /* Top-right */
-        -1px 1px 0 black,   /* Bottom-left */
-        1px 1px 0 black;    /* Bottom-right */
-}
-/* .chatbot-header h4 {
-    margin: 0;
-    color: #333;
-    font-size: 1.1em;
-    font-weight: bold;
-} */
-#chatOpponentSelect {
-    /* Your CSS styles here */
-    padding: 2px;
     /* background: rgba(230, 249, 230, 0.71) !important; */
-    background: rgba(11, 80, 27, 0.51) !important;
+    /* border-radius: 12px; */
+    /* font-weight: bold; Makes the text bold */
+
+}
+
+#chatParticipants {
+    font-size: 0.75em;
     color: white;
+    text-align: center;
+    width: 100%;
     /* font-weight: bold; */
-    font-size: 0.7em;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
+
 }
 
 .chat-messages {
@@ -2088,6 +2079,10 @@ body, html {
 #gifResults {
   margin-top: 10px;
   min-height: 40px;
-  overflow: hidden;
-  max-height: none; /* Remove any max-height that would cause scrolling */
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
 }

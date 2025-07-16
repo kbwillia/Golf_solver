@@ -346,20 +346,14 @@ async function startGame() {
             }, 100);
             setupHideTimeout = setTimeout(() => {
                 setupCardsHidden = true;
-                try {
-                    updateGameDisplay();
-                } catch (error) {
-                    console.error('Error in updateGameDisplay (timeout):', error);
-                }
+                updateGameDisplay();
                 hideSetupViewTimer();
                 if (setupViewInterval) clearInterval(setupViewInterval);
             }, cardVisibilityDuration * 1000);
-            try {
-                updateGameDisplay();
-            } catch (error) {
-                console.error('Error in updateGameDisplay (initial):', error);
-                throw error; // Re-throw to see the full error
-            }
+            updateGameDisplay();
+
+            // Update chat participants header for new game
+            updateChatParticipantsHeader();
 
             // Clear chatbot UI on new game
             clearChatUI();
@@ -627,6 +621,12 @@ function updateGameDisplay() {
     }
 
     console.log('After move, action_history.length:', currentGameState.action_history.length);
+
+    // Update the chat participants header
+    updateChatParticipantsHeader();
+
+    // Update previous game state for comparison
+    previousGameState = deepCopy(currentGameState);
 }
 
 function actuallyUpdateUI() {
@@ -2337,6 +2337,32 @@ function playGolfClap() {
 
 // Chatbot state (already declared at top)
 
+// Parse @ mentions from a message
+function parseMentions(message) {
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [];
+    let match;
+
+    while ((match = mentionRegex.exec(message)) !== null) {
+        const mentionedName = match[1].toLowerCase();
+
+        // Map mention variations to actual bot names
+        const botNameMap = {
+            'golfbro': 'Golf Bro',
+            'golfpro': 'Golf Pro',
+            'golf_bro': 'Golf Bro',
+            'golf_pro': 'Golf Pro'
+        };
+
+        // Check if it's a valid bot mention
+        if (botNameMap[mentionedName]) {
+            mentions.push(botNameMap[mentionedName]);
+        }
+    }
+
+    return mentions;
+}
+
 // Initialize chatbot functionality
 function initializeChatbot() {
     proactiveCommentSent = false;
@@ -2390,17 +2416,7 @@ function initializeChatbot() {
     // Load initial personality
     // loadPersonalities();
 
-    // Always (re)attach the event listener for the dropdown
-    const chatOpponentSelect = document.getElementById('chatOpponentSelect');
-    if (chatOpponentSelect) {
-        chatOpponentSelect.onchange = function(e) {
-            const selected = e.target.value;
-            console.log('Dropdown changed to:', selected);
-            currentPersonality = selected;
-            updateChatInputState();
-            // changePersonality(selected);  // <--- REMOVE or COMMENT OUT this line!
-        };
-    }
+    // Removed dropdown event listener - no longer needed since everyone is automatically included
 }
 
 // Send a message to the chatbot
@@ -2441,13 +2457,27 @@ async function sendChatMessage() {
 
     try {
         console.log('🌐 Making API request to /chatbot/send_message');
-        const personalityType = getSelectedChatbotPersonality();
+
+        // Parse @ mentions in the message
+        const mentionedBots = parseMentions(message);
+        console.log('Mentioned bots:', mentionedBots);
+
+        // Determine personality type based on mentions
+        let personalityType = 'opponent';
+        let mentionedBotNames = [];
+
+        if (mentionedBots.length > 0) {
+            // If specific bots are mentioned, only send to those bots
+            personalityType = 'mentioned';
+            mentionedBotNames = mentionedBots;
+        }
 
         // Debug what will be sent
         console.log('Sending to backend:', {
             game_id: gameId,
             message: message,
-            personality_type: personalityType
+            personality_type: personalityType,
+            mentioned_bots: mentionedBotNames
         });
 
         console.log('🔄 Awaiting response...');
@@ -2457,7 +2487,8 @@ async function sendChatMessage() {
             body: JSON.stringify({
                 game_id: gameId,
                 message: message,
-                personality_type: personalityType
+                personality_type: personalityType,
+                mentioned_bots: mentionedBotNames
             })
         });
 
@@ -2787,39 +2818,24 @@ async function changePersonality(personalityType) {
 
 function getAllowedBotsForProactive() {
     console.log('[getAllowedBotsForProactive] function called');
+    // Only include Jim Nantz and current game opponents for proactive comments
     const allowed = ['Jim Nantz'];
-    const chatOpponentSelect = document.getElementById('chatOpponentSelect');
-    let dropdownVisible = false;
-    let selected = null;
-    if (chatOpponentSelect) {
-        dropdownVisible = chatOpponentSelect.style.display !== 'none';
-        selected = chatOpponentSelect.value;
-    }
-    console.log('[getAllowedBotsForProactive] Dropdown visible:', dropdownVisible, '| Selected:', selected);
-    if (dropdownVisible) {
-        if (selected && selected !== 'Jim Nantz') {
-            if (selected === 'opponent') {
-                console.log('Adding all AI player names to allowed_bots');
-                if (currentGameState && currentGameState.players) {
-                    for (let i = 1; i < currentGameState.players.length; i++) {
-                        console.log('Adding player:', currentGameState.players[i]);
-                        allowed.push(currentGameState.players[i].name);
-                    }
-                } else {
-                    console.log('No currentGameState or players found!');
-                }
-            } else {
-                allowed.push(selected);
-            }
+
+    // Add all AI players from the current game
+    if (currentGameState && currentGameState.players) {
+        for (let i = 1; i < currentGameState.players.length; i++) {
+            console.log('Adding player:', currentGameState.players[i]);
+            allowed.push(currentGameState.players[i].name);
         }
+    } else {
+        console.log('No currentGameState or players found!');
     }
-    console.log('Final allowed_bots:', allowed);
-    console.log('[getAllowedBotsForProactive] currentGameStat 2670:', currentGameState);
-    if (currentGameState) {
-        console.log('[getAllowedBotsForProactive] Players:', currentGameState.players);
-    }
+
+    console.log('Final allowed_bots for proactive:', allowed);
     return allowed;
 }
+
+
 
 // Initialize chatbot when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -2982,7 +2998,7 @@ function setJimNantzDefault() {
     if (chatInput) {
         chatInput.disabled = false;
         chatInput.classList.remove('chat-disabled');
-        chatInput.placeholder = "Ask me about the game...";
+        chatInput.placeholder = 'Chat with opponents, Golf Pro/Bro...';
         chatInput.title = "";
     }
     if (sendBtn) {
@@ -3005,7 +3021,7 @@ function updateChatInputState() {
     if (chatInput) {
         chatInput.disabled = false;
         chatInput.classList.remove('chat-disabled');
-        chatInput.placeholder = "Ask me about the game...";
+        chatInput.placeholder = 'Chat with opponents, Golf Pro/Bro...';
         chatInput.title = "";
     }
     if (sendBtn) {
@@ -3042,14 +3058,9 @@ function onMoveComplete(newGameState, lastAction) {
     }
 }
 
-function getSelectedChatbotPersonality() {
-    return document.getElementById('chatOpponentSelect').value;
-}
-
 function updateChatInputVisibility() {
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
-    const personality = getSelectedChatbotPersonality();
 
     // All personalities now support chat
     chatInput.disabled = false;
@@ -3059,16 +3070,8 @@ function updateChatInputVisibility() {
     chatInput.style.pointerEvents = 'auto';
     sendBtn.style.pointerEvents = 'auto';
 
-    // Update placeholder based on personality
-    const placeholders = {
-        'Jim Nantz': 'Ask Jim about the game...',
-        'Tiger Woods': 'Ask Tiger for advice...',
-        'Happy Gilmore': 'Chat with Happy...',
-        'Peter Parker': 'Ask Peter about golf...',
-        'Shooter McGavin': 'Talk to Shooter...'
-    };
-
-    chatInput.placeholder = placeholders[personality] || 'Type your message...';
+    // Update placeholder to reflect that users can chat with all opponents and approved bots
+    chatInput.placeholder = 'Chat with opponents, Golf Pro/Bro...';
 }
 
 // Voice system variables
@@ -3419,4 +3422,31 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('gifSearchInput not found!');
   }
 });
+
+function updateChatParticipantsHeader() {
+    const chatParticipants = document.getElementById('chatParticipants');
+    if (!chatParticipants) return;
+
+    let participants = [];
+
+    // Add current game opponents dynamically
+    if (currentGameState && currentGameState.players) {
+        for (let i = 1; i < currentGameState.players.length; i++) {
+            participants.push(currentGameState.players[i].name);
+        }
+    }
+
+    // Always add Golf Bro and Golf Pro
+    participants.push('Golf Bro', 'Golf Pro');
+
+    // Create the display text - show actual opponent names instead of static "Opponents"
+    let displayText = '';
+    if (participants.length > 0) {
+        displayText += participants.join(', ');
+    } else {
+        displayText += 'Golf Bro, Golf Pro';
+    }
+
+    chatParticipants.textContent = displayText;
+}
 

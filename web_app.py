@@ -638,7 +638,22 @@ def send_chatbot_message():
         game_session = games[game_id]
         game = game_session['game']
         responses = []
-        for player in game.players[1:]:  # skip human
+
+        # Get responses from all AI players in the game plus chat-only bots
+        all_bots = list(game.players[1:])  # All AI players from the game
+
+        # Add chat-only bots that aren't already in the game
+        chat_only_bots = ['Golf Bro', 'Golf Pro']
+        existing_names = [player.name for player in all_bots]
+        for bot_name in chat_only_bots:
+            if bot_name not in existing_names:
+                # Create a mock player object for chat-only bots
+                class MockPlayer:
+                    def __init__(self, name):
+                        self.name = name
+                all_bots.append(MockPlayer(bot_name))
+
+        for player in all_bots:
             print(f"DEBUG: Bot name: {player.name}")
             # Use the player's name directly as the personality
             bot_personality = player.name
@@ -657,6 +672,60 @@ def send_chatbot_message():
                 traceback.print_exc()
                 print("="*80 + "\n")
                 responses.append({'bot_name': player.name, 'message': f"Error: {e}"})
+
+        return jsonify({'success': True, 'responses': responses})
+    elif personality_type == 'mentioned':
+        print("DEBUG: Handling mentioned bots chat message")
+        game_session = games[game_id]
+        game = game_session['game']
+        responses = []
+
+        # Get mentioned bots from the request
+        mentioned_bots = data.get('mentioned_bots', [])
+        print(f"DEBUG: Mentioned bots: {mentioned_bots}")
+
+        # Filter bots based on mentions
+        all_bots = []
+
+        # Add game AI players if mentioned
+        for player in game.players[1:]:
+            if player.name in mentioned_bots:
+                all_bots.append(player)
+
+        # Add chat-only bots if mentioned
+        chat_only_bots = ['Golf Bro', 'Golf Pro']
+        for bot_name in chat_only_bots:
+            if bot_name in mentioned_bots:
+                # Create a mock player object for chat-only bots
+                class MockPlayer:
+                    def __init__(self, name):
+                        self.name = name
+                all_bots.append(MockPlayer(bot_name))
+
+        # If no valid mentions, return empty response
+        if not all_bots:
+            return jsonify({'success': True, 'responses': []})
+
+        for player in all_bots:
+            print(f"DEBUG: Bot name: {player.name}")
+            # Use the player's name directly as the personality
+            bot_personality = player.name
+            print(f"DEBUG: Bot personality: {bot_personality}")
+            try:
+                response = chatbot.generate_response(
+                    message,         # user_message
+                    game_state,      # game_state
+                    bot_personality  # personality
+                )
+                responses.append({'bot_name': player.name, 'message': response})
+            except Exception as e:
+                print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
+                print(f"ERROR: Failed to generate response for {player.name}: {e}")
+                import traceback
+                traceback.print_exc()
+                print("="*80 + "\n")
+                responses.append({'bot_name': player.name, 'message': f"Error: {e}"})
+
         return jsonify({'success': True, 'responses': responses})
     else:
         # Existing logic for single personality
@@ -885,7 +954,7 @@ def user_gif_search():
         params = {
             'api_key': api_key,
             'q': search_query,
-            'limit': 5,  # Get 5 GIFs for user to choose from
+            'limit': 11,  # Get 5 GIFs for user to choose from
             'rating': 'g'
         }
 
