@@ -12,6 +12,11 @@ from probabilities import get_probabilities
 from chatbot import chatbot
 import time
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 # log = logging.getLogger('werkzeug')
 # log.setLevel(logging.ERROR)  # Only show errors, not every request
 
@@ -770,6 +775,92 @@ def change_chatbot_personality():
         import traceback; traceback.print_exc()
         return jsonify({'error': f'Error changing personality: {str(e)}'}), 500
 
+@app.route('/chatbot/get_giphy_gif', methods=['POST'])
+def get_giphy_gif():
+    """Get a relevant GIF from Giphy API based on message content and bot name"""
+    try:
+        data = request.json
+        message = data.get('message', '')
+        bot_name = data.get('bot_name', '')
+
+        # Get API key from environment
+        api_key = os.getenv('GIPHY_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'GIPHY_API_KEY not found in environment variables'}), 500
+
+        # Extract search terms from message and bot name
+        search_terms = []
+
+        # Add bot-specific terms
+        bot_terms = {
+            'peter_parker': ['spiderman', 'web', 'swing', 'hero'],
+            'happy_gilmore': ['golf', 'happy', 'funny', 'swing', 'comedy'],
+            'tiger_woods': ['golf', 'tiger', 'champion', 'professional', 'swing'],
+            'shooter_mcgavin': ['golf', 'villain', 'competitive', 'swing']
+        }
+
+        bot_key = bot_name.lower().replace(' ', '_')
+        if bot_key in bot_terms:
+            search_terms.extend(bot_terms[bot_key])
+
+        # Add golf-related terms from message
+        golf_terms = ['golf', 'swing', 'putt', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'water', 'club', 'driver', 'iron', 'wedge', 'putter']
+        message_lower = message.lower()
+        for term in golf_terms:
+            if term in message_lower:
+                search_terms.append(term)
+
+        # Add general terms from message
+        general_terms = ['win', 'lose', 'good', 'bad', 'great', 'terrible', 'amazing', 'awful', 'excellent', 'horrible', 'fantastic', 'disaster', 'success', 'failure', 'happy', 'sad', 'excited', 'disappointed']
+        for term in general_terms:
+            if term in message_lower:
+                search_terms.append(term)
+
+        # If no specific terms found, use generic golf terms
+        if not search_terms:
+            search_terms = ['golf', 'swing']
+
+        # Create search query
+        search_query = ' '.join(search_terms[:3])  # Use up to 3 terms
+
+        # Call Giphy API
+        import requests
+        url = "https://api.giphy.com/v1/gifs/search"
+        params = {
+            'api_key': api_key,
+            'q': search_query,
+            'limit': 5,
+            'rating': 'g'
+        }
+
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get('data'):
+            # Return a random GIF from the results
+            import random
+            gif = random.choice(data['data'])
+
+            # Clean the URL by removing tracking parameters
+            gif_url = gif['images']['downsized_medium']['url']
+            # Remove everything after ?cid= to clean up tracking parameters
+            if '?' in gif_url:
+                gif_url = gif_url.split('?')[0]
+
+            return jsonify({
+                'success': True,
+                'gif_url': gif_url,
+                'search_query': search_query
+            })
+        else:
+            return jsonify({'error': 'No GIFs found'}), 404
+
+    except requests.RequestException as e:
+        return jsonify({'error': f'Giphy API error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

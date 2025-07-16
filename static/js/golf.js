@@ -94,9 +94,14 @@ fetch('/static/golf_celebration_gifs.json')
     .then(data => {
         if (data && data.data) {
             celebrationGifs = data.data
-                // .map(gif => gif.images && gif.images.downsized_medium && gif.images.adfdownsized_medium.url)
-                .map(gif => gif.images && gif.images.downsized_large && gif.images.downsized_large.url)
-
+                .map(gif => {
+                    if (gif.images && gif.images.downsized_large && gif.images.downsized_large.url) {
+                        const url = gif.images.downsized_large.url;
+                        // Clean the URL by removing tracking parameters
+                        return url.split('?')[0];
+                    }
+                    return null;
+                })
                 .filter(Boolean);
         }
     });
@@ -269,6 +274,9 @@ async function startGame() {
 
     // Reset AI turn flag
     aiTurnInProgress = false;
+
+    // Clear any existing celebrations when starting new game
+    clearCelebration();
 
     // Hide replay button when starting new game
     onGameStart();
@@ -507,6 +515,12 @@ function updateGameDisplay() {
 
         // Check if game or match is over and show replay button
         if (currentGameState.game_over) {
+            // Check if human player won and show celebration
+            if (currentGameState.winner === 0) {
+                console.log('🎉 Human player won! Showing celebration...');
+                showCelebrationGif();
+            }
+
             if (currentGameState.num_games === 1 || currentGameState.current_game === currentGameState.num_games) {
                 // Single game or last game of match - show replay button
                 onGameOver();
@@ -2453,15 +2467,38 @@ async function sendChatMessage() {
 
         if (data.success) {
             if (data.responses) {
-                data.responses.forEach(resp => {
+                                // Handle responses sequentially to use async/await
+                for (const resp of data.responses) {
                     // For opponent responses, use bot_name field
                     const botName = resp.bot_name || resp.bot;
-                    addMessageToChat('bot', resp.message, botName);
-                });
+                    let message = resp.message;
+
+                    // Add the text message first
+                    addMessageToChat('bot', message, botName);
+
+                    // Send GIF as a separate message if needed
+                    if (shouldSendGif()) {
+                        // Extract relevant search terms from the message
+                        const searchTerms = extractSearchTerms(message, botName);
+                        const relevantGif = await getRelevantGif(searchTerms, botName);
+                        addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
+                    }
+                }
             } else if (data.message) {
                 // Try both bot and bot_name fields to handle different response formats
                 const botName = data.bot || data.bot_name;
-                addMessageToChat('bot', data.message, botName);
+                let message = data.message;
+
+                // Add the text message first
+                addMessageToChat('bot', message, botName);
+
+                // Send GIF as a separate message if needed
+                if (shouldSendGif()) {
+                    // Extract relevant search terms from the message
+                    const searchTerms = extractSearchTerms(message, botName);
+                    const relevantGif = await getRelevantGif(searchTerms, botName);
+                    addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
+                }
             } else {
                 addMessageToChat('bot', 'Sorry, I encountered an error. Please try again.');
             }
@@ -2480,7 +2517,7 @@ async function sendChatMessage() {
 }
 
 // Add a message to the chat display
-function addMessageToChat(sender, message, botName = null) {
+function addMessageToChat(sender, message, botName = null, gifOnly = false) {
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) {
         console.error('Chat container #chatMessages not found!');
@@ -2508,20 +2545,46 @@ function addMessageToChat(sender, message, botName = null) {
     const imageRegex = /(https?:\/\/[^\s]+\.(?:gif|jpg|jpeg|png|webp))/i;
     const imageMatch = message.match(imageRegex);
 
-    if (imageMatch) {
-        // Split message into text and image parts
+    if (imageMatch && gifOnly) {
+        // GIF-only message - no bubble styling
+        const imageUrl = imageMatch[1];
+
+        const imgElement = document.createElement('img');
+        imgElement.src = imageUrl;
+        imgElement.alt = 'Chat GIF';
+        imgElement.className = 'chat-image';
+        imgElement.style.maxWidth = '200px';
+        imgElement.style.maxHeight = '150px';
+        imgElement.style.borderRadius = '8px';
+        imgElement.style.marginTop = '4px';
+        imgElement.style.marginBottom = '4px';
+        contentDiv.appendChild(imgElement);
+
+        // Remove bubble styling for GIF-only messages
+        contentDiv.style.background = 'transparent';
+        contentDiv.style.border = 'none';
+        contentDiv.style.padding = '0';
+        contentDiv.style.boxShadow = 'none';
+
+        // Remove the bubble pointer by hiding the ::after pseudo-element
+        contentDiv.style.position = 'relative';
+        contentDiv.style.setProperty('--hide-pointer', 'true');
+
+    } else if (imageMatch) {
+        // Mixed text and image message (legacy case)
         const imageUrl = imageMatch[1];
         const textBefore = message.substring(0, imageMatch.index).trim();
         const textAfter = message.substring(imageMatch.index + imageUrl.length).trim();
 
-        // Add text before image
+        // Create separate containers for text and image
         if (textBefore) {
             const textDiv = document.createElement('div');
             textDiv.textContent = textBefore;
+            textDiv.style.marginBottom = '8px';
             contentDiv.appendChild(textDiv);
         }
 
-        // Add image
+        // Add image with proper styling
         const imgElement = document.createElement('img');
         imgElement.src = imageUrl;
         imgElement.alt = 'Chat image';
@@ -2533,16 +2596,15 @@ function addMessageToChat(sender, message, botName = null) {
         imgElement.style.marginBottom = '8px';
         contentDiv.appendChild(imgElement);
 
-        // Add text after image
         if (textAfter) {
             const textDiv = document.createElement('div');
             textDiv.textContent = textAfter;
+            textDiv.style.marginTop = '8px';
             contentDiv.appendChild(textDiv);
         }
 
-        // Make bubble background invisible when GIF is present
-        contentDiv.style.background = 'transparent';
-        contentDiv.style.border = 'none';
+        // Don't override the CSS bubble styling - let it work naturally
+        // The CSS will handle the bubble background, border-radius, and pointer
     } else {
         // Regular text message
         contentDiv.textContent = message;
@@ -2572,8 +2634,88 @@ function addMessageToChat(sender, message, botName = null) {
 
 // Random threshold function for GIF triggers (placeholder for future event-based system)
 function shouldSendGif() {
-    // Random 15% chance for now - can be replaced with event-based logic later
-    return Math.random() < 0.15;
+    // Random 95% chance for now - can be replaced with event-based logic later
+    return Math.random() < 0.25;
+}
+
+// Get relevant GIF from backend Giphy API
+async function getRelevantGif(searchTerm, botName = null) {
+    try {
+        // Use the search term as the message, and get bot name from parameter or fallback
+        const message = searchTerm || '';
+        const botNameToUse = botName || currentPersonality || 'Jim Nantz';
+
+        const response = await fetch('/chatbot/get_giphy_gif', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                bot_name: botNameToUse
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.gif_url) {
+            return data.gif_url;
+        } else {
+            console.error('Error from backend Giphy API:', data.error);
+        }
+    } catch (error) {
+        console.error('Error fetching GIF from backend:', error);
+    }
+
+    // Fallback to static GIFs if API fails
+    const fallbackGifs = [
+        "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif",
+        "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif",
+        "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif"
+    ];
+    return fallbackGifs[Math.floor(Math.random() * fallbackGifs.length)];
+}
+
+// Extract relevant search terms from message and bot name
+function extractSearchTerms(message, botName) {
+    const golfTerms = ['golf', 'putt', 'drive', 'swing', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'club'];
+    const emotionTerms = ['amazing', 'great', 'awesome', 'wow', 'incredible', 'fantastic', 'excellent', 'perfect', 'brilliant'];
+    const actionTerms = ['shot', 'hit', 'play', 'move', 'turn', 'game', 'match', 'round'];
+
+    // Check for golf-specific terms first
+    for (const term of golfTerms) {
+        if (message.toLowerCase().includes(term)) {
+            return `${term} golf`;
+        }
+    }
+
+    // Check for emotion terms
+    for (const term of emotionTerms) {
+        if (message.toLowerCase().includes(term)) {
+            return `${term} reaction`;
+        }
+    }
+
+    // Check for action terms
+    for (const term of actionTerms) {
+        if (message.toLowerCase().includes(term)) {
+            return `${term} golf`;
+        }
+    }
+
+    // Bot-specific searches
+    if (botName) {
+        if (botName.includes('Peter Parker')) {
+            return 'spiderman reaction';
+        } else if (botName.includes('Tiger')) {
+            return 'tiger woods golf';
+        } else if (botName.includes('Happy')) {
+            return 'happy gilmore golf';
+        }
+    }
+
+    // Default fallback
+    return 'golf celebration';
 }
 
 // Change chatbot personality
@@ -2993,9 +3135,17 @@ async function requestProactiveComment(eventType = 'general') {
     console.log('[requestProactiveComment] Response:', data);
     // ...handle/display comments...
     if (data.comments && data.comments.length > 0) {
-        data.comments.forEach(comment => {
-            // Your function to display the comment in the chat
+        data.comments.forEach(async (comment) => {
+            // Add the text message first
             addMessageToChat('bot', comment.message, comment.bot_name);
+
+            // Send GIF as a separate message if needed
+            if (shouldSendGif()) {
+                // Extract relevant search terms from the message
+                const searchTerms = extractSearchTerms(comment.message, comment.bot_name);
+                const relevantGif = await getRelevantGif(searchTerms, comment.bot_name);
+                addMessageToChat('bot', relevantGif, comment.bot_name, true); // true = GIF only
+            }
         });
     }
 }

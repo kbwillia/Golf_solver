@@ -1743,6 +1743,11 @@ body, html {
     margin-bottom: 0;
 }
 
+/* Hide bubble pointer for GIF-only messages */
+.user-message .message-content[style*="--hide-pointer: true"]::after {
+    display: none;
+}
+
 /*this is the jim nantz message formatting i want for all the other bots */
 .bot-message .message-content {
     background: #d4edda;
@@ -1766,6 +1771,11 @@ body, html {
     border-left: 0;
     border-bottom: 0;
     margin-bottom: 0;
+}
+
+/* Hide bubble pointer for GIF-only messages */
+.bot-message .message-content[style*="--hide-pointer: true"]::after {
+    display: none;
 }
 
 .bot-name {
@@ -2018,6 +2028,18 @@ body, html {
 .chat-image:hover {
     transform: scale(1.05);
     cursor: pointer;
+}
+
+/* Text styling when images are present */
+.message-content[style*="background: transparent"] div {
+    background: #d4edda;
+    color: #155724;
+    border-radius: 18px;
+    padding: 8px 12px;
+    display: inline-block;
+    max-width: 85%;
+    word-wrap: break-word;
+    margin: 4px 0;
 }
 
 /*  */
