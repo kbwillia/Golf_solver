@@ -1607,6 +1607,7 @@ body, html {
     flex-shrink: 0; /* Don't allow it to shrink - keep it at bottom */
     transition: height 0.3s ease; /* Smooth transition when height changes */
     margin-top: auto; /* Push to bottom */
+    position: relative;
 }
 
 /* Chatbot panel will be dynamically resized via JavaScript */
@@ -1815,7 +1816,7 @@ body, html {
 }
 
 .chat-send-btn {
-    padding: 8px 16px;
+    padding: 6px 0px;
     background: #0b501b;
     /*rgba(11, 80, 27, 1) same as above*/
     color: white;
@@ -1832,7 +1833,7 @@ body, html {
 }
 
 .chat-send-btn:hover {
-    background: #1e7e34;
+    background: #2e7d32;    /* Slightly lighter on hover */
 }
 
 
@@ -2044,3 +2045,49 @@ body, html {
 }
 
 /*  */
+
+#gifModal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 25px; /* Height of input row + a little gap */
+  margin: 0 auto;
+  /* background: rgba(255,255,255,0.05); */
+  /* background: rgba(230, 249, 230, 0.05) !important; */
+
+  /* border: 2px solid #0b501b; */
+  border-radius: 10px;
+  padding: 18px 18px 12px 4px; /*top right bottom left*/
+  z-index: 1000;
+  /* box-shadow: 0 4px 16px rgba(0,0,0,0.2); */
+  min-width: 320px;
+  min-height: 80px;
+  width: 90%; /* or 100% for full width of panel */
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.gif-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#gifSearchInput {
+  width: 120px;         /* or another value you like */
+  padding: 6px 10px;
+  border-radius: 6px;
+  /* border: 1px solid #ccc; */
+  font-size: 0.75em;
+  /* background: #e8f5e9; */
+  background: rgba(230, 249, 230, 0.75) !important;
+  color: #205c23;
+}
+
+#gifResults {
+  margin-top: 10px;
+  min-height: 40px;
+  overflow: hidden;
+  max-height: none; /* Remove any max-height that would cause scrolling */
+}

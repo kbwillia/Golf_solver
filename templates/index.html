@@ -112,6 +112,15 @@
                             <div class="chat-input-container">
                                 <input type="text" id="chatInput" placeholder="Ask me about the game..." class="chat-input">
                                 <button id="sendChatBtn" class="chat-send-btn">Send it</button>
+                                <button id="sendGifBtn" class="chat-send-btn">GIF</button>
+                            </div>
+                            <!-- GIF Search Modal moved here -->
+                            <div id="gifModal" style="display:none;">
+                              <div id="gifResults"></div>
+                              <div class="gif-modal-row">
+                                <input id="gifSearchInput" type="text" placeholder="Search GIFs...">
+                                <button id="closeGifModal" class="chat-send-btn">Close</button>
+                              </div>
                             </div>
                         </div>
                     </div>
@@ -189,5 +198,7 @@
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
     <script src="/static/js/golf.js"></script>
     <audio id="golfClapAudio" src="/static/sounds/golf_clap.mp3" preload="auto"></audio>
+
+
 </body>
 </html>

@@ -603,7 +603,7 @@ function updateGameDisplay() {
             if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
             proactiveCommentTimeout = setTimeout(() => {
                 const now = Date.now();
-                if (now - lastNantzCommentTime > 4000) { // 4s cooldown
+                if (now - lastNantzCommentTime > 400000) { // 4s cooldown
                     console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
                     lastNantzCommentTime = now;
@@ -2879,7 +2879,7 @@ function startPeriodicProactiveComments() {
             const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
             requestProactiveComment(randomEvent);
         }
-    }, 30000 + Math.random() * 30000); // 30-60 seconds
+    }, 30000 + Math.random() * 3000000); // 30-60 seconds og
 }
 
 // Also initialize chatbot when game board is shown
@@ -3258,4 +3258,142 @@ function jimNantzCommentVoice(text) {
     }
   });
 }
+
+document.getElementById('sendGifBtn').addEventListener('click', function() {
+  document.getElementById('gifModal').style.display = 'block';
+  var gifInput = document.getElementById('gifSearchInput');
+  if (gifInput && !gifInput._listenerAttached) {
+    gifInput.addEventListener('keydown', async function(e) {
+      console.log('Key pressed:', e.key);
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const searchTerm = e.target.value;
+        const response = await fetch('/chatbot/get_giphy_gif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+        });
+        const data = await response.json();
+        const gifResults = document.getElementById('gifResults');
+        gifResults.innerHTML = '';
+        if (data.success && data.gif_url) {
+          const img = document.createElement('img');
+          img.src = data.gif_url;
+          img.style.maxWidth = '150px';
+          img.style.cursor = 'pointer';
+          img.onclick = function() {
+            sendUserGifToChat(data.gif_url);
+            document.getElementById('gifModal').style.display = 'none';
+          };
+          gifResults.appendChild(img);
+        } else {
+          gifResults.textContent = 'No GIF found.';
+        }
+      }
+    });
+    gifInput._listenerAttached = true; // Prevent duplicate listeners
+  }
+});
+
+document.getElementById('closeGifModal').addEventListener('click', function() {
+  document.getElementById('gifModal').style.display = 'none';
+});
+
+document.getElementById('gifSearchBtn').addEventListener('click', async function() {
+  const searchTerm = document.getElementById('gifSearchInput').value;
+  const response = await fetch('/chatbot/get_giphy_gif', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+  });
+  const data = await response.json();
+  const gifResults = document.getElementById('gifResults');
+  gifResults.innerHTML = '';
+  if (data.success && data.gif_url) {
+    // For multiple GIFs, loop through data.gif_urls
+    const img = document.createElement('img');
+    img.src = data.gif_url;
+    img.style.maxWidth = '150px';
+    img.style.cursor = 'pointer';
+    img.onclick = function() {
+      sendUserGifToChat(data.gif_url);
+      document.getElementById('gifModal').style.display = 'none';
+    };
+    gifResults.appendChild(img);
+  } else {
+    gifResults.textContent = 'No GIF found.';
+  }
+});
+
+function sendUserGifToChat(gifUrl) {
+  // Add the GIF to the chat as a user GIF-only message
+  addMessageToChat('user', gifUrl, null, true);
+  // Optionally, send to backend if you want to persist or broadcast
+  // fetch('/chatbot/send_user_gif', { ... })
+}
+
+document.getElementById('gifSearchInput').addEventListener('keypress', async function(e) {
+  console.log('Key pressed:', e.key);
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const searchTerm = e.target.value;
+    const response = await fetch('/chatbot/get_giphy_gif', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+    });
+    const data = await response.json();
+    const gifResults = document.getElementById('gifResults');
+    gifResults.innerHTML = '';
+    if (data.success && data.gif_url) {
+      const img = document.createElement('img');
+      img.src = data.gif_url;
+      img.style.maxWidth = '150px';
+      img.style.cursor = 'pointer';
+      img.onclick = function() {
+        sendUserGifToChat(data.gif_url);
+        document.getElementById('gifModal').style.display = 'none';
+      };
+      gifResults.appendChild(img);
+    } else {
+      gifResults.textContent = 'No GIF found.';
+    }
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  var gifInput = document.getElementById('gifSearchInput');
+  if (gifInput) {
+    gifInput.addEventListener('keydown', async function(e) {
+      console.log('Key pressed:', e.key);
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const searchTerm = e.target.value;
+        const response = await fetch('/chatbot/get_giphy_gif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: searchTerm, bot_name: 'user' })
+        });
+        const data = await response.json();
+        const gifResults = document.getElementById('gifResults');
+        gifResults.innerHTML = '';
+        if (data.success && data.gif_url) {
+          const img = document.createElement('img');
+          img.src = data.gif_url;
+          img.style.maxWidth = '150px';
+          img.style.cursor = 'pointer';
+          img.onclick = function() {
+            sendUserGifToChat(data.gif_url);
+            document.getElementById('gifModal').style.display = 'none';
+          };
+          gifResults.appendChild(img);
+        } else {
+          gifResults.textContent = 'No GIF found.';
+        }
+      }
+    });
+  } else {
+    console.log('gifSearchInput not found!');
+  }
+});
 
