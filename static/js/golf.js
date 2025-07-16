@@ -176,6 +176,12 @@ function clearCelebration() {
         youWonMessage.remove();
     }
 
+    // Reset header positioning
+    const header = document.querySelector('.header');
+    if (header) {
+        header.style.position = '';
+    }
+
     // Reset header title to original (in case it was modified)
     if (headerTitle) {
         headerTitle.innerHTML = '🏌️ Golf Card Game';
@@ -235,16 +241,20 @@ function showCelebrationGif() {
                 animation: pulse 1.5s infinite;
                 text-align: center;
                 white-space: nowrap;
+                position: absolute;
+                left: 35%;
+                top: 0%;
+                transform: translate(-50%, -50%);
+                z-index: 1000;
+
             `;
             youWonMessage.innerHTML = '🎉 You Won! 🎉';
 
-            // Insert between title and buttons
-            const headerButtons = document.getElementById('headerButtons');
-            if (headerButtons) {
-                header.insertBefore(youWonMessage, headerButtons);
-            } else {
-                header.appendChild(youWonMessage);
-            }
+            // Make header relative positioned to contain the absolute positioned message
+            header.style.position = 'relative';
+
+            // Insert the message into the header
+            header.appendChild(youWonMessage);
         }
     }
 }
