@@ -3098,64 +3098,7 @@ if (speechSynthesis) {
     loadVoices();
 }
 
-// Function to speak text with Jim Nantz voice using ElevenLabs
-async function speakJimNantzElevenLabs(text) {
-    if (!elevenLabsApiKey) {
-        console.log('❌ ElevenLabs API key not set');
-        return;
-    }
 
-    if (!speechSynthesis) {
-        console.log('Speech synthesis not supported');
-        return;
-    }
-
-    // Cancel any ongoing speech
-    speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-
-        // Try to find a male voice that sounds good for Jim Nantz
-    const voices = speechSynthesis.getVoices();
-    console.log('Available voices for Jim Nantz:', voices.length);
-
-    const preferredVoices = ['Google UK English Male', 'Microsoft David - English (United States)', 'Alex'];
-
-    let selectedVoice = null;
-
-    // Try to find a preferred voice
-    for (const voiceName of preferredVoices) {
-        selectedVoice = voices.find(voice => voice.name === voiceName);
-        if (selectedVoice) break;
-    }
-
-    // If no preferred voice found, use the first available male voice
-    if (!selectedVoice) {
-        selectedVoice = voices.find(voice => voice.lang.startsWith('en') && voice.name.toLowerCase().includes('male'));
-    }
-
-    // If still no voice found, use the first available voice
-    if (!selectedVoice && voices.length > 0) {
-        selectedVoice = voices[0];
-    }
-
-    if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        console.log('Using voice:', selectedVoice.name, 'Language:', selectedVoice.lang, 'Default:', selectedVoice.default);
-    } else {
-        console.log('No voice selected, using browser default');
-    }
-
-    // Configure Jim Nantz voice settings
-    utterance.rate = 0.9; // Slightly slower for that smooth commentator feel
-    utterance.pitch = 0.8; // Slightly lower pitch for Jim's voice
-    utterance.volume = 0.8; // Good volume level
-
-    // Speak the commentary
-    speechSynthesis.speak(utterance);
-
-    console.log('🎙️ Jim Nantz speaking:', text);
-}
 
 // Test function to manually test Jim Nantz voice
 function testJimNantzVoice() {
@@ -3252,7 +3195,7 @@ async function requestProactiveComment(eventType = 'general') {
 
             // If this is Jim Nantz, speak the commentary
             if (comment.bot_name === 'Jim Nantz' || comment.bot_name === 'jim_nantz') {
-                speakJimNantzCommentary(comment.message);
+                jimNantzCommentVoice(comment.message);
             }
 
             // Send GIF as a separate message if needed
@@ -3282,11 +3225,28 @@ fetch('/api/tts', {
   }
 });
 
-document.getElementById('tts-btn').addEventListener('click', function() {
+// document.getElementById('tts-btn').addEventListener('click', function() {
+//   fetch('/api/tts', {
+//     method: 'POST',
+//     headers: {'Content-Type': 'application/json'},
+//     body: JSON.stringify({text: "Hello Friends!"})
+//   })
+//   .then(response => response.json())
+//   .then(data => {
+//     if (data.audio_url) {
+//       const audio = new Audio(data.audio_url);
+//       audio.play();
+//     } else {
+//       alert("TTS failed");
+//     }
+//   });
+// });
+
+function jimNantzCommentVoice(text) {
   fetch('/api/tts', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text: "Hello Friends!"})
+    body: JSON.stringify({text: text})
   })
   .then(response => response.json())
   .then(data => {
@@ -3297,5 +3257,5 @@ document.getElementById('tts-btn').addEventListener('click', function() {
       alert("TTS failed");
     }
   });
-});
+}
 
