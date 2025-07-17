@@ -2363,6 +2363,194 @@ function parseMentions(message) {
     return mentions;
 }
 
+// Setup autocomplete for chat input
+function setupAutocomplete(chatInput) {
+    const suggestions = ['@golfbro', '@golfpro'];
+    let currentSuggestions = [];
+    let selectedIndex = -1;
+
+    // Create autocomplete dropdown
+    const dropdown = document.createElement('div');
+    dropdown.className = 'autocomplete-dropdown';
+    dropdown.style.cssText = `
+        position: absolute;
+        background: rgba(11, 80, 27, 0.9);
+        border: 1px solid rgba(11, 80, 27, 0.8);
+        max-height: 50px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-size: 0.9em;
+        padding: 0;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        margin-bottom: 5px;
+    `;
+
+    // Make chat input container relative positioned
+    const chatInputContainer = chatInput.parentNode;
+    chatInputContainer.style.position = 'relative';
+
+    // Insert dropdown inside the chat input container
+    chatInputContainer.appendChild(dropdown);
+
+    chatInput.addEventListener('input', function(e) {
+        const value = e.target.value;
+        const cursorPosition = e.target.selectionStart;
+
+        // Find the word being typed (from @ to cursor position)
+        const beforeCursor = value.substring(0, cursorPosition);
+        const match = beforeCursor.match(/@(\w*)$/);
+
+        if (match) {
+            const partial = match[1].toLowerCase();
+            currentSuggestions = suggestions.filter(suggestion =>
+                suggestion.toLowerCase().startsWith('@' + partial)
+            );
+
+            if (currentSuggestions.length > 0) {
+                showSuggestions(currentSuggestions);
+            } else {
+                hideSuggestions();
+            }
+        } else {
+            hideSuggestions();
+        }
+    });
+
+    chatInput.addEventListener('keydown', function(e) {
+        if (dropdown.style.display === 'block') {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, currentSuggestions.length - 1);
+                updateSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                selectSuggestion(currentSuggestions[selectedIndex]);
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                if (selectedIndex >= 0) {
+                    selectSuggestion(currentSuggestions[selectedIndex]);
+                } else if (currentSuggestions.length === 1) {
+                    // If there's only one suggestion, auto-select it
+                    selectSuggestion(currentSuggestions[0]);
+                } else if (currentSuggestions.length > 1) {
+                    // If multiple suggestions, select the first one
+                    selectedIndex = 0;
+                    updateSelection();
+                }
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        }
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!chatInput.contains(e.target) && !dropdown.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+
+    function showSuggestions(suggestions) {
+        dropdown.innerHTML = '';
+                suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.textContent = suggestion;
+            item.style.cssText = `
+                padding: 2px 6px;
+                cursor: pointer;
+                border-bottom: ${index < suggestions.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'};
+                color: white;
+                font-size: 1em;
+                line-height: 1.2;
+            `;
+
+            item.addEventListener('click', () => selectSuggestion(suggestion));
+            item.addEventListener('mouseenter', () => {
+                selectedIndex = index;
+                updateSelection();
+            });
+
+            dropdown.appendChild(item);
+        });
+
+        // Position dropdown above input using relative positioning
+        dropdown.style.display = 'block';
+
+        // Calculate width based on the longest suggestion
+        const tempSpan = document.createElement('span');
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.fontSize = '1em';
+        tempSpan.style.fontFamily = getComputedStyle(chatInput).fontFamily;
+        document.body.appendChild(tempSpan);
+
+        let maxWidth = 0;
+        suggestions.forEach(suggestion => {
+            tempSpan.textContent = suggestion;
+            maxWidth = Math.max(maxWidth, tempSpan.offsetWidth);
+        });
+        document.body.removeChild(tempSpan);
+
+        // Add a little padding, and set min/max width
+        const finalWidth = Math.max(70, Math.min(maxWidth + 24, 140)); // px
+        dropdown.style.width = finalWidth + 'px';
+
+        selectedIndex = -1;
+    }
+
+    function hideSuggestions() {
+        dropdown.style.display = 'none';
+        selectedIndex = -1;
+    }
+
+    function updateSelection() {
+        const items = dropdown.querySelectorAll('.autocomplete-item');
+        items.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                item.style.color = 'white';
+                item.style.fontWeight = 'bold';
+            } else {
+                item.style.backgroundColor = 'transparent';
+                item.style.color = 'white';
+                item.style.fontWeight = 'normal';
+            }
+        });
+    }
+
+    function selectSuggestion(suggestion) {
+        const value = chatInput.value;
+        const cursorPosition = chatInput.selectionStart;
+
+        // Find the @ symbol position
+        const beforeCursor = value.substring(0, cursorPosition);
+        const atIndex = beforeCursor.lastIndexOf('@');
+
+        if (atIndex !== -1) {
+            // Replace from @ to cursor with the suggestion
+            const newValue = value.substring(0, atIndex) + suggestion + value.substring(cursorPosition);
+            chatInput.value = newValue;
+
+            // Set cursor position after the suggestion
+            const newCursorPosition = atIndex + suggestion.length;
+            chatInput.setSelectionRange(newCursorPosition, newCursorPosition);
+        }
+
+        hideSuggestions();
+        chatInput.focus();
+    }
+}
+
 // Initialize chatbot functionality
 function initializeChatbot() {
     proactiveCommentSent = false;
@@ -2397,6 +2585,9 @@ function initializeChatbot() {
             e.preventDefault();
             sendChatMessage();
         });
+
+        // Add autocomplete functionality
+        setupAutocomplete(chatInput);
 
         console.log('✅ Chat event listeners set up');
     } else {
@@ -3265,6 +3456,10 @@ function jimNantzCommentVoice(text) {
 document.getElementById('sendGifBtn').addEventListener('click', function() {
   document.getElementById('gifModal').style.display = 'block';
   var gifInput = document.getElementById('gifSearchInput');
+  // Focus the GIF search input after a short delay to ensure modal is visible
+  setTimeout(() => {
+    if (gifInput) gifInput.focus();
+  }, 100);
   if (gifInput && !gifInput._listenerAttached) {
     gifInput.addEventListener('keydown', async function(e) {
       console.log('Key pressed:', e.key);
