@@ -248,7 +248,7 @@ class TigerWoodsBot(BaseBot):
             "enthusiasm": 0.4,  # Calm and composed
             "humor_level": 0.1,  # Very serious
             "advice_frequency": 0.7,  # Frequent strategic advice
-            "reaction_speed": 0.6  # Thoughtful responses
+            "reaction_speed": 2.6  # Thoughtful responses
         })
 
     def get_system_prompt(self) -> str:

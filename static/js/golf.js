@@ -2716,6 +2716,61 @@ async function sendChatMessage() {
                         addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
                     }
                 }
+            } else if (data.response_type === 'sequential' && data.bot_names) {
+                // Handle sequential responses - get each bot's response individually
+                console.log('🔄 Handling sequential responses for bots:', data.bot_names);
+
+                // Track conversation context for subsequent bots
+                let conversationContext = [
+                    { role: 'user', content: message }
+                ];
+
+                for (const botName of data.bot_names) {
+                    try {
+                        console.log(`🤖 Getting response from ${botName}...`);
+
+                        const botResponse = await fetch('/chatbot/get_bot_response', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                game_id: gameId,
+                                message: message,
+                                bot_name: botName,
+                                conversation_context: conversationContext
+                            })
+                        });
+
+                        if (botResponse.ok) {
+                            const botData = await botResponse.json();
+                            if (botData.success) {
+                                // Add the text message
+                                addMessageToChat('bot', botData.message, botData.bot_name);
+
+                                // Add this bot's response to conversation context for next bots
+                                conversationContext.push({
+                                    role: 'assistant',
+                                    content: `${botData.bot_name}: ${botData.message}`
+                                });
+
+                                // Send GIF as a separate message if needed
+                                if (shouldSendGif()) {
+                                    const searchTerms = extractSearchTerms(botData.message, botData.bot_name);
+                                    const relevantGif = await getRelevantGif(searchTerms, botData.bot_name);
+                                    addMessageToChat('bot', relevantGif, botData.bot_name, true);
+                                }
+                            } else {
+                                console.error(`❌ Bot ${botName} failed:`, botData.message);
+                                addMessageToChat('bot', `Sorry, ${botName} is having trouble responding.`, botName);
+                            }
+                        } else {
+                            console.error(`❌ HTTP error for ${botName}:`, botResponse.status);
+                            addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
+                        }
+                    } catch (error) {
+                        console.error(`❌ Error getting response from ${botName}:`, error);
+                        addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
+                    }
+                }
             } else if (data.message) {
                 // Try both bot and bot_name fields to handle different response formats
                 const botName = data.bot || data.bot_name;
@@ -3294,21 +3349,6 @@ if (speechSynthesis) {
 
 
 
-// Test function to manually test Jim Nantz voice
-function testJimNantzVoice() {
-    const testText = "Hello everyone, this is Jim Nantz bringing you live coverage of this exciting golf card game. What a beautiful day for golf!";
-    console.log('🧪 Testing Jim Nantz voice with:', testText);
-
-    // Check current voice status
-    const voices = speechSynthesis.getVoices();
-    console.log('🧪 Current available voices:', voices.length);
-    voices.forEach((voice, index) => {
-        console.log(`🧪 Voice ${index}:`, voice.name, voice.lang, voice.default ? '(DEFAULT)' : '');
-    });
-
-    speakJimNantzCommentary(testText);
-}
-
 // Toggle voice system on/off
 function toggleVoiceSystem() {
     voiceEnabled = !voiceEnabled;
@@ -3403,21 +3443,21 @@ async function requestProactiveComment(eventType = 'general') {
     }
 }
 
-//geting tts from topmediai api and playing it
-fetch('/api/tts', {
-  method: 'POST',
-  headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({text: "Hello Friends!"})
-})
-.then(response => response.json())
-.then(data => {
-  if (data.audio_url) {
-    const audio = new Audio(data.audio_url);
-    audio.play();
-  } else {
-    alert("TTS failed");
-  }
-});
+//geting tts from topmediai api and playing it. activate this later. TODO
+// fetch('/api/tts', {
+//   method: 'POST',
+//   headers: {'Content-Type': 'application/json'},
+//   body: JSON.stringify({text: "Hello Friends!"})
+// })
+// .then(response => response.json())
+// .then(data => {
+//   if (data.audio_url) {
+//     const audio = new Audio(data.audio_url);
+//     audio.play();
+//   } else {
+//     alert("TTS failed");
+//   }
+// });
 
 // document.getElementById('tts-btn').addEventListener('click', function() {
 //   fetch('/api/tts', {
