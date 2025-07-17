@@ -2646,6 +2646,11 @@ async function sendChatMessage() {
     chatInput.value = '';
     console.log('Message after clearing input:', chatInput.value);
 
+    // Re-enable input immediately so user can type while bots respond
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+
     try {
         console.log('🌐 Making API request to /chatbot/send_message');
 
@@ -2925,6 +2930,19 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
 
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Always keep focus on chat input unless GIF modal/search is open/focused
+    setTimeout(() => {
+        const gifModal = document.getElementById('gifModal');
+        const gifInput = document.getElementById('gifSearchInput');
+        const chatInput = document.getElementById('chatInput');
+        // If GIF modal is not visible or GIF input is not focused, focus chat input
+        const gifModalOpen = gifModal && gifModal.style.display !== 'none' && gifModal.style.display !== '';
+        const gifInputFocused = gifInput && document.activeElement === gifInput;
+        if (!gifModalOpen || !gifInputFocused) {
+            if (chatInput) chatInput.focus();
+        }
+    }, 10);
 }
 
 // Random threshold function for GIF triggers (placeholder for future event-based system)
@@ -3160,6 +3178,15 @@ try {
         await originalStartGame();
         console.log('🎮 Game started - re-initializing chatbot');
         setTimeout(initializeChatbot, 100);
+
+        // Focus chat input when game starts
+        setTimeout(() => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.focus();
+                console.log('🎯 Chat input focused on game start');
+            }
+        }, 200);
     };
 } catch (error) {
     console.error('❌ Error setting up startGame override:', error);
