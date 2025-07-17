@@ -9,7 +9,7 @@ import uuid
 import json
 import random
 from game import GolfGame
-from probabilities import get_probabilities
+from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
 from chatbot import chatbot
 import time
 import logging
@@ -380,6 +380,15 @@ def get_game_state(game_id):
     # Probabilities/statistics from probabilities.py
     probabilities = get_probabilities(game)
 
+    # Add deck counts (public cards only)
+    deck_counts = get_deck_counts(game)
+
+    # Calculate expected value analysis for current player only
+    current_player_ev_analysis = None
+    if not game_session['game_over'] and game.turn < len(game.players):
+        current_player = game.players[game.turn]
+        current_player_ev_analysis = expected_value_draw_vs_discard(game, current_player)
+
     # Add cumulative scores and match info
     cumulative_scores = game_session.get('cumulative_scores')
     current_game = game_session.get('current_game', 1)
@@ -414,6 +423,8 @@ def get_game_state(game_id):
         'winner': winner,
         'mode': game_session['mode'],
         'probabilities': probabilities,
+        'dictionary_of_cards_left_in_deck': deck_counts,
+        'current_player_ev_analysis': current_player_ev_analysis,
         'ai_thinking': game_session.get('ai_thinking', False),
         'cumulative_scores': display_cumulative_scores,
         'current_game': current_game,

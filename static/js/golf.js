@@ -2857,6 +2857,10 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
         contentDiv.style.position = 'relative';
         contentDiv.style.setProperty('--hide-pointer', 'true');
 
+        // Add onload handler to scroll after GIF loads
+        imgElement.onload = function() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
     } else if (imageMatch) {
         // Mixed text and image message (legacy case)
         const imageUrl = imageMatch[1];
@@ -2881,6 +2885,10 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
         imgElement.style.borderRadius = '8px';
         imgElement.style.marginTop = '8px';
         imgElement.style.marginBottom = '8px';
+        // Add onload handler to scroll after image loads
+        imgElement.onload = function() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
         contentDiv.appendChild(imgElement);
 
         if (textAfter) {

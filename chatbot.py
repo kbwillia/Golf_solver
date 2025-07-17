@@ -12,7 +12,7 @@ class GolfChatbot:
         self.bot_type = bot_type
         self.current_bot = create_bot(bot_type)  # Create bot instance
         self.base_prompt = (
-            "Respond in 2 sentences or less. Be concise and clear. Limit your answer to 200 characters."
+            "CRITICAL: Keep your response to 2 sentences maximum and under 150 characters total.Be extremely concise and direct. This is a chat environment, not an essay.         If your response is too long, it will be truncated."
         )
 
         # Load rules once
@@ -183,6 +183,14 @@ class GolfChatbot:
             # Clean up the response
             if response.startswith(f"{bot_info['name']}:"):
                 response = response[len(f"{bot_info['name']}:"):].strip()
+
+            # Enforce character limit (150 characters)
+            if len(response) > 150:
+                response = response[:147] + "..."
+
+            # Ensure response ends with proper punctuation
+            if response and not response[-1] in '.!?:':
+                response += "."
 
             # Store in conversation history
             if not proactive:
