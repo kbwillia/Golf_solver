@@ -971,6 +971,7 @@ async function drawFromDeck() {
 }
 
 function showDrawnCardArea(card) {
+    playCardFlipSound();
     drawnCardData = card;
     const area = document.getElementById('drawnCardArea');
     const display = document.getElementById('drawnCardDisplay');
@@ -1362,6 +1363,7 @@ function handleDropOnGrid(pos) {
         humanDrawnCardPosition = pos;
         humanDiscardAction = 'draw_keep';
 
+        playCardFlipSound();
         // NO animation for drawn card->grid, but we want grid->discard animation
         // We'll handle the animation in the backend response processing
         executeAction(pos, 'draw_keep');
@@ -1386,6 +1388,7 @@ function handleDropOnGrid(pos) {
     humanDiscardPosition = pos;
     humanDiscardAction = 'take_discard';
 
+    playCardFlipSound();
     // NO animation for discard->grid, but we want grid->discard animation
     // We'll handle the animation in the backend response processing
     executeAction(pos, 'take_discard');
@@ -3778,7 +3781,11 @@ function playCardShuffleSound() {
 }
 
 function playCardFlipSound() {
-    const audio = document.getElementById('cardFlipAudio');
+    const audios = [
+        document.getElementById('cardFlipAudio'),
+        document.getElementById('cardFlipAudio2')
+    ];
+    const audio = audios[Math.floor(Math.random() * audios.length)];
     if (audio) {
         audio.currentTime = 0;
         audio.play();

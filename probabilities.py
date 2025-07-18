@@ -1,4 +1,5 @@
 from collections import Counter
+import random
 
 def get_deck_counts(game):
     """Return a dict of rank -> count for cards that could still be in the deck (unknown cards)."""
@@ -453,4 +454,50 @@ def average_score_of_deck(game):
     deck = game.deck
     # get the average score of the deck
     return sum(card.score() for card in deck) / len(deck)
+
+def win_probabilities(game, n_simulations=1000):
+    """Estimate win probability for each player by simulating the rest of the game with random draws."""
+    from copy import deepcopy
+    from models import Card
+    n_players = len(game.players)
+    win_counts = [0] * n_players
+
+    # Use private deck counts for available cards
+    private_deck_counts = get_private_deck_counts(game)
+    available_cards = []
+    for rank, count in private_deck_counts.items():
+        for _ in range(count):
+            # Use all suits for each rank, but only as many as count
+            # For simulation, suit doesn't matter, so just use 'S'
+            available_cards.append(Card(rank, 'S'))
+
+    for _ in range(n_simulations):
+        sim_game = deepcopy(game)
+        # Find all unknown positions
+        unknowns = []
+        for p_idx, player in enumerate(sim_game.players):
+            for i, card in enumerate(player.grid):
+                if card and not (player.known[i] or (hasattr(player, 'privately_visible') and player.privately_visible[i])):
+                    unknowns.append((p_idx, i))
+                elif not card:
+                    unknowns.append((p_idx, i))
+        # Shuffle and assign available cards
+        cards_to_assign = available_cards.copy()
+        random.shuffle(cards_to_assign)
+        for (p_idx, i), card in zip(unknowns, cards_to_assign):
+            sim_game.players[p_idx].grid[i] = card
+            sim_game.players[p_idx].known[i] = True
+        # Reveal all cards for scoring
+        for player in sim_game.players:
+            player.known = [True] * 4
+        # Calculate scores
+        scores = [sim_game.calculate_score(p.grid) for p in sim_game.players]
+        min_score = min(scores)
+        winners = [i for i, s in enumerate(scores) if s == min_score]
+        for w in winners:
+            win_counts[w] += 1 / len(winners)  # Split win if tie
+    total = sum(win_counts)
+    if total == 0:
+        return [1.0 / n_players] * n_players
+    return [c / total for c in win_counts]
 

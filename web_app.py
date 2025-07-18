@@ -29,7 +29,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 0.5  # seconds
+AI_TURN_DELAY = 2 #0.5  # seconds
 
 # Add this mapping somewhere in your backend
 BOT_PERSONALITIES = {
