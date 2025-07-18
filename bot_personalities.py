@@ -46,7 +46,14 @@ class BaseBot(ABC):
             "enthusiasm": 0.5,  # 0-1 scale (calm to excited)
             "humor_level": 0.3,  # 0-1 scale (serious to funny)
             "advice_frequency": 0.4,  # 0-1 scale (rare to frequent advice)
-            "reaction_speed": 0.5  # 0-1 scale (slow to fast responses)
+            "reaction_speed": 0.5,  # 0-1 scale (slow to fast responses)
+            "message_splitting": 0.3  # 0-1 scale (never split to always split longer messages)
+        }
+
+        # GIF configuration
+        self.gif_config = {
+            "enabled": True,
+            "frequency": 0.25  # How often to send GIFs (0 scale)
         }
 
         # Comment tracking
@@ -219,6 +226,14 @@ class BaseBot(ABC):
 
         return style_context
 
+    def should_send_gif(self) -> bool:
+        """Check if this bot should send a GIF"""
+        if not self.gif_config["enabled"]:
+            return False
+
+        # Use the frequency setting to determine if a GIF should be sent
+        return random.random() < self.gif_config["frequency"]
+
 
 class TigerWoodsBot(BaseBot):
     """Tiger Woods - Confident, strategic, legendary golfer"""
@@ -248,7 +263,8 @@ class TigerWoodsBot(BaseBot):
             "enthusiasm": 0.4,  # Calm and composed
             "humor_level": 0.1,  # Very serious
             "advice_frequency": 0.7,  # Frequent strategic advice
-            "reaction_speed": 2.6  # Thoughtful responses
+            "reaction_speed": 2.6,  # Thoughtful responses
+            "message_splitting": 0.6  # Ten split messages for impact
         })
 
     def get_system_prompt(self) -> str:
@@ -256,7 +272,8 @@ class TigerWoodsBot(BaseBot):
             "You are Tiger Woods, the legendary golfer. You're confident, strategic, and have a deep understanding of the game. "
             "Use phrases like 'I've been in this position before', 'It's all about course management', 'You have to trust your swing'. "
             "Be slightly cocky but in a justified way - you've earned it. Reference your major championships, your mental game, and your competitive drive. "
-            "Give strategic advice with authority. CRITICAL: Keep responses to 1-2 sentences maximum, under 150 characters total."
+            "Give strategic advice with authority. CRITICAL: Keep responses to 1-2 sentences maximum, under 150 characters total. "
+            "If you have multiple thoughts, consider splitting them into separate messages for greater impact."
         )
 
     def get_catchphrases(self) -> List[str]:
@@ -327,7 +344,8 @@ class HappyGilmoreBot(BaseBot):
             "enthusiasm": 0.9,  # Very enthusiastic
             "humor_level": 0.8,  # Very funny
             "advice_frequency": 0.3,  # Less strategic advice, more entertainment
-            "reaction_speed": 0.8  # Quick, excited responses
+            "reaction_speed": 0.8,  # Quick, excited responses
+            "message_splitting": 0.8  # Very likely to split enthusiastic thoughts
         })
 
     def get_system_prompt(self) -> str:
@@ -336,7 +354,8 @@ class HappyGilmoreBot(BaseBot):
             "Use iconic quotes like 'It's all in the hips', 'You eat pieces of shit for breakfast?', 'The price is wrong, bob!'. "
             "Reference your hockey background, your grandma, and your rivalry with Shooter McGavin. "
             "Be enthusiastic, slightly crude but lovable, and always mention how much you love golf now. "
-            "Use hockey analogies for golf. Keep responses under 2 sentences and 200 characters."
+            "Use hockey analogies for golf. Keep responses under 2 sentences and 200 characters. "
+            "Your enthusiasm often leads to multiple thoughts - feel free to split them into separate messages for maximum impact!"
         )
 
     def get_catchphrases(self) -> List[str]:
@@ -509,10 +528,16 @@ class GolfBroBot(BaseBot):
             "A fun and entertaining golf buddy who makes jokes and keeps spirits high"
         )
 
+        # Golf Bro is casual and likely to split messages
+        self.response_config.update({
+            "message_splitting": 0.7  # Likely to split casual thoughts
+        })
+
     def get_system_prompt(self) -> str:
         return (
             "You are Golf Bro. You provide advice with humor, make jokes about the game, and keep the player entertained. "
-            "Be witty, encouraging, and make the game more enjoyable. Use phrases like 'Bro, that was epic!', 'Keep it chill, it's just a game!', and 'Let's go, golf squad!'."
+            "Be witty, encouraging, and make the game more enjoyable. Use phrases like 'Bro, that was epic!', 'Keep it chill, it's just a game!', and 'Let's go, golf squad!'. "
+            "Keep responses casual and friendly. If you have multiple thoughts or reactions, feel free to split them into separate messages for a more natural conversation flow."
         )
 
     def get_catchphrases(self) -> list:
@@ -534,10 +559,19 @@ class GolfProBot(BaseBot):
             "A competitive professional golfer who gives tactical advice"
         )
 
+        # Golf Pro is tactical and may split focused advice
+        self.response_config.update({
+            "message_splitting": 0.5  # Moderate splitting for tactical focus
+        })
+
+        # Golf Pro does not send GIFs
+        self.gif_config["enabled"] = False
+
     def get_system_prompt(self) -> str:
         return (
             "You are Golf Pro. You provide tactical advice, analyze game situations, and help players think strategically. "
-            "Be confident, analytical, and focus on winning strategies. Use phrases like 'Focus on your swing.', 'Every shot counts.', and 'Let's play smart.'"
+            "Be confident, analytical, and focus on winning strategies. Use phrases like 'Focus on your swing.', 'Every shot counts.', and 'Let's play smart.' "
+            "Keep advice focused and actionable. If you have multiple tactical points, consider splitting them into separate focused messages for clarity."
         )
 
     def get_catchphrases(self) -> list:

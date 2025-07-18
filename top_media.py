@@ -18,7 +18,7 @@ api_key = "6445fed100b649c59a84fc001042c6c5"
 
 
 url = "https://api.topmediai.com/v1/text2speech"
-text = "Hello friends, a bit of a surprise from Peter Parker as he drew the Ace of Hearts and discarded it. A bold move, one that may give his opponent an opening, but it's a crucial card to expose, just the kind of decision that adds another layer to the Masters of this deck."
+text = "Hello"
 
 speaker = "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a"
 emotion = "Friendly"
@@ -37,6 +37,16 @@ response = requests.request("POST", url, json=payload, headers=headers)
 
 print(response.text)
 
+
+import requests
+
+url = "https://api.topmediai.com/v1/get_api_key_info"
+
+headers = {"x-api-key": "6445fed100b649c59a84fc001042c6c5"}
+
+response = requests.request("GET", url, headers=headers)
+
+print('get key info',response.text)
 # # Parse the response and download the audio if successful
 # result = response.json()
 # if result.get("status") == 200 and "oss_url" in result.get("data", {}):

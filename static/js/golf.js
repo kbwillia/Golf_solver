@@ -377,6 +377,7 @@ async function startGame() {
 
     // After the game board is shown and chat is cleared:
     setJimNantzDefault();
+    playCardShuffleSound();
 }
 
 async function refreshGameState() {
@@ -1395,6 +1396,7 @@ function flipDrawnCardOnGrid(pos) {
     // Only allow if the position is not public
     const card = currentGameState.players[0].grid[pos];
     if (!card || card.public) return;
+    playCardFlipSound();
     // 1. Get the card element and discard pile element
     const cardElem = document.querySelector(`.player-grid.current-turn .card[data-position="${pos}"]`);
     const discardElem = document.getElementById('discardCard');
@@ -2082,6 +2084,7 @@ async function nextGame() {
         console.error('Error starting next game:', error);
         alert('Error starting next game. Please try again.');
     }
+    playCardShuffleSound();
 }
 
 // Add a helper to start a game with specific settings
@@ -2714,7 +2717,7 @@ async function sendChatMessage() {
                     addMessageToChat('bot', message, botName);
 
                     // Send GIF as a separate message if needed
-                    if (shouldSendGif()) {
+                    if (shouldBotSendGif(botName)) {
                         // Extract relevant search terms from the message
                         const searchTerms = extractSearchTerms(message, botName);
                         const relevantGif = await getRelevantGif(searchTerms, botName);
@@ -2734,6 +2737,10 @@ async function sendChatMessage() {
                     try {
                         console.log(`🤖 Getting response from ${botName}...`);
 
+                        // Add a typing indicator for a bot
+                        showBotTypingIndicator(botName);
+                        // Simulate delay based on bot's reaction speed (already implemented in backend)
+                        // Wait for the backend delay (no need to add extra delay here)
                         const botResponse = await fetch('/chatbot/get_bot_response', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -2744,6 +2751,8 @@ async function sendChatMessage() {
                                 conversation_context: conversationContext
                             })
                         });
+                        // Remove typing indicator before showing the real message
+                        removeBotTypingIndicator(botName);
 
                         if (botResponse.ok) {
                             const botData = await botResponse.json();
@@ -2758,7 +2767,7 @@ async function sendChatMessage() {
                                 });
 
                                 // Send GIF as a separate message if needed
-                                if (shouldSendGif()) {
+                                if (await shouldBotSendGif(botData.bot_name)) {
                                     const searchTerms = extractSearchTerms(botData.message, botData.bot_name);
                                     const relevantGif = await getRelevantGif(searchTerms, botData.bot_name);
                                     addMessageToChat('bot', relevantGif, botData.bot_name, true);
@@ -2785,7 +2794,7 @@ async function sendChatMessage() {
                 addMessageToChat('bot', message, botName);
 
                 // Send GIF as a separate message if needed
-                if (shouldSendGif()) {
+                if (await shouldBotSendGif(botName)) {
                     // Extract relevant search terms from the message
                     const searchTerms = extractSearchTerms(message, botName);
                     const relevantGif = await getRelevantGif(searchTerms, botName);
@@ -3467,8 +3476,8 @@ async function requestProactiveComment(eventType = 'general') {
                 jimNantzCommentVoice(comment.message);
             }
 
-            // Prevent Jim Nantz from sending GIFs
-            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && shouldSendGif()) {
+            // Prevent Jim Nantz and Golf Pro from sending GIFs
+            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && comment.bot_name !== 'Golf Pro' && shouldSendGif()) {
                 // Extract relevant search terms from the message
                 const searchTerms = extractSearchTerms(comment.message, comment.bot_name);
                 const relevantGif = await getRelevantGif(searchTerms, comment.bot_name);
@@ -3720,3 +3729,58 @@ function updateChatParticipantsHeader() {
     chatParticipants.textContent = displayText;
 }
 
+// Add a typing indicator for a bot
+function showBotTypingIndicator(botName) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    // Remove any existing typing indicator for this bot
+    removeBotTypingIndicator(botName);
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message bot-message typing-indicator';
+    typingDiv.dataset.botName = botName;
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = `<span class="typing-bot-name">${botName}</span> is typing <span class="typing-dots">...</span>`;
+    typingDiv.appendChild(contentDiv);
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Remove the typing indicator for a bot
+function removeBotTypingIndicator(botName) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    const indicators = chatMessages.querySelectorAll('.typing-indicator');
+    indicators.forEach(div => {
+        if (div.dataset.botName === botName) {
+            div.remove();
+        }
+    });
+}
+
+// Check if a specific bot should send a GIF based on their personality
+function shouldBotSendGif(botName) {
+    // Prevent Jim Nantz and Golf Pro from sending GIFs
+    if (botName === 'Jim Nantz' || botName === 'jim_nantz' || botName === 'Golf Pro') {
+        return false;
+    }
+    // For other bots, use random chance (can be adjusted per bot later)
+    return Math.random() < 0.25;
+}
+
+// === SOUND EFFECTS ===
+function playCardShuffleSound() {
+    const audio = document.getElementById('cardShuffleAudio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play();
+    }
+}
+
+function playCardFlipSound() {
+    const audio = document.getElementById('cardFlipAudio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play();
+    }
+}
