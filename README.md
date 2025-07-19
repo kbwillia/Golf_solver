@@ -51,42 +51,29 @@ Golf/
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.8+
-- pip
-- Modern web browser
+### Local Development
+```bash
+cd backend
+pip install -r requirements.txt
+python web_app.py
+```
+Visit `http://localhost:5000` to play!
 
-### Installation
+### Deploy Online (Free for Students!)
+See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step instructions to host your app online and share with friends!
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Golf
-   ```
-
-2. **Set up the backend**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. **Run the application**
-   ```bash
-   cd backend
-   python run_app.py
-   ```
-
-4. **Access the game**
-   Open your browser and go to: http://localhost:5000
+**Recommended platforms:**
+- **Render** (Easiest) - 750 free hours/month
+- **Railway** - $5 free credit/month
+- **Heroku** - Free credits with GitHub Student Pack
 
 ## Features
 
-### Core Game Features
-- **Golf Card Game**: Play the classic Golf card game with 1v1 or 1v3 modes
-- **Multiple AI Opponents**: Choose from different difficulty levels (Easy, Medium, Hard)
-- **Custom Bot Creation**: Create your own AI bot personalities with custom names and descriptions
-- **Multi-game Matches**: Play 1, 3, 6, 9, or 18 holes
-- **Real-time Game State**: Live updates and visual feedback
+1. **Choose Game Mode**: 1v1 or 1v3 against AI
+2. **Select Opponent**: Pick from various AI personalities
+3. **Play Cards**: Draw, discard, and swap cards to get the lowest score
+4. **Chat**: Interact with the golf-themed chatbot
+5. **Win**: Get the lowest score to win the round!
 
 ### Interactive Features
 - **Jim Nantz Commentary**: Professional golf commentary with voice synthesis
@@ -182,6 +169,52 @@ The application includes comprehensive console logging for debugging:
 4. Test thoroughly (check console for errors)
 5. Submit a pull request
 
-## License
+# START
 
-[Add your license information here]
+#backend
+python run_app.py
+
+- **Backend**: Python Flask
+- **Frontend**: HTML, CSS, JavaScript
+- **AI**: Custom Q-learning algorithms
+- **APIs**: Giphy (GIFs), ElevenLabs (Voice), TopMedia (TTS)
+- **Styling**: Custom CSS with golf theme
+
+
+----------ngrok------------------
+<!-- ngrok http 3000 #frontend
+ngrok http 5000 #backend -->
+
+# do ngrok first, then do front end. maybe npm install. force resets didn't work. then backend in new terminal. killing the terminal reset the env variables.
+
+As a student, you can:
+- Host this app for free on multiple platforms
+- Get free credits through GitHub Student Developer Pack
+- Use this as a portfolio project
+- Share with friends and family easily
+
+#npm install -g ngrok      #once per machine
+#get new auth token from https://dashboard.ngrok.com/get-started/setup/windows
+#put in in .yml file. #shouldn't need too
+#ngrok config add-authtoken 2ySIDUKryskLSVTViUiuR0MhB89_7kU1Syg6W5nPQT2E3iVWe
+
+# in third terminal start
+ngrok start --all
+
+#then update the new env variables in BOTH env files front and backend addresses
+
+#run front end
+#start front end terminal
+cd frontend
+
+npm install medical-terms
+# or
+npm install umls-terminology
+# or
+npm install icd-10-cm
+npm install #
+set HOST=0.0.0.0&& set DANGEROUSLY_DISABLE_HOST_CHECK=true&& npm start
+
+#run backend in new teminal
+rmdir /s /q __pycache__
+python -m rag.run

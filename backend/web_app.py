@@ -1204,4 +1204,6 @@ def create_custom_bot():
     return jsonify({'success': True, 'bot_id': bot_id, 'bot': custom_bots[bot_id]})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get port from environment variable (for deployment) or use 5000 for local development
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

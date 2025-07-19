@@ -1,0 +1,1 @@
+web: cd backend && python web_app.py
