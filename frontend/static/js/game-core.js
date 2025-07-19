@@ -569,7 +569,7 @@ setInterval(() => {
 
 function clearCelebration() { /* Will be implemented in notifications module */ }
 function updateGameDisplay() { /* Will be implemented in UI module */ }
-function updateCumulativeScoreChart() { /* Will be implemented in probabilities module */ }
+// updateCumulativeScoreChart() implemented in probabilities.js
 function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
 function clearChatUI() { /* Will be implemented in chatbot module */ }
 function updateChatInputState() { /* Will be implemented in chatbot module */ }

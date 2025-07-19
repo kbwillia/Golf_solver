@@ -527,8 +527,7 @@ function playGolfClap() {
 // ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
 function getCardDisplayContent() { /* Will be implemented in cards module */ }
-function updateProbabilitiesPanel() { /* Will be implemented in probabilities module */ }
-function updateCumulativeScoreChart() { /* Will be implemented in probabilities module */ }
+// updateProbabilitiesPanel() and updateCumulativeScoreChart() implemented in probabilities.js
 function showCelebrationGif() { /* Will be implemented in notifications module */ }
 function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
 function requestProactiveComment() { /* Will be implemented in chatbot module */ }
