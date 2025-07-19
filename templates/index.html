@@ -48,25 +48,72 @@
                         <option value="happy_gilmore">Happy Gilmore (Medium)</option>
                         <option value="tiger_woods">Tiger Woods (Hard)</option>
                     </select>
-                    <button type="button" id="createCustomBotBtn" class="btn btn-secondary" style="margin-left:10px;">Create Custom AI Bot</button>
+                </p>
+                <!-- Create Custom AI Bot Button (always visible) -->
+                <p>
+                    <button type="button" id="createCustomBotBtn" class="btn btn-secondary">Create Custom Bot</button>
+                    <span id="customBotCount" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span>
+                </p>
+
+                <!-- Voice Toggle -->
+                <p>
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <span>Voice System:</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="voiceToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span id="voiceStatus">ON</span>
+                    </label>
+                    <select id="voiceType" style="margin-left: 20px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="browser">Browser Voices</option>
+                        <option value="backend">Backend TTS</option>
+                    </select>
                 </p>
                 <!-- Custom Bot Modal -->
                 <div id="customBotModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
                   <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:400px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2);">
                     <h3>Create Custom AI Bot</h3>
-                    <label for="customBotName">Name:</label>
-                    <input type="text" id="customBotName" style="width:100%; margin-bottom:10px;" placeholder="Bot Name" />
-                    <label for="customBotDifficulty">Difficulty:</label>
-                    <select id="customBotDifficulty" style="width:100%; margin-bottom:10px;">
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                      <div style="flex:2;">
+                        <label for="customBotName">Name:</label>
+                        <input type="text" id="customBotName" style="width:100%;" placeholder="Bot Name" />
+                      </div>
+                      <div style="flex:1;">
+                        <label for="customBotDifficulty">Difficulty:</label>
+                        <select id="customBotDifficulty" style="width:100%;">
+                          <option value="easy">Easy</option>
+                          <option value="medium">Medium</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      </div>
+                    </div>
                     <label for="customBotDescription">Personality/Description:</label>
                     <textarea id="customBotDescription" style="width:100%; margin-bottom:10px;" rows="3" placeholder="Describe this bot's personality..."></textarea>
                     <div style="text-align:right;">
                       <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary" style="margin-right:8px;">Cancel</button>
                       <button type="button" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>
+                    </div>
+                  </div>
+                </div>
+
+                                <!-- Multiple Custom Bots Modal -->
+                <div id="multipleBotsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:600px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
+                                                            <h3>Create Custom Bots for 1v3 Mode</h3>
+                    <p style="color:#666; margin-bottom:20px;">Create custom bots for 1v3 mode. Click "Add Another Bot" to create more bots.</p>
+
+                    <div id="botSectionsContainer">
+                      <!-- Bot sections will be added here dynamically -->
+                    </div>
+
+                    <div style="text-align:center; margin:20px 0;">
+                      <button type="button" id="addAnotherBotBtn" class="btn btn-secondary">Add Another Bot</button>
+                    </div>
+
+                    <div style="text-align:right;">
+                      <button type="button" id="cancelMultipleBotsBtn" class="btn btn-secondary" style="margin-right:8px;">Cancel</button>
+                      <button type="button" id="saveMultipleBotsBtn" class="btn btn-primary">Create All Bots</button>
                     </div>
                   </div>
                 </div>

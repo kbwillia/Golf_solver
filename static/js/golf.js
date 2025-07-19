@@ -263,6 +263,9 @@ function showCelebrationGif() {
 document.getElementById('gameMode').addEventListener('change', function() {
     const opponentSection = document.getElementById('opponentSection');
     opponentSection.style.display = this.value === '1v1' ? 'block' : 'none';
+
+    // Update custom bot count display when mode changes
+    updateCustomBotCount();
 });
 
 function showSetupViewTimer(seconds) {
@@ -295,7 +298,12 @@ async function startGame() {
 
     // Get bot name and map to difficulty
     const botNameSelect = document.getElementById('botNameSelect');
-    const botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+    let botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+
+    // In 1v3 mode, if no custom bot is selected, default to peter_parker
+    if (gameMode === '1v3' && (!botValue || botValue === '')) {
+        botValue = 'peter_parker';
+    }
 
     // Check if it's a custom bot
     let botName = botValue;
@@ -327,6 +335,15 @@ async function startGame() {
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
+    // For 1v3 mode, collect all custom bots
+    let customBots1v3 = [];
+    if (gameMode === '1v3' && window.customBots) {
+        // Get all custom bots for 1v3 mode
+        Object.values(window.customBots).forEach(bot => {
+            customBots1v3.push(bot);
+        });
+    }
+
     try {
         const response = await fetch('/create_game', {
             method: 'POST',
@@ -339,7 +356,8 @@ async function startGame() {
                 bot_name: botName,
                 player_name: playerName,
                 num_games: numGames,
-                custom_bot_info: customBotInfo
+                custom_bot_info: customBotInfo,
+                custom_bots_1v3: customBots1v3
             })
         });
 
@@ -3816,6 +3834,33 @@ function playCardFlipSound() {
     }
 }
 
+function updateCustomBotCount() {
+    const countElement = document.getElementById('customBotCount');
+    if (!countElement) return;
+
+    const gameMode = document.getElementById('gameMode').value;
+    const customBotCount = window.customBots ? Object.keys(window.customBots).length : 0;
+
+    if (gameMode === '1v3') {
+        if (customBotCount === 0) {
+            countElement.textContent = '';
+        } else if (customBotCount === 1) {
+            countElement.textContent = '';
+        } else if (customBotCount === 2) {
+            countElement.textContent = '';
+        } else if (customBotCount >= 3) {
+            countElement.textContent = '';
+        }
+    } else {
+        // 1v1 mode
+        if (customBotCount === 0) {
+            countElement.textContent = '';
+        } else {
+            countElement.textContent = `${customBotCount} custom bot${customBotCount > 1 ? 's' : ''} available`;
+        }
+    }
+}
+
 
 
 
@@ -3828,8 +3873,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const createBtn = document.getElementById('createCustomBotBtn');
     const modal = document.getElementById('customBotModal');
+    const multipleModal = document.getElementById('multipleBotsModal');
     const cancelBtn = document.getElementById('cancelCustomBotBtn');
     const saveBtn = document.getElementById('saveCustomBotBtn');
+    const cancelMultipleBtn = document.getElementById('cancelMultipleBotsBtn');
+    const saveMultipleBtn = document.getElementById('saveMultipleBotsBtn');
+    const addAnotherBotBtn = document.getElementById('addAnotherBotBtn');
 
     // Make the Create Custom AI Bot button dark green
     if (createBtn) {
@@ -3838,25 +3887,402 @@ document.addEventListener('DOMContentLoaded', function() {
         createBtn.style.border = 'none';
     }
 
+            // Initialize custom bot count display
+    updateCustomBotCount();
+
+    // Voice system variables
+    let voiceEnabled = true;
+    let voiceType = 'browser';
+    let browserVoices = [];
+
+    // Initialize voice system
+    function initializeVoiceSystem() {
+        const voiceToggle = document.getElementById('voiceToggle');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceTypeSelect = document.getElementById('voiceType');
+
+        if (voiceToggle) {
+            voiceToggle.addEventListener('change', function() {
+                voiceEnabled = this.checked;
+                voiceStatus.textContent = voiceEnabled ? 'ON' : 'OFF';
+                console.log('🎤 Voice system:', voiceEnabled ? 'enabled' : 'disabled');
+            });
+        }
+
+        if (voiceTypeSelect) {
+            voiceTypeSelect.addEventListener('change', function() {
+                voiceType = this.value;
+                console.log('🎤 Voice type changed to:', voiceType);
+            });
+        }
+
+        // Load browser voices
+        loadBrowserVoices();
+    }
+
+    // Load available browser voices
+    function loadBrowserVoices() {
+        if ('speechSynthesis' in window) {
+            // Wait for voices to load
+            speechSynthesis.onvoiceschanged = function() {
+                browserVoices = speechSynthesis.getVoices();
+                console.log('🎤 Available voices:', browserVoices.length);
+                browserVoices.forEach(voice => {
+                    console.log('🎤 Voice:', voice.name, voice.lang);
+                });
+            };
+
+            // Try to get voices immediately (might already be loaded)
+            browserVoices = speechSynthesis.getVoices();
+            if (browserVoices.length > 0) {
+                console.log('🎤 Available voices:', browserVoices.length);
+                browserVoices.forEach(voice => {
+                    console.log('🎤 Voice:', voice.name, voice.lang);
+                });
+            }
+        }
+    }
+
+    // Enhanced TTS function that supports both browser and backend
+    function speakText(text, voiceName = null) {
+        if (!voiceEnabled) {
+            console.log('🎤 Voice disabled, skipping TTS');
+            return;
+        }
+
+        if (voiceType === 'browser') {
+            speakWithBrowser(text, voiceName);
+        } else {
+            speakWithBackend(text, voiceName);
+        }
+    }
+
+    // Browser-based TTS
+    function speakWithBrowser(text, voiceName = null) {
+        if (!('speechSynthesis' in window)) {
+            console.log('🎤 Browser TTS not supported');
+            return;
+        }
+
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Set voice if specified
+        if (voiceName && browserVoices.length > 0) {
+            const selectedVoice = browserVoices.find(voice =>
+                voice.name.includes(voiceName) || voice.name === voiceName
+            );
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                console.log('🎤 Using browser voice:', selectedVoice.name);
+            }
+        }
+
+        // Set default properties
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.8;
+
+        speechSynthesis.speak(utterance);
+        console.log('🎤 Speaking with browser TTS:', text.substring(0, 50) + '...');
+    }
+
+    // Backend-based TTS
+    function speakWithBackend(text, voiceName = null) {
+        fetch('/api/tts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                voice: voiceName || 'default'
+            })
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const audio = new Audio(URL.createObjectURL(blob));
+            audio.play();
+            console.log('🎤 Speaking with backend TTS:', text.substring(0, 50) + '...');
+        })
+        .catch(error => {
+            console.error('🎤 Backend TTS error:', error);
+            // Fallback to browser TTS
+            speakWithBrowser(text, voiceName);
+        });
+    }
+
+    // Initialize voice system
+    initializeVoiceSystem();
+
+        // Placeholder bot templates (loaded directly in frontend)
+    const placeholderBots = [
+        {
+            "name": "Golf Guru",
+            "difficulty": "easy",
+            "description": "A friendly golf enthusiast who loves to chat about the game and gives encouraging advice. Always optimistic and supportive."
+        },
+        {
+            "name": "Strategy Master",
+            "difficulty": "medium",
+            "description": "A calculated player who thinks several moves ahead. Analyzes the game carefully and makes strategic decisions."
+        },
+        {
+            "name": "Tiger Clone",
+            "difficulty": "hard",
+            "description": "An aggressive, competitive player who plays to win. Uses advanced strategies and takes calculated risks."
+        },
+        {
+            "name": "Happy Gilmore",
+            "difficulty": "easy",
+            "description": "A fun-loving player who doesn't take the game too seriously. Makes jokes and keeps the mood light."
+        },
+        {
+            "name": "Course Pro",
+            "difficulty": "medium",
+            "description": "A knowledgeable player who understands the nuances of the game. Gives helpful tips and explains strategies."
+        },
+        {
+            "name": "Pressure Player",
+            "difficulty": "hard",
+            "description": "Thrives under pressure and makes bold moves when it counts. Confident and decisive in critical moments."
+        },
+        {
+            "name": "Rookie Golfer",
+            "difficulty": "easy",
+            "description": "A beginner who's still learning the game. Makes mistakes but is eager to improve and learn from others."
+        },
+        {
+            "name": "Veteran Player",
+            "difficulty": "medium",
+            "description": "An experienced player who has seen it all. Calm under pressure and shares wisdom from years of playing."
+        },
+        {
+            "name": "Champion Mindset",
+            "difficulty": "hard",
+            "description": "A winner who knows how to close out games. Focused, determined, and always looking for the winning edge."
+        }
+    ];
+
+    // Track which templates have been used in the current session
+    let usedTemplateIndices = new Set();
+
+    console.log('📋 Loaded', placeholderBots.length, 'placeholder bots');
+
+        // Function to get a random unused template
+    function getRandomUnusedTemplate() {
+        // Get available template indices (not used yet)
+        const availableIndices = [];
+        for (let i = 0; i < placeholderBots.length; i++) {
+            if (!usedTemplateIndices.has(i)) {
+                availableIndices.push(i);
+            }
+        }
+
+        // If all templates are used, reset the used set and start over
+        if (availableIndices.length === 0) {
+            usedTemplateIndices.clear();
+            for (let i = 0; i < placeholderBots.length; i++) {
+                availableIndices.push(i);
+            }
+            console.log('📋 Reset template pool - all templates used');
+        }
+
+        // Pick a random available template
+        const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+        usedTemplateIndices.add(randomIndex);
+
+        return placeholderBots[randomIndex];
+    }
+
+    // Function to load template into single bot form
+    function loadTemplateIntoSingleForm() {
+        if (placeholderBots.length === 0) {
+            alert('No templates available.');
+            return;
+        }
+
+        // Get a random unused template
+        const template = getRandomUnusedTemplate();
+
+        document.getElementById('customBotName').value = template.name;
+        document.getElementById('customBotDifficulty').value = template.difficulty;
+        document.getElementById('customBotDescription').value = template.description;
+
+        console.log('📋 Loaded template:', template.name);
+    }
+
+            // Function to load template into a specific bot section
+    function loadTemplateIntoBotSection(botSection, botIndex) {
+        if (placeholderBots.length === 0) return;
+
+        // Get a random unused template
+        const template = getRandomUnusedTemplate();
+
+        // Fill with template data
+        const nameInput = botSection.querySelector('input[type="text"]');
+        const difficultySelect = botSection.querySelector('select');
+        const descTextarea = botSection.querySelector('textarea');
+
+        nameInput.value = template.name;
+        difficultySelect.value = template.difficulty;
+        descTextarea.value = template.description;
+
+        console.log('📋 Loaded template for bot', botIndex + 1, ':', template.name);
+    }
+
+    // Function to create a bot section
+    function createBotSection(botNumber) {
+        const difficulties = ['Easy', 'Medium', 'Hard'];
+        const defaultDifficulty = difficulties[Math.min(botNumber - 1, 2)]; // Default to Hard if more than 3
+
+        const botSection = document.createElement('div');
+        botSection.className = 'bot-section';
+        botSection.style.cssText = 'border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;';
+        botSection.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="margin:0;">Bot ${botNumber}</h4>
+                ${botNumber > 1 ? `<button type="button" class="remove-bot-btn" style="background:#dc3545; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer;">Remove</button>` : ''}
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <div style="flex:2;">
+                    <label for="multiBot${botNumber}Name">Name:</label>
+                    <input type="text" id="multiBot${botNumber}Name" style="width:100%;" placeholder="Bot Name" />
+                </div>
+                <div style="flex:1;">
+                    <label for="multiBot${botNumber}Difficulty">Difficulty:</label>
+                    <select id="multiBot${botNumber}Difficulty" style="width:100%;">
+                        <option value="easy" ${defaultDifficulty === 'Easy' ? 'selected' : ''}>Easy</option>
+                        <option value="medium" ${defaultDifficulty === 'Medium' ? 'selected' : ''}>Medium</option>
+                        <option value="hard" ${defaultDifficulty === 'Hard' ? 'selected' : ''}>Hard</option>
+                    </select>
+                </div>
+            </div>
+            <label for="multiBot${botNumber}Description">Personality/Description:</label>
+            <textarea id="multiBot${botNumber}Description" style="width:100%; margin-bottom:10px;" rows="2" placeholder="Describe this bot's personality..."></textarea>
+        `;
+
+        // Add remove button functionality
+        const removeBtn = botSection.querySelector('.remove-bot-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                botSection.remove();
+                updateBotNumbers();
+            });
+        }
+
+        return botSection;
+    }
+
+        // Function to update bot numbers after removal
+    function updateBotNumbers() {
+        const botSections = document.querySelectorAll('.bot-section');
+        botSections.forEach((section, index) => {
+            const botNumber = index + 1;
+
+            const title = section.querySelector('h4');
+            title.textContent = `Bot ${botNumber}`;
+
+            const nameInput = section.querySelector('input[type="text"]');
+            nameInput.id = `multiBot${botNumber}Name`;
+            nameInput.placeholder = 'Bot Name';
+
+            const difficultySelect = section.querySelector('select');
+            difficultySelect.id = `multiBot${botNumber}Difficulty`;
+
+            const descTextarea = section.querySelector('textarea');
+            descTextarea.id = `multiBot${botNumber}Description`;
+
+            // Update remove button (first bot can't be removed)
+            const removeBtn = section.querySelector('.remove-bot-btn');
+            if (botNumber === 1) {
+                if (removeBtn) removeBtn.remove();
+            } else {
+                if (!removeBtn) {
+                    const newRemoveBtn = document.createElement('button');
+                    newRemoveBtn.type = 'button';
+                    newRemoveBtn.className = 'remove-bot-btn';
+                    newRemoveBtn.style.cssText = 'background:#dc3545; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer;';
+                    newRemoveBtn.textContent = 'Remove';
+                    newRemoveBtn.addEventListener('click', function() {
+                        section.remove();
+                        updateBotNumbers();
+                    });
+                    title.parentNode.appendChild(newRemoveBtn);
+                }
+            }
+        });
+    }
+
     // Debug: Check if elements exist
     console.log('🟢 MODAL: Elements found:', {
         createBtn: !!createBtn,
         modal: !!modal,
+        multipleModal: !!multipleModal,
         cancelBtn: !!cancelBtn,
-        saveBtn: !!saveBtn
+        saveBtn: !!saveBtn,
+        cancelMultipleBtn: !!cancelMultipleBtn,
+        saveMultipleBtn: !!saveMultipleBtn
     });
 
-    // Show modal
-    if (createBtn && modal) {
+            // Show smart modal based on game mode
+    if (createBtn) {
         createBtn.addEventListener('click', function() {
-            console.log('🔥 MODAL: Create button clicked!');
-            modal.style.display = 'flex';
-            // modal.style.background = 'red'; // Temporary - to see if modal appears
-            console.log('🔥 MODAL: Modal display set to flex');
+            const gameMode = document.getElementById('gameMode').value;
+            console.log('🔥 MODAL: Create button clicked! Game mode:', gameMode);
+
+            if (gameMode === '1v3') {
+                // Show multiple bots modal for 1v3 mode
+                multipleModal.style.display = 'flex';
+
+                // Initialize with one bot section and load template
+                const container = document.getElementById('botSectionsContainer');
+                container.innerHTML = '';
+                const botSection = createBotSection(1);
+                container.appendChild(botSection);
+
+                // Load random template for the first bot
+                loadTemplateIntoBotSection(botSection, 0);
+
+                console.log('🔥 MODAL: Multiple Modal display set to flex');
+            } else {
+                // Show single bot modal for 1v1 mode
+                modal.style.display = 'flex';
+
+                // Load random template for single bot
+                loadTemplateIntoSingleForm();
+
+                console.log('🔥 MODAL: Single Modal display set to flex');
+            }
         });
     }
 
-    // Hide modal on cancel
+            // Add Another Bot button functionality
+    if (addAnotherBotBtn) {
+        addAnotherBotBtn.addEventListener('click', function() {
+            const container = document.getElementById('botSectionsContainer');
+            const currentBotCount = container.children.length;
+
+            if (currentBotCount >= 3) {
+                alert('Maximum 3 bots allowed for 1v3 mode.');
+                return;
+            }
+
+            const botSection = createBotSection(currentBotCount + 1);
+            container.appendChild(botSection);
+
+            // Load random template for the new bot
+            loadTemplateIntoBotSection(botSection, currentBotCount);
+
+            console.log('🔥 MODAL: Added bot section', currentBotCount + 1);
+        });
+    }
+
+
+
+    // Hide single bot modal on cancel
     if (cancelBtn && modal) {
         cancelBtn.addEventListener('click', function() {
             console.log('🔥 MODAL: Cancel button clicked!');
@@ -3864,12 +4290,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Hide modal on outside click
+    // Hide multiple bots modal on cancel
+    if (cancelMultipleBtn && multipleModal) {
+        cancelMultipleBtn.addEventListener('click', function() {
+            console.log('🔥 MODAL: Cancel Multiple button clicked!');
+            multipleModal.style.display = 'none';
+        });
+    }
+
+    // Hide single bot modal on outside click
     if (modal) {
         modal.addEventListener('click', function(e) {
             if (e.target === modal) {
                 console.log('🔥 MODAL: Clicked outside, closing...');
                 modal.style.display = 'none';
+            }
+        });
+    }
+
+    // Hide multiple bots modal on outside click
+    if (multipleModal) {
+        multipleModal.addEventListener('click', function(e) {
+            if (e.target === multipleModal) {
+                console.log('🔥 MODAL: Clicked outside multiple modal, closing...');
+                multipleModal.style.display = 'none';
             }
         });
     }
@@ -3910,6 +4354,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!window.customBots) window.customBots = {};
                     window.customBots[data.bot_id] = data.bot;
 
+                    // Update custom bot count display
+                    updateCustomBotCount();
+
+                    // Clear the form
+                    document.getElementById('customBotName').value = '';
+                    document.getElementById('customBotDifficulty').value = 'easy';
+                    document.getElementById('customBotDescription').value = '';
+
                     // Hide modal
                     modal.style.display = 'none';
 
@@ -3921,6 +4373,98 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error creating bot:', error);
                 alert('Error creating bot. Please try again.');
+            });
+        });
+    }
+
+            // Save multiple custom bots
+    if (saveMultipleBtn) {
+        saveMultipleBtn.addEventListener('click', function() {
+            console.log('🔥 MODAL: Save Multiple button clicked!');
+
+            // Get all bot sections
+            const botSections = document.querySelectorAll('.bot-section');
+            const botsToCreate = [];
+
+                        // Validate and collect bot data
+            for (let i = 0; i < botSections.length; i++) {
+                const botNumber = i + 1;
+                const nameInput = document.getElementById(`multiBot${botNumber}Name`);
+                const difficultySelect = document.getElementById(`multiBot${botNumber}Difficulty`);
+                const descInput = document.getElementById(`multiBot${botNumber}Description`);
+
+                if (!nameInput || !nameInput.value.trim()) {
+                    alert(`Please enter a name for Bot ${botNumber}.`);
+                    return;
+                }
+
+                if (!difficultySelect || !difficultySelect.value) {
+                    alert(`Please select a difficulty for Bot ${botNumber}.`);
+                    return;
+                }
+
+                botsToCreate.push({
+                    name: nameInput.value.trim(),
+                    difficulty: difficultySelect.value,
+                    description: descInput ? descInput.value.trim() : ''
+                });
+            }
+
+            if (botsToCreate.length === 0) {
+                alert('Please add at least one bot.');
+                return;
+            }
+
+            let createdCount = 0;
+            const totalBots = botsToCreate.length;
+
+            botsToCreate.forEach((botData, index) => {
+                fetch('/api/create_custom_bot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(botData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Add to dropdown
+                        const botSelect = document.getElementById('botNameSelect');
+                        const option = document.createElement('option');
+                        option.value = data.bot_id;
+                        option.textContent = `${data.bot.name} (Custom)`;
+                        option.dataset.difficulty = data.bot.difficulty;
+                        option.dataset.description = data.bot.description;
+                        botSelect.appendChild(option);
+
+                        // Store globally
+                        if (!window.customBots) window.customBots = {};
+                        window.customBots[data.bot_id] = data.bot;
+
+                        createdCount++;
+
+                                                                        if (createdCount === totalBots) {
+                            // All bots created successfully
+                            updateCustomBotCount();
+                            multipleModal.style.display = 'none';
+
+                            // Clear the form
+                            document.getElementById('multiBot1Name').value = '';
+                            document.getElementById('multiBot1Description').value = '';
+                            document.getElementById('multiBot2Name').value = '';
+                            document.getElementById('multiBot2Description').value = '';
+                            document.getElementById('multiBot3Name').value = '';
+                            document.getElementById('multiBot3Description').value = '';
+
+                            console.log(`✅ MODAL: All ${totalBots} bots created successfully!`);
+                        }
+                    } else {
+                        alert(`Error creating bot ${index + 1}: ${data.error || 'Unknown error'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error creating bot ${index + 1}:`, error);
+                    alert(`Error creating bot ${index + 1}. Please try again.`);
+                });
             });
         });
     }

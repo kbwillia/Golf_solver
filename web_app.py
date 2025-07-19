@@ -93,6 +93,7 @@ def create_game():
     num_games = int(data.get('num_games', 1))
     bot_name = data.get('bot_name', 'peter_parker')
     custom_bot_info = data.get('custom_bot_info')
+    custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
 
     # Generate unique game ID
     game_id = str(uuid.uuid4())
@@ -130,6 +131,16 @@ def create_game():
             "Tiger Woods",      # Hard (ev_ai)
             "Shooter McGavin"   # Advanced (advanced_ev)
         ]
+
+        # Handle multiple custom bots for 1v3 mode
+        if custom_bots_1v3 and len(custom_bots_1v3) > 0:
+            # Replace AI names with custom bot names (up to 3)
+            for i, custom_bot in enumerate(custom_bots_1v3[:3]):  # Max 3 custom bots
+                ai_names[i] = custom_bot['name']
+        elif custom_bot_info:
+            # Legacy: single custom bot replaces first AI
+            ai_names[0] = custom_bot_info['name']
+
         for i in range(1, num_players):
             game.players[i].name = ai_names[i-1]
 
