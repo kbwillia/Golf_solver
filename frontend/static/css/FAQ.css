@@ -1,0 +1,127 @@
+.faq-sidebar {
+    width: 440px;
+    background: #f7fafd;
+    border-right: 1.5px solid #e0e0e0;
+    padding: 24px 16px;
+    height: 100vh;
+    box-sizing: border-box;
+    position: fixed;
+    left: 0;
+    top: 0;
+    overflow-y: auto;
+    transition: width 0.3s ease, padding 0.3s ease;
+  }
+
+  .faq-sidebar.minimized {
+    width: 60px;
+    padding: 24px 8px;
+  }
+
+  .faq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .faq-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .minimize-btn {
+    background: #1A8C8A;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+  }
+
+  .minimize-btn:hover {
+    background: #147a78;
+  }
+
+  .faq-sidebar.minimized .faq-header h2 {
+    display: none;
+  }
+
+  .faq-sidebar.minimized .minimize-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .faq-item {
+    margin-bottom: 1.2rem;
+  }
+
+  .faq-item strong {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #1A8C8A;
+  }
+
+  .faq-table {
+    border-collapse: collapse;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    width: 100%;
+  }
+
+  .faq-table td {
+    padding: 2px 12px 2px 0;
+    font-family: inherit;
+    font-size: 1rem;
+    vertical-align: top;
+  }
+
+  .faq-item {
+    margin-bottom: 1.2rem;
+  }
+
+  .faq-question:focus {
+    outline: 2px solid #1A8C8A;
+  }
+
+  .faq-answer {
+    animation: fadeIn 0.2s;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .faq-examples ul {
+    margin: 0 0 0 1.2em;
+    padding: 0;
+    list-style-type: disc;
+  }
+
+  .faq-examples > ul > li {
+    margin-bottom: 0.8em; /* More space between top-level items */
+    line-height: 1;
+  }
+
+  .faq-examples ul ul {
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+    margin-left: 1.2em;
+    list-style-type: circle;
+  }
+
+  .faq-examples ul ul li {
+    margin-bottom: 0.2em;
+    line-height: 1;
+  }

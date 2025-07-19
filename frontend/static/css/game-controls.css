@@ -1,0 +1,172 @@
+/* ===== GAME CONTROLS CSS COMPONENT ===== */
+
+/* Action buttons container */
+.actions {
+    text-align: center;
+    margin: 20px 0;
+}
+
+/* Button base style */
+.btn {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* Primary button style */
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+/* Secondary button style */
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+/* Button hover effect */
+.btn:hover {
+    opacity: 0.8;
+}
+
+/* Disabled button style */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 2x2 grid for position selection buttons in modal */
+.position-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+    justify-items: center;
+    align-items: center;
+}
+
+/* Next Hole button container below deck-discard area */
+.next-hole-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.next-hole-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.next-hole-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+/* Game Over Buttons */
+.game-over-buttons .btn, .game-over-buttons button {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
+    border: 2px solid #000;
+    border-radius: 6px;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 0 8px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.game-over-buttons .btn:hover, .game-over-buttons button:hover {
+    background: rgba(230, 249, 230, 0.35) !important;
+    color: #fff;
+}
+
+/* Game Control Buttons */
+.game-control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0px;
+    align-items: center;
+}
+
+/* Row for the first two buttons */
+.button-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.game-control-btn {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+/* Next Game button - full width and prominent styling */
+.game-control-btn.next-game-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 16px;
+    font-size: 1.1em;
+    font-weight: bold;
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.game-control-btn.next-game-btn:hover {
+    background: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Replay button - make it bigger and more prominent */
+.game-control-btn.replay-btn {
+    padding: 9px 18px;     /* Slightly smaller padding */
+    font-size: 1.05em;     /* Slightly smaller font */
+    min-width: 110px;      /* Slightly narrower */
+    border-radius: 8px;
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+}
+
+.game-control-btn.replay-btn:hover {
+    background: #0056b3;    /* Darker blue on hover */
+    border-color: #004085;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+}

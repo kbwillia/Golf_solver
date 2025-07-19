@@ -1,137 +1,196 @@
-# Golf Game Simulation Suite with Q-Learning
+# Golf Card Game
 
-A comprehensive simulation framework for the 4-card Golf card game, featuring multiple AI agents including reinforcement learning.
+A full-stack web application for playing the Golf card game with AI opponents and interactive chatbot commentary.
 
 ## Project Structure
 
-The codebase is organized into modular components for better maintainability:
+```
+Golf/
+├── frontend/              # Frontend files (HTML, CSS, JS)
+│   ├── static/           # Static assets (CSS, JS, images)
+│   │   ├── css/         # Stylesheets
+│   │   ├── js/          # JavaScript files
+│   │   └── images/      # Image assets
+│   ├── templates/       # HTML templates
+│   └── test_chatbot_simple.html
+├── backend/              # Backend files (Python Flask)
+│   ├── web_app.py       # Main Flask application
+│   ├── game.py          # Game logic
+│   ├── chatbot.py       # Chatbot functionality
+│   ├── bot_personalities.py  # Bot personality definitions
+│   ├── agents.py        # AI agent implementations
+│   ├── requirements.txt # Python dependencies
+│   └── run_app.py       # Script to run the application
+└── README.md
+```
 
-### Core Files
+## Quick Start
 
-- **`models.py`** - Core data structures
-  - `Card` class: Represents playing cards with scoring logic
-  - `Player` class: Manages player state, grid, and memory tracking
+### Prerequisites
+- Python 3.8+
+- pip
 
-- **`agents.py`** - AI agent implementations
-  - `RandomAgent`: Makes random legal moves
-  - `HeuristicAgent`: Uses probability-based strategy from original solver
-  - `QLearningAgent`: Reinforcement learning agent that learns from experience
+### Installation
 
-- **`game.py`** - Game logic and simulation
-  - `GolfGame` class: Manages game state, turns, and scoring
-  - Handles deck creation, dealing, and turn execution
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd Golf
+   ```
 
-- **`simulation.py`** - Simulation and statistics
-  - `run_simulations_with_training()`: Runs games with Q-learning training
-  - `run_simulations()`: Runs games without training
-  - `print_simulation_results()`: Displays formatted results
-  - `plot_learning_curves()`: Visualizes learning progress
+2. **Set up the backend**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
-- **`main.py`** - Main entry point
-  - Demonstrates all features with examples
-  - Single game example, training simulations, and comparisons
+3. **Run the application**
+   ```bash
+   cd backend
+   python run_app.py
+   ```
+
+4. **Access the game**
+   Open your browser and go to: http://localhost:5000
 
 ## Features
 
-### Multiple Agent Types
+- **Golf Card Game**: Play the classic Golf card game
+- **AI Opponents**: Multiple AI difficulty levels
+- **Interactive Chatbot**: Jim Nantz commentary and other bot personalities
+- **Voice System**: Text-to-speech for bot commentary
+- **Custom Bots**: Create your own bot personalities
+- **Real-time Updates**: Live game state updates
 
-1. **Random Agent**: Makes random legal moves
-2. **Heuristic Agent**: Uses sophisticated probability calculations and memory tracking
-3. **Q-Learning Agent**: Learns optimal strategies through reinforcement learning
+## Development
 
-### Q-Learning Implementation
+### Backend Development
+- All Python files are in the `backend/` directory
+- Main application: `backend/web_app.py`
+- Run with: `cd backend && python run_app.py`
 
-- **State Representation**: Simplified, position-agnostic states for better generalization
-- **Reward System**: Strong signals (+10 for winning, -5 to +2 based on score)
-- **Training**: Persistent Q-tables with epsilon-greedy exploration
-- **Learning Curves**: Track performance improvements over time
+### Frontend Development
+- All frontend files are in the `frontend/` directory
+- Templates: `frontend/templates/`
+- Static assets: `frontend/static/`
 
-### Advanced Statistics
+## API Endpoints
 
-- Win rates and average scores by agent type
-- Learning progress tracking with intervals
-- Q-table size monitoring
-- Perfect game counts and score distributions
-- Optional matplotlib visualization
+- `GET /` - Main game interface
+- `POST /create_game` - Create a new game
+- `POST /make_move` - Make a game move
+- `POST /chatbot/send_message` - Send chat message
+- `POST /chatbot/get_bot_response` - Get bot response
+- `POST /chatbot/proactive_comment` - Get proactive bot comments
 
-## Usage
+## Contributing
 
-### Basic Usage
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-```python
-from game import GolfGame
-from simulation import run_simulations_with_training
 
-# Single game example
-game = GolfGame(num_players=4, agent_types=["heuristic", "random", "qlearning", "random"])
-scores = game.play_game(verbose=True)
+Golf/
+├── frontend/                    # React/Vue.js frontend
+│   ├── src/
+│   │   ├── components/         # Reusable UI components
+│   │   │   ├── Game/
+│   │   │   │   ├── GameBoard.jsx
+│   │   │   │   ├── PlayerGrid.jsx
+│   │   │   │   ├── Card.jsx
+│   │   │   │   └── GameControls.jsx
+│   │   │   ├── Chat/
+│   │   │   │   ├── ChatPanel.jsx
+│   │   │   │   ├── BotMessage.jsx
+│   │   │   │   └── VoiceSystem.jsx
+│   │   │   ├── Setup/
+│   │   │   │   ├── GameSetup.jsx
+│   │   │   │   └── CustomBotCreator.jsx
+│   │   │   └── Common/
+│   │   │       ├── Button.jsx
+│   │   │       ├── Modal.jsx
+│   │   │       └── Loading.jsx
+│   │   ├── services/           # API calls and external services
+│   │   │   ├── api/
+│   │   │   │   ├── gameApi.js
+│   │   │   │   ├── chatApi.js
+│   │   │   │   └── botApi.js
+│   │   │   ├── voice/
+│   │   │   │   ├── browserTTS.js
+│   │   │   │   └── elevenLabsTTS.js
+│   │   │   └── websocket/
+│   │   │       └── gameSocket.js
+│   │   ├── hooks/              # Custom React hooks
+│   │   │   ├── useGameState.js
+│   │   │   ├── useVoiceSystem.js
+│   │   │   └── useChatbot.js
+│   │   ├── store/              # State management (Redux/Zustand)
+│   │   │   ├── gameSlice.js
+│   │   │   ├── chatSlice.js
+│   │   │   └── settingsSlice.js
+│   │   ├── utils/              # Helper functions
+│   │   │   ├── gameLogic.js
+│   │   │   ├── cardUtils.js
+│   │   │   └── constants.js
+│   │   └── styles/             # CSS/SCSS files
+│   │       ├── components/
+│   │       └── global.css
+│   ├── public/
+│   └── package.json
+├── backend/                     # Python Flask/FastAPI backend
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── game_routes.py
+│   │   │   ├── chat_routes.py
+│   │   │   ├── bot_routes.py
+│   │   │   └── tts_routes.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── game.py
+│   │   │   ├── player.py
+│   │   │   └── bot.py
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   ├── game_service.py
+│   │   │   ├── ai_service.py
+│   │   │   ├── chat_service.py
+│   │   │   └── tts_service.py
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   ├── game_utils.py
+│   │   │   └── validators.py
+│   │   └── config/
+│   │       ├── __init__.py
+│   │       └── settings.py
+│   ├── tests/
+│   │   ├── test_game.py
+│   │   ├── test_chat.py
+│   │   └── test_bots.py
+│   ├── requirements.txt
+│   └── main.py
+├── shared/                      # Shared code between frontend/backend
+│   ├── types/
+│   │   ├── game.types.ts
+│   │   └── bot.types.ts
+│   └── constants/
+│       └── game.constants.ts
+├── docs/                        # Documentation
+│   ├── api.md
+│   ├── architecture.md
+│   └── deployment.md
+├── docker/                      # Docker configuration
+│   ├── Dockerfile.frontend
+│   ├── Dockerfile.backend
+│   └── docker-compose.yml
+├── scripts/                     # Build/deployment scripts
+│   ├── build.sh
+│   ├── deploy.sh
+│   └── setup.sh
+└── README.md
 
-# Run training simulations
-stats = run_simulations_with_training(num_games=1000, agent_types=["heuristic", "random", "qlearning", "random"])
-```
 
-### Command Line
-
-```bash
-# Run main demonstration
-python main.py
-
-# Run specific test
-python test_rewards.py
-```
-
-## Game Rules
-
-4-Card Golf is a card game where:
-- Each player has a 2x2 grid of cards
-- Bottom two cards are face-up initially
-- Players take turns drawing from deck or taking from discard pile
-- Goal: Minimize total score (pairs cancel each other out)
-- A=1, J=0, Q/K=10, number cards = face value
-- Game lasts exactly 4 rounds
-
-## Key Improvements
-
-### Reward System
-- **Original**: Weak rewards (+1 win, -0.25 to -1.0 for losing)
-- **Improved**: Strong signals (+10 win, -5 to +2 based on score)
-
-### State Representation
-- **Original**: Complex, position-specific states with suits
-- **Improved**: Simplified, position-agnostic states (ranks only)
-
-### Learning Progress
-- Detailed tracking of Q-table growth
-- Interval-based average score monitoring
-- Learning curve visualization
-
-## Results
-
-The improved Q-learning agent shows:
-- **Learning**: Consistent improvement over time (+0.22 to +0.70 points)
-- **Performance**: Competitive with random agents (18-19 average score)
-- **Win Rate**: ~20% in 4-player games
-- **Memory**: Efficient state representation (1500+ states learned)
-
-## Dependencies
-
-- Python 3.6+
-- numpy
-- matplotlib (optional, for plotting)
-- collections (built-in)
-- itertools (built-in)
-- random (built-in)
-
-## Installation
-
-```bash
-pip install numpy matplotlib
-```
-
-## Future Enhancements
-
-- Deep Q-Learning with neural networks
-- Multi-agent competitive training
-- Tournament-style evaluations
-- Strategy analysis tools
-- Web interface for game visualization
+cd backend && python run_app.py

@@ -1,0 +1,566 @@
+/* ===== CHATBOT CSS COMPONENT ===== */
+
+/* Top content wrapper for notification area */
+.notification-top-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+/* Chatbot Panel Styles */
+.chatbot-panel {
+    /* Gradient background from transparent at bottom to #0b501b at top */
+    background: linear-gradient(to top, transparent 0%, rgba(11, 80, 27, 0.1) 30%, rgba(11, 80, 27, 0.3) 60%, rgba(11, 80, 27, 0.6) 85%, rgba(11, 80, 27, 0.8) 100%) !important;
+
+    border-radius: 22px;
+    padding: 6px;
+    margin-top: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    max-height: 550px;
+    height: 475px; /* Default height when action history is collapsed */
+    min-height: 375px; /* Minimum height to prevent it from getting too small */
+    flex-shrink: 0; /* Don't allow it to shrink - keep it at bottom */
+    transition: height 0.3s ease; /* Smooth transition when height changes */
+    margin-top: auto; /* Push to bottom */
+    position: relative;
+}
+
+/* Chatbot panel will be dynamically resized via JavaScript */
+.chatbot-panel.action-history-expanded {
+    height: 350px; /* Smaller height when action history is expanded */
+}
+
+.chatbot-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 12px;
+    margin-top: 12px;
+    padding-bottom: 0px;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
+    color: white; /* Makes the text white */
+    /* background: rgba(230, 249, 230, 0.71) !important; */
+    /* border-radius: 12px; */
+    /* font-weight: bold; Makes the text bold */
+}
+
+#chatParticipants {
+    font-size: 0.75em;
+    color: white;
+    text-align: center;
+    width: 100%;
+    /* font-weight: bold; */
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    padding: 2px;
+    /* background: #f8f9fa; */
+    background: rgba(230, 249, 230, 0.01) !important;
+    border-radius: 8px;
+    /* border: 1px solid #e0e0e0; */
+
+    /* Custom scrollbar styling */
+    scrollbar-width: thin;
+    /* scrollbar-color: rgba(40, 167, 69, 0.5) transparent; */
+    scrollbar-color: rgba(40, 167, 69, 0.015) transparent;
+}
+
+/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+.chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(40, 167, 69, 0.75);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(40, 167, 69, 0.7);
+}
+
+.message {
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.message.user-message {
+    align-items: flex-end;
+}
+
+.message.bot-message {
+    align-items: flex-start;
+}
+
+.message-content {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 18px;
+    font-size: 0.75em;
+    line-height: 1.3;
+    word-wrap: break-word;
+    position: relative;
+}
+
+.user-message {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-bottom: 8px;
+}
+
+.user-message .message-content {
+    background: #0b501b;
+    color: white;
+    border-bottom-right-radius: 4px;
+    margin-right: 8px;
+    display: inline-block;
+    max-width: 70%;
+    padding: 4px 8px;
+    border-radius: 16px;
+    word-break: break-word;
+    text-align: left;
+}
+
+.user-message .message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-left-color: #0b501b;
+    border-right: 0;
+    border-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* Hide bubble pointer for GIF-only messages */
+.user-message .message-content[style*="--hide-pointer: true"]::after {
+    display: none;
+}
+
+/*this is the jim nantz message formatting i want for all the other bots */
+.bot-message .message-content {
+    background: #d4edda;
+    color: #155724;
+    border-bottom-left-radius: 4px;
+    margin-left: 8px;
+    display: inline-block;
+    max-width: 70%;
+    word-break: break-word;
+}
+
+.bot-message .message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right-color: #d4edda;
+    border-left: 0;
+    border-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* Hide bubble pointer for GIF-only messages */
+.bot-message .message-content[style*="--hide-pointer: true"]::after {
+    display: none;
+}
+
+.bot-name {
+    font-size: 0.6em;         /* Make the name smaller */
+    color: #ffff;              /* Subtle gray color */
+    font-weight: bold;        /* Optional: make it bold */
+    margin-bottom: 2px;       /* Small space below the name */
+    margin-left: 8px;         /* Indent to align with bubble */
+    letter-spacing: 0.5px;    /* Optional: slight spacing */
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: rgba(230, 249, 230, 0.00) !important;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9em;
+    /* background: white; */
+    background: rgba(230, 249, 230, 0.75) !important;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+}
+
+.chat-send-btn {
+    padding: 6px 0px;
+    background: #0b501b;
+    /*rgba(11, 80, 27, 1) same as above*/
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    /* Ensure button is visible and clickable */
+    display: inline-block;
+    min-width: 60px;
+    z-index: 1000;
+    position: relative;
+}
+
+.chat-send-btn:hover {
+    background: #2e7d32;    /* Slightly lighter on hover */
+}
+
+/* Responsive adjustments for chatbot */
+@media (max-width: 1200px) {
+    .chatbot-panel {
+        height: 250px;
+        min-height: 250px;
+    }
+
+    .chat-messages {
+        max-height: 150px;
+    }
+}
+
+/* Make chat input and send button transparent and unclickable when disabled (Jim Nantz) */
+.chat-disabled {
+    opacity: 0.750 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s !important;
+}
+
+#chatInput {
+    font-size: 0.77em;  /* or your preferred size */
+}
+
+/* === Collapsible Action History Styling === */
+
+.action-history-container {
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.action-history-minimized {
+    max-height: 90px; /* Just enough for one action */
+    overflow: hidden;
+}
+
+.action-history-expanded {
+    max-height: 350px; /* Full height when expanded */
+    overflow-y: auto;
+}
+
+.action-history-toggle {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.action-history-toggle:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+.action-history-toggle.expanded {
+    background: rgba(0, 123, 255, 0.8);
+    color: white;
+    border-color: #0056b3;
+}
+
+/* Minimized state shows only the most recent action */
+.action-history-minimized .action-history-item:not(:last-child) {
+    display: none;
+}
+
+.action-history-minimized .action-history-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 8px;
+}
+
+/* Add a subtle gradient fade at the bottom when minimized */
+.action-history-minimized::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    /* background: linear-gradient(transparent, rgba(230, 249, 230, 0.8)); */
+    pointer-events: none;
+}
+
+/* Player grid header styles */
+.player-header {
+    display: flex;
+    justify-content: space-between; /* Distributes items along the main axis */
+    align-items: center; /* Vertically centers all items */
+    background: rgba(11, 80, 27, 0.0); /* subtle green tint */
+    border-radius: 8px 8px 0 0;
+    padding: 4px 10px 2px 10px;
+    font-size: 0.98em;
+    margin-bottom: 2px;
+    min-height: 28px; /* Maintain consistent height */
+    /* border-bottom: 1px solid #c2e5c2; */
+    position: relative; /* Needed for any potential absolute positioning of children, though we'll avoid it for core layout */
+}
+
+.player-name {
+    color: #fff;
+    letter-spacing: 0.01em;
+    display: flex; /* Keep this as flex for name and potential icon/strong tag */
+    align-items: center; /* Vertically align content within player-name */
+    gap: 4px;
+    text-shadow:
+        -1px -1px 0 black,
+        1px -1px 0 black,
+        -1px 1px 0 black,
+        1px 1px 0 black;
+    /* Ensure it doesn't shrink or grow unexpectedly */
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+
+.player-score {
+    color: #fff;
+    font-size: 0.98em;
+    font-weight: 500;
+    border-radius: 5px;
+    padding: 1px 7px;
+    text-shadow:
+        -1px -1px 0 black,
+        1px -1px 0 black,
+        -1px 1px 0 black,
+        1px 1px 0 black;
+
+    /* These auto margins are the key for centering a middle item in a 3-item flex container */
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0; /* Prevent it from shrinking */
+    flex-grow: 0; /* Prevent it from growing */
+}
+
+.player-turn-status {
+    color: #fff; /* Green color for "Your Turn" */
+    font-size: 0.92em;
+    font-weight: 500;
+    /* Explicitly make it not auto-margin itself when there's an auto-margin on the score */
+    margin-left: 0; /* Override any default margin-left: auto; */
+    flex-shrink: 0; /* Prevents it from shrinking */
+    flex-grow: 0; /* Prevents it from growing */
+    /* Reserve space to prevent shifting */
+    min-width: 60px; /* Adjust this value to the expected width of "(Your Turn)" */
+    text-align: right; /* Align text to the right within its reserved space */
+    box-sizing: border-box; /* Include padding and border in the total width */
+    text-shadow:
+    -1px -1px 0 black,
+    1px -1px 0 black,
+    -1px 1px 0 black,
+    1px 1px 0 black;
+}
+
+/* Ensure these are targeted correctly */
+.player-name strong {
+    font-size: 1em;
+    color: #fff;
+}
+
+.player-name .trophy {
+    margin-left: 3px;
+    font-size: 1.1em;
+}
+
+.user-name-bottom  {
+    font-size: 0.6em;         /* Make the name smaller */
+    color: #ffff;              /* Subtle gray color */
+    font-weight: bold;        /* Optional: make it bold */
+    margin-bottom: 2px;       /* Small space below the name */
+    margin-right: 8px;         /* Indent to align with bubble */
+    letter-spacing: 0.5px;    /* Optional: slight spacing */
+    text-align: right;
+}
+
+/* Chat image styling */
+.chat-image {
+    max-width: 200px;
+    max-height: 150px;
+    border-radius: 8px;
+    margin: 2px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.chat-image:hover {
+    transform: scale(1.05);
+    cursor: pointer;
+}
+
+/* Text styling when images are present */
+.message-content[style*="background: transparent"] div {
+    background: #d4edda;
+    color: #155724;
+    border-radius: 18px;
+    padding: 8px 12px;
+    display: inline-block;
+    max-width: 85%;
+    word-wrap: break-word;
+    margin: 4px 0;
+}
+
+/* GIF Modal */
+#gifModal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 25px; /* Height of input row + a little gap */
+  margin: 0 auto;
+  /* background: rgba(255,255,255,0.05); */
+  /* background: rgba(230, 249, 230, 0.05) !important; */
+
+  /* border: 2px solid #0b501b; */
+  border-radius: 10px;
+  padding: 18px 18px 12px 4px; /*top right bottom left*/
+  z-index: 1000;
+  /* box-shadow: 0 4px 16px rgba(0,0,0,0.2); */
+  min-width: 320px;
+  min-height: 80px;
+  width: 90%; /* or 100% for full width of panel */
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.gif-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#gifSearchInput {
+  width: 120px;         /* or another value you like */
+  padding: 6px 10px;
+  border-radius: 6px;
+  /* border: 1px solid #ccc; */
+  font-size: 0.75em;
+  /* background: #e8f5e9; */
+  background: rgba(230, 249, 230, 0.75) !important;
+  color: #205c23;
+}
+
+#gifResults {
+  margin-top: 10px;
+  min-height: 40px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
+}
+
+/* Custom Bot Modal */
+#customBotModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999; /* Higher z-index */
+    align-items: center;
+    justify-content: center;
+}
+
+#customBotModal .modal-content {
+    background: #fff;
+    padding: 24px 32px;
+    border-radius: 10px;
+    max-width: 400px;
+    width: 90%;
+    margin: auto;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+    position: relative; /* Ensure it's positioned */
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #217a3a;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
