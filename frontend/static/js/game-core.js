@@ -1,4 +1,7 @@
-// ===== GOLF GAME CORE VARIABLES =====
+// ===== GAME CORE MODULE =====
+// Core game functions and variables for the Golf Card Game
+
+// ===== GAME CORE VARIABLES =====
 let currentGameState = null; // Holds the current game state from backend
 let gameId = null; // Unique game session ID
 let drawnCard = null; // Card drawn from deck
@@ -28,7 +31,13 @@ let previousActionHistory = []; // Place this at the top of your JS file
 let previousHumanPairs = [];
 let previousActionHistoryLength = 0;
 
-console.log('🎯 Game Core loaded successfully!');
+// ===== CHATBOT VARIABLES =====
+let chatbotEnabled = true;
+let currentPersonality = 'Jim Nantz';
+let lastNantzCommentTime = 0; // Place this at the top of your JS file if not already present
+let lastNantzTurn = null;
+let proactiveCommentTimeout = null;
+let proactiveCommentInterval = null;
 
 // ===== CORE GAME FUNCTIONS =====
 
@@ -270,7 +279,6 @@ function restartGame() {
     // Optionally reset form fields or keep last settings
 }
 
-// Add the replayGame function
 function replayGame() {
     onGameStart(); // Hide the replay button immediately
     // Reset turn tracking for replay
@@ -389,7 +397,6 @@ async function nextGame() {
     playCardShuffleSound();
 }
 
-// Add a helper to start a game with specific settings
 async function startGameWithSettings(gameMode, opponentType, playerName, numGames) {
     // Clear the celebration GIF when starting a new game
     clearCelebration();
@@ -435,32 +442,20 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             }, cardVisibilityDuration * 1000);
             updateGameDisplay();
 
-            // Update chat participants header for new game
-            updateChatParticipantsHeader();
-
-            // Clear chatbot UI on new game
-            clearChatUI();
-            updateChatInputState();
-            if (currentPersonality === 'nantz') {
-                requestProactiveComment('turn_start');
-            }
-
-            // Check if it's an AI's turn right after game creation
+            // Check if it's an AI's turn right after game creation - add delay for first turn
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                pollAITurns();
+                setTimeout(() => {
+                    if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                        pollAITurns();
+                    }
+                }, 500); // Add 500ms delay for first AI turn
             }
         } else {
-            console.error('Game start error:', data);
             alert('Error starting game: ' + (data.error || JSON.stringify(data)));
         }
     } catch (error) {
-        console.error('Error starting game:', error, error.stack);
         alert('Error starting game: ' + (error.message || error));
     }
-
-    // After the game board is shown and chat is cleared:
-    setJimNantzDefault();
-    playCardShuffleSound();
 }
 
 async function pollAITurns() {
@@ -546,7 +541,22 @@ function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-// ===== GAME FLOW CONTROL =====
+// ===== TIMER FUNCTIONS =====
+
+function showSetupViewTimer(seconds) {
+    const timerDiv = document.getElementById('setupViewTimer');
+    if (!timerDiv) return;
+    const secondsNum = parseFloat(seconds);
+    timerDiv.textContent = `Bottom two cards visible for: ${seconds} second${secondsNum !== 1 ? 's' : ''}`;
+}
+
+function hideSetupViewTimer() {
+    const timerDiv = document.getElementById('setupViewTimer');
+    if (!timerDiv) return;
+    timerDiv.textContent = '';
+}
+
+// ===== PERIODIC POLLING SETUP =====
 
 // Periodically refresh game state to catch AI moves
 setInterval(() => {
@@ -555,25 +565,8 @@ setInterval(() => {
     }
 }, 500); // Reduced from 1000ms to 500ms for more responsive AI turns
 
-// ===== EXPORT FUNCTIONS FOR OTHER MODULES =====
-// These functions will be called from other modules but defined here
+// ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
-function showSetupViewTimer(seconds) {
-    const timerDiv = document.getElementById('setupViewTimer');
-    if (timerDiv) {
-        const secondsNum = parseFloat(seconds);
-        timerDiv.textContent = `Setup cards visible: ${secondsNum.toFixed(1)}s`;
-    }
-}
-
-function hideSetupViewTimer() {
-    const timerDiv = document.getElementById('setupViewTimer');
-    if (timerDiv) {
-        timerDiv.textContent = '';
-    }
-}
-
-// These functions will be implemented in other modules but referenced here
 function clearCelebration() { /* Will be implemented in notifications module */ }
 function updateGameDisplay() { /* Will be implemented in UI module */ }
 function updateCumulativeScoreChart() { /* Will be implemented in probabilities module */ }

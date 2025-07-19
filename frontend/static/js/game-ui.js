@@ -1,9 +1,7 @@
 // ===== GAME UI MODULE =====
-// Handles all UI updates, display management, and interface control
+// UI update and display management functions for the Golf Card Game
 
-console.log('🎨 Game UI loaded successfully!');
-
-// ===== MAIN UI UPDATE FUNCTIONS =====
+// ===== UI UPDATE FUNCTIONS =====
 
 function updateGameDisplay() {
     if (!currentGameState || !currentGameState.players) return;
@@ -33,10 +31,10 @@ function updateGameDisplay() {
         // Update deck size
         const deckSizeElem = document.getElementById('deckSize');
         if (deckSizeElem) {
-            deckSizeElem.textContent = `${currentGameState.deck_size} cards`;
+            deckSizeElem.textContent = currentGameState.deck_size || 0;
         }
 
-        // Update discard pile with comprehensive visual refresh
+        // Update discard pile
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
             // Remove any problematic classes
@@ -197,9 +195,7 @@ function updateGameDisplay() {
 }
 
 function actuallyUpdateUI() {
-    // Main UI update logic - this function is called after animations complete
-    // or immediately if no animations are needed
-    console.log('🔄 actuallyUpdateUI called');
+    // ... your main UI update logic here ...
 }
 
 function updatePlayerGrids() {
@@ -241,163 +237,99 @@ function updatePlayerGrids() {
             clearTimeout(turnAnimateTimeout);
             turnAnimateTimeout = null;
         }
-        document.querySelectorAll('.player-grid.current-turn').forEach(el => el.classList.remove('turn-animate'));
-    }
-    currentGameState.players.forEach((player, index) => {
-        const playerDiv = document.createElement('div');
-        playerDiv.className = 'player-grid';
-        playerDiv.setAttribute('data-player', index);
-        if (index === currentGameState.current_turn) {
-            playerDiv.classList.add('current-turn'); // Highlight current turn
-            // Set animation offset to prevent restart on DOM updates
-            const animationOffset = (Date.now() % 8000) / 1000; // 8s animation cycle
-            playerDiv.style.setProperty('--animation-offset', `${animationOffset}s`);
-        }
-        const isHuman = index === 0; // Human is always player 0
-        // --- NEW: Player name and score header ---
-        let displayName = player.name;
-        let scoreText = 'Hidden';
-        let winnerIcon = '';
-        if (currentGameState.public_scores && typeof currentGameState.public_scores[index] !== 'undefined') {
-            scoreText = currentGameState.public_scores[index];
-            if (currentGameState.game_over && index === currentGameState.winner) {
-                winnerIcon = ' 🏆';
-            }
-        }
-        const isCurrentTurn = currentGameState.current_turn === index && !currentGameState.game_over;
-        let turnIndicator = '';
-        if (isCurrentTurn) {
-            if (index === 0) {
-                turnIndicator = ' <span class="turn-label">(Your Turn)</span>';
-            } else {
-                turnIndicator = ' <span class="turn-label">(AI Turn)</span>';
-            }
-        }
-        // Get player color for name
-        const playerColor = getPlayerColor(index);
-        // --- END NEW ---
-        const gridHtml = player.grid.map((card, pos) => {
-            if (!card) return '<div class="card face-down"></div>'; // Empty slot
-            let cardClass = 'card';
-            let displayContent = '';
-            let isFaceDown = true;
-            let extraAttrs = '';
-
-            if (isHuman && pos >= 2) {
-                if (!setupCardsHidden) {
-                    cardClass += ' privately-visible'; // Show bottom cards at setup
-                    displayContent = getCardDisplayContent(card, false);
-                    isFaceDown = false;
-                } else if (card.public) {
-                    cardClass += ' face-up public'; // Show if made public
-                    displayContent = getCardDisplayContent(card, false);
-                    isFaceDown = false;
-                } else {
-                    cardClass += ' face-down'; // Hide after setup
-                    displayContent = '';
-                    isFaceDown = true;
-                }
-            } else if (card.visible) {
-                if (card.public) {
-                    cardClass += ' face-up public';
-                } else {
-                    cardClass += ' privately-visible';
-                }
-                displayContent = getCardDisplayContent(card, false);
-                isFaceDown = false;
-            } else {
-                cardClass += ' face-down';
-                displayContent = '';
-                isFaceDown = true;
-            }
-
-            // Drag-and-drop for human player
-            if (isHuman && !card.public && currentGameState.current_turn === 0 && !currentGameState.game_over) {
-                // Accept drop from discard or drawn card - more lenient detection
-                extraAttrs += ' ondragover="event.preventDefault();this.classList.add(\'drop-target\');event.stopPropagation();"';
-                extraAttrs += ' ondragenter="event.preventDefault();this.classList.add(\'drop-target\');"';
-                extraAttrs += ' ondragleave="if(!event.relatedTarget || !this.contains(event.relatedTarget)) this.classList.remove(\'drop-target\');"';
-                extraAttrs += ` ondrop="handleDropOnGrid(${pos});this.classList.remove('drop-target');event.preventDefault();event.stopPropagation();"`;
-                // If in flip mode, add flippable class and different styling
-                if (window.flipDrawnMode) {
-                    cardClass += ' flippable';
-                    // Don't add drop-target styling in flip mode unless actively dragging
-                    if (!drawnCardDragActive) {
-                        cardClass = cardClass.replace(' drop-target', '');
-                    }
-                }
-            } else if (isHuman) {
-                extraAttrs += ' class="card not-droppable"';
-            }
-            return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
-        }).join('');
-        // --- NEW: Add player header above grid ---
-        playerDiv.innerHTML = `
-        <div class="player-header">
-            <span class="player-name"><strong>${displayName}</strong>${winnerIcon}</span>
-            <span class="player-score">Score: ${scoreText}</span>
-            <span class="player-turn-status">${turnIndicator}</span>
-        </div>
-        <div class="grid-container">${gridHtml}</div>
-    `;
-        // --- END NEW ---
-        container.appendChild(playerDiv);
-    });
-    // Robust delayed turn animation for human (border pulse)
-    if (currentTurnIndex === 0 && !currentGameState.game_over && lastTurnIndex !== currentTurnIndex) {
-        turnAnimateTimeout = setTimeout(() => {
-            // Only add animation if still human's turn
-            if (currentGameState.current_turn === 0 && !currentGameState.game_over) {
-                const grids = document.querySelectorAll('.player-grid.current-turn');
-                if (grids.length > 0) {
-                    grids[0].classList.add('turn-animate'); // Border pulse
-                }
-            }
-        }, 1); // Delay for border pulse (set to 1ms for instant)
-    }
-    // Clean up any existing transition backgrounds to prevent duplicates
-    document.querySelectorAll('.transition-background').forEach(el => el.remove());
-
-    lastTurnIndex = currentTurnIndex;
-    // Attach click handler to flippable cards in flip mode
-    if (window.flipDrawnMode) {
-        document.querySelectorAll('.flippable').forEach(el => {
-            el.onclick = function() {
-                const pos = parseInt(this.getAttribute('data-position'));
-                flipDrawnCardOnGrid(pos);
-            };
+        // Remove spinning animation from all grids
+        document.querySelectorAll('.player-grid .rotating-background').forEach(bg => {
+            bg.style.animation = 'none';
         });
     }
 
-    // Handle deck and discard interactivity based on game state
-    const deckCard = document.getElementById('deckCard');
-    const discardCard = document.getElementById('discardCard');
+    // Create player grids
+    currentGameState.players.forEach((player, playerIndex) => {
+        const isCurrentTurn = playerIndex === currentGameState.current_turn;
+        const isHuman = playerIndex === 0;
+        const playerColor = getPlayerColor(playerIndex);
 
-    if (currentGameState && currentGameState.current_turn === 0 && !currentGameState.game_over) {
-        // Human's turn - check if we're in the middle of a drawn card action
-        if (window.flipDrawnMode || drawnCardData) {
-            // In the middle of resolving a drawn card - disable both deck and discard
-            deckCard.classList.add('disabled');
-            deckCard.onclick = null;
-            discardCard.classList.add('disabled');
-            discardCard.onclick = null;
-            discardCard.classList.add('faded'); // Add fade effect
-        } else {
-            // Normal turn - enable both deck and discard
-            deckCard.classList.remove('disabled');
-            deckCard.onclick = drawFromDeck;
-            discardCard.classList.remove('disabled');
-            discardCard.onclick = takeDiscard;
-            discardCard.classList.remove('faded'); // Remove fade effect
+        const playerGrid = document.createElement('div');
+        playerGrid.className = `player-grid ${isHuman ? 'human' : 'ai'} ${isCurrentTurn ? 'current-turn' : ''}`;
+        playerGrid.setAttribute('data-player', playerIndex);
+
+        // Add spinning background for current turn
+        if (isCurrentTurn) {
+            const rotatingBg = document.createElement('div');
+            rotatingBg.className = 'rotating-background';
+            rotatingBg.style.background = `conic-gradient(from 0deg, transparent, ${playerColor}40, transparent)`;
+            playerGrid.appendChild(rotatingBg);
+
+            // Start spinning animation after a short delay
+            setTimeout(() => {
+                rotatingBg.style.animation = 'spin 2s linear infinite';
+            }, 100);
         }
-    } else {
-        // Not human's turn or game over - disable both
-        deckCard.classList.add('disabled');
-        deckCard.onclick = null;
-        discardCard.classList.add('disabled');
-        discardCard.onclick = null;
-        discardCard.classList.remove('faded'); // Remove fade effect
-    }
+
+        // Player name and score
+        const playerInfo = document.createElement('div');
+        playerInfo.className = 'player-info';
+        playerInfo.innerHTML = `
+            <div class="player-name" style="color: ${playerColor};">${player.name}</div>
+            <div class="player-score">Score: ${player.score || 0}</div>
+        `;
+        playerGrid.appendChild(playerInfo);
+
+        // Grid container
+        const gridContainer = document.createElement('div');
+        gridContainer.className = 'grid-container';
+
+        // Create 3x3 grid
+        for (let i = 0; i < 9; i++) {
+            const cardSlot = document.createElement('div');
+            cardSlot.className = 'card-slot';
+            cardSlot.setAttribute('data-position', i);
+
+            const card = player.grid[i];
+            if (card) {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${card.public ? 'face-up' : 'face-down'} ${isHuman ? 'human-card' : 'ai-card'}`;
+                cardElement.setAttribute('data-position', i);
+
+                if (card.public) {
+                    cardElement.innerHTML = getCardDisplayContent(card, false);
+                }
+
+                // Add drop target functionality for human cards
+                if (isHuman) {
+                    cardElement.classList.add('drop-target');
+                    cardElement.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        if (dragActive || drawnCardDragActive) {
+                            cardElement.classList.add('drag-over');
+                        }
+                    });
+                    cardElement.addEventListener('dragleave', () => {
+                        cardElement.classList.remove('drag-over');
+                    });
+                    cardElement.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        cardElement.classList.remove('drag-over');
+                        handleDropOnGrid(i);
+                    });
+                }
+
+                cardSlot.appendChild(cardElement);
+            }
+
+            gridContainer.appendChild(cardSlot);
+        }
+
+        playerGrid.appendChild(gridContainer);
+        container.appendChild(playerGrid);
+    });
+
+    // Update turn index
+    lastTurnIndex = currentTurnIndex;
+
+    // Update interactivity
+    const isMyTurn = currentGameState.current_turn === 0;
+    setPlayerInteractivity(isMyTurn);
 }
 
 function updateGameAndRoundInfo() {
@@ -455,10 +387,28 @@ function updateLastActionPanel() {
         if (actionHistoryList) {
             actionHistoryList.scrollTop = actionHistoryList.scrollHeight;
         }
-    }, 100);
+    }, 0);
+
+    // ... after you have currentGameState.action_history ...
+    const actionHistoryListElem = document.getElementById('actionHistoryList');
+    const newHistory = currentGameState.action_history || [];
+
+    if (actionHistoryListElem) {
+        // Only add new items
+        for (let i = actionHistoryListElem.children.length; i < newHistory.length; i++) {
+            const div = document.createElement('div');
+            div.className = 'action-history-item';
+            div.textContent = newHistory[i];
+            actionHistoryListElem.appendChild(div);
+        }
+        // Scroll to bottom if new items were added
+        if (actionHistoryListElem.children.length === newHistory.length) {
+            actionHistoryListElem.scrollTop = actionHistoryListElem.scrollHeight;
+        }
+    }
 }
 
-// ===== INTERACTIVITY MANAGEMENT =====
+// ===== INTERACTIVITY FUNCTIONS =====
 
 function updateInteractivity(isMyTurn) {
     // Deck
@@ -503,7 +453,7 @@ function setPlayerInteractivity(isMyTurn) {
     });
 }
 
-// ===== BUTTON AND HEADER MANAGEMENT =====
+// ===== BUTTON AND HEADER FUNCTIONS =====
 
 function updateNextHoleButton() {
     const nextHoleContainer = document.getElementById('nextHoleContainer');
@@ -529,6 +479,16 @@ function showReplayButton(show) {
 
 // ===== GAME STATE UI FUNCTIONS =====
 
+function handleGameEnd() {
+    // Immediately fetch new game state, don't wait for polling
+    fetch(`/game_state/${gameId}`)
+        .then(response => response.json())
+        .then(newState => {
+            currentGameState = newState;
+            updateGameDisplay(); // Force immediate UI update
+        });
+}
+
 function onGameOver() {
     showReplayButton(true);
 }
@@ -541,74 +501,40 @@ function onGameStart() {
     showReplayButton(false);
 }
 
-function handleGameEnd() {
-    // Immediately fetch new game state, don't wait for polling
-    fetch(`/game_state/${gameId}`)
-        .then(response => response.json())
-        .then(newState => {
-            currentGameState = newState;
-            updateGameDisplay(); // Force immediate UI update
-        });
-}
-
-function updateChart(gameData) {
-    // Only include players that are actually in the game
-    const activePlayers = gameData.players.filter(player => player.isActive);
-
-    // Create datasets only for active players
-    const datasets = activePlayers.map(player => ({
-        label: player.name,
-        data: player.scores,
-        backgroundColor: player.color,
-        // ...
-    }));
-}
-
-// ===== UTILITY FUNCTIONS =====
+// ===== UTILITY UI FUNCTIONS =====
 
 function getPlayerColor(playerIndex) {
-    const colors = ['#007bff', '#e67e22', '#28a745', '#764ba2', '#f39c12', '#e74c3c'];
+    const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107'];
     return colors[playerIndex % colors.length];
 }
 
 function enableActionHistory() {
-    const chat = document.querySelector('.action-history');
-    chat.style.pointerEvents = 'auto';
-    chat.style.overflow = 'auto';
-    chat.style.scrollbarWidth = '';
-    chat.style.msOverflowStyle = '';
+  const chat = document.querySelector('.action-history');
+  chat.style.pointerEvents = 'auto';
+  chat.style.overflow = 'auto';
+  chat.style.scrollbarWidth = '';
+  chat.style.msOverflowStyle = '';
 }
 
-// ===== INITIALIZATION =====
+function playGolfClap() {
+    const audio = document.getElementById('golfClapAudio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play();
+    }
+}
 
-// When showing setup:
-showHeaderButtons(false);
+// ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
-// When starting the game:
-showHeaderButtons(true);
-
-document.addEventListener('DOMContentLoaded', function() {
-    showHeaderButtons(false);
-});
-
-showHeaderButtons(true);
-
-// ===== EXPORT FUNCTIONS FOR OTHER MODULES =====
-// These functions will be called from other modules but defined here
-
-// These functions will be implemented in other modules but referenced here
 function getCardDisplayContent() { /* Will be implemented in cards module */ }
 function updateProbabilitiesPanel() { /* Will be implemented in probabilities module */ }
 function updateCumulativeScoreChart() { /* Will be implemented in probabilities module */ }
 function showCelebrationGif() { /* Will be implemented in notifications module */ }
 function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
 function requestProactiveComment() { /* Will be implemented in chatbot module */ }
-function playGolfClap() { /* Will be implemented in utils module */ }
 function takeDiscard() { /* Will be implemented in actions module */ }
-function drawFromDeck() { /* Will be implemented in actions module */ }
-function flipDrawnCardOnGrid() { /* Will be implemented in actions module */ }
-function handleDropOnGrid() { /* Will be implemented in actions module */ }
 function animateSnapToGrid() { /* Will be implemented in actions module */ }
+function handleDropOnGrid() { /* Will be implemented in actions module */ }
 function findAIDiscardedCard() { /* Will be implemented in core module */ }
 function aiJustMoved() { /* Will be implemented in core module */ }
 function deepCopy() { /* Will be implemented in core module */ }

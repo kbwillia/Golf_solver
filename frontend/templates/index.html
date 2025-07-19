@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/static/css/cards.css">
     <link rel="stylesheet" href="/static/css/players.css">
     <link rel="stylesheet" href="/static/css/game-controls.css">
-    <link rel="stylesheet" href="/static/css/golf.css">
+    <link rel="stylesheet" href="/static/css/notification.css">
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
 </head>
@@ -252,7 +252,11 @@
     <!-- Position modal removed - now using drag-and-drop instead -->
 
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
+    <script src="/static/js/game-core.js"></script>
+    <script src="/static/js/game-ui.js"></script>
+    <script src="/static/js/voice.js"></script>
     <script src="/static/js/golf.js"></script>
+
     <audio id="golfClapAudio" src="/static/sounds/golf_clap.mp3" preload="auto"></audio>
     <audio id="cardShuffleAudio" src="/static/sounds/card-shuffle.mp3" preload="auto"></audio>
     <audio id="cardFlipAudio" src="/static/sounds/card-sounds-flip.mp3" preload="auto"></audio>
