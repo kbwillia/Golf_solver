@@ -15,3 +15,5 @@ scipy
 cerebras-cloud-sdk
 python-dotenv
 elevenlabs
+gunicorn
+Werkzeug>=2.0.0
