@@ -23,9 +23,22 @@ load_dotenv()
 # log = logging.getLogger('werkzeug')
 # log.setLevel(logging.ERROR)  # Only show errors, not every request
 
+# Get the absolute path to the backend directory
+import os
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+frontend_dir = os.path.join(backend_dir, '..', 'frontend')
+
+# Debug logging for deployment
+print(f"Backend directory: {backend_dir}")
+print(f"Frontend directory: {frontend_dir}")
+print(f"Template folder: {os.path.join(frontend_dir, 'templates')}")
+print(f"Static folder: {os.path.join(frontend_dir, 'static')}")
+print(f"Template folder exists: {os.path.exists(os.path.join(frontend_dir, 'templates'))}")
+print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static'))}")
+
 app = Flask(__name__,
-           template_folder='../frontend/templates',
-           static_folder='../frontend/static')
+           template_folder=os.path.join(frontend_dir, 'templates'),
+           static_folder=os.path.join(frontend_dir, 'static'))
 app.secret_key = 'your-secret-key-here'  # Change this in production
 
 # Store active games
@@ -93,16 +106,19 @@ def test_static():
 @app.route('/debug-static')
 def debug_static():
     """Debug route to test if static files exist"""
-    import os
-    static_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static')
-    css_path = os.path.join(static_path, 'css', 'layout.css')
-    js_path = os.path.join(static_path, 'js', 'game-core.js')
+    css_path = os.path.join(frontend_dir, 'static', 'css', 'layout.css')
+    js_path = os.path.join(frontend_dir, 'static', 'js', 'game-core.js')
 
     return jsonify({
-        'static_path': static_path,
+        'backend_dir': backend_dir,
+        'frontend_dir': frontend_dir,
+        'static_folder': app.static_folder,
+        'template_folder': app.template_folder,
         'css_exists': os.path.exists(css_path),
         'js_exists': os.path.exists(js_path),
-        'static_dir_contents': os.listdir(static_path) if os.path.exists(static_path) else 'Directory not found'
+        'css_path': css_path,
+        'js_path': js_path,
+        'static_dir_contents': os.listdir(os.path.join(frontend_dir, 'static')) if os.path.exists(os.path.join(frontend_dir, 'static')) else 'Directory not found'
     })
 
 @app.route('/test_chatbot_simple.html')
