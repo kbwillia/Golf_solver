@@ -48,7 +48,28 @@
                         <option value="happy_gilmore">Happy Gilmore (Medium)</option>
                         <option value="tiger_woods">Tiger Woods (Hard)</option>
                     </select>
+                    <button type="button" id="createCustomBotBtn" class="btn btn-secondary" style="margin-left:10px;">Create Custom AI Bot</button>
                 </p>
+                <!-- Custom Bot Modal -->
+                <div id="customBotModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:400px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2);">
+                    <h3>Create Custom AI Bot</h3>
+                    <label for="customBotName">Name:</label>
+                    <input type="text" id="customBotName" style="width:100%; margin-bottom:10px;" placeholder="Bot Name" />
+                    <label for="customBotDifficulty">Difficulty:</label>
+                    <select id="customBotDifficulty" style="width:100%; margin-bottom:10px;">
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                    <label for="customBotDescription">Personality/Description:</label>
+                    <textarea id="customBotDescription" style="width:100%; margin-bottom:10px;" rows="3" placeholder="Describe this bot's personality..."></textarea>
+                    <div style="text-align:right;">
+                      <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary" style="margin-right:8px;">Cancel</button>
+                      <button type="button" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>
+                    </div>
+                  </div>
+                </div>
                 <!-- Number of Holes Dropdown -->
                 <p>
                     <label for="numGames">Number of Holes:</label>

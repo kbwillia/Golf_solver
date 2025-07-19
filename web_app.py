@@ -29,7 +29,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 2 #0.5  # seconds
+AI_TURN_DELAY = 0.5  # seconds
 
 # Add this mapping somewhere in your backend
 BOT_PERSONALITIES = {
@@ -92,6 +92,7 @@ def create_game():
     player_name = data.get('player_name', 'Human')
     num_games = int(data.get('num_games', 1))
     bot_name = data.get('bot_name', 'peter_parker')
+    custom_bot_info = data.get('custom_bot_info')
 
     # Generate unique game ID
     game_id = str(uuid.uuid4())
@@ -134,11 +135,16 @@ def create_game():
 
     # Set the AI player's name
     if game_mode == '1v1':
-        game.players[1].name = {
-            'peter_parker': 'Peter Parker',
-            'happy_gilmore': 'Happy Gilmore',
-            'tiger_woods': 'Tiger Woods'
-        }.get(bot_name, 'AI Opponent')
+        if custom_bot_info:
+            # Use custom bot name
+            game.players[1].name = custom_bot_info['name']
+        else:
+            # Use built-in bot names
+            game.players[1].name = {
+                'peter_parker': 'Peter Parker',
+                'happy_gilmore': 'Happy Gilmore',
+                'tiger_woods': 'Tiger Woods'
+            }.get(bot_name, 'AI Opponent')
 
     # No need to run AI turns here; handled by /run_ai_turn
     game_over = False
@@ -1095,6 +1101,29 @@ def tts():
         print("Exception in /api/tts:", e)
         traceback.print_exc()
         return jsonify({"error": "Server error", "details": str(e)}), 500
+
+# In your web_app.py or similar
+
+from flask import request, jsonify
+
+custom_bots = {}  # In-memory store; use a database for persistence
+
+@app.route('/api/create_custom_bot', methods=['POST'])
+def create_custom_bot():
+    print("🔥 /api/create_custom_bot endpoint hit")
+    data = request.get_json()
+    name = data.get('name')
+    difficulty = data.get('difficulty')
+    description = data.get('description')
+    if not name or not difficulty or not description:
+        return jsonify({'success': False, 'error': 'Missing fields'}), 400
+    bot_id = 'custom_' + name.lower().replace(' ', '_')
+    custom_bots[bot_id] = {
+        'name': name,
+        'difficulty': difficulty,
+        'description': description
+    }
+    return jsonify({'success': True, 'bot_id': bot_id, 'bot': custom_bots[bot_id]})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

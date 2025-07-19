@@ -295,13 +295,33 @@ async function startGame() {
 
     // Get bot name and map to difficulty
     const botNameSelect = document.getElementById('botNameSelect');
-    const botName = botNameSelect ? botNameSelect.value : 'peter_parker';
-    const botNameToDifficulty = {
-        'peter_parker': 'random',
-        'happy_gilmore': 'basic_logic',
-        'tiger_woods': 'ev_ai'
-    };
-    const opponentType = botNameToDifficulty[botName];
+    const botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+
+    // Check if it's a custom bot
+    let botName = botValue;
+    let opponentType = 'random';
+    let customBotInfo = null;
+
+    if (botValue.startsWith('custom_') && window.customBots && window.customBots[botValue]) {
+        // It's a custom bot
+        customBotInfo = window.customBots[botValue];
+        botName = customBotInfo.name;
+        // Map custom difficulty to opponent type
+        const difficultyToType = {
+            'easy': 'random',
+            'medium': 'basic_logic',
+            'hard': 'ev_ai'
+        };
+        opponentType = difficultyToType[customBotInfo.difficulty] || 'random';
+    } else {
+        // It's a built-in bot
+        const botNameToDifficulty = {
+            'peter_parker': 'random',
+            'happy_gilmore': 'basic_logic',
+            'tiger_woods': 'ev_ai'
+        };
+        opponentType = botNameToDifficulty[botValue] || 'random';
+    }
 
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
@@ -318,7 +338,8 @@ async function startGame() {
                 opponent: opponentType,
                 bot_name: botName,
                 player_name: playerName,
-                num_games: numGames
+                num_games: numGames,
+                custom_bot_info: customBotInfo
             })
         });
 
@@ -3590,14 +3611,16 @@ document.getElementById('closeGifModal').addEventListener('click', function() {
   document.getElementById('gifModal').style.display = 'none';
 });
 
-document.getElementById('gifSearchBtn').addEventListener('click', async function() {
-  const searchTerm = document.getElementById('gifSearchInput').value;
-  const response = await fetch('/gif/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: searchTerm })
-  });
-  const data = await response.json();
+const gifSearchBtn = document.getElementById('gifSearchBtn');
+if (gifSearchBtn) {
+  gifSearchBtn.addEventListener('click', async function() {
+    const searchTerm = document.getElementById('gifSearchInput').value;
+    const response = await fetch('/gif/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: searchTerm })
+    });
+    const data = await response.json();
   const gifResults = document.getElementById('gifResults');
   gifResults.innerHTML = '';
   if (data.success && data.gif_urls && data.gif_urls.length > 0) {
@@ -3619,7 +3642,8 @@ document.getElementById('gifSearchBtn').addEventListener('click', async function
   } else {
     gifResults.textContent = 'No GIFs found.';
   }
-});
+  });
+}
 
 function sendUserGifToChat(gifUrl) {
   // Add the GIF to the chat as a user GIF-only message
@@ -3791,3 +3815,113 @@ function playCardFlipSound() {
         audio.play();
     }
 }
+
+
+
+
+
+
+
+// === CUSTOM BOT MODAL ===
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🟢 MODAL: Setting up custom bot modal...');
+
+    const createBtn = document.getElementById('createCustomBotBtn');
+    const modal = document.getElementById('customBotModal');
+    const cancelBtn = document.getElementById('cancelCustomBotBtn');
+    const saveBtn = document.getElementById('saveCustomBotBtn');
+
+    // Make the Create Custom AI Bot button dark green
+    if (createBtn) {
+        createBtn.style.background = '#217a3a';
+        createBtn.style.color = '#fff';
+        createBtn.style.border = 'none';
+    }
+
+    // Debug: Check if elements exist
+    console.log('🟢 MODAL: Elements found:', {
+        createBtn: !!createBtn,
+        modal: !!modal,
+        cancelBtn: !!cancelBtn,
+        saveBtn: !!saveBtn
+    });
+
+    // Show modal
+    if (createBtn && modal) {
+        createBtn.addEventListener('click', function() {
+            console.log('🔥 MODAL: Create button clicked!');
+            modal.style.display = 'flex';
+            // modal.style.background = 'red'; // Temporary - to see if modal appears
+            console.log('🔥 MODAL: Modal display set to flex');
+        });
+    }
+
+    // Hide modal on cancel
+    if (cancelBtn && modal) {
+        cancelBtn.addEventListener('click', function() {
+            console.log('🔥 MODAL: Cancel button clicked!');
+            modal.style.display = 'none';
+        });
+    }
+
+    // Hide modal on outside click
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                console.log('🔥 MODAL: Clicked outside, closing...');
+                modal.style.display = 'none';
+            }
+        });
+    }
+
+    // Save custom bot
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            console.log('🔥 MODAL: Save button clicked!');
+            const name = document.getElementById('customBotName').value.trim();
+            const difficulty = document.getElementById('customBotDifficulty').value;
+            const description = document.getElementById('customBotDescription').value.trim();
+
+            if (!name) {
+                alert('Please enter a name for your custom bot.');
+                return;
+            }
+
+            // Send to backend
+            fetch('/api/create_custom_bot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, difficulty, description })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add to dropdown
+                    const botSelect = document.getElementById('botNameSelect');
+                    const option = document.createElement('option');
+                    option.value = data.bot_id;
+                    option.textContent = `${data.bot.name} (Custom)`;
+                    option.dataset.difficulty = data.bot.difficulty;
+                    option.dataset.description = data.bot.description;
+                    botSelect.appendChild(option);
+                    botSelect.value = data.bot_id;
+
+                    // Store globally
+                    if (!window.customBots) window.customBots = {};
+                    window.customBots[data.bot_id] = data.bot;
+
+                    // Hide modal
+                    modal.style.display = 'none';
+
+                    console.log('✅ MODAL: Bot created successfully!', data.bot);
+                } else {
+                    alert('Error creating bot: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error creating bot:', error);
+                alert('Error creating bot. Please try again.');
+            });
+        });
+    }
+});
