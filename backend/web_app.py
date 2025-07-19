@@ -81,6 +81,30 @@ def calculate_bot_response_delay(bot_name: str) -> float:
 def index():
     return render_template('index.html')
 
+@app.route('/test-static')
+def test_static():
+    """Test route to verify static files are being served"""
+    return jsonify({
+        'static_folder': app.static_folder,
+        'template_folder': app.template_folder,
+        'static_url_path': app.static_url_path
+    })
+
+@app.route('/debug-static')
+def debug_static():
+    """Debug route to test if static files exist"""
+    import os
+    static_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static')
+    css_path = os.path.join(static_path, 'css', 'layout.css')
+    js_path = os.path.join(static_path, 'js', 'game-core.js')
+
+    return jsonify({
+        'static_path': static_path,
+        'css_exists': os.path.exists(css_path),
+        'js_exists': os.path.exists(js_path),
+        'static_dir_contents': os.listdir(static_path) if os.path.exists(static_path) else 'Directory not found'
+    })
+
 @app.route('/test_chatbot_simple.html')
 def test_chatbot():
     return send_from_directory('../frontend', 'test_chatbot_simple.html')
