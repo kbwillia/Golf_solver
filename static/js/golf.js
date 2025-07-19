@@ -2802,6 +2802,13 @@ async function sendChatMessage() {
                                 // Add the text message
                                 addMessageToChat('bot', botData.message, botData.bot_name);
 
+                                // If this is Jim Nantz, speak the commentary
+                                if (botData.bot_name === 'Jim Nantz' || botData.bot_name === 'jim_nantz') {
+                                    console.log('🎤 Jim Nantz bot response detected:', botData.message);
+                                    console.log('🎤 About to call jimNantzCommentVoice...');
+                                    jimNantzCommentVoice(botData.message);
+                                }
+
                                 // Add this bot's response to conversation context for next bots
                                 conversationContext.push({
                                     role: 'assistant',
@@ -2834,6 +2841,13 @@ async function sendChatMessage() {
 
                 // Add the text message first
                 addMessageToChat('bot', message, botName);
+
+                // If this is Jim Nantz, speak the commentary
+                if (botName === 'Jim Nantz' || botName === 'jim_nantz') {
+                    console.log('🎤 Jim Nantz response detected:', message);
+                    console.log('🎤 About to call jimNantzCommentVoice...');
+                    jimNantzCommentVoice(message);
+                }
 
                 // Send GIF as a separate message if needed
                 if (await shouldBotSendGif(botName)) {
@@ -3218,7 +3232,7 @@ function startPeriodicProactiveComments() {
             const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
             requestProactiveComment(randomEvent);
         }
-    }, 30000 + Math.random() * 3000000); // 30-60 seconds og
+    }, 3000 + Math.random() * 3000); // 30-60 seconds og. 30000 is og.
 }
 
 // Also initialize chatbot when game board is shown
@@ -3406,10 +3420,12 @@ function updateChatInputVisibility() {
     chatInput.placeholder = 'Chat with opponents, Golf Pro/Bro...';
 }
 
-// Voice system variables
+// Voice system variables (global scope)
 let useElevenLabs = false; // Set to false for free browser TTS
 let voiceEnabled = true; // Track if voice is enabled
+let voiceType = 'browser'; // Fixed to browser-only since out of API credits
 let speechSynthesis = window.speechSynthesis;
+let browserVoices = [];
 
 // Initialize voice system
 console.log('🎙️ Voice system initialized');
@@ -3445,6 +3461,7 @@ function toggleVoiceSystem() {
     }
 
     console.log('🎤 Voice system:', voiceEnabled ? 'enabled' : 'disabled');
+    console.log('🎤 Voice type:', voiceType);
 }
 
 // Toggle action history between minimized and expanded
@@ -3515,7 +3532,11 @@ async function requestProactiveComment(eventType = 'general') {
 
             // If this is Jim Nantz, speak the commentary
             if (comment.bot_name === 'Jim Nantz' || comment.bot_name === 'jim_nantz') {
+                console.log('🎤 Jim Nantz comment detected:', comment.message);
+                console.log('🎤 About to call jimNantzCommentVoice...');
                 jimNantzCommentVoice(comment.message);
+            } else {
+                console.log('🎤 Not Jim Nantz, bot_name is:', comment.bot_name);
             }
 
             // Prevent Jim Nantz and Golf Pro from sending GIFs
@@ -3562,9 +3583,7 @@ async function requestProactiveComment(eventType = 'general') {
 //   });
 // });
 
-function jimNantzCommentVoice(text) {
-  speakText(text); // Use default Google US English voice since we're browser-only
-}
+
 
 document.getElementById('sendGifBtn').addEventListener('click', function() {
   document.getElementById('gifModal').style.display = 'block';
@@ -3877,10 +3896,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Initialize custom bot count display
     updateCustomBotCount();
 
-    // Voice system variables
-    let voiceEnabled = true;
-    let voiceType = 'browser'; // Fixed to browser-only since out of API credits
-    let browserVoices = [];
+    // Voice system variables (using global scope variables)
 
     // Initialize voice system
     function initializeVoiceSystem() {
@@ -3913,12 +3929,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Enhanced TTS function that supports both browser and backend
     function speakText(text, voiceName = null) {
+        // Check both old and new voice system variables
         if (!voiceEnabled) {
-            console.log('🎤 Voice disabled, skipping TTS');
+            console.log('🎤 Voice disabled (old system), skipping TTS');
             return;
         }
 
-        console.log('🎤 speakText called with:', { text: text.substring(0, 50) + '...', voiceName, voiceType });
+        console.log('🎤 speakText called with:', { text: text.substring(0, 50) + '...', voiceName, voiceType, voiceEnabled });
 
         if (voiceType === 'browser') {
             speakWithBrowser(text, voiceName);
@@ -3929,6 +3946,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Browser-based TTS
     function speakWithBrowser(text, voiceName = null) {
+        console.log('🎤 speakWithBrowser called with:', text.substring(0, 50) + '...');
+
         if (!('speechSynthesis' in window)) {
             console.log('🎤 Browser TTS not supported');
             return;
@@ -3966,12 +3985,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('🎤 Using fallback English voice:', englishVoice.name);
                 }
             }
+        } else {
+            console.log('🎤 No browser voices available, using system default');
         }
 
         // Set default properties
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
         utterance.volume = 0.8;
+
+        // Add event listeners for debugging
+        utterance.onstart = () => console.log('🎤 Speech started');
+        utterance.onend = () => console.log('🎤 Speech ended');
+        utterance.onerror = (event) => console.error('🎤 Speech error:', event.error);
 
         speechSynthesis.speak(utterance);
         console.log('🎤 Speaking with browser TTS:', text.substring(0, 50) + '...');
@@ -4002,8 +4028,38 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initialize voice system
+        // Initialize voice system
     initializeVoiceSystem();
+
+    // Jim Nantz voice function
+    window.jimNantzCommentVoice = function(text) {
+        console.log('🎤 jimNantzCommentVoice called with:', text);
+        console.log('🎤 voiceEnabled:', voiceEnabled);
+        console.log('🎤 voiceType:', voiceType);
+        console.log('🎤 speechSynthesis available:', !!speechSynthesis);
+        console.log('🎤 browserVoices loaded:', browserVoices.length);
+
+        speakText(text); // Use default Google US English voice since we're browser-only
+    };
+
+    // Test function for debugging voice system
+    window.testVoiceSystem = function() {
+        console.log('🎤 Testing voice system...');
+        console.log('🎤 voiceEnabled:', voiceEnabled);
+        console.log('🎤 voiceType:', voiceType);
+        console.log('🎤 speechSynthesis available:', !!speechSynthesis);
+        console.log('🎤 browserVoices loaded:', browserVoices.length);
+
+        if (browserVoices.length > 0) {
+            console.log('🎤 Available voices:');
+            browserVoices.forEach((voice, index) => {
+                console.log(`🎤 ${index}: ${voice.name} (${voice.lang})`);
+            });
+        }
+
+        // Test speech
+        speakText("Hello friends, this is a test of the voice system!");
+    };
 
 
 
