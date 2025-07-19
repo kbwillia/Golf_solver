@@ -16,7 +16,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import requests
-from bot_personalities import create_bot
+from bot_personalities import create_bot, register_custom_bot
 
 # Load environment variables from .env file
 load_dotenv()
@@ -86,103 +86,126 @@ def test_chatbot():
 @app.route('/create_game', methods=['POST'])
 def create_game():
     """Create a new game session"""
-    data = request.json
-    game_mode = data.get('mode', '1v1')  # '1v1' or '1v3'
-    opponent = data.get('opponent', 'random')
-    player_name = data.get('player_name', 'Human')
-    num_games = int(data.get('num_games', 1))
-    bot_name = data.get('bot_name', 'peter_parker')
-    custom_bot_info = data.get('custom_bot_info')
-    custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
+    try:
+        data = request.json
+        game_mode = data.get('mode', '1v1')  # '1v1' or '1v3'
+        opponent = data.get('opponent', 'random')
+        player_name = data.get('player_name', 'Human')
+        num_games = int(data.get('num_games', 1))
+        bot_name = data.get('bot_name', 'peter_parker')
+        custom_bot_info = data.get('custom_bot_info')
+        custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
 
-    # Generate unique game ID
-    game_id = str(uuid.uuid4())
+        # Generate unique game ID
+        game_id = str(uuid.uuid4())
 
-    # Create game based on mode
-    if game_mode == '1v1':
-        agent_types = ["human", opponent]
-        num_players = 2
-    else:  # 1v3
-        agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
-        num_players = 4
+        # Initialize custom bot data storage
+        custom_bot_data = []
 
-    # Create the game
-    game = GolfGame(num_players=num_players, agent_types=agent_types)
-    # Set the human player's name
-    game.players[0].name = player_name
-    # set AI names with proper display names
-    if game_mode == '1v1':
-        # In 1v1, second player gets the opponent type name
-        if opponent == "random":
-            game.players[1].name = "Random move AI"
-        elif opponent == "heuristic":
-            game.players[1].name = "Basic Logic AI"
-        elif opponent == "qlearning":
-            game.players[1].name = "Q-Learning AI"
-        elif opponent == "ev_ai":
-            game.players[1].name = "EV AI"
-        elif opponent == "advanced_ev":
-            game.players[1].name = "Advanced EV AI"
-    else:
-        # In 1v3, give custom names to each AI
-        ai_names = [
-            "Peter Parker",      # Easy (random)
-            "Happy Gilmore",    # Medium (basic logic)
-            "Tiger Woods",      # Hard (ev_ai)
-            "Shooter McGavin"   # Advanced (advanced_ev)
-        ]
+        # Create game based on mode
+        if game_mode == '1v1':
+            agent_types = ["human", opponent]
+            num_players = 2
+        else:  # 1v3
+            agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
+            num_players = 4
 
-        # Handle multiple custom bots for 1v3 mode
-        if custom_bots_1v3 and len(custom_bots_1v3) > 0:
-            # Replace AI names with custom bot names (up to 3)
-            for i, custom_bot in enumerate(custom_bots_1v3[:3]):  # Max 3 custom bots
-                ai_names[i] = custom_bot['name']
-        elif custom_bot_info:
-            # Legacy: single custom bot replaces first AI
-            ai_names[0] = custom_bot_info['name']
-
-        for i in range(1, num_players):
-            game.players[i].name = ai_names[i-1]
-
-    # Set the AI player's name
-    if game_mode == '1v1':
-        if custom_bot_info:
-            # Use custom bot name
-            game.players[1].name = custom_bot_info['name']
+        # Create the game
+        game = GolfGame(num_players=num_players, agent_types=agent_types)
+        # Set the human player's name
+        game.players[0].name = player_name
+        # set AI names with proper display names
+        if game_mode == '1v1':
+            # In 1v1, second player gets the opponent type name
+            if opponent == "random":
+                game.players[1].name = "Random move AI"
+            elif opponent == "heuristic":
+                game.players[1].name = "Basic Logic AI"
+            elif opponent == "qlearning":
+                game.players[1].name = "Q-Learning AI"
+            elif opponent == "ev_ai":
+                game.players[1].name = "EV AI"
+            elif opponent == "advanced_ev":
+                game.players[1].name = "Advanced EV AI"
         else:
-            # Use built-in bot names
-            game.players[1].name = {
-                'peter_parker': 'Peter Parker',
-                'happy_gilmore': 'Happy Gilmore',
-                'tiger_woods': 'Tiger Woods'
-            }.get(bot_name, 'AI Opponent')
+            # In 1v3, give custom names to each AI
+            ai_names = [
+                "Peter Parker",      # Easy (random)
+                "Happy Gilmore",    # Medium (basic logic)
+                "Tiger Woods",      # Hard (ev_ai)
+                "Shooter McGavin"   # Advanced (advanced_ev)
+            ]
 
-    # No need to run AI turns here; handled by /run_ai_turn
-    game_over = False
+            # Handle multiple custom bots for 1v3 mode
+            if custom_bots_1v3 and len(custom_bots_1v3) > 0:
+                # Replace AI names with custom bot names (up to 3)
+                for i, custom_bot in enumerate(custom_bots_1v3[:3]):  # Max 3 custom bots
+                    ai_names[i] = custom_bot['name']
+                    # Store bot_id for chatbot lookup (will be added after games[game_id] is created)
+                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_')
+                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
+            elif custom_bot_info:
+                # Legacy: single custom bot replaces first AI
+                ai_names[0] = custom_bot_info['name']
+                # Store bot_id for chatbot lookup (will be added after games[game_id] is created)
+                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_')
+                custom_bot_data.append(('custom_bot_id_0', bot_id, 'custom_bot_name_0', custom_bot_info['name']))
 
-    # Store game state, including cumulative scores and match info
-    games[game_id] = {
-        'game': game,
-        'mode': game_mode,
-        'game_over': game_over,
-        'player_name': player_name,
-        'num_games': num_games,
-        'current_game': 1,
-        'cumulative_scores': [0] * num_players,
-        'round_cumulative_scores': [0] * num_players,
-        'match_winner': None,
-        'cumulative_updated_for_game': False  # NEW: Track if cumulative updated for this game
-    }
+            for i in range(1, num_players):
+                game.players[i].name = ai_names[i-1]
 
-    # Reset chatbot conversation history
-    chatbot.conversation_history = []
-    chatbot.reset_for_new_game()  # Reset bot state for new game
+        # Set the AI player's name
+        if game_mode == '1v1':
+            if custom_bot_info:
+                # Use custom bot name for display, but store bot_id for chatbot lookup
+                game.players[1].name = custom_bot_info['name']
+                # Store the bot_id and name in the game session for chatbot lookup (will be added after games[game_id] is created)
+                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_')
+                custom_bot_data.append(('custom_bot_id', bot_id, 'custom_bot_name', custom_bot_info['name']))
+            else:
+                # Use built-in bot names
+                game.players[1].name = {
+                    'peter_parker': 'Peter Parker',
+                    'happy_gilmore': 'Happy Gilmore',
+                    'tiger_woods': 'Tiger Woods'
+                }.get(bot_name, 'AI Opponent')
 
-    return jsonify({
-        'success': True,
-        'game_id': game_id,
-        'game_state': get_game_state(game_id)
-    })
+        # No need to run AI turns here; handled by /run_ai_turn
+        game_over = False
+
+        # Store game state, including cumulative scores and match info
+        games[game_id] = {
+            'game': game,
+            'mode': game_mode,
+            'game_over': game_over,
+            'player_name': player_name,
+            'num_games': num_games,
+            'current_game': 1,
+            'cumulative_scores': [0] * num_players,
+            'round_cumulative_scores': [0] * num_players,
+            'match_winner': None,
+            'cumulative_updated_for_game': False  # NEW: Track if cumulative updated for this game
+        }
+
+        # Add custom bot data to the game session if any
+        for bot_id_key, bot_id, bot_name_key, bot_name in custom_bot_data:
+            games[game_id][bot_id_key] = bot_id
+            games[game_id][bot_name_key] = bot_name
+
+        # Reset chatbot conversation history
+        chatbot.conversation_history = []
+        chatbot.reset_for_new_game()  # Reset bot state for new game
+
+        return jsonify({
+            'success': True,
+            'game_id': game_id,
+            'game_state': get_game_state(game_id)
+        })
+    except Exception as e:
+        print(f"ERROR in create_game: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/game_state/<game_id>')
 def game_state(game_id):
@@ -710,8 +733,20 @@ def send_chatbot_message():
         # Golf Bro and Golf Pro are now ONLY available via @ mentions
         # They are NOT included in general opponent responses
 
-        # Return the list of bots that will respond, but don't generate responses yet
-        bot_names = [player.name for player in all_bots]
+        # Map display names to bot_ids for custom bots
+        bot_names = []
+        for i, player in enumerate(all_bots):
+            # Check if this is a custom bot by looking for stored bot_id
+            custom_bot_id_key = f'custom_bot_id_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_id'
+            custom_bot_name_key = f'custom_bot_name_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_name'
+
+            if custom_bot_id_key in game_session and player.name == game_session.get(custom_bot_name_key):
+                # Use the stored bot_id for custom bots
+                bot_names.append(game_session[custom_bot_id_key])
+            else:
+                # Use display name for built-in bots
+                bot_names.append(player.name)
+
         return jsonify({
             'success': True,
             'bot_names': bot_names,
@@ -1086,30 +1121,56 @@ def user_gif_search():
 @app.route('/api/tts', methods=['POST'])
 def tts():
     try:
-        text = request.json['text']
+        data = request.get_json()
+        text = data.get('text', '')
+        voice = data.get('voice', 'default')
+
+        if not text:
+            return jsonify({'success': False, 'error': 'Text is required'}), 400
+
+        # Map voice names to speaker IDs
+        voice_mapping = {
+            'default': "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a",
+            'jim_nantz': "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a",  # Use same speaker for now
+            'male': "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a",
+            'female': "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a"  # You can add different speaker IDs
+        }
+
+        speaker_id = voice_mapping.get(voice, voice_mapping['default'])
+
         payload = {
             "text": text,
-            "speaker": "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a",  # Use your real speaker ID
+            "speaker": speaker_id,
             "emotion": "Friendly"
         }
         headers = {
             "x-api-key": os.getenv("TOP_MEDIA"),
             "Content-Type": "application/json"
         }
-        print("Sending payload:", payload)
-        print("With headers:", headers)
+        print("🎤 TTS Request:", payload)
         response = requests.post("https://api.topmediai.com/v1/text2speech", json=payload, headers=headers)
-        print("Raw response:", response.text)
+        print("🎤 Raw response:", response.text)
         result = response.json()
-        print("TopMediai API response:", result)
+        print("🎤 TopMediai API response:", result)
+
         if result.get("status") == 200 and "oss_url" in result.get("data", {}):
             audio_url = result["data"]["oss_url"]
-            return jsonify({"audio_url": audio_url})
+
+            # Download the audio file and return it as a blob
+            audio_response = requests.get(audio_url)
+            if audio_response.status_code == 200:
+                from flask import make_response
+                response = make_response(audio_response.content)
+                response.headers['Content-Type'] = 'audio/wav'
+                response.headers['Content-Disposition'] = 'attachment; filename=speech.wav'
+                return response
+            else:
+                return jsonify({"error": "Failed to download audio file"}), 500
         else:
             return jsonify({"error": "TTS failed", "details": result}), 500
     except Exception as e:
         import traceback
-        print("Exception in /api/tts:", e)
+        print("🎤 Exception in /api/tts:", e)
         traceback.print_exc()
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
@@ -1134,6 +1195,10 @@ def create_custom_bot():
         'difficulty': difficulty,
         'description': description
     }
+
+    # Register the custom bot for use in the chatbot system
+    register_custom_bot(bot_id, name, description, difficulty)
+
     return jsonify({'success': True, 'bot_id': bot_id, 'bot': custom_bots[bot_id]})
 
 if __name__ == '__main__':

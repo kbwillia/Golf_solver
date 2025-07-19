@@ -130,6 +130,12 @@ class GolfChatbot:
         bot_info = self.get_bot_info()
         system_prompt = bot_info["system_prompt"]
 
+        # Print the system prompt for investigation
+        print(f"🔧 SYSTEM PROMPT for {bot_info['name']}:")
+        print(f"🔧 {system_prompt}")
+        print(f"🔧 Bot type: {self.bot_type}")
+        print(f"🔧 Bot description: {self.current_bot.description}")
+
         # Update emotional state based on current game performance
         if game_state:
             self.current_bot.update_emotional_state(game_state)
@@ -171,6 +177,12 @@ class GolfChatbot:
             context += f"{bot_info['name']}:"
 
         try:
+            # Print the full prompt being sent to the LLM
+            print(f"🤖 LLM PROMPT (model: llama3.1-8b, structured: False, stream: True, temp: 0.7):")
+            print(f"🤖 {'='*80}")
+            print(f"🤖 {context}")
+            print(f"🤖 {'='*80}")
+
             # Call the LLM
             response = call_cerebras_llm(
                 prompt=context,
@@ -249,6 +261,11 @@ class GolfChatbot:
         prompt = event_prompts.get(event_type, event_prompts["general"])
 
         try:
+            # Print the system prompt for investigation
+            print(f"🔧 PROACTIVE SYSTEM PROMPT for {bot_info['name']}:")
+            print(f"🔧 {bot_info['system_prompt']}")
+            print(f"🔧 Event type: {event_type}")
+
             context = f"{bot_info['system_prompt']}\n\n"
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
@@ -268,6 +285,12 @@ class GolfChatbot:
 
             # Always add the base prompt
             context += self.base_prompt + "\n"
+
+            # Print the full prompt being sent to the LLM
+            print(f"🤖 LLM PROMPT (model: llama3.1-8b, structured: False, stream: False, temp: 0.8):")
+            print(f"🤖 {'='*80}")
+            print(f"🤖 {context}")
+            print(f"🤖 {'='*80}")
 
             response = call_cerebras_llm(
                 prompt=context,
@@ -308,9 +331,11 @@ class GolfChatbot:
 
     def get_available_personalities(self) -> List[Dict[str, str]]:
         """Get list of available personalities"""
+        from bot_personalities import get_all_custom_bots
+
         # Define the allowed personalities
         allowed_bots = ["Jim Nantz", "Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin"]
-        return [
+        personalities = [
             {
                 "type": bot_name,
                 "name": bot_name,
@@ -318,6 +343,17 @@ class GolfChatbot:
             }
             for bot_name in allowed_bots
         ]
+
+        # Add custom bots
+        custom_bots = get_all_custom_bots()
+        for bot_id, bot_data in custom_bots.items():
+            personalities.append({
+                "type": bot_id,  # Use bot_id as the type
+                "name": bot_data["name"],
+                "description": bot_data["description"]
+            })
+
+        return personalities
 
 # Create a global chatbot instance
 chatbot = GolfChatbot("Jim Nantz")

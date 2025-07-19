@@ -637,7 +637,7 @@ function updateGameDisplay() {
             if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
             proactiveCommentTimeout = setTimeout(() => {
                 const now = Date.now();
-                if (now - lastNantzCommentTime > 400000) { // 4s cooldown
+                if (now - lastNantzCommentTime > 4000) { // 4s cooldown=4000.
                     console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
                     lastNantzCommentTime = now;
@@ -3438,13 +3438,13 @@ if (speechSynthesis) {
 // Toggle voice system on/off
 function toggleVoiceSystem() {
     voiceEnabled = !voiceEnabled;
-    console.log('Voice enabled:', voiceEnabled);
+    const voiceStatus = document.getElementById('voiceStatus');
 
-    // Update UI button
-    const voiceToggle = document.getElementById('voiceToggle');
-    if (voiceToggle) {
-        voiceToggle.textContent = voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+    if (voiceStatus) {
+        voiceStatus.textContent = voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
     }
+
+    console.log('🎤 Voice system:', voiceEnabled ? 'enabled' : 'disabled');
 }
 
 // Toggle action history between minimized and expanded
@@ -3563,20 +3563,7 @@ async function requestProactiveComment(eventType = 'general') {
 // });
 
 function jimNantzCommentVoice(text) {
-  fetch('/api/tts', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text: text})
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.audio_url) {
-      const audio = new Audio(data.audio_url);
-      audio.play();
-    } else {
-      alert("TTS failed");
-    }
-  });
+  speakText(text); // Use default Google US English voice since we're browser-only
 }
 
 document.getElementById('sendGifBtn').addEventListener('click', function() {
@@ -3892,30 +3879,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Voice system variables
     let voiceEnabled = true;
-    let voiceType = 'browser';
+    let voiceType = 'browser'; // Fixed to browser-only since out of API credits
     let browserVoices = [];
 
     // Initialize voice system
     function initializeVoiceSystem() {
-        const voiceToggle = document.getElementById('voiceToggle');
-        const voiceStatus = document.getElementById('voiceStatus');
-        const voiceTypeSelect = document.getElementById('voiceType');
-
-        if (voiceToggle) {
-            voiceToggle.addEventListener('change', function() {
-                voiceEnabled = this.checked;
-                voiceStatus.textContent = voiceEnabled ? 'ON' : 'OFF';
-                console.log('🎤 Voice system:', voiceEnabled ? 'enabled' : 'disabled');
-            });
-        }
-
-        if (voiceTypeSelect) {
-            voiceTypeSelect.addEventListener('change', function() {
-                voiceType = this.value;
-                console.log('🎤 Voice type changed to:', voiceType);
-            });
-        }
-
         // Load browser voices
         loadBrowserVoices();
     }
@@ -3950,6 +3918,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        console.log('🎤 speakText called with:', { text: text.substring(0, 50) + '...', voiceName, voiceType });
+
         if (voiceType === 'browser') {
             speakWithBrowser(text, voiceName);
         } else {
@@ -3969,14 +3939,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const utterance = new SpeechSynthesisUtterance(text);
 
-        // Set voice if specified
+        // Set voice if specified or use default Google US English
         if (voiceName && browserVoices.length > 0) {
             const selectedVoice = browserVoices.find(voice =>
                 voice.name.includes(voiceName) || voice.name === voiceName
             );
             if (selectedVoice) {
                 utterance.voice = selectedVoice;
-                console.log('🎤 Using browser voice:', selectedVoice.name);
+                console.log('🎤 Using specified browser voice:', selectedVoice.name);
+            }
+        } else if (browserVoices.length > 0) {
+            // Set default to Google US English
+            const googleUSVoice = browserVoices.find(voice =>
+                voice.name === 'Google US English' && voice.lang === 'en-US'
+            );
+            if (googleUSVoice) {
+                utterance.voice = googleUSVoice;
+                console.log('🎤 Using default browser voice: Google US English');
+            } else {
+                // Fallback to any English voice if Google US English not found
+                const englishVoice = browserVoices.find(voice =>
+                    voice.lang.startsWith('en-')
+                );
+                if (englishVoice) {
+                    utterance.voice = englishVoice;
+                    console.log('🎤 Using fallback English voice:', englishVoice.name);
+                }
             }
         }
 
@@ -4016,6 +4004,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize voice system
     initializeVoiceSystem();
+
+
+
+
 
         // Placeholder bot templates (loaded directly in frontend)
     const placeholderBots = [
@@ -4140,7 +4132,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const botSection = document.createElement('div');
         botSection.className = 'bot-section';
-        botSection.style.cssText = 'border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;';
+        botSection.style.cssText = 'border:1px solid #ddd; padding:15px; border-radius:5px; min-width:280px; max-width:320px; flex:1;';
         botSection.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h4 style="margin:0;">Bot ${botNumber}</h4>
@@ -4447,13 +4439,15 @@ document.addEventListener('DOMContentLoaded', function() {
                             updateCustomBotCount();
                             multipleModal.style.display = 'none';
 
-                            // Clear the form
-                            document.getElementById('multiBot1Name').value = '';
-                            document.getElementById('multiBot1Description').value = '';
-                            document.getElementById('multiBot2Name').value = '';
-                            document.getElementById('multiBot2Description').value = '';
-                            document.getElementById('multiBot3Name').value = '';
-                            document.getElementById('multiBot3Description').value = '';
+                            // Clear the form - only clear fields that exist
+                            const botSections = document.querySelectorAll('.bot-section');
+                            botSections.forEach((section, index) => {
+                                const botNumber = index + 1;
+                                const nameInput = document.getElementById(`multiBot${botNumber}Name`);
+                                const descInput = document.getElementById(`multiBot${botNumber}Description`);
+                                if (nameInput) nameInput.value = '';
+                                if (descInput) descInput.value = '';
+                            });
 
                             console.log(`✅ MODAL: All ${totalBots} bots created successfully!`);
                         }
@@ -4469,3 +4463,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Test Jim Nantz voice directly
+jimNantzCommentVoice("Hello friends, what a beautiful day for golf!")
+
+// Check voice settings
+console.log('Voice enabled:', voiceEnabled)
+console.log('Voice type:', voiceType)

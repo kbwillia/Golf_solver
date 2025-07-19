@@ -506,8 +506,8 @@ class GenericBot(BaseBot):
 
     def get_system_prompt(self) -> str:
         return (
-            "You are a helpful golf assistant. You provide advice and commentary on the Golf card game. "
-            "Be friendly and informative. Keep responses under 2 sentences and 200 characters."
+            "You are a player in a 4 card golf card game. "
+            "Be friendly, informative, and entertaiing. Keep responses under 2 sentences and 200 characters."
         )
 
     def get_catchphrases(self) -> List[str]:
@@ -584,6 +584,95 @@ class GolfProBot(BaseBot):
         ]
 
 
+class CustomBot(BaseBot):
+    """Custom bot with user-defined personality"""
+
+    def __init__(self, name: str, description: str, difficulty: str = "medium"):
+        super().__init__(name, description)
+        self.difficulty = difficulty
+        self.custom_description = description
+
+    def get_system_prompt(self) -> str:
+        print(f"🔧 CUSTOM BOT DEBUG: get_system_prompt() called for {self.name}")
+        print(f"🔧 CUSTOM BOT DEBUG: self.custom_description = '{self.custom_description}'")
+        print(f"🔧 CUSTOM BOT DEBUG: self.difficulty = '{self.difficulty}'")
+
+        # Create a system prompt based on the custom description
+        base_prompt = f"You are {self.name}, a custom golf bot. "
+
+        # Add personality traits from the description
+        if self.custom_description:
+            base_prompt += f"Your personality: {self.custom_description}. "
+            print(f"🔧 CUSTOM BOT DEBUG: Adding description to system prompt: '{self.custom_description}'")
+        else:
+            print(f"🔧 CUSTOM BOT DEBUG: WARNING - custom_description is empty or None!")
+
+        # Add difficulty-based characteristics
+        if self.difficulty == "easy":
+            base_prompt += "You are friendly and encouraging. "
+        elif self.difficulty == "medium":
+            base_prompt += "You are balanced and strategic. "
+        elif self.difficulty == "hard":
+            base_prompt += "You are competitive and analytical. "
+
+        base_prompt += "Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
+
+        print(f"🔧 CUSTOM BOT DEBUG: Final system prompt: {base_prompt}")
+        return base_prompt
+
+    def get_catchphrases(self) -> List[str]:
+        """Return empty catchphrases for custom bots"""
+        return []
+
+
+
+# Global custom bots storage
+custom_bots_storage = {}
+
+def register_custom_bot(bot_id: str, name: str, description: str, difficulty: str):
+    """Register a custom bot for use in the chatbot system"""
+    print(f"🔧 CUSTOM BOT: register_custom_bot() called with:")
+    print(f"🔧 CUSTOM BOT:   bot_id = '{bot_id}'")
+    print(f"🔧 CUSTOM BOT:   name = '{name}'")
+    print(f"🔧 CUSTOM BOT:   description = '{description}'")
+    print(f"🔧 CUSTOM BOT:   difficulty = '{difficulty}'")
+
+    custom_bots_storage[bot_id] = {
+        "name": name,
+        "description": description,
+        "difficulty": difficulty
+    }
+
+    # Verify storage
+    stored_data = custom_bots_storage[bot_id]
+    print(f"🔧 CUSTOM BOT: Stored data verification:")
+    print(f"🔧 CUSTOM BOT:   stored name = '{stored_data['name']}'")
+    print(f"🔧 CUSTOM BOT:   stored description = '{stored_data['description']}'")
+    print(f"🔧 CUSTOM BOT:   stored difficulty = '{stored_data['difficulty']}'")
+
+    print(f"🔧 CUSTOM BOT: Registered custom bot '{name}' with ID '{bot_id}'")
+    print(f"🔧 CUSTOM BOT: Description: {description}")
+    print(f"🔧 CUSTOM BOT: Difficulty: {difficulty}")
+
+def get_custom_bot(bot_id: str):
+    """Get a custom bot by ID"""
+    print(f"🔧 CUSTOM BOT: get_custom_bot() called with bot_id = '{bot_id}'")
+    result = custom_bots_storage.get(bot_id)
+    if result:
+        print(f"🔧 CUSTOM BOT: Found custom bot data:")
+        print(f"🔧 CUSTOM BOT:   name = '{result['name']}'")
+        print(f"🔧 CUSTOM BOT:   description = '{result['description']}'")
+        print(f"🔧 CUSTOM BOT:   difficulty = '{result['difficulty']}'")
+    else:
+        print(f"🔧 CUSTOM BOT: No custom bot found for ID '{bot_id}'")
+        print(f"🔧 CUSTOM BOT: Available bot IDs: {list(custom_bots_storage.keys())}")
+    return result
+
+def get_all_custom_bots():
+    """Get all registered custom bots"""
+    return custom_bots_storage.copy()
+
+
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
     """Factory function to create bot instances"""
@@ -601,6 +690,20 @@ def create_bot(bot_type: str) -> BaseBot:
         "nantz": JimNantzBot,
         "opponent": GenericBot
     }
+
+    # Check if this is a custom bot ID
+    custom_bot_data = get_custom_bot(bot_type)
+    if custom_bot_data:
+        print(f"🔧 CUSTOM BOT: Creating custom bot '{custom_bot_data['name']}' from ID '{bot_type}'")
+        print(f"🔧 CUSTOM BOT: Description from storage: '{custom_bot_data['description']}'")
+        print(f"🔧 CUSTOM BOT: Difficulty from storage: '{custom_bot_data['difficulty']}'")
+        custom_bot = CustomBot(
+            name=custom_bot_data['name'],
+            description=custom_bot_data['description'],
+            difficulty=custom_bot_data['difficulty']
+        )
+        print(f"🔧 CUSTOM BOT: Created bot with name: '{custom_bot.name}', description: '{custom_bot.description}', custom_description: '{custom_bot.custom_description}'")
+        return custom_bot
 
     bot_class = bot_classes.get(bot_type)
     if bot_class:

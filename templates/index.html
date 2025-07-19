@@ -57,18 +57,9 @@
 
                 <!-- Voice Toggle -->
                 <p>
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <span>Voice System:</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="voiceToggle" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span id="voiceStatus">ON</span>
-                    </label>
-                    <select id="voiceType" style="margin-left: 20px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;">
-                        <option value="browser">Browser Voices</option>
-                        <option value="backend">Backend TTS</option>
-                    </select>
+                    <button type="button" onclick="toggleVoiceSystem()" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        <span id="voiceStatus">🔊 Voice: ON</span>
+                    </button>
                 </p>
                 <!-- Custom Bot Modal -->
                 <div id="customBotModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
@@ -99,11 +90,11 @@
 
                                 <!-- Multiple Custom Bots Modal -->
                 <div id="multipleBotsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:600px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
+                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:900px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
                                                             <h3>Create Custom Bots for 1v3 Mode</h3>
                     <p style="color:#666; margin-bottom:20px;">Create custom bots for 1v3 mode. Click "Add Another Bot" to create more bots.</p>
 
-                    <div id="botSectionsContainer">
+                    <div id="botSectionsContainer" style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
                       <!-- Bot sections will be added here dynamically -->
                     </div>
 
