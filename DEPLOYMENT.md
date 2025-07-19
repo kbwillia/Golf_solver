@@ -59,7 +59,7 @@ python web_app.py
 
 Visit `http://localhost:5000` to test locally.
 
-## Sharing Your App
+## Sharing Your App here
 
 Once deployed, you'll get a URL like:
 - `https://your-golf-game.onrender.com`
