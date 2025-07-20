@@ -677,6 +677,8 @@ def get_all_custom_bots():
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
     """Factory function to create bot instances"""
+    print(f"🔧 CUSTOM BOT: create_bot() called with bot_type = '{bot_type}'")
+
     bot_classes = {
         "Tiger Woods": TigerWoodsBot,
         "Happy Gilmore": HappyGilmoreBot,
@@ -708,9 +710,11 @@ def create_bot(bot_type: str) -> BaseBot:
 
     bot_class = bot_classes.get(bot_type)
     if bot_class:
+        print(f"🔧 CUSTOM BOT: Creating built-in bot '{bot_type}'")
         return bot_class()
     else:
         # Default to generic bot instead of trying to instantiate abstract BaseBot
+        print(f"🔧 CUSTOM BOT: No bot found for '{bot_type}', using GenericBot")
         return GenericBot()
 
 

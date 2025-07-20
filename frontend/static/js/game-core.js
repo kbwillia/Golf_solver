@@ -71,54 +71,97 @@ async function startGame() {
     }
 
     const gameMode = document.getElementById('gameMode').value;
-
-    // Get bot name and map to difficulty
-    const botNameSelect = document.getElementById('botNameSelect');
-    let botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
-
-    // In 1v3 mode, if no custom bot is selected, default to peter_parker
-    if (gameMode === '1v3' && (!botValue || botValue === '')) {
-        botValue = 'peter_parker';
-    }
-
-    // Check if it's a custom bot
-    let botName = botValue;
-    let opponentType = 'random';
-    let customBotInfo = null;
-
-    if (botValue.startsWith('custom_') && window.customBots && window.customBots[botValue]) {
-        // It's a custom bot
-        customBotInfo = window.customBots[botValue];
-        botName = customBotInfo.name;
-        // Map custom difficulty to opponent type
-        const difficultyToType = {
-            'easy': 'random',
-            'medium': 'basic_logic',
-            'hard': 'ev_ai'
-        };
-        opponentType = difficultyToType[customBotInfo.difficulty] || 'random';
-    } else {
-        // It's a built-in bot
-        const botNameToDifficulty = {
-            'peter_parker': 'random',
-            'happy_gilmore': 'basic_logic',
-            'tiger_woods': 'ev_ai'
-        };
-        opponentType = botNameToDifficulty[botValue] || 'random';
-    }
-
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
-    // For 1v3 mode, collect all custom bots
-    let customBots1v3 = [];
-    if (gameMode === '1v3' && window.customBots) {
-        // Get all custom bots for 1v3 mode
-        Object.values(window.customBots).forEach(bot => {
-            customBots1v3.push(bot);
-        });
+    // Prepare game data
+    const gameData = {
+        mode: gameMode,
+        player_name: playerName,
+        num_games: numGames
+    };
+
+    // Add custom bot information for 1v3 mode
+    if (gameMode === '1v3') {
+        // For 1v3 mode, get all saved custom bots and use them
+        try {
+            const response = await fetch('/get_custom_bots');
+            const data = await response.json();
+
+            console.log('🎯 Frontend: get_custom_bots response:', data);
+
+            if (data.success && data.bots && data.bots.length > 0) {
+                // Use up to 3 custom bots for 1v3 mode
+                const customBots = data.bots.slice(0, 3).map(bot => ({
+                    id: bot.id,
+                    name: bot.name,
+                    difficulty: bot.difficulty
+                }));
+
+                gameData.custom_bots_1v3 = customBots;
+                console.log('🎯 Frontend: Using saved custom bots for 1v3 mode:', customBots);
+            } else {
+                console.log('🎯 Frontend: No custom bots found, using default AI opponents for 1v3 mode');
+            }
+        } catch (error) {
+            console.log('🎯 Frontend: Error loading custom bots, using default AI opponents:', error);
+        }
+    } else {
+        // 1v1 mode - handle single opponent
+        const botNameSelect = document.getElementById('botNameSelect');
+        let botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+
+        // Check if it's a custom bot
+        let botName = botValue;
+        let opponentType = 'random';
+        let customBotInfo = null;
+
+        if (botValue.startsWith('custom_')) {
+            // It's a custom bot - get its data from the backend
+            try {
+                const response = await fetch('/get_custom_bots');
+                const data = await response.json();
+
+                if (data.success && data.bots) {
+                    const customBot = data.bots.find(bot => bot.id === botValue);
+                    if (customBot) {
+                        customBotInfo = {
+                            name: customBot.name,
+                            difficulty: customBot.difficulty,
+                            description: customBot.description
+                        };
+                        botName = customBot.name;
+                        // Map custom difficulty to opponent type
+                        const difficultyToType = {
+                            'easy': 'random',
+                            'medium': 'heuristic',
+                            'hard': 'ev_ai'
+                        };
+                        opponentType = difficultyToType[customBot.difficulty] || 'random';
+                    }
+                }
+            } catch (error) {
+                console.log('🎯 Frontend: Error loading custom bot for 1v1:', error);
+            }
+        } else {
+            // It's a built-in bot
+            const botNameToDifficulty = {
+                'peter_parker': 'random',
+                'happy_gilmore': 'heuristic',
+                'tiger_woods': 'ev_ai'
+            };
+            opponentType = botNameToDifficulty[botValue] || 'random';
+        }
+
+        gameData.opponent = opponentType;
+        gameData.bot_name = botName;
+        if (customBotInfo) {
+            gameData.custom_bot_info = customBotInfo;
+        }
     }
+
+    console.log('🎯 Frontend: Final gameData being sent to backend:', gameData);
 
     try {
         const response = await fetch('/create_game', {
@@ -126,15 +169,7 @@ async function startGame() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                mode: gameMode,
-                opponent: opponentType,
-                bot_name: botName,
-                player_name: playerName,
-                num_games: numGames,
-                custom_bot_info: customBotInfo,
-                custom_bots_1v3: customBots1v3
-            })
+            body: JSON.stringify(gameData)
         });
 
         const data = await response.json();
@@ -433,6 +468,8 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
                 const response = await fetch('/get_custom_bots');
                 const data = await response.json();
 
+                console.log('🎯 Frontend: get_custom_bots response:', data);
+
                 if (data.success && data.bots && data.bots.length > 0) {
                     // Use up to 3 custom bots for 1v3 mode
                     const customBots = data.bots.slice(0, 3).map(bot => ({
@@ -442,14 +479,67 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
                     }));
 
                     gameData.custom_bots_1v3 = customBots;
-                    console.log('🎯 Using saved custom bots for 1v3 mode:', customBots);
+                    console.log('🎯 Frontend: Using saved custom bots for 1v3 mode:', customBots);
                 } else {
-                    console.log('🎯 No custom bots found, using default AI opponents for 1v3 mode');
+                    console.log('🎯 Frontend: No custom bots found, using default AI opponents for 1v3 mode');
                 }
             } catch (error) {
-                console.log('🎯 Error loading custom bots, using default AI opponents:', error);
+                console.log('🎯 Frontend: Error loading custom bots, using default AI opponents:', error);
+            }
+        } else {
+            // 1v1 mode - handle single opponent
+            const botNameSelect = document.getElementById('botNameSelect');
+            let botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+
+            // Check if it's a custom bot
+            let botName = botValue;
+            let customBotInfo = null;
+
+            if (botValue.startsWith('custom_')) {
+                // It's a custom bot - get its data from the backend
+                try {
+                    const response = await fetch('/get_custom_bots');
+                    const data = await response.json();
+
+                    if (data.success && data.bots) {
+                        const customBot = data.bots.find(bot => bot.id === botValue);
+                        if (customBot) {
+                            customBotInfo = {
+                                name: customBot.name,
+                                difficulty: customBot.difficulty,
+                                description: customBot.description
+                            };
+                            botName = customBot.name;
+                            // Map custom difficulty to opponent type
+                            const difficultyToType = {
+                                'easy': 'random',
+                                'medium': 'heuristic',
+                                'hard': 'ev_ai'
+                            };
+                            opponentType = difficultyToType[customBot.difficulty] || 'random';
+                        }
+                    }
+                } catch (error) {
+                    console.log('🎯 Frontend: Error loading custom bot for 1v1:', error);
+                }
+            } else {
+                // It's a built-in bot
+                const botNameToDifficulty = {
+                    'peter_parker': 'random',
+                    'happy_gilmore': 'heuristic',
+                    'tiger_woods': 'ev_ai'
+                };
+                opponentType = botNameToDifficulty[botValue] || 'random';
+            }
+
+            gameData.opponent = opponentType;
+            gameData.bot_name = botName;
+            if (customBotInfo) {
+                gameData.custom_bot_info = customBotInfo;
             }
         }
+
+        console.log('🎯 Frontend: Final gameData being sent to backend:', gameData);
 
         const response = await fetch('/create_game', {
             method: 'POST',

@@ -100,6 +100,25 @@ def calculate_bot_response_delay(bot_name: str) -> float:
         # Default delay if there's an error
         return 1.5
 
+def get_bot_id_from_display_name(game_session, display_name):
+    """Convert a display name back to bot_id for custom bots"""
+    if not game_session or not display_name:
+        return display_name
+
+    # Check if this is a custom bot by looking through stored custom bot data
+    for i in range(3):  # Check up to 3 custom bots
+        custom_bot_id_key = f'custom_bot_id_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_id'
+        custom_bot_name_key = f'custom_bot_name_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_name'
+
+        if custom_bot_name_key in game_session and game_session[custom_bot_name_key] == display_name:
+            # Found the custom bot, return its ID
+            bot_id = game_session[custom_bot_id_key]
+            print(f"🎯 Mapping display name '{display_name}' back to bot_id '{bot_id}'")
+            return bot_id
+
+    # Not a custom bot, return the display name as is
+    return display_name
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -149,6 +168,8 @@ def create_game():
     """Create a new game session"""
     try:
         data = request.json
+        print(f"🎯 Backend: create_game received data: {data}")
+
         game_mode = data.get('mode', '1v1')  # '1v1' or '1v3'
         opponent = data.get('opponent', 'random')
         player_name = data.get('player_name', 'Human')
@@ -156,6 +177,9 @@ def create_game():
         bot_name = data.get('bot_name', 'peter_parker')
         custom_bot_info = data.get('custom_bot_info')
         custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
+
+        print(f"🎯 Backend: Game mode: {game_mode}")
+        print(f"🎯 Backend: Custom bots 1v3: {custom_bots_1v3}")
 
         # Generate unique game ID
         game_id = str(uuid.uuid4())
@@ -174,6 +198,7 @@ def create_game():
 
             # Handle multiple custom bots for 1v3 mode
             if custom_bots_1v3 and len(custom_bots_1v3) > 0:
+                print(f"🎯 Backend: Processing {len(custom_bots_1v3)} custom bots for 1v3 mode")
                 # Map custom bot difficulties to agent types
                 difficulty_to_agent = {
                     'easy': 'random',
@@ -191,7 +216,9 @@ def create_game():
                     bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
                     custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
 
-                    print(f"🎯 Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type}")
+                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (bot_id: {bot_id})")
+            else:
+                print(f"🎯 Backend: No custom bots provided for 1v3 mode, using default agents")
 
         # Create the game
         game = GolfGame(num_players=num_players, agent_types=agent_types)
@@ -824,9 +851,9 @@ def send_chatbot_message():
             custom_bot_name_key = f'custom_bot_name_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_name'
 
             if custom_bot_id_key in game_session and player.name == game_session.get(custom_bot_name_key):
-                # Use the stored bot_id for custom bots
-                bot_names.append(game_session[custom_bot_id_key])
-                print(f"🎯 Custom bot mapping: {player.name} -> {game_session[custom_bot_id_key]}")
+                # Use the actual bot name for custom bots, not the bot_id
+                bot_names.append(player.name)  # Use the display name like "Alice"
+                print(f"🎯 Custom bot mapping: {player.name} -> {player.name} (using display name)")
             else:
                 # Use display name for built-in bots
                 bot_names.append(player.name)
@@ -919,17 +946,22 @@ def get_bot_response():
 
     # Get current game state if game_id is provided
     game_state = None
+    game_session = None
     if game_id and game_id in games:
         game_state = get_game_state(game_id)
+        game_session = games[game_id]
 
     try:
+        # Convert display name to bot_id if it's a custom bot
+        bot_id_for_lookup = get_bot_id_from_display_name(game_session, bot_name)
+
         # Calculate delay for this bot
         delay = calculate_bot_response_delay(bot_name)
         print(f"DEBUG: Adding {delay:.2f}s delay for {bot_name}")
         time.sleep(delay)
 
         # Create bot instance and add conversation context
-        bot = create_bot(bot_name)
+        bot = create_bot(bot_id_for_lookup)
 
         # Add the conversation context to the bots history
         for ctx in conversation_context:
@@ -939,12 +971,12 @@ def get_bot_response():
         response = chatbot.generate_response(
             message,     # user_message
             game_state,  # game_state
-            bot_name     # personality
+            bot_id_for_lookup  # personality (use bot_id for lookup)
         )
 
         return jsonify({
             'success': True,
-            'bot_name': bot_name,
+            'bot_name': bot_name,  # Return the original display name
             'message': response
         })
 
@@ -1274,7 +1306,7 @@ def create_custom_bot():
     description = data.get('description')
     if not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
-    bot_id = 'custom_' + name.lower().replace(' ', '_')
+    bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
     custom_bots[bot_id] = {
         'name': name,
         'difficulty': difficulty,
@@ -1365,6 +1397,7 @@ def get_custom_bots():
     """Get all existing custom bots for the dropdown"""
     try:
         print("🔥 /get_custom_bots endpoint hit")
+        print(f"🔥 Current custom_bots dict: {custom_bots}")
 
         # Convert the custom_bots dict to a list format
         bots_list = []
