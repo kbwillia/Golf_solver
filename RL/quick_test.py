@@ -13,9 +13,9 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
-from game import GolfGame
-from models import Player
-from agents import RandomAgent, HeuristicAgent, QLearningAgent, EVAgent, AdvancedEVAgent
+from backend.game import GolfGame
+from backend.models import Player
+from backend.agents import RandomAgent, HeuristicAgent, QLearningAgent, EVAgent, AdvancedEVAgent
 
 def create_visualizations(agent_types, all_scores, game_numbers, avg_scores, wins, total_games):
     """Create matplotlib/seaborn visualizations"""

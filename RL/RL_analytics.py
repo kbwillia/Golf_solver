@@ -10,8 +10,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents import *
-from game import GolfGame
+# Update imports to use backend folder
+from backend.agents import *
+from backend.game import GolfGame
 import pandas as pd
 import numpy as np
 import csv

@@ -4,8 +4,8 @@ Test different Q-learning hyperparameters to find optimal settings
 """
 
 from simulation import run_simulations_with_training
-from agents import QLearningAgent
-from game import GolfGame
+from backend.agents import QLearningAgent
+from backend.game import GolfGame
 import itertools
 
 def test_hyperparameters():

@@ -56,8 +56,8 @@ os.makedirs(output_dir, exist_ok=True)
 sys.path.append(GOOGLE_DRIVE_PROJECT_PATH)
 
 # Import your custom modules
-from agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
-from game import GolfGame # Ensure game.py has GolfGame
+from backend.agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
+from backend.game import GolfGame # Ensure game.py has GolfGame
 
 # ============================================================================
 # FILE I/O UTILITIES FOR COLAB (using Google Drive paths from 'output_dir')

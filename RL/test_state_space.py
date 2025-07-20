@@ -4,8 +4,8 @@ Test script to analyze Q-learning state space complexity and growth
 """
 
 from simulation import run_simulations_with_training
-from agents import QLearningAgent
-from game import GolfGame
+from backend.agents import QLearningAgent
+from backend.game import GolfGame
 import matplotlib.pyplot as plt
 import numpy as np
 
