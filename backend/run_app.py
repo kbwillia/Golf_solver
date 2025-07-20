@@ -16,6 +16,6 @@ if __name__ == '__main__':
     print("Access the game at: http://localhost:5000")
     print("Press Ctrl+C to stop the server")
 
-    # Get port from environment variable (for deployment) or use 5000 for local development
+        # Get port from environment variable (for deployment) or use 5000 for local development
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
