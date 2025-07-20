@@ -92,12 +92,20 @@ class GolfChatbot:
             game_state_text = f"""
                 Current Game State:
                 - Round: {round_num}{f' / {max_rounds}' if max_rounds else ''}
-                - Deck size: {deck_size} cards
                 - Discard pile top card: {discard_str}
                 - Number of actions taken: {num_actions}
                 - Players:
                 {chr(10).join(f'  {info}' for info in player_info)}
 """
+            if game_state.get('probabilities'):
+                game_state_text += f"- Probabilities: {game_state['probabilities']}\n"
+
+            if game_state.get('current_player_ev_analysis'):
+                game_state_text += f"- EV Analysis: {game_state['current_player_ev_analysis']}\n"
+
+            if game_state.get('action_history'):
+                game_state_text += f"- Action History: {game_state['action_history']}\n"
+
             if scores:
                 game_state_text += f"- Scores: {', '.join(str(s) for s in scores)}\n"
             if game_over:

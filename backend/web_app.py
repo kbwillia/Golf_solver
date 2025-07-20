@@ -1262,6 +1262,59 @@ def create_custom_bot():
 
     return jsonify({'success': True, 'bot_id': bot_id, 'bot': custom_bots[bot_id]})
 
+@app.route('/save_custom_bots', methods=['POST'])
+def save_custom_bots():
+    """Save multiple custom bots from the modal"""
+    try:
+        data = request.get_json()
+        bots = data.get('bots', [])
+
+        if not bots:
+            return jsonify({'success': False, 'error': 'No bots provided'}), 400
+
+        saved_bots = []
+        for bot_data in bots:
+            name = bot_data.get('name', '').strip()
+            description = bot_data.get('description', '').strip()
+            difficulty = bot_data.get('difficulty', '').strip()
+
+            if not name or not description or not difficulty:
+                return jsonify({'success': False, 'error': f'Missing fields for bot: {name}'}), 400
+
+            # Create unique bot ID
+            bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
+
+            # Store in memory
+            custom_bots[bot_id] = {
+                'name': name,
+                'difficulty': difficulty,
+                'description': description
+            }
+
+            # Register for chatbot system
+            register_custom_bot(bot_id, name, description, difficulty)
+
+            saved_bots.append({
+                'id': bot_id,
+                'name': name,
+                'difficulty': difficulty,
+                'description': description
+            })
+
+        print(f"✅ Saved {len(saved_bots)} custom bots: {[bot['name'] for bot in saved_bots]}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully saved {len(saved_bots)} custom bot(s)',
+            'bots': saved_bots
+        })
+
+    except Exception as e:
+        print(f"❌ Error saving custom bots: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
 if __name__ == '__main__':
     # Get port from environment variable (for deployment) or use 5000 for local development
     port = int(os.environ.get('PORT', 5000))

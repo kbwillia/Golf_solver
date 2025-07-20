@@ -1221,7 +1221,181 @@ function playCardFlipSound() {
 
 
 // === CUSTOM BOT MODAL ===
-// [REMOVED: All custom bot modal code and any direct calls to updateCustomBotCount]
+let customBotCount = 1;
+
+// Initialize custom bot modal functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const createCustomBotBtn = document.getElementById('createCustomBotBtn');
+    const customBotModal = document.getElementById('customBotModal');
+    const closeCustomBotBtn = document.getElementById('closeCustomBotBtn');
+    const saveCustomBotBtn = document.getElementById('saveCustomBotBtn');
+    const addAnotherBotBtn = document.getElementById('addAnotherBotBtn');
+    const saveMultipleBotsBtn = document.getElementById('saveMultipleBotsBtn');
+    const customBotContainer = document.getElementById('customBotContainer');
+
+    // Show modal when Create Custom Bot button is clicked
+    if (createCustomBotBtn) {
+        createCustomBotBtn.addEventListener('click', function() {
+            if (customBotModal) {
+                customBotModal.style.display = 'block';
+                // Reset to single bot
+                customBotCount = 1;
+                updateCustomBotCount();
+            }
+        });
+    }
+
+    // Close modal when X button is clicked
+    if (closeCustomBotBtn) {
+        closeCustomBotBtn.addEventListener('click', function() {
+            if (customBotModal) {
+                customBotModal.style.display = 'none';
+            }
+        });
+    }
+
+    // Close modal when clicking outside of it
+    if (customBotModal) {
+        customBotModal.addEventListener('click', function(e) {
+            if (e.target === customBotModal) {
+                customBotModal.style.display = 'none';
+            }
+        });
+    }
+
+    // Add another bot section
+    if (addAnotherBotBtn) {
+        addAnotherBotBtn.addEventListener('click', function() {
+            customBotCount++;
+            updateCustomBotCount();
+        });
+    }
+
+    // Save multiple custom bots
+    if (saveMultipleBotsBtn) {
+        saveMultipleBotsBtn.addEventListener('click', function() {
+            saveCustomBots();
+        });
+    }
+
+    // Save single custom bot
+    if (saveCustomBotBtn) {
+        saveCustomBotBtn.addEventListener('click', function() {
+            saveCustomBots();
+        });
+    }
+});
+
+function updateCustomBotCount() {
+    const container = document.getElementById('customBotContainer');
+    const addAnotherBtn = document.getElementById('addAnotherBotBtn');
+    const saveMultipleBtn = document.getElementById('saveMultipleBotsBtn');
+    const saveSingleBtn = document.getElementById('saveCustomBotBtn');
+
+    if (!container) return;
+
+    // Clear existing bot sections
+    container.innerHTML = '';
+
+    // Create bot sections
+    for (let i = 0; i < customBotCount; i++) {
+        const botSection = document.createElement('div');
+        botSection.className = 'custom-bot-section';
+        botSection.innerHTML = `
+            <h3>Custom Bot ${i + 1}</h3>
+            <div class="form-group">
+                <label for="botName${i}">Bot Name:</label>
+                <input type="text" id="botName${i}" placeholder="Enter bot name" required>
+            </div>
+            <div class="form-group">
+                <label for="botDescription${i}">Description:</label>
+                <textarea id="botDescription${i}" placeholder="Enter bot description" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="botDifficulty${i}">Difficulty:</label>
+                <select id="botDifficulty${i}" required>
+                    <option value="">Select difficulty</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+        `;
+        container.appendChild(botSection);
+    }
+
+    // Show/hide buttons based on bot count
+    if (addAnotherBtn) {
+        addAnotherBtn.style.display = customBotCount < 3 ? 'block' : 'none';
+    }
+    if (saveMultipleBtn) {
+        saveMultipleBtn.style.display = customBotCount > 1 ? 'block' : 'none';
+    }
+    if (saveSingleBtn) {
+        saveSingleBtn.style.display = customBotCount === 1 ? 'block' : 'none';
+    }
+}
+
+function saveCustomBots() {
+    const bots = [];
+    let isValid = true;
+
+    // Collect all bot data
+    for (let i = 0; i < customBotCount; i++) {
+        const name = document.getElementById(`botName${i}`).value.trim();
+        const description = document.getElementById(`botDescription${i}`).value.trim();
+        const difficulty = document.getElementById(`botDifficulty${i}`).value;
+
+        if (!name || !description || !difficulty) {
+            alert(`Please fill in all fields for Custom Bot ${i + 1}`);
+            isValid = false;
+            break;
+        }
+
+        bots.push({
+            name: name,
+            description: description,
+            difficulty: difficulty
+        });
+    }
+
+    if (!isValid) return;
+
+    // Save bots to backend
+    fetch('/save_custom_bots', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bots: bots })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Custom bots saved successfully!');
+            document.getElementById('customBotModal').style.display = 'none';
+            // Refresh the opponent selection dropdown
+            loadOpponents();
+        } else {
+            alert('Error saving custom bots: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error saving custom bots:', error);
+        alert('Error saving custom bots. Please try again.');
+    });
+}
+
+function loadOpponents() {
+    // This function should be called to refresh the opponent dropdown
+    // after custom bots are saved
+    const opponentSelect = document.getElementById('opponentSelect');
+    if (opponentSelect) {
+        // Trigger a refresh of the opponent list
+        // This might need to be implemented based on how opponents are loaded
+        console.log('Opponents should be refreshed');
+    }
+}
 
 // Test Jim Nantz voice directly
 jimNantzCommentVoice("Hello friends, what a beautiful day for golf!")
