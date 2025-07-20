@@ -185,9 +185,9 @@
     display: none;
 }
 
-.bot-name {
-    font-size: 0.6em;         /* Make the name smaller */
-    color: white !important;              /* White color for bot names */
+.chat-messages .bot-name {
+    font-size: 0.5em !important; /* Much smaller font size for chat bubble names */
+    color: white !important;   /* White color for bot names */
     font-weight: bold;        /* Optional: make it bold */
     margin-bottom: 2px;       /* Small space below the name */
     margin-left: 8px;         /* Indent to align with bubble */

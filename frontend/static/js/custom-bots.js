@@ -768,24 +768,9 @@ function handle1v3Mode() {
     setGameMode('1v3');
   }
 
-  // Switch to multi-selection mode
-  if (window.selectedBots.length === 1) {
-    // Get available bots from the rendered buttons
-    const row = document.getElementById('botSelectRow');
-    if (row) {
-      const availableBots = Array.from(row.children).map(btn => btn.getAttribute('data-bot'));
-      const currentBot = window.selectedBots[0];
-      const otherBots = availableBots.filter(bot => bot !== currentBot);
-
-      // Add up to 2 more bots
-      for (let i = 0; i < Math.min(2, otherBots.length); i++) {
-        if (!window.selectedBots.includes(otherBots[i])) {
-          window.selectedBots.push(otherBots[i]);
-        }
-      }
-      renderBotSelectRow();
-    }
-  }
+  // Clear all selections when switching to 1v3 mode
+  window.selectedBots = [];
+  renderBotSelectRow();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

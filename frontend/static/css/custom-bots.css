@@ -339,14 +339,16 @@
 
 /* Bot selection row - 3 per row with wrapping */
 .bot-select-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, 220px); /* Match the button width */
+    grid-auto-rows: 100px; /* Match the button height */
     gap: 10px;
     overflow-y: auto;
-    max-height: 150px; /* Reduced from 200px */
+    overflow-x: hidden; /* Prevent horizontal overflow */
+    max-height: 180px !important; /* Smaller max height to force scrolling */
     padding: 10px 0;
     justify-content: center;
-    max-width: calc(3 * 160px + 2 * 10px); /* Width for exactly 3 buttons + gaps */
+    max-width: calc(3 * 270px + 2 * 10px); /* Increased width for bigger buttons */
     margin: 0 auto; /* Center the container */
     position: relative; /* For gradient overlay */
     /* Custom scrollbar styling - make it invisible and thin */
@@ -354,22 +356,6 @@
     -ms-overflow-style: none; /* Internet Explorer 10+ */
 }
 
-/* Gradient fade overlay to indicate scrollability */
-.bot-select-row::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 50px;
-    background: linear-gradient(to bottom,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.1) 30%,
-        rgba(255, 255, 255, 0.4) 70%,
-        rgba(255, 255, 255, 0.85) 100%);
-    pointer-events: none; /* Allow clicking through the gradient */
-    z-index: 1;
-}
 
 /* Ensure bot buttons are above the gradient */
 .bot-select-btn {
@@ -398,8 +384,8 @@
 
 /* Bot selection button styling */
 .bot-select-btn {
-    width: 160px;
-    height: 80px;
+    width: 220px; /* Increased from 160px */
+    height: 100px;
     padding: 8px;
     border: 2px solid #ddd;
     border-radius: 8px;
@@ -414,6 +400,18 @@
     position: relative;
 }
 
+/* Add fade effect to bot selection row using mask */
+.bot-select-row {
+    -webkit-mask-image: linear-gradient(to bottom,
+        black 0%,
+        black 70%,
+        transparent 100%);
+    mask-image: linear-gradient(to bottom,
+        black 0%,
+        black 70%,
+        transparent 100%);
+}
+
 /* Bot header - name and difficulty on same row */
 .bot-header {
     display: flex;
@@ -425,8 +423,15 @@
 
 .bot-name {
     font-weight: bold;
-    color: #333;
+    color:white !important;
     flex: 1;
+    font-size: 0.8em;
+    letter-spacing: 0.5px; /* Add spacing between letters */
+    /* text-shadow:
+        -0.5px -0.5px 0 #000,
+         0.5px -0.5px 0 #000,
+        -0.5px  0.5px 0 #000,
+         0.5px  0.5px 0 #000; Reduced shadow intensity for better readability */
 }
 
 .bot-difficulty {
@@ -477,15 +482,7 @@
     position: relative;
 }
 
-/* Remove the checkmark since green background indicates selection */
-/* .bot-select-btn.multi-selected::after {
-    content: "✓";
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    font-weight: bold;
-    font-size: 14px;
-} */
+
 
 .bot-select-btn:not(.selected):not(.multi-selected):hover {
     background: #f0f0f0;
@@ -497,7 +494,8 @@
 /* Override text colors for selected states */
 .bot-select-btn.selected .bot-name,
 .bot-select-btn.multi-selected .bot-name {
-    color: #fff;
+    color: white !important; /* Force white color when selected */
+    text-shadow: none; /* Remove text shadow when selected */
 }
 
 .bot-select-btn.selected .bot-desc,
@@ -526,4 +524,38 @@
     width: 100%;
     max-width: 300px;
   }
+}
+
+/* Shared styling for Create Custom Bot and Announcing Voice buttons */
+#createCustomBotBtn,
+#voiceToggleBtn {
+    margin: 5px 0 !important; /* Reduced margin */
+    font-size: 0.9em; /* Slightly smaller font */
+    padding: 4px 8px; /* Consistent padding */
+    border-radius: 6px; /* Rounded corners */
+    transition: all 0.3s ease; /* Smooth transitions */
+}
+
+/* Hover effects for both buttons */
+#createCustomBotBtn:hover,
+#voiceToggleBtn:hover {
+    transform: translateY(-1px); /* Slight lift on hover */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Subtle shadow */
+}
+
+/* Bot names in setup screen (bot selection buttons) */
+.bot-select-btn .bot-name {
+    font-weight: bold;
+    color: #0b501b !important; /* Dark green color for unselected bots in setup */
+    flex: 1;
+    font-size: 0.8em;
+    letter-spacing: 0.5px; /* Add spacing between letters */
+
+}
+
+/* Override text colors for selected states in setup screen */
+.bot-select-btn.selected .bot-name,
+.bot-select-btn.multi-selected .bot-name {
+    color: white !important; /* Force white color when selected */
+    text-shadow: none; /* Remove text shadow when selected */
 }
