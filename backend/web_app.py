@@ -144,6 +144,11 @@ def debug_static():
 def test_chatbot():
     return send_from_directory('../frontend', 'test_chatbot_simple.html')
 
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static files explicitly"""
+    return send_from_directory(os.path.join(frontend_dir, 'static'), filename)
+
 @app.route('/create_game', methods=['POST'])
 def create_game():
     """Create a new game session"""
