@@ -418,17 +418,45 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
     clearCelebration();
 
     try {
+        // Prepare game data
+        const gameData = {
+            mode: gameMode,
+            opponent: opponentType,
+            player_name: playerName,
+            num_games: numGames
+        };
+
+        // Add custom bot information for 1v3 mode
+        if (gameMode === '1v3') {
+            // For 1v3 mode, get all saved custom bots and use them
+            try {
+                const response = await fetch('/get_custom_bots');
+                const data = await response.json();
+
+                if (data.success && data.bots && data.bots.length > 0) {
+                    // Use up to 3 custom bots for 1v3 mode
+                    const customBots = data.bots.slice(0, 3).map(bot => ({
+                        id: bot.id,
+                        name: bot.name,
+                        difficulty: bot.difficulty
+                    }));
+
+                    gameData.custom_bots_1v3 = customBots;
+                    console.log('🎯 Using saved custom bots for 1v3 mode:', customBots);
+                } else {
+                    console.log('🎯 No custom bots found, using default AI opponents for 1v3 mode');
+                }
+            } catch (error) {
+                console.log('🎯 Error loading custom bots, using default AI opponents:', error);
+            }
+        }
+
         const response = await fetch('/create_game', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                mode: gameMode,
-                opponent: opponentType,
-                player_name: playerName,
-                num_games: numGames
-            })
+            body: JSON.stringify(gameData)
         });
         const data = await response.json();
         if (data.success && data.game_state && data.game_state.players) {

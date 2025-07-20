@@ -1,0 +1,329 @@
+/* ===== CUSTOM BOT MODAL STYLES ===== */
+
+/* Modal Overlay */
+.custom-bot-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Single Bot Modal */
+.custom-bot-modal {
+    background: #fff;
+    padding: 20px 24px;
+    border-radius: 8px;
+    max-width: 350px;
+    margin: auto;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+}
+
+.custom-bot-modal h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #333;
+    font-size: 1.3em;
+}
+
+/* Multiple Bots Modal */
+.multiple-bots-modal {
+    background: #fff;
+    padding: 20px 24px;
+    border-radius: 8px;
+    max-width: 700px;
+    margin: auto;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.multiple-bots-modal h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #333;
+    font-size: 1.3em;
+}
+
+.multiple-bots-modal p {
+    color: #666;
+    margin-bottom: 16px;
+    font-size: 0.9em;
+}
+
+/* Form Layout */
+.form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-row .form-group:first-child {
+    flex: 2; /* Name field gets more space */
+}
+
+.form-row .form-group:last-child {
+    flex: 1; /* Difficulty field gets less space */
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 4px;
+    color: #666;
+    font-weight: 500;
+    font-size: 0.85em;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9em;
+    transition: border-color 0.2s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-textarea {
+    height: 50px;
+    resize: vertical;
+    min-height: 50px;
+}
+
+/* Bot Sections Container */
+.bot-sections-container {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+/* Individual Bot Section */
+.custom-bot-section {
+    flex: 1;
+    min-width: 200px;
+    max-width: 220px;
+    margin: 6px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f9f9f9;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.custom-bot-section:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+/* Bot Section Header */
+.bot-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.bot-section-title {
+    margin: 0;
+    color: #333;
+    font-size: 1em;
+    font-weight: 600;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 4px;
+    flex: 1;
+}
+
+/* Remove Bot Button */
+.remove-bot-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.remove-bot-btn:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+
+.remove-bot-btn:active {
+    transform: scale(0.95);
+}
+
+/* Add Another Bot Button */
+.add-bot-button {
+    text-align: center;
+    margin: 16px 0;
+}
+
+.add-bot-button button {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+
+.add-bot-button button:hover {
+    background: #5a6268;
+}
+
+.add-bot-button button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Modal Buttons */
+.modal-buttons {
+    text-align: right;
+    margin-top: 16px;
+}
+
+.modal-buttons button {
+    margin-left: 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .custom-bot-modal,
+    .multiple-bots-modal {
+        margin: 20px;
+        max-width: calc(100vw - 40px);
+        padding: 20px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .bot-sections-container {
+        flex-direction: column;
+    }
+
+    .custom-bot-section {
+        min-width: auto;
+        margin: 5px 0;
+    }
+
+    .modal-buttons {
+        text-align: center;
+    }
+
+    .modal-buttons button {
+        margin: 5px;
+        width: 100%;
+        max-width: 200px;
+    }
+}
+
+/* Animation for modal appearance */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.custom-bot-modal,
+.multiple-bots-modal {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+/* Custom bot option in dropdown */
+.custom-bot-option {
+    font-weight: 500;
+    color: #007bff;
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -168,8 +168,30 @@ def create_game():
             agent_types = ["human", opponent]
             num_players = 2
         else:  # 1v3
+            # Default agent types for 1v3 mode
             agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
             num_players = 4
+
+            # Handle multiple custom bots for 1v3 mode
+            if custom_bots_1v3 and len(custom_bots_1v3) > 0:
+                # Map custom bot difficulties to agent types
+                difficulty_to_agent = {
+                    'easy': 'random',
+                    'medium': 'heuristic',
+                    'hard': 'ev_ai'
+                }
+
+                # Update agent types based on custom bot difficulties (up to 3)
+                for i, custom_bot in enumerate(custom_bots_1v3[:3]):
+                    difficulty = custom_bot.get('difficulty', 'medium').lower()
+                    agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
+                    agent_types[i + 1] = agent_type  # +1 because index 0 is human
+
+                    # Store bot_id for chatbot lookup
+                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
+                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
+
+                    print(f"🎯 Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type}")
 
         # Create the game
         game = GolfGame(num_players=num_players, agent_types=agent_types)
@@ -202,14 +224,11 @@ def create_game():
                 # Replace AI names with custom bot names (up to 3)
                 for i, custom_bot in enumerate(custom_bots_1v3[:3]):  # Max 3 custom bots
                     ai_names[i] = custom_bot['name']
-                    # Store bot_id for chatbot lookup (will be added after games[game_id] is created)
-                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_')
-                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
             elif custom_bot_info:
                 # Legacy: single custom bot replaces first AI
                 ai_names[0] = custom_bot_info['name']
                 # Store bot_id for chatbot lookup (will be added after games[game_id] is created)
-                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_')
+                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
                 custom_bot_data.append(('custom_bot_id_0', bot_id, 'custom_bot_name_0', custom_bot_info['name']))
 
             for i in range(1, num_players):
@@ -221,7 +240,7 @@ def create_game():
                 # Use custom bot name for display, but store bot_id for chatbot lookup
                 game.players[1].name = custom_bot_info['name']
                 # Store the bot_id and name in the game session for chatbot lookup (will be added after games[game_id] is created)
-                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_')
+                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
                 custom_bot_data.append(('custom_bot_id', bot_id, 'custom_bot_name', custom_bot_info['name']))
             else:
                 # Use built-in bot names
@@ -252,6 +271,9 @@ def create_game():
         for bot_id_key, bot_id, bot_name_key, bot_name in custom_bot_data:
             games[game_id][bot_id_key] = bot_id
             games[game_id][bot_name_key] = bot_name
+            print(f"🎯 Stored custom bot data: {bot_id_key}={bot_id}, {bot_name_key}={bot_name}")
+
+        print(f"🎯 Final game session custom bot data: {[(k, v) for k, v in games[game_id].items() if 'custom_bot' in k]}")
 
         # Reset chatbot conversation history
         chatbot.conversation_history = []
@@ -804,9 +826,11 @@ def send_chatbot_message():
             if custom_bot_id_key in game_session and player.name == game_session.get(custom_bot_name_key):
                 # Use the stored bot_id for custom bots
                 bot_names.append(game_session[custom_bot_id_key])
+                print(f"🎯 Custom bot mapping: {player.name} -> {game_session[custom_bot_id_key]}")
             else:
                 # Use display name for built-in bots
                 bot_names.append(player.name)
+                print(f"🎯 Built-in bot mapping: {player.name} -> {player.name}")
 
         return jsonify({
             'success': True,
@@ -1266,23 +1290,37 @@ def create_custom_bot():
 def save_custom_bots():
     """Save multiple custom bots from the modal"""
     try:
+        print("🔥 /save_custom_bots endpoint hit")
+        print("🔥 Request method:", request.method)
+        print("🔥 Request headers:", dict(request.headers))
+
         data = request.get_json()
+        print("🔥 Request data:", data)
+
         bots = data.get('bots', [])
+        print("🔥 Bots to save:", bots)
 
         if not bots:
+            print("❌ No bots provided")
             return jsonify({'success': False, 'error': 'No bots provided'}), 400
 
         saved_bots = []
-        for bot_data in bots:
+        for i, bot_data in enumerate(bots):
+            print(f"🔥 Processing bot {i + 1}:", bot_data)
+
             name = bot_data.get('name', '').strip()
             description = bot_data.get('description', '').strip()
             difficulty = bot_data.get('difficulty', '').strip()
 
+            print(f"🔥 Bot {i + 1} parsed - Name: '{name}', Description: '{description}', Difficulty: '{difficulty}'")
+
             if not name or not description or not difficulty:
+                print(f"❌ Missing fields for bot {i + 1}: name='{name}', description='{description}', difficulty='{difficulty}'")
                 return jsonify({'success': False, 'error': f'Missing fields for bot: {name}'}), 400
 
             # Create unique bot ID
             bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
+            print(f"🔥 Generated bot_id: {bot_id}")
 
             # Store in memory
             custom_bots[bot_id] = {
@@ -1292,7 +1330,13 @@ def save_custom_bots():
             }
 
             # Register for chatbot system
-            register_custom_bot(bot_id, name, description, difficulty)
+            try:
+                register_custom_bot(bot_id, name, description, difficulty)
+                print(f"✅ Successfully registered bot: {bot_id}")
+            except Exception as reg_error:
+                print(f"❌ Error registering bot {bot_id}: {reg_error}")
+                import traceback
+                traceback.print_exc()
 
             saved_bots.append({
                 'id': bot_id,
@@ -1301,7 +1345,8 @@ def save_custom_bots():
                 'description': description
             })
 
-        print(f"✅ Saved {len(saved_bots)} custom bots: {[bot['name'] for bot in saved_bots]}")
+        print(f"✅ Successfully saved {len(saved_bots)} custom bots: {[bot['name'] for bot in saved_bots]}")
+        print(f"✅ Current custom_bots dict: {custom_bots}")
 
         return jsonify({
             'success': True,
@@ -1311,6 +1356,35 @@ def save_custom_bots():
 
     except Exception as e:
         print(f"❌ Error saving custom bots: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/get_custom_bots', methods=['GET'])
+def get_custom_bots():
+    """Get all existing custom bots for the dropdown"""
+    try:
+        print("🔥 /get_custom_bots endpoint hit")
+
+        # Convert the custom_bots dict to a list format
+        bots_list = []
+        for bot_id, bot_data in custom_bots.items():
+            bots_list.append({
+                'id': bot_id,
+                'name': bot_data['name'],
+                'difficulty': bot_data['difficulty'],
+                'description': bot_data['description']
+            })
+
+        print(f"✅ Returning {len(bots_list)} custom bots: {[bot['name'] for bot in bots_list]}")
+
+        return jsonify({
+            'success': True,
+            'bots': bots_list
+        })
+
+    except Exception as e:
+        print(f"❌ Error getting custom bots: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500

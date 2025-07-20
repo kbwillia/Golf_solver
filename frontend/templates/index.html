@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/static/css/notification.css">
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
+    <link rel="stylesheet" href="/static/css/custom-bots.css">
 </head>
 <body>
     <!-- Main container for the entire app --> <!-- App root -->
@@ -68,48 +69,50 @@
                     </button>
                 </p>
                 <!-- Custom Bot Modal -->
-                <div id="customBotModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:400px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2);">
+                <div id="customBotModal" class="custom-bot-modal-overlay" style="display:none;">
+                  <div class="custom-bot-modal">
                     <h3>Create Custom AI Bot</h3>
-                    <div style="display:flex; gap:10px; margin-bottom:10px;">
-                      <div style="flex:2;">
-                        <label for="customBotName">Name:</label>
-                        <input type="text" id="customBotName" style="width:100%;" placeholder="Bot Name" />
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label for="customBotName" class="form-label">Name:</label>
+                        <input type="text" id="customBotName" class="form-input" placeholder="Bot Name" />
                       </div>
-                      <div style="flex:1;">
-                        <label for="customBotDifficulty">Difficulty:</label>
-                        <select id="customBotDifficulty" style="width:100%;">
+                      <div class="form-group">
+                        <label for="customBotDifficulty" class="form-label">Difficulty:</label>
+                        <select id="customBotDifficulty" class="form-select">
                           <option value="easy">Easy</option>
                           <option value="medium">Medium</option>
                           <option value="hard">Hard</option>
                         </select>
                       </div>
                     </div>
-                    <label for="customBotDescription">Personality/Description:</label>
-                    <textarea id="customBotDescription" style="width:100%; margin-bottom:10px;" rows="3" placeholder="Describe this bot's personality..."></textarea>
-                    <div style="text-align:right;">
-                      <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary" style="margin-right:8px;">Cancel</button>
+                    <div class="form-group">
+                      <label for="customBotDescription" class="form-label">Personality/Description:</label>
+                      <textarea id="customBotDescription" class="form-textarea" rows="3" placeholder="Describe this bot's personality..."></textarea>
+                    </div>
+                    <div class="modal-buttons">
+                      <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary">Cancel</button>
                       <button type="button" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>
                     </div>
                   </div>
                 </div>
 
                                 <!-- Multiple Custom Bots Modal -->
-                <div id="multipleBotsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-                  <div style="background:#fff; padding:24px 32px; border-radius:10px; max-width:900px; margin:auto; box-shadow:0 2px 16px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
-                                                            <h3>Create Custom Bots for 1v3 Mode</h3>
-                    <p style="color:#666; margin-bottom:20px;">Create custom bots for 1v3 mode. Click "Add Another Bot" to create more bots.</p>
+                <div id="multipleBotsModal" class="custom-bot-modal-overlay" style="display:none;">
+                  <div class="multiple-bots-modal">
+                    <h3>Create Custom Bots for 1v3 Mode</h3>
+                    <p>Create custom bots for 1v3 mode. Click "Add Another Bot" to create more bots.</p>
 
-                    <div id="botSectionsContainer" style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                    <div id="botSectionsContainer" class="bot-sections-container">
                       <!-- Bot sections will be added here dynamically -->
                     </div>
 
-                    <div style="text-align:center; margin:20px 0;">
+                    <div class="add-bot-button">
                       <button type="button" id="addAnotherBotBtn" class="btn btn-secondary">Add Another Bot</button>
                     </div>
 
-                    <div style="text-align:right;">
-                      <button type="button" id="cancelMultipleBotsBtn" class="btn btn-secondary" style="margin-right:8px;">Cancel</button>
+                    <div class="modal-buttons">
+                      <button type="button" id="cancelMultipleBotsBtn" class="btn btn-secondary">Cancel</button>
                       <button type="button" id="saveMultipleBotsBtn" class="btn btn-primary">Create All Bots</button>
                     </div>
                   </div>
@@ -257,6 +260,7 @@
     <script src="/static/js/voice.js"></script>
     <script src="/static/js/probabilities.js"></script>
     <script src="/static/js/chatbot.js"></script>
+    <script src="/static/js/custom-bots.js"></script>
     <script src="/static/js/golf.js"></script>
 
     <audio id="golfClapAudio" src="/static/sounds/golf_clap.mp3" preload="auto"></audio>
