@@ -139,6 +139,10 @@ function updateGameDisplay() {
             );
             if (newPublicPairs.length > 0) {
                 playGolfClap();
+                // Trigger proactive comments for score updates
+                if (chatbotEnabled) {
+                    requestProactiveComment('score_update');
+                }
             }
             previousHumanPairs = publicPairs.slice();
         }
@@ -162,13 +166,15 @@ function updateGameDisplay() {
             if (proactiveCommentTimeout) clearTimeout(proactiveCommentTimeout);
             proactiveCommentTimeout = setTimeout(() => {
                 const now = Date.now();
-                if (now - lastNantzCommentTime > 4000) { // 4s cooldown=4000.
+                // Keep Nantz cooldown for immediate action responses
+                if (now - lastNantzCommentTime > 4000) { // 4s cooldown for Nantz
                     console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
                     lastNantzCommentTime = now;
                 } else {
-                    console.log('Skipped comment due to cooldown');
+                    console.log('Skipped Nantz comment due to cooldown');
                 }
+                // Backend handles timing for all other bots
             }, 800); // 800ms debounce window
         }
     }

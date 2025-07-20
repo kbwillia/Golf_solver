@@ -257,6 +257,7 @@ async function startGame() {
             // Clear chatbot UI on new game
             clearChatUI();
             updateChatInputState();
+            // Trigger proactive comments for turn start - Nantz responds immediately, others via backend timing
             if (currentPersonality === 'nantz') {
                 requestProactiveComment('turn_start');
             }

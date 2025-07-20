@@ -507,6 +507,11 @@ function showDrawnCardArea(card) {
     display.classList.remove('dragging');
     display.classList.add('playable');
 
+    // Trigger proactive comments for card drawn
+    if (window.chatbotEnabled) {
+        requestProactiveComment('card_drawn');
+    }
+
     // Add drag event listeners for the drawn card
     display.ondragstart = function(e) {
         window.drawnCardDragActive = true;
@@ -884,6 +889,11 @@ function handleDropOnGrid(pos) {
         humanDrawnCardPosition = pos;
         humanDiscardAction = 'draw_keep';
 
+        // Trigger proactive comments for drawn card kept
+        if (window.chatbotEnabled) {
+            requestProactiveComment('card_played');
+        }
+
         playCardFlipSound();
         // NO animation for drawn card->grid, but we want grid->discard animation
         // We'll handle the animation in the backend response processing
@@ -918,6 +928,11 @@ function handleDropOnGrid(pos) {
     // Store position and action for animation AFTER the move
     humanDiscardPosition = pos;
     humanDiscardAction = 'take_discard';
+
+    // Trigger proactive comments for discard taken
+    if (window.chatbotEnabled) {
+        requestProactiveComment('card_played');
+    }
 
     playCardFlipSound();
     // NO animation for discard->grid, but we want grid->discard animation

@@ -341,7 +341,7 @@
 .bot-select-row {
     display: grid;
     grid-template-columns: repeat(3, 220px); /* Match the button width */
-    grid-auto-rows: 100px; /* Match the button height */
+    grid-auto-rows: 120px; /* Increased to match new button height */
     gap: 10px;
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal overflow */
@@ -385,7 +385,7 @@
 /* Bot selection button styling */
 .bot-select-btn {
     width: 220px; /* Increased from 160px */
-    height: 100px;
+    height: 120px; /* Increased from 100px to allow more description space */
     padding: 8px;
     border: 2px solid #ddd;
     border-radius: 8px;
@@ -461,11 +461,11 @@
 .bot-desc {
     color: #666;
     font-size: 0.75em;
-    line-height: 1.2;
+    line-height: 1.3; /* Slightly increased for better readability */
     flex: 1;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 4; /* Increased from 2 to 4 lines */
     -webkit-box-orient: vertical;
 }
 

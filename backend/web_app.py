@@ -17,7 +17,7 @@ import requests
 # Import from same directory
 from game import GolfGame
 from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
-from chatbot import chatbot
+from chatbot import chatbot, chat_handler
 from bot_personalities import create_bot, register_custom_bot
 
 # Load environment variables from .env file
@@ -54,70 +54,19 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 0.5  # seconds
+AI_TURN_DELAY = 02.0  # seconds
 
 # Add this mapping somewhere in your backend
-BOT_PERSONALITIES = {
-    "Peter Parker": "Peter Parker",
-    "Happy Gilmore": "Happy Gilmore",
-    "Tiger Woods": "Tiger Woods",
-    "Shooter McGavin": "Shooter McGavin"
-}
+# BOT_PERSONALITIES = {
+#     "Peter Parker": "Peter Parker",
+#     "Happy Gilmore": "Happy Gilmore",
+#     "Tiger Woods": "Tiger Woods",
+#     "Shooter McGavin": "Shooter McGavin"
+# }
 
-def calculate_bot_response_delay(bot_name: str) -> float:
-    """Calculate response delay based on bot personality"""
-    try:
-        # Create bot instance to get its configuration
-        bot = create_bot(bot_name)
-        reaction_speed = bot.response_config.get('reaction_speed', 0.5)
 
-        # Clamp reaction_speed to [0.0, 1.0]
-        try:
-            reaction_speed = float(reaction_speed)
-        except Exception:
-            reaction_speed = 0.5
-        reaction_speed = max(0.0, min(1.0, reaction_speed))
 
-        # Base delay range: 0.5-3.0 seconds
-        min_delay = 0.5
-        max_delay = 3.0
-        # Invert the reaction_speed so that higher values = faster responses
-        delay = min_delay + (1.0 - reaction_speed) * (max_delay - min_delay)
 
-        # Add some randomness (±20%)
-        variation = random.uniform(0.8, 1.2)
-        final_delay = delay * variation
-
-        # Ensure delay is never negative
-        final_delay = max(min_delay, final_delay)
-
-        print(f"DEBUG: Bot {bot_name} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
-
-        return final_delay
-
-    except Exception as e:
-        print(f"DEBUG: Error calculating delay for {bot_name}: {e}")
-        # Default delay if there's an error
-        return 1.5
-
-def get_bot_id_from_display_name(game_session, display_name):
-    """Convert a display name back to bot_id for custom bots"""
-    if not game_session or not display_name:
-        return display_name
-
-    # Check if this is a custom bot by looking through stored custom bot data
-    for i in range(3):  # Check up to 3 custom bots
-        custom_bot_id_key = f'custom_bot_id_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_id'
-        custom_bot_name_key = f'custom_bot_name_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_name'
-
-        if custom_bot_name_key in game_session and game_session[custom_bot_name_key] == display_name:
-            # Found the custom bot, return its ID
-            bot_id = game_session[custom_bot_id_key]
-            print(f"🎯 Mapping display name '{display_name}' back to bot_id '{bot_id}'")
-            return bot_id
-
-    # Not a custom bot, return the display name as is
-    return display_name
 
 @app.route('/')
 def index():
@@ -847,366 +796,70 @@ def update_round_cumulative_scores(game_session, game):
 @app.route('/chatbot/send_message', methods=['POST'])
 def send_chatbot_message():
     data = request.json
-    print("DEBUG: Received data:", data)
-    game_id = data.get('game_id')
-    message = data.get('message')
-    personality_type = data.get('personality_type', 'Jim Nantz')
+    result = chat_handler.handle_send_message(data, get_game_state, games)
 
-    if not message:
-        return jsonify({'error': 'Message cannot be empty'}), 400
-
-    # Get current game state if game_id is provided
-    game_state = None
-    if game_id and game_id in games:
-        game_state = get_game_state(game_id)
-
-    if personality_type == 'opponent':
-        print("DEBUG: Handling opponent chat message")
-        game_session = games[game_id]
-        game = game_session['game']
-
-        # Get responses from all AI players in the game ONLY (no chat-only bots)
-        all_bots = list(game.players[1:])  # All AI players from the game
-
-        # Golf Bro and Golf Pro are now ONLY available via @ mentions
-        # They are NOT included in general opponent responses
-
-        # Map display names to bot_ids for custom bots
-        bot_names = []
-        for i, player in enumerate(all_bots):
-            # Check if this is a custom bot by looking for stored bot_id
-            custom_bot_id_key = f'custom_bot_id_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_id'
-            custom_bot_name_key = f'custom_bot_name_{i}' if game_session.get('mode') == '1v3' else 'custom_bot_name'
-
-            if custom_bot_id_key in game_session and player.name == game_session.get(custom_bot_name_key):
-                # Use the actual bot name for custom bots, not the bot_id
-                bot_names.append(player.name)  # Use the display name like "Alice"
-                print(f"🎯 Custom bot mapping: {player.name} -> {player.name} (using display name)")
-            else:
-                # Use display name for built-in bots
-                bot_names.append(player.name)
-                print(f"🎯 Built-in bot mapping: {player.name} -> {player.name}")
-
-        return jsonify({
-            'success': True,
-            'bot_names': bot_names,
-            'response_type': 'sequential'
-        })
-    elif personality_type == 'mentioned':
-        print("DEBUG: Handling mentioned bots chat message")
-        game_session = games[game_id]
-        game = game_session['game']
-        responses = []
-
-        # Get mentioned bots from the request
-        mentioned_bots = data.get('mentioned_bots', [])
-        print(f"DEBUG: Mentioned bots: {mentioned_bots}")
-
-        # Filter bots based on mentions
-        all_bots = []
-
-        # Add game AI players if mentioned
-        for player in game.players[1:]:
-            if player.name in mentioned_bots:
-                all_bots.append(player)
-
-        # Add chat-only bots if mentioned
-        chat_only_bots = ['Golf Bro', 'Golf Pro']
-        for bot_name in chat_only_bots:
-            if bot_name in mentioned_bots:
-                # Create a mock player object for chat-only bots
-                class MockPlayer:
-                    def __init__(self, name):
-                        self.name = name
-                all_bots.append(MockPlayer(bot_name))
-
-        # If no valid mentions, return empty response
-        if not all_bots:
-            return jsonify({'success': True, 'responses': []})
-
-        for player in all_bots:
-            print(f"DEBUG: Bot name: {player.name}")
-            # Use the player's name directly as the personality
-            bot_personality = player.name
-            print(f"DEBUG: Bot personality: {bot_personality}")
-            try:
-                response = chatbot.generate_response(
-                    message,         # user_message
-                    game_state,      # game_state
-                    bot_personality  # personality
-                )
-                responses.append({'bot_name': player.name, 'message': response})
-            except Exception as e:
-                print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
-                print(f"ERROR: Failed to generate response for {player.name}: {e}")
-                import traceback
-                traceback.print_exc()
-                print("="*80 + "\n")
-                responses.append({'bot_name': player.name, 'message': f"Error: {e}"})
-
-        return jsonify({'success': True, 'responses': responses})
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
     else:
-        # Existing logic for single personality
-        response = chatbot.generate_response(
-            message,          # user_message
-            game_state,       # game_state
-            personality_type  # personality
-        )
-        # Get the bot info to include the name
-        bot_info = chatbot.get_bot_info()
-        return jsonify({
-            'success': True,
-            'message': response,
-            'bot_name': bot_info['name']
-        })
+        return jsonify(result)
 
 @app.route('/chatbot/get_bot_response', methods=['POST'])
 def get_bot_response():
     """Get a response from a specific bot with delay"""
     data = request.json
-    game_id = data.get('game_id')
-    message = data.get('message')
-    bot_name = data.get('bot_name')
-    conversation_context = data.get('conversation_context', [])  # New parameter
+    result = chat_handler.handle_get_bot_response(data, get_game_state, games)
 
-    if not message or not bot_name:
-        return jsonify({'error': 'Message and bot_name are required'}), 400
-
-    # Get current game state if game_id is provided
-    game_state = None
-    game_session = None
-    if game_id and game_id in games:
-        game_state = get_game_state(game_id)
-        game_session = games[game_id]
-
-    try:
-        # Convert display name to bot_id if it's a custom bot
-        bot_id_for_lookup = get_bot_id_from_display_name(game_session, bot_name)
-
-        # Calculate delay for this bot
-        delay = calculate_bot_response_delay(bot_name)
-        print(f"DEBUG: Adding {delay:.2f}s delay for {bot_name}")
-        time.sleep(delay)
-
-        # Create bot instance and add conversation context
-        bot = create_bot(bot_id_for_lookup)
-
-        # Add the conversation context to the bots history
-        for ctx in conversation_context:
-            bot.conversation_history.append(ctx)
-
-        # Generate response with the enriched context
-        response = chatbot.generate_response(
-            message,     # user_message
-            game_state,  # game_state
-            bot_id_for_lookup  # personality (use bot_id for lookup)
-        )
-
-        return jsonify({
-            'success': True,
-            'bot_name': bot_name,  # Return the original display name
-            'message': response
-        })
-
-    except Exception as e:
-        print(f"ERROR: Failed to generate response for {bot_name}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'bot_name': bot_name,
-            'message': f"Error: {e}"
-        })
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
+    else:
+        return jsonify(result)
 
 @app.route('/chatbot/proactive_comment', methods=['POST'])
 def get_proactive_comment():
-    print("==== /chatbot/proactive_comment endpoint hit ====")
-    print("Request data:", request.get_json())
     data = request.json
-    print('data', data)
-    game_id = data.get('game_id')
-    event_type = data.get('event_type', 'general')
+    result = chat_handler.handle_proactive_comment(data, get_game_state, games)
 
-    if not game_id or game_id not in games:
-        return jsonify({'error': 'Game not found'}), 404
-
-    try:
-        game_state = get_game_state(game_id)
-        game_session = games[game_id]
-        game = game_session['game']
-
-        # Use allowed_bots from frontend!
-        allowed_bots = data.get('allowed_bots', ["Jim Nantz"])
-        print("ALLOWED BOTS RECEIVED(579):", allowed_bots)  # Debug print
-        ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
-        print("AI PLAYERS SELECTED:", [p.name for p in ai_players])  # Debug print
-
-        comments = []
-
-        # Existing AI player comments
-        for player in ai_players:
-            original_personality = chatbot.bot_type
-            chatbot.change_personality(player.name)
-            comment = chatbot.generate_proactive_comment(game_state, event_type)
-            if comment:
-                comments.append({
-                    'bot_name': player.name,
-                    'message': comment,
-                    'bot_name': player.name # not sure about this...
-                })
-            chatbot.change_personality(original_personality)
-
-        # Special case: Always allow Jim Nantz to comment if requested, even if not a player
-        if "Jim Nantz" in allowed_bots:
-            original_personality = chatbot.bot_type
-            chatbot.change_personality("Jim Nantz")
-            comment = chatbot.generate_proactive_comment(game_state, event_type)
-            if comment:
-                comments.append({
-                    'bot_name': "Jim Nantz",
-                    'message': comment
-                })
-            chatbot.change_personality(original_personality)
-
-        # Return all comments that were generated
-        if comments:
-            return jsonify({
-                'success': True,
-                'comments': comments
-            })
-        else:
-            return jsonify({'success': True, 'comments': []})
-
-    except Exception as e:
-        print("Error in /chatbot/proactive_comment:", e)
-        import traceback; traceback.print_exc()
-        return jsonify({'error': f'Chatbot error: {str(e)}'}), 500
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
+    else:
+        return jsonify(result)
 
 @app.route('/chatbot/personalities', methods=['GET'])
 def get_chatbot_personalities():
     """Get available chatbot personalities"""
-    try:
-        personalities = chatbot.get_available_personalities()
-        current_personality = chatbot.get_bot_info()
-        return jsonify({
-            'success': True,
-            'personalities': personalities,
-            'current': current_personality
-        })
-    except Exception as e:
-        print("Error in /chatbot/personalities:", e)
-        import traceback; traceback.print_exc()
-        return jsonify({'error': f'Error getting personalities: {str(e)}'}), 500
+    result = chat_handler.handle_get_personalities()
+
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
+    else:
+        return jsonify(result)
 
 @app.route('/chatbot/change_personality', methods=['POST'])
 def change_chatbot_personality():
     data = request.json
-    personality_type = data.get('personality_type', 'nantz')
-    valid_types = ['nantz', 'opponent', 'helpful', 'funny']
-    if personality_type not in valid_types:
-        return jsonify({'success': False, 'error': 'Invalid personality type.'}), 400
-    try:
-        success = chatbot.change_personality(personality_type)
-        if success:
-            new_personality = chatbot.get_bot_info()
-            return jsonify({
-                'success': True,
-                'message': f'Changed to {new_personality["name"]}',
-                'personality': new_personality
-            })
-        else:
-            return jsonify({'error': 'Invalid personality type'}), 400
-    except Exception as e:
-        print("Error in /chatbot/change_personality:", e)
-        import traceback; traceback.print_exc()
-        return jsonify({'error': f'Error changing personality: {str(e)}'}), 500
+    result = chat_handler.handle_change_personality(data)
+
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
+    else:
+        return jsonify(result)
 
 @app.route('/chatbot/get_giphy_gif', methods=['POST'])
 def get_giphy_gif():
     """Get a relevant GIF from Giphy API based on message content and bot name"""
-    try:
-        data = request.json
-        message = data.get('message', '')
-        bot_name = data.get('bot_name', '')
-        print('gif message:', message)
-        # Get API key from environment
-        api_key = os.getenv('GIPHY_API_KEY')
-        if not api_key:
-            return jsonify({'error': 'GIPHY_API_KEY not found in environment variables'}), 500
+    data = request.json
+    result = chat_handler.handle_get_giphy_gif(data)
 
-        # Extract search terms from message and bot name
-        search_terms = []
-
-        # Add bot-specific terms
-        bot_terms = {
-            'peter_parker': ['spiderman', 'web', 'swing', 'hero'],
-            'happy_gilmore': ['golf', 'happy', 'funny', 'swing', 'comedy'],
-            'tiger_woods': ['golf', 'tiger', 'champion', 'professional', 'swing'],
-            'shooter_mcgavin': ['golf', 'villain', 'competitive', 'swing']
-        }
-
-        bot_key = bot_name.lower().replace(' ', '_')
-        if bot_key in bot_terms:
-            search_terms.extend(bot_terms[bot_key])
-
-        # Add golf-related terms from message
-        golf_terms = ['golf', 'swing', 'putt', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'water', 'club', 'driver', 'iron', 'wedge', 'putter']
-        message_lower = message.lower()
-        for term in golf_terms:
-            if term in message_lower:
-                search_terms.append(term)
-
-        # Add general terms from message
-        general_terms = ['win', 'lose', 'good', 'bad', 'great', 'terrible', 'amazing', 'awful', 'excellent', 'horrible', 'fantastic', 'disaster', 'success', 'failure', 'happy', 'sad', 'excited', 'disappointed']
-        for term in general_terms:
-            if term in message_lower:
-                search_terms.append(term)
-
-        # If no specific terms found, use generic golf terms
-        if not search_terms:
-            search_terms = ['golf', 'swing']
-
-        # Create search query
-        search_query = ' '.join(search_terms[:3])  # Use up to 3 terms
-        print('gif search query:', search_query)
-        # Call Giphy API
-        import requests
-        url = "https://api.giphy.com/v1/gifs/search"
-        params = {
-            'api_key': api_key,
-            'q': search_query,
-            'limit': 15,
-            'rating': 'g'
-        }
-
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-
-        data = response.json()
-
-        if data.get('data'):
-            # Return a random GIF from the results
-            import random
-            gif = random.choice(data['data'])
-
-            # Clean the URL by removing tracking parameters
-            gif_url = gif['images']['downsized_medium']['url']
-            # Remove everything after ?cid= to clean up tracking parameters
-            if '?' in gif_url:
-                gif_url = gif_url.split('?')[0]
-
-            return jsonify({
-                'success': True,
-                'gif_url': gif_url,
-                'search_query': search_query
-            })
-        else:
-            return jsonify({'error': 'No GIFs found'}), 404
-
-    except requests.RequestException as e:
-        return jsonify({'error': f'Giphy API error: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+    if isinstance(result, tuple):
+        response_data, status_code = result
+        return jsonify(response_data), status_code
+    else:
+        return jsonify(result)
 
 @app.route('/gif/search', methods=['POST'])
 def user_gif_search():

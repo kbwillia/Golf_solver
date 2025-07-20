@@ -808,19 +808,20 @@ function getAllowedBotsForProactive() {
 // Start periodic proactive comments
 function startPeriodicProactiveComments() {
     // Clear any existing interval.
-    console.log('[startPeriodicProactiveComments 2723] proactiveCommentInterval:', proactiveCommentInterval);
+    console.log('[startPeriodicProactiveComments] proactiveCommentInterval:', proactiveCommentInterval);
     if (proactiveCommentInterval) {
         clearInterval(proactiveCommentInterval);
     }
 
-    // Start new interval - trigger proactive comments every 30-60 seconds
+    // Start new interval - trigger proactive comments every 5-10 seconds
+    // Backend will handle all timing decisions (cooldowns, probabilities, etc.)
     window.proactiveCommentInterval = setInterval(() => {
         if (gameId && chatbotEnabled && currentGameState && !currentGameState.game_over) {
             const eventTypes = ['general', 'turn_start', 'card_played', 'score_update'];
             const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
             requestProactiveComment(randomEvent);
         }
-    }, 3000 + Math.random() * 3000); // 30-60 seconds og. 30000 is og.
+    }, 5000 + Math.random() * 5000); // 5-10 seconds - backend handles actual timing
 }
 
 // Clear chat UI

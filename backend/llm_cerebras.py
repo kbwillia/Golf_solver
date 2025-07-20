@@ -30,16 +30,18 @@ def call_cerebras_llm(
     stream_delay: float = 0.025
 ) -> str:
     messages = [{"role": "user", "content": prompt}]
-    kwargs = {"model": model, "messages": messages}
+    kwargs = {"model": model, "messages": messages, "temperature": temperature}
 
     if structured:
         schema = json_schema or default_schema
         if schema is None:
             raise ValueError("No JSON schema provided for structured output.")
+
+        # Use Cerebras structured output format as per their documentation
         kwargs["response_format"] = {
             "type": "json_schema",
             "json_schema": {
-                "name": "job_schema",
+                "name": "bot_configuration_schema",
                 "strict": True,
                 "schema": schema,
             },

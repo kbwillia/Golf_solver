@@ -145,28 +145,37 @@ class GolfChatbot:
         print(f"🔧 Bot type: {self.bot_type}")
         print(f"🔧 Bot description: {self.current_bot.description}")
 
-        # Update emotional state based on current game performance
+        # Update emotional state based on current game performance (enhanced version)
         if game_state:
-            self.current_bot.update_emotional_state(game_state)
+            self.current_bot.update_emotional_state_advanced(game_state)
 
-        # Build the context
+        # Build the context with enhanced personality integration
         context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
 
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
-        # Add emotional context for more realistic responses
-        emotional_context = self.current_bot.get_emotional_context()
-        context += emotional_context + "\n\n"
+        # Add dynamic emotional and personality context
+        dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
+        context += dynamic_context + "\n\n"
+
+        # Add enhanced response style context
+        style_context = self.current_bot.get_response_style_context()
+        context += style_context + "\n\n"
+
+        # Add personality-specific prompt additions
+        if game_state:
+            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
+        else:
+            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("general")
+
+        if personality_additions:
+            context += personality_additions + "\n\n"
 
         # Add situational context
         situational_context = self.current_bot.get_situational_context(game_state)
         if situational_context:
             context += situational_context + "\n\n"
-
-        # Add response style context for personality-driven responses
-        style_context = self.current_bot.get_response_style_context()
-        context += style_context + "\n\n"
 
         # Always add the base prompt
         context += self.base_prompt + "\n"
@@ -192,22 +201,43 @@ class GolfChatbot:
             print(f"🤖 {context}")
             print(f"🤖 {'='*80}")
 
-            # Call the LLM
+            # Adjust temperature based on personality
+            personality_modifiers = self.current_bot.get_personality_modifiers()
+            base_temperature = 0.7
+
+            # More confident bots use lower temperature (more consistent)
+            # More excited/humorous bots use higher temperature (more creative)
+            temp_adjustment = (personality_modifiers["excitement_modifier"] +
+                             personality_modifiers["humor_modifier"] -
+                             personality_modifiers["confidence_modifier"]) * 0.2
+
+            adjusted_temperature = max(0.3, min(1.0, base_temperature + temp_adjustment))
+
+            # Call the LLM with personality-adjusted temperature
             response = call_cerebras_llm(
                 prompt=context,
                 model="llama3.1-8b",
                 structured=False,
                 stream=True,
-                temperature=0.7
+                temperature=adjusted_temperature
             )
 
             # Clean up the response
             if response.startswith(f"{bot_info['name']}:"):
                 response = response[len(f"{bot_info['name']}:"):].strip()
 
-            # Enforce character limit (150 characters)
-            if len(response) > 150:
-                response = response[:147] + "..."
+            # Apply personality-based response length limits
+            verbosity = self.current_bot.response_config.get("verbosity", 0.5)
+            if verbosity < 0.3:
+                max_length = 100
+            elif verbosity > 0.7:
+                max_length = 250
+            else:
+                max_length = 150
+
+            # Enforce character limit based on verbosity
+            if len(response) > max_length:
+                response = response[:max_length-3] + "..."
 
             # Ensure response ends with proper punctuation
             if response and not response[-1] in '.!?:':
@@ -364,5 +394,619 @@ class GolfChatbot:
 
         return personalities
 
+    def generate_enhanced_response_with_gif(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None) -> Dict[str, Any]:
+        """Generate an enhanced response that may include GIF suggestions"""
+
+        # Generate the normal response
+        response = self.generate_response(user_message, game_state, personality)
+
+        # Check if bot should send a GIF
+        should_gif = self.current_bot.should_send_gif()
+
+        result = {
+            "message": response,
+            "bot_name": self.current_bot.name,
+            "should_send_gif": should_gif,
+            "personality_info": {
+                "confidence": self.current_bot.emotional_state.get("confidence", 0.5),
+                "excitement": self.current_bot.emotional_state.get("excitement", 0.5),
+                "frustration": self.current_bot.emotional_state.get("frustration", 0.0),
+                "verbosity": self.current_bot.response_config.get("verbosity", 0.5),
+                "humor_level": self.current_bot.response_config.get("humor_level", 0.3),
+                "formality": self.current_bot.response_config.get("formality", 0.5)
+            }
+        }
+
+        # Add GIF context if one should be sent
+        if should_gif:
+            gif_context = self._get_gif_context(user_message, game_state)
+            result["gif_context"] = gif_context
+
+        return result
+
+    def _get_gif_context(self, message: str, game_state: Dict[str, Any] = None) -> str:
+        """Generate context for what type of GIF would be appropriate"""
+
+        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
+        confidence = self.current_bot.emotional_state.get("confidence", 0.5)
+        humor_level = self.current_bot.response_config.get("humor_level", 0.3)
+
+        # Determine GIF type based on context and personality
+        if game_state and game_state.get('game_over', False):
+            if confidence > 0.6:
+                return "celebration"
+            else:
+                return "disappointed"
+        elif excitement > 0.7:
+            return "excited"
+        elif humor_level > 0.6:
+            return "funny"
+        elif confidence > 0.8:
+            return "confident"
+        else:
+            return "reaction"
+
+    def generate_contextual_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general", specific_context: str = "") -> Optional[Dict[str, Any]]:
+        """Generate enhanced proactive comments with personality-driven context"""
+
+        bot_info = self.get_bot_info()
+
+        # Check if bot should make a proactive comment
+        import time
+        current_time = time.time()
+
+        if not self.current_bot.should_make_proactive_comment(event_type, game_state, current_time):
+            return None
+
+        # Generate event-specific prompts based on personality
+        event_prompts = {
+            "turn_start": self._get_turn_start_prompt(game_state),
+            "card_drawn": self._get_card_drawn_prompt(game_state),
+            "card_played": self._get_card_played_prompt(game_state),
+            "score_update": self._get_score_update_prompt(game_state),
+            "game_over": self._get_game_over_prompt(game_state),
+            "dramatic_moment": self._get_dramatic_moment_prompt(game_state),
+            "general": "Comment on the current game situation."
+        }
+
+        base_prompt = event_prompts.get(event_type, "Comment on the current game situation.")
+
+        # Add specific context if provided
+        if specific_context:
+            base_prompt += f" Context: {specific_context}"
+
+        try:
+            context = f"{bot_info['system_prompt']}\n\n"
+            context += self.format_game_state_for_prompt(game_state) + "\n\n"
+
+            # Add enhanced personality context for proactive comments
+            dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
+            context += dynamic_context + "\n\n"
+
+            style_context = self.current_bot.get_response_style_context()
+            context += style_context + "\n\n"
+
+            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
+            if personality_additions:
+                context += personality_additions + "\n\n"
+
+            context += base_prompt + "\n\n"
+            context += self.base_prompt + "\n"
+
+            # Use personality-adjusted temperature
+            personality_modifiers = self.current_bot.get_personality_modifiers()
+            base_temperature = 0.8  # Slightly higher for proactive comments
+
+            temp_adjustment = (personality_modifiers["excitement_modifier"] +
+                             personality_modifiers["humor_modifier"] -
+                             personality_modifiers["confidence_modifier"]) * 0.2
+
+            adjusted_temperature = max(0.4, min(1.0, base_temperature + temp_adjustment))
+
+            response = call_cerebras_llm(
+                prompt=context,
+                model="llama3.1-8b",
+                structured=False,
+                stream=False,
+                temperature=adjusted_temperature
+            )
+
+            # Update comment tracking
+            self.current_bot.last_comment_time = current_time
+            self.current_bot.comments_this_game += 1
+
+            # Apply personality-based response length
+            verbosity = self.current_bot.response_config.get("verbosity", 0.5)
+            if verbosity < 0.3:
+                max_length = 100
+            elif verbosity > 0.7:
+                max_length = 200
+            else:
+                max_length = 150
+
+            if len(response) > max_length:
+                response = response[:max_length-3] + "..."
+
+            # Check for GIF
+            should_gif = self.current_bot.should_send_gif()
+
+            result = {
+                "message": response.strip(),
+                "bot_name": self.current_bot.name,
+                "event_type": event_type,
+                "should_send_gif": should_gif,
+                "personality_info": {
+                    "confidence": self.current_bot.emotional_state.get("confidence", 0.5),
+                    "excitement": self.current_bot.emotional_state.get("excitement", 0.5),
+                    "frustration": self.current_bot.emotional_state.get("frustration", 0.0)
+                }
+            }
+
+            if should_gif:
+                result["gif_context"] = self._get_gif_context("", game_state)
+
+            return result
+
+        except Exception as e:
+            print(f"DEBUG: Error generating contextual proactive comment: {e}")
+            return None
+
+    def _get_turn_start_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate turn start specific prompts based on personality"""
+        advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
+
+        if advice_freq > 0.6:
+            return "A new turn is starting. Offer strategic advice or commentary on the player's position."
+        else:
+            return "A new turn is starting. Make a brief encouraging comment."
+
+    def _get_card_drawn_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate card drawn specific prompts"""
+        humor_level = self.current_bot.response_config.get("humor_level", 0.3)
+
+        if humor_level > 0.6:
+            return "A card was just drawn. Make a witty or humorous comment about the draw."
+        else:
+            return "A card was drawn. Comment on the player's luck or strategy."
+
+    def _get_card_played_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate card played specific prompts"""
+        advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
+
+        if advice_freq > 0.6:
+            return "A card was played. Analyze the move and offer strategic commentary."
+        else:
+            return "A card was played. React to the move briefly."
+
+    def _get_score_update_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate score update specific prompts"""
+        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
+
+        if excitement > 0.7:
+            return "Scores have been updated! React with enthusiasm to the score changes."
+        else:
+            return "Scores have been updated. Comment on the current standings."
+
+    def _get_game_over_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate game over specific prompts"""
+        return "The game has ended. React to the final results and congratulate or commiserate as appropriate."
+
+    def _get_dramatic_moment_prompt(self, game_state: Dict[str, Any]) -> str:
+        """Generate dramatic moment specific prompts"""
+        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
+
+        if excitement > 0.7:
+            return "This is a dramatic moment in the game! React with high energy and excitement."
+        else:
+            return "This is a tense moment in the game. Comment on the drama unfolding."
+
 # Create a global chatbot instance
 chatbot = GolfChatbot("Jim Nantz")
+
+class ChatHandler:
+    """Handler for all chat-related functionality"""
+
+    def __init__(self, chatbot_instance: GolfChatbot):
+        self.chatbot = chatbot_instance
+
+    def calculate_bot_response_delay(self, bot_name: str) -> float:
+        """Calculate response delay based on bot personality"""
+        try:
+            # Create bot instance to get its configuration
+            from bot_personalities import create_bot
+            bot = create_bot(bot_name)
+            reaction_speed = bot.response_config.get('reaction_speed', 0.5)
+
+            # Clamp reaction_speed to [0.0, 1.0]
+            try:
+                reaction_speed = float(reaction_speed)
+            except Exception:
+                reaction_speed = 0.5
+            reaction_speed = max(0.0, min(1.0, reaction_speed))
+
+            # Base delay range: 0.5-3.0 seconds
+            min_delay = 0.5
+            max_delay = 3.0
+            # Invert the reaction_speed so that higher values = faster responses
+            delay = min_delay + (1.0 - reaction_speed) * (max_delay - min_delay)
+
+            # Add some randomness (±20%)
+            variation = random.uniform(0.8, 1.2)
+            final_delay = delay * variation
+
+            # Ensure delay is never negative
+            final_delay = max(min_delay, final_delay)
+
+            print(f"DEBUG: Bot {bot_name} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
+
+            return final_delay
+
+        except Exception as e:
+            print(f"DEBUG: Error calculating delay for {bot_name}: {e}")
+            # Default delay if there's an error
+            return 1.5
+
+    def get_bot_id_from_display_name(self, game_session, display_name):
+        """Convert display name to bot_id for custom bot lookup"""
+        if not game_session:
+            return display_name
+
+        # Check if this is a custom bot
+        for key, value in game_session.items():
+            if key.startswith('custom_bot_name') and value == display_name:
+                # Find corresponding bot_id
+                bot_id_key = key.replace('custom_bot_name', 'custom_bot_id')
+                if bot_id_key in game_session:
+                    return game_session[bot_id_key]
+
+        # If not a custom bot, return the display name
+        return display_name
+
+    def handle_send_message(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
+        """Handle send message requests"""
+        print("DEBUG: Received data:", data)
+        game_id = data.get('game_id')
+        message = data.get('message')
+        personality_type = data.get('personality_type', 'Jim Nantz')
+
+        if not message:
+            return {'error': 'Message cannot be empty'}, 400
+
+        # Get current game state if game_id is provided
+        game_state = None
+        if game_id and game_id in games:
+            game_state = get_game_state_func(game_id)
+
+        if personality_type == 'opponent':
+            return self._handle_opponent_chat(game_id, message, game_state, games)
+        else:
+            return self._handle_single_personality_chat(message, game_state, personality_type)
+
+    def _handle_opponent_chat(self, game_id: str, message: str, game_state: Dict[str, Any], games: Dict) -> Dict[str, Any]:
+        """Handle chat with all opponent bots"""
+        print("DEBUG: Handling opponent chat message")
+        game_session = games[game_id]
+        game = game_session['game']
+
+        # Get responses from all AI players in the game ONLY (no chat-only bots)
+        all_bots = list(game.players[1:])  # All AI players from the game
+
+        # Generate enhanced responses from all bots
+        responses = []
+
+        for player in all_bots:
+            print(f"DEBUG: Bot name: {player.name}")
+            # Use the player's name directly as the personality
+            bot_personality = player.name
+            print(f"DEBUG: Bot personality: {bot_personality}")
+            try:
+                # Use enhanced response generation
+                enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
+                    message,         # user_message
+                    game_state,      # game_state
+                    bot_personality  # personality
+                )
+                responses.append({
+                    'bot_name': player.name,
+                    'message': enhanced_response["message"],
+                    'should_send_gif': enhanced_response.get("should_send_gif", False),
+                    'gif_context': enhanced_response.get("gif_context", ""),
+                    'personality_info': enhanced_response.get("personality_info", {})
+                })
+            except Exception as e:
+                print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
+                print(f"ERROR: Failed to generate response for {player.name}: {e}")
+                import traceback
+                traceback.print_exc()
+                print("="*80 + "\n")
+                responses.append({
+                    'bot_name': player.name,
+                    'message': f"Error: {e}",
+                    'should_send_gif': False,
+                    'gif_context': "",
+                    'personality_info': {}
+                })
+
+        return {'success': True, 'responses': responses}
+
+    def _handle_single_personality_chat(self, message: str, game_state: Dict[str, Any], personality_type: str) -> Dict[str, Any]:
+        """Handle chat with single personality"""
+        # Enhanced response generation
+        enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
+            message,          # user_message
+            game_state,       # game_state
+            personality_type  # personality
+        )
+
+        return {
+            'success': True,
+            'message': enhanced_response["message"],
+            'bot_name': enhanced_response["bot_name"],
+            'should_send_gif': enhanced_response.get("should_send_gif", False),
+            'gif_context': enhanced_response.get("gif_context", ""),
+            'personality_info': enhanced_response.get("personality_info", {})
+        }
+
+    def handle_get_bot_response(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
+        """Get a response from a specific bot with delay"""
+        game_id = data.get('game_id')
+        message = data.get('message')
+        bot_name = data.get('bot_name')
+        conversation_context = data.get('conversation_context', [])  # New parameter
+
+        if not message or not bot_name:
+            return {'error': 'Message and bot_name are required'}, 400
+
+        # Get current game state if game_id is provided
+        game_state = None
+        game_session = None
+        if game_id and game_id in games:
+            game_state = get_game_state_func(game_id)
+            game_session = games[game_id]
+
+        try:
+            # Convert display name to bot_id if it's a custom bot
+            bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, bot_name)
+
+            # Calculate delay for this bot
+            delay = self.calculate_bot_response_delay(bot_name)
+            print(f"DEBUG: Adding {delay:.2f}s delay for {bot_name}")
+            import time
+            time.sleep(delay)
+
+            # Create bot instance and add conversation context
+            from bot_personalities import create_bot
+            bot = create_bot(bot_id_for_lookup)
+
+            # Add the conversation context to the bots history
+            for ctx in conversation_context:
+                bot.conversation_history.append(ctx)
+
+            # Generate response with the enriched context
+            response = self.chatbot.generate_response(
+                message,     # user_message
+                game_state,  # game_state
+                bot_id_for_lookup  # personality (use bot_id for lookup)
+            )
+
+            return {
+                'success': True,
+                'bot_name': bot_name,  # Return the original display name
+                'message': response
+            }
+
+        except Exception as e:
+            print(f"ERROR: Failed to generate response for {bot_name}: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'bot_name': bot_name,
+                'message': f"Error: {e}"
+            }
+
+    def handle_proactive_comment(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
+        """Handle proactive comment requests"""
+        print("==== handle_proactive_comment called ====")
+        print("Request data:", data)
+        game_id = data.get('game_id')
+        event_type = data.get('event_type', 'general')
+        specific_context = data.get('specific_context', '')
+
+        if not game_id or game_id not in games:
+            return {'error': 'Game not found'}, 404
+
+        try:
+            game_state = get_game_state_func(game_id)
+            game_session = games[game_id]
+            game = game_session['game']
+
+            # Use allowed_bots from frontend!
+            allowed_bots = data.get('allowed_bots', ["Jim Nantz"])
+            print("ALLOWED BOTS RECEIVED:", allowed_bots)  # Debug print
+            ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
+            print("AI PLAYERS SELECTED:", [p.name for p in ai_players])  # Debug print
+
+            comments = []
+
+            # Enhanced AI player comments
+            for player in ai_players:
+                original_personality = self.chatbot.bot_type
+                self.chatbot.change_personality(player.name)
+
+                # Use enhanced contextual proactive comment generation
+                enhanced_comment = self.chatbot.generate_contextual_proactive_comment(
+                    game_state,
+                    event_type,
+                    specific_context
+                )
+
+                if enhanced_comment:
+                    comments.append({
+                        'bot_name': player.name,
+                        'message': enhanced_comment["message"],
+                        'event_type': enhanced_comment.get("event_type", event_type),
+                        'should_send_gif': enhanced_comment.get("should_send_gif", False),
+                        'gif_context': enhanced_comment.get("gif_context", ""),
+                        'personality_info': enhanced_comment.get("personality_info", {})
+                    })
+
+                self.chatbot.change_personality(original_personality)
+
+            # Special case: Always allow Jim Nantz to comment if requested, even if not a player
+            if "Jim Nantz" in allowed_bots and not any(p.name == "Jim Nantz" for p in ai_players):
+                original_personality = self.chatbot.bot_type
+                self.chatbot.change_personality("Jim Nantz")
+
+                enhanced_comment = self.chatbot.generate_contextual_proactive_comment(
+                    game_state,
+                    event_type,
+                    specific_context
+                )
+
+                if enhanced_comment:
+                    comments.append({
+                        'bot_name': "Jim Nantz",
+                        'message': enhanced_comment["message"],
+                        'event_type': enhanced_comment.get("event_type", event_type),
+                        'should_send_gif': enhanced_comment.get("should_send_gif", False),
+                        'gif_context': enhanced_comment.get("gif_context", ""),
+                        'personality_info': enhanced_comment.get("personality_info", {})
+                    })
+
+                self.chatbot.change_personality(original_personality)
+
+            print(f"DEBUG: Generated {len(comments)} enhanced proactive comments")
+            return {'success': True, 'comments': comments}
+
+        except Exception as e:
+            print(f"ERROR: Error generating proactive comments: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'error': str(e)}, 500
+
+    def handle_get_personalities(self) -> Dict[str, Any]:
+        """Get available chatbot personalities"""
+        try:
+            personalities = self.chatbot.get_available_personalities()
+            current_personality = self.chatbot.get_bot_info()
+            return {
+                'success': True,
+                'personalities': personalities,
+                'current': current_personality
+            }
+        except Exception as e:
+            print("Error in handle_get_personalities:", e)
+            import traceback; traceback.print_exc()
+            return {'error': f'Error getting personalities: {str(e)}'}, 500
+
+    def handle_change_personality(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle personality change requests"""
+        personality_type = data.get('personality_type', 'nantz')
+        valid_types = ['nantz', 'opponent', 'helpful', 'funny']
+        if personality_type not in valid_types:
+            return {'success': False, 'error': 'Invalid personality type.'}, 400
+
+        try:
+            success = self.chatbot.change_personality(personality_type)
+            if success:
+                new_personality = self.chatbot.get_bot_info()
+                return {
+                    'success': True,
+                    'message': f'Changed to {new_personality["name"]}',
+                    'personality': new_personality
+                }
+            else:
+                return {'error': 'Invalid personality type'}, 400
+        except Exception as e:
+            print("Error in handle_change_personality:", e)
+            import traceback; traceback.print_exc()
+            return {'error': f'Error changing personality: {str(e)}'}, 500
+
+    def handle_get_giphy_gif(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get a relevant GIF from Giphy API based on message content and bot name"""
+        try:
+            message = data.get('message', '')
+            bot_name = data.get('bot_name', '')
+            print('gif message:', message)
+
+            # Get API key from environment
+            import os
+            api_key = os.getenv('GIPHY_API_KEY')
+            if not api_key:
+                return {'error': 'GIPHY_API_KEY not found in environment variables'}, 500
+
+            # Extract search terms from message and bot name
+            search_terms = []
+
+            # Add bot-specific terms
+            bot_terms = {
+                'peter_parker': ['spiderman', 'web', 'swing', 'hero'],
+                'happy_gilmore': ['golf', 'happy', 'funny', 'swing', 'comedy'],
+                'tiger_woods': ['golf', 'tiger', 'champion', 'professional', 'swing'],
+                'shooter_mcgavin': ['golf', 'villain', 'competitive', 'swing']
+            }
+
+            bot_key = bot_name.lower().replace(' ', '_')
+            if bot_key in bot_terms:
+                search_terms.extend(bot_terms[bot_key])
+
+            # Add golf-related terms from message
+            golf_terms = ['golf', 'swing', 'putt', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'water', 'club', 'driver', 'iron', 'wedge', 'putter']
+            message_lower = message.lower()
+            for term in golf_terms:
+                if term in message_lower:
+                    search_terms.append(term)
+
+            # Add general terms from message
+            general_terms = ['win', 'lose', 'good', 'bad', 'great', 'terrible', 'amazing', 'awful', 'excellent', 'horrible', 'fantastic', 'disaster', 'success', 'failure', 'happy', 'sad', 'excited', 'disappointed']
+            for term in general_terms:
+                if term in message_lower:
+                    search_terms.append(term)
+
+            # If no specific terms found, use generic golf terms
+            if not search_terms:
+                search_terms = ['golf', 'swing']
+
+            # Create search query
+            search_query = ' '.join(search_terms[:3])  # Use up to 3 terms
+            print('gif search query:', search_query)
+
+            # Call Giphy API
+            import requests
+            url = "https://api.giphy.com/v1/gifs/search"
+            params = {
+                'api_key': api_key,
+                'q': search_query,
+                'limit': 15,
+                'rating': 'g'
+            }
+
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            if response_data.get('data'):
+                # Return a random GIF from the results
+                gif = random.choice(response_data['data'])
+
+                # Clean the URL by removing tracking parameters
+                gif_url = gif['images']['downsized_medium']['url']
+                # Remove everything after ?cid= to clean up tracking parameters
+                if '?' in gif_url:
+                    gif_url = gif_url.split('?')[0]
+
+                return {
+                    'success': True,
+                    'gif_url': gif_url,
+                    'search_query': search_query
+                }
+            else:
+                return {'error': 'No GIFs found'}, 404
+
+        except Exception as e:
+            return {'error': f'Server error: {str(e)}'}, 500
+
+# Create global chat handler instance
+chat_handler = ChatHandler(chatbot)
