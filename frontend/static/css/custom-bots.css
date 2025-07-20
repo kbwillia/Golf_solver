@@ -327,3 +327,102 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Bot selection row styles */
+.bot-select-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 160px;
+  padding: 12px;
+  margin: 0 auto 10px auto;
+  max-width: 600px;
+  justify-content: center;
+}
+
+.bot-select-btn {
+  flex: 0 0 calc(33.333% - 8px);
+  min-width: 160px;
+  max-width: 180px;
+  min-height: 80px;
+  background: #eee;
+  border: 2px solid #bbb;
+  border-radius: 8px;
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: background 0.2s, border 0.2s, color 0.2s;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  outline: none;
+}
+.bot-select-btn.selected {
+  background: #1db954;
+  border-color: #1db954;
+  color: #fff;
+}
+.bot-select-btn.multi-selected {
+  background: #1db954;
+  border-color: #1db954;
+  color: #fff;
+  position: relative;
+}
+.bot-select-btn.multi-selected::after {
+  content: "✓";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-weight: bold;
+  font-size: 14px;
+}
+.bot-select-btn:not(.selected):not(.multi-selected):hover {
+  background: #ddd;
+  border-color: #888;
+}
+.bot-select-btn .bot-name {
+  font-size: 0.95em;
+  font-weight: bold;
+  margin-bottom: 2px;
+  display: block;
+  line-height: 1.2;
+}
+.bot-select-btn .bot-difficulty {
+  font-size: 0.8em;
+  font-weight: 500;
+  margin-bottom: 2px;
+  display: block;
+}
+.bot-select-btn .bot-difficulty.easy { color: #4caf50; }
+.bot-select-btn .bot-difficulty.medium { color: #ff9800; }
+.bot-select-btn .bot-difficulty.hard { color: #e53935; }
+.bot-select-btn .bot-desc {
+  font-size: 0.75em;
+  color: #444;
+  margin-top: 2px;
+  display: block;
+  line-height: 1.2;
+}
+@media (max-width: 700px) {
+  .bot-select-row {
+    max-width: 500px;
+    gap: 8px;
+  }
+  .bot-select-btn {
+    flex: 0 0 calc(50% - 4px);
+    min-width: 140px;
+    max-width: 160px;
+  }
+}
+@media (max-width: 500px) {
+  .bot-select-row {
+    max-width: 400px;
+    flex-direction: column;
+    align-items: center;
+  }
+  .bot-select-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 300px;
+  }
+}

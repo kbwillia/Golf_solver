@@ -526,3 +526,192 @@ async function populateOpponentDropdown() {
         console.log('🎯 Error populating opponent dropdown:', error);
     }
 }
+
+// Bot selection button logic for setup screen
+const botList = [
+  {
+    value: 'peter_parker',
+    name: 'Peter Parker',
+    difficulty: 'Easy',
+    difficultyClass: 'easy',
+    desc: 'Friendly neighborhood bot. Plays safe and simple.'
+  },
+  {
+    value: 'happy_gilmore',
+    name: 'Happy Gilmore',
+    difficulty: 'Medium',
+    difficultyClass: 'medium',
+    desc: 'Wild swings, but can surprise you!'
+  },
+  {
+    value: 'tiger_woods',
+    name: 'Tiger Woods',
+    difficulty: 'Hard',
+    difficultyClass: 'hard',
+    desc: 'Calculated, tough, and rarely makes mistakes.'
+  }
+];
+
+// Track selected bots for multi-selection mode
+window.selectedBots = [botList[0].value]; // Start with first bot selected
+
+async function renderBotSelectRow() {
+  const row = document.getElementById('botSelectRow');
+  if (!row) return;
+
+  // Get all bots including custom ones
+  let allBots = [...botList];
+
+  try {
+    // Load custom bots from JSON
+    const response = await fetch('/static/custom_bot.json');
+    const data = await response.json();
+
+    if (data.placeholder_bots && data.placeholder_bots.length > 0) {
+      data.placeholder_bots.forEach(bot => {
+        allBots.push({
+          value: 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_'),
+          name: bot.name,
+          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
+          difficultyClass: bot.difficulty,
+          desc: bot.description || 'Custom bot with unique personality.'
+        });
+      });
+    }
+  } catch (error) {
+    console.log('Could not load custom bots from JSON:', error);
+  }
+
+  // Load existing custom bots from server
+  try {
+    const serverResponse = await fetch('/get_custom_bots');
+    const serverData = await serverResponse.json();
+
+    if (serverData.success && serverData.bots) {
+      serverData.bots.forEach(bot => {
+        allBots.push({
+          value: bot.id,
+          name: bot.name,
+          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
+          difficultyClass: bot.difficulty,
+          desc: bot.description || 'Custom bot with unique personality.'
+        });
+      });
+    }
+  } catch (error) {
+    console.log('Could not load existing custom bots:', error);
+  }
+
+  // Render all bots
+  row.innerHTML = '';
+  allBots.forEach((bot, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+
+    // Determine if this bot is selected
+    const isSelected = window.selectedBots.includes(bot.value);
+    const isMultiMode = isMultiSelectionMode();
+
+    btn.className = 'bot-select-btn' +
+      (isSelected ? (isMultiMode ? ' multi-selected' : ' selected') : '');
+    btn.setAttribute('data-bot', bot.value);
+    btn.innerHTML = `
+      <span class="bot-name">${bot.name}</span>
+      <span class="bot-difficulty ${bot.difficultyClass}">${bot.difficulty}</span>
+      <span class="bot-desc">${bot.desc}</span>
+    `;
+    btn.onclick = () => selectBotButton(bot.value);
+    row.appendChild(btn);
+  });
+
+  // Set initial selected bot value for backward compatibility
+  window.selectedBotValue = window.selectedBots[0];
+  console.log(`✅ Rendered ${allBots.length} bots in selection row`);
+}
+
+function isMultiSelectionMode() {
+  // Check if we're in 1v3 mode
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+  return gameMode1v3 && gameMode1v3.classList.contains('active');
+}
+
+function selectBotButton(botValue) {
+  const row = document.getElementById('botSelectRow');
+  if (!row) return;
+
+  const isMultiMode = isMultiSelectionMode();
+
+  if (isMultiMode) {
+    // Multi-selection mode (1v3)
+    const index = window.selectedBots.indexOf(botValue);
+    if (index > -1) {
+      // Remove if already selected (but keep at least 1)
+      if (window.selectedBots.length > 1) {
+        window.selectedBots.splice(index, 1);
+      }
+    } else {
+      // Add if not selected (but limit to 3)
+      if (window.selectedBots.length < 3) {
+        window.selectedBots.push(botValue);
+      }
+    }
+  } else {
+    // Single selection mode (1v1)
+    window.selectedBots = [botValue];
+  }
+
+  // Update visual state
+  Array.from(row.children).forEach(btn => {
+    const btnValue = btn.getAttribute('data-bot');
+    const isSelected = window.selectedBots.includes(btnValue);
+
+    btn.classList.remove('selected', 'multi-selected');
+    if (isSelected) {
+      btn.classList.add(isMultiMode ? 'multi-selected' : 'selected');
+    }
+  });
+
+  // Update backward compatibility
+  window.selectedBotValue = window.selectedBots[0];
+
+  console.log(`Selected bots: ${window.selectedBots.join(', ')}`);
+}
+
+// Listen for game mode changes to update selection behavior
+function initializeGameModeButtons() {
+  const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+
+  if (gameMode1v1 && gameMode1v3) {
+    gameMode1v1.addEventListener('click', () => {
+      // Switch to single selection mode
+      if (window.selectedBots.length > 1) {
+        window.selectedBots = [window.selectedBots[0]];
+        renderBotSelectRow();
+      }
+    });
+
+    gameMode1v3.addEventListener('click', () => {
+      // Switch to multi-selection mode
+      if (window.selectedBots.length === 1) {
+        // Add more bots if needed for 1v3
+        const allBots = botList.map(bot => bot.value);
+        const currentBot = window.selectedBots[0];
+        const availableBots = allBots.filter(bot => bot !== currentBot);
+
+        // Add up to 2 more bots
+        for (let i = 0; i < Math.min(2, availableBots.length); i++) {
+          if (!window.selectedBots.includes(availableBots[i])) {
+            window.selectedBots.push(availableBots[i]);
+          }
+        }
+        renderBotSelectRow();
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderBotSelectRow();
+  initializeGameModeButtons();
+});
