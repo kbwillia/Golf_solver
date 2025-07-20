@@ -1,5 +1,5 @@
 import os
-from .llm_cerebras import call_cerebras_llm
+from llm_cerebras import call_cerebras_llm
 
 def test_basic_llm():
     """Test basic LLM functionality without structured output"""

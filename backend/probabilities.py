@@ -268,7 +268,7 @@ def expected_value_draw_vs_discard(game, player=None):
     # Try placing discard card in each available position and find best (most negative) change
     best_discard_ev = 0
     best_discard_position = None
-    from .models import Card
+    from models import Card
 
     for pos in available_positions:
         # For human, treat privately_visible as known
@@ -458,7 +458,7 @@ def average_score_of_deck(game):
 def win_probabilities(game, n_simulations=1000):
     """Estimate win probability for each player by simulating the rest of the game with random draws."""
     from copy import deepcopy
-    from .models import Card
+    from models import Card
     n_players = len(game.players)
     win_counts = [0] * n_players
 

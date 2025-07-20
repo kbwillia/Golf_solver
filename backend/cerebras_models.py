@@ -1,6 +1,6 @@
 from typing import List, Optional
 from cerebras.cloud.sdk import Cerebras
-from .base import BaseLLM, BaseEmbedding
+from base import BaseLLM, BaseEmbedding
 
 class CerebrasEmbedding(BaseEmbedding):
     """Cerebras embedding model implementation."""

@@ -1,5 +1,5 @@
-from .game import GolfGame
-from .simulation import run_simulations_with_training, run_simulations, print_simulation_results, plot_learning_curves
+from game import GolfGame
+from simulation import run_simulations_with_training, run_simulations, print_simulation_results, plot_learning_curves
 
 def main():
     print("=== GOLF GAME SIMULATION SUITE WITH Q-LEARNING ===")

@@ -1,7 +1,8 @@
 import itertools
 import random
-from .models import Player, Card
-from .agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent, EVAgent, AdvancedEVAgent
+# Import from same directory
+from models import Player, Card
+from agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent, EVAgent, AdvancedEVAgent
 
 class GolfGame:
     RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
