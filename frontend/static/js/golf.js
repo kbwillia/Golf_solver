@@ -349,7 +349,8 @@ function updatePlayerGrids() {
                 extraAttrs += ' ondragover="event.preventDefault();this.classList.add(\'drop-target\');event.stopPropagation();"';
                 extraAttrs += ' ondragenter="event.preventDefault();this.classList.add(\'drop-target\');"';
                 extraAttrs += ' ondragleave="if(!event.relatedTarget || !this.contains(event.relatedTarget)) this.classList.remove(\'drop-target\');"';
-                extraAttrs += ` ondrop="handleDropOnGrid(${pos});this.classList.remove('drop-target');event.preventDefault();event.stopPropagation();"`;
+                extraAttrs += ` ondrop="console.log('🎯 DROP EVENT FIRED on position ${pos}');handleDropOnGrid(${pos});this.classList.remove('drop-target');event.preventDefault();event.stopPropagation();"`;
+                console.log(`🎯 Created drop zone for position ${pos}`);
                 // If in flip mode, add flippable class and different styling
                 if (window.flipDrawnMode) {
                     cardClass += ' flippable';
@@ -360,6 +361,7 @@ function updatePlayerGrids() {
                 }
             } else if (isHuman) {
                 extraAttrs += ' class="card not-droppable"';
+                console.log(`🎯 Position ${pos} marked as not-droppable`);
             }
             return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
         }).join('');
@@ -421,6 +423,9 @@ function updatePlayerGrids() {
             discardCard.classList.remove('disabled');
             discardCard.onclick = takeDiscard;
             discardCard.classList.remove('faded'); // Remove fade effect
+
+            // Setup discard drag when it's human's turn and not disabled
+            setupDiscardDrag();
         }
     } else {
         // Not human's turn or game over - disable both
@@ -732,79 +737,102 @@ async function executeAction(position, actionType = null) {
 
 // Drawn card drag-and-drop logic
 document.addEventListener('DOMContentLoaded', () => {
-    const discardCard = document.getElementById('discardCard');
+    console.log('🎯 DOMContentLoaded: Setting up drag and drop...');
 
     // Ensure drag variables are initialized
     if (typeof dragActive === 'undefined') {
         window.dragActive = false;
+        console.log('🎯 Initialized window.dragActive');
     }
     if (typeof draggedDiscardCard === 'undefined') {
         window.draggedDiscardCard = null;
+        console.log('🎯 Initialized window.draggedDiscardCard');
     }
     if (typeof drawnCardDragActive === 'undefined') {
         window.drawnCardDragActive = false;
+        console.log('🎯 Initialized window.drawnCardDragActive');
     }
 
-    discardCard.addEventListener('dragstart', (e) => {
-        // Check if the discard card is disabled
-        if (discardCard.classList.contains('disabled')) {
-            console.log('🚫 DRAG BLOCKED: Discard card is disabled');
-            e.preventDefault();
-            return false;
-        }
-
-        console.log('🎯 DRAG START: Discard card drag initiated!');
-        window.dragActive = true;
-        // DON'T add drop-target class to the discard card itself
-        // Add drag-active class to all potential drop targets (grid cards only)
-        document.querySelectorAll('.card:not(.public):not(.not-droppable)').forEach(el => {
-            if (el.classList.contains('drop-target')) {
-                el.classList.add('drag-active');
-            }
-        });
-        // Store the discard card value at drag start
-        if (currentGameState && currentGameState.discard_top) {
-            window.draggedDiscardCard = {
-                rank: currentGameState.discard_top.rank,
-                suit: currentGameState.discard_top.suit
-            };
-            console.log('🃏 DRAG START: Stored discard card:', window.draggedDiscardCard);
-        } else {
-            window.draggedDiscardCard = null;
-        }
-    });
-    discardCard.addEventListener('dragend', (e) => {
-        console.log('🎯 DRAG END: Discard card drag ended!');
-        window.dragActive = false;
-        // DON'T remove drop-target from discard card since we never added it
-        window.draggedDiscardCard = null;
-        // Remove highlight from all grid cells
-        document.querySelectorAll('.card.drop-target').forEach(el => {
-            el.classList.remove('drop-target', 'drag-active');
-        });
-    });
-    // Drawn card drag logic
-    const display = document.getElementById('drawnCardDisplay');
-    display.addEventListener('dragstart', (e) => {
-        if (!drawnCardData) return e.preventDefault();
-        window.drawnCardDragActive = true;
-        display.classList.add('dragging');
-        // DON'T add drop-target class to the drawn card itself
-        // Add drag-active class to all potential drop targets (grid cards only)
-        document.querySelectorAll('.card:not(.public):not(.not-droppable)').forEach(el => {
-            if (el.classList.contains('drop-target')) {
-                el.classList.add('drag-active');
-            }
-        });
-    });
-    display.addEventListener('dragend', (e) => {
-        window.drawnCardDragActive = false;
-        display.classList.remove('dragging');
-        document.querySelectorAll('.card.drop-target').forEach(el => {
-            el.classList.remove('drop-target', 'drag-active');
-        });
-    });
+    console.log('🎯 Drag and drop setup complete!');
 });
+
+// Function to setup discard drag after game starts
+function setupDiscardDrag() {
+    const discardCard = document.getElementById('discardCard');
+    console.log('🎯 Setting up discard drag, element found:', !!discardCard);
+
+    if (!discardCard) {
+        console.error('❌ Discard card element not found!');
+        return;
+    }
+
+    // Remove existing listeners if any
+    discardCard.removeEventListener('dragstart', handleDiscardDragStart);
+    discardCard.removeEventListener('dragend', handleDiscardDragEnd);
+
+    // Add new listeners
+    discardCard.addEventListener('dragstart', handleDiscardDragStart);
+    discardCard.addEventListener('dragend', handleDiscardDragEnd);
+
+    // Ensure draggable attribute is set
+    discardCard.setAttribute('draggable', 'true');
+    console.log('🎯 Discard card draggable attribute set to:', discardCard.getAttribute('draggable'));
+}
+
+// Drag start handler
+function handleDiscardDragStart(e) {
+    console.log('🎯 DRAG START EVENT FIRED!');
+
+    const discardCard = document.getElementById('discardCard');
+
+    // Check if the discard card is disabled
+    if (discardCard.classList.contains('disabled')) {
+        console.log('🚫 DRAG BLOCKED: Discard card is disabled');
+        e.preventDefault();
+        return false;
+    }
+
+    console.log('🎯 DRAG START: Discard card drag initiated!');
+    window.dragActive = true;
+
+    // Add drag-active class to all potential drop targets (grid cards only)
+    const dropTargets = document.querySelectorAll('.card:not(.public):not(.not-droppable)');
+    console.log('🎯 Found drop targets:', dropTargets.length);
+
+    dropTargets.forEach(el => {
+        if (el.classList.contains('drop-target')) {
+            el.classList.add('drag-active');
+            console.log('🎯 Added drag-active to drop target');
+        }
+    });
+
+    // Store the discard card value at drag start
+    if (currentGameState && currentGameState.discard_top) {
+        window.draggedDiscardCard = {
+            rank: currentGameState.discard_top.rank,
+            suit: currentGameState.discard_top.suit
+        };
+        console.log('🃏 DRAG START: Stored discard card:', window.draggedDiscardCard);
+    } else {
+        window.draggedDiscardCard = null;
+        console.log('🃏 DRAG START: No discard card available');
+    }
+
+    // Set data transfer effect
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+// Drag end handler
+function handleDiscardDragEnd(e) {
+    console.log('🎯 DRAG END: Discard card drag ended!');
+    window.dragActive = false;
+    window.draggedDiscardCard = null;
+
+    // Remove highlight from all grid cells
+    document.querySelectorAll('.card.drop-target').forEach(el => {
+        el.classList.remove('drop-target', 'drag-active');
+    });
+}
 
 // Helper to animate snap effect
 function animateSnapToGrid(cardElem, targetElem, callback) {
@@ -842,6 +870,11 @@ function animateSnapToGrid(cardElem, targetElem, callback) {
 }
 
 function handleDropOnGrid(pos) {
+    console.log('🎯 handleDropOnGrid called with position:', pos);
+    console.log('🎯 window.dragActive:', window.dragActive);
+    console.log('🎯 window.drawnCardDragActive:', window.drawnCardDragActive);
+    console.log('🎯 drawnCardData:', drawnCardData);
+
     // Find the grid cell element
     const gridCells = document.querySelectorAll('.player-grid.current-turn .grid-container .card');
     let targetElem = null;
@@ -850,8 +883,12 @@ function handleDropOnGrid(pos) {
             targetElem = cell;
         }
     });
+
+    console.log('🎯 Target element found:', !!targetElem);
+
     // Drawn card drop
     if (window.drawnCardDragActive && drawnCardData) {
+        console.log('🎯 Processing drawn card drop');
         // Store position for animation AFTER the move (similar to discard logic)
         humanDrawnCardPosition = pos;
         humanDiscardAction = 'draw_keep';
@@ -864,13 +901,23 @@ function handleDropOnGrid(pos) {
         return;
     }
     // Discard card drop
-    if (!window.dragActive) return;
-    if (currentGameState.current_turn !== 0 || currentGameState.game_over || !currentGameState.discard_top) return;
+    if (!window.dragActive) {
+        console.log('🚫 Drop blocked: dragActive is false');
+        return;
+    }
+    if (currentGameState.current_turn !== 0 || currentGameState.game_over || !currentGameState.discard_top) {
+        console.log('🚫 Drop blocked: not human turn or game over or no discard');
+        return;
+    }
     const card = currentGameState.players[0].grid[pos];
-    if (!card || card.public) return;
+    if (!card || card.public) {
+        console.log('🚫 Drop blocked: invalid card or public card');
+        return;
+    }
     if (!window.draggedDiscardCard ||
         currentGameState.discard_top.rank !== window.draggedDiscardCard.rank ||
         currentGameState.discard_top.suit !== window.draggedDiscardCard.suit) {
+        console.log('🚫 Drop blocked: discard card changed');
         alert('The discard card has changed. Please try again.');
         return;
     }
