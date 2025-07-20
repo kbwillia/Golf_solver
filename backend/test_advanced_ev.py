@@ -4,8 +4,8 @@ Test script for AdvancedEVAgent
 Demonstrates the advanced features like pair-aware flipping and trajectory recording
 """
 
-from game import GolfGame
-from agents import AdvancedEVAgent
+from .game import GolfGame
+from .agents import AdvancedEVAgent
 import json
 
 def test_advanced_ev_agent():
@@ -47,7 +47,7 @@ def test_advanced_ev_agent():
 
     if available_positions:
         # Get EV analysis
-        from probabilities import expected_value_draw_vs_discard
+        from .probabilities import expected_value_draw_vs_discard
         ev = expected_value_draw_vs_discard(game, player)
         print(f"EV analysis: {json.dumps(ev, indent=2, default=str)}")
 

@@ -8,9 +8,9 @@ from flask import Flask, render_template, request, jsonify, session, send_from_d
 import uuid
 import json
 import random
-from game import GolfGame
-from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
-from chatbot import chatbot
+from .game import GolfGame
+from .probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
+from .chatbot import chatbot
 import time
 import logging
 import os

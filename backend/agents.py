@@ -1,8 +1,8 @@
 import random
 import itertools
 from collections import defaultdict
-from models import Card
-from probabilities import expected_value_draw_vs_discard
+from .models import Card
+from .probabilities import expected_value_draw_vs_discard
 import csv
 import os
 
@@ -281,7 +281,7 @@ class QLearningAgent:
         self.games_played = 0
 
     def get_state_key(self, player, game_state):
-        from probabilities import expected_value_draw_vs_discard
+        from .probabilities import expected_value_draw_vs_discard
 
         # Separate public cards (flipped, visible to all) from private cards (known only to this player)
         public_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)

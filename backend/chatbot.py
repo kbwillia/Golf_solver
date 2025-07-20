@@ -1,9 +1,9 @@
 import json
 from typing import Dict, List, Optional, Any
-from llm_cerebras import call_cerebras_llm
+from .llm_cerebras import call_cerebras_llm
 import random
 import os
-from bot_personalities import create_bot, BaseBot
+from .bot_personalities import create_bot, BaseBot
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
@@ -331,7 +331,7 @@ class GolfChatbot:
 
     def get_available_personalities(self) -> List[Dict[str, str]]:
         """Get list of available personalities"""
-        from bot_personalities import get_all_custom_bots
+        from .bot_personalities import get_all_custom_bots
 
         # Define the allowed personalities
         allowed_bots = ["Jim Nantz", "Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin"]
