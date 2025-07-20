@@ -16,7 +16,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import requests
-from bot_personalities import create_bot, register_custom_bot
+from .bot_personalities import create_bot, register_custom_bot
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,6 +35,14 @@ print(f"Template folder: {os.path.join(frontend_dir, 'templates')}")
 print(f"Static folder: {os.path.join(frontend_dir, 'static')}")
 print(f"Template folder exists: {os.path.exists(os.path.join(frontend_dir, 'templates'))}")
 print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static'))}")
+
+# Add error handling for imports
+try:
+    print("✅ All imports successful")
+except Exception as e:
+    print(f"❌ Import error: {e}")
+    import traceback
+    traceback.print_exc()
 
 app = Flask(__name__,
            template_folder=os.path.join(frontend_dir, 'templates'),
@@ -93,6 +101,15 @@ def calculate_bot_response_delay(bot_name: str) -> float:
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health_check():
+    """Simple health check to verify the app is running"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Golf Card Game is running',
+        'timestamp': time.time()
+    })
 
 @app.route('/test-static')
 def test_static():
