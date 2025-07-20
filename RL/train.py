@@ -19,10 +19,16 @@ import random
 from tqdm import trange
 import csv
 import pandas as pd
-from google.colab import drive
 
-# Mount Google Drive at the beginning
-drive.mount('/content/drive')
+# Check if running in Google Colab
+try:
+    from google.colab import drive
+    IN_COLAB = True
+    # Mount Google Drive at the beginning
+    drive.mount('/content/drive')
+except ImportError:
+    IN_COLAB = False
+    print("Running locally - Google Drive not available")
 
 # ============================================================================
 # PATH CONFIGURATION
@@ -32,28 +38,22 @@ drive.mount('/content/drive')
 # The local C: drive path is commented out as requested.
 # ============================================================================
 
-# --- Google Drive Paths (Recommended for Google Colab) ---
-# Define the base Google Drive path for your project
-# IMPORTANT: Adjust this path if your 'golf' folder is structured differently
-# For example: '/content/drive/MyDrive/Your_Project_Folder/Golf'
-GOOGLE_DRIVE_PROJECT_PATH = '/content/drive/MyDrive/Data Projects/Golf'
-output_dir = os.path.join(GOOGLE_DRIVE_PROJECT_PATH, 'output')
+# --- Path Configuration (Works for both Colab and Local) ---
+if IN_COLAB:
+    # Google Drive Paths (for Colab)
+    GOOGLE_DRIVE_PROJECT_PATH = '/content/drive/MyDrive/Data Projects/Golf'
+    output_dir = os.path.join(GOOGLE_DRIVE_PROJECT_PATH, 'output')
+    sys.path.append(GOOGLE_DRIVE_PROJECT_PATH)
+else:
+    # Local Paths (for local development)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(base_dir, 'output')
+    # Add parent directory to path for backend imports
+    parent_dir = os.path.dirname(base_dir)
+    sys.path.append(parent_dir)
 
-# --- Local C: Drive Paths (Commented Out - For Local Development Reference) ---
-# base_dir_old = os.path.dirname(os.path.abspath(__file__))
-# output_dir_old = os.path.join(base_dir_old, 'output')
-# # Ensure the old output directory exists (if it were active)
-# # os.makedirs(output_dir_old, exist_ok=True)
-# # You would uncomment the line below and comment out the Google Drive `output_dir` if using local paths
-# # output_dir = output_dir_old
-
-# Create output directory within Google Drive if it doesn't exist (active path)
+# Create output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)
-
-# Ensure the 'agents' and 'game' modules are accessible.
-# Assuming 'agents.py' and 'game.py' are in the same directory as this script
-# on your Google Drive (i.e., within GOOGLE_DRIVE_PROJECT_PATH).
-sys.path.append(GOOGLE_DRIVE_PROJECT_PATH)
 
 # Import your custom modules
 from backend.agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
@@ -64,11 +64,11 @@ from backend.game import GolfGame # Ensure game.py has GolfGame
 # ============================================================================
 
 def get_output_path(filename):
-    """Helper function to get full path for output files in Google Drive"""
+    """Helper function to get full path for output files"""
     return os.path.join(output_dir, filename)
 
 def load_q_table_from_drive(filepath):
-    """Loads Q-table from a CSV file in Google Drive."""
+    """Loads Q-table from a CSV file."""
     q_table = defaultdict(lambda: defaultdict(float))
     if os.path.exists(filepath):
         try:
@@ -89,7 +89,7 @@ def load_q_table_from_drive(filepath):
 
 
 def save_q_table_to_drive(q_table, filepath):
-    """Saves Q-table to a CSV file in Google Drive."""
+    """Saves Q-table to a CSV file."""
     data = []
     for state_key, actions in q_table.items():
         for action_key, q_value in actions.items():
@@ -192,12 +192,12 @@ class QLearningAgent:
         self.device = device if device else torch.device("cpu")
 
     def load_q_table_csv(self, filename="qtable_train.csv"):
-        """Loads Q-table from a CSV file in Google Drive."""
+        """Loads Q-table from a CSV file."""
         q_table_path = get_output_path(filename)
         self.q_table = load_q_table_from_drive(q_table_path)
 
     def save_q_table_csv(self, filename="qtable_train.csv"):
-        """Saves Q-table to a CSV file in Google Drive."""
+        """Saves Q-table to a CSV file."""
         q_table_path = get_output_path(filename)
         save_q_table_to_drive(self.q_table, q_table_path)
 
