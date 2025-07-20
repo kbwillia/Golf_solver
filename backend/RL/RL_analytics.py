@@ -10,13 +10,13 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Update imports to use backend folder
-from backend.agents import *
-from backend.game import GolfGame
+# Import from same directory (backend)
+from agents import *
+from game import GolfGame
 import pandas as pd
 import numpy as np
 import csv
-from RL.RL_viz import *
+from RL_viz import *
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from tqdm import trange
@@ -323,7 +323,7 @@ def save_trajectory_to_csv(trajectory, filename):
     print(f"Trajectory saved to {output_path} with {len(trajectory)} steps")
 
 # Import training function from the new training module
-from RL.train import train_qlearning_agent
+from train import train_qlearning_agent
 
 def analyze_trained_agent(agent, training_stats, save_prefix="trained_agent", opponent_type="ev_ai"):
     """
@@ -492,7 +492,7 @@ def complete_training_and_analysis_workflow(
     start_time = time.time()
 
     # Phase 1: Batch Training
-    from RL.train import train_qlearning_agent_batch
+    from train import train_qlearning_agent_batch
 
     agent, training_stats = train_qlearning_agent_batch(
         num_games=training_games,
@@ -542,7 +542,7 @@ def full_qtable_analysis(num_games=100, show_full_table=False, use_gpu=True, bat
     print("="*70)
 
     # Train agent using batch training
-    from RL.train import train_qlearning_agent_batch
+    from train import train_qlearning_agent_batch
 
     agent, training_stats = train_qlearning_agent_batch(
         num_games=num_games,

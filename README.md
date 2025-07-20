@@ -38,7 +38,11 @@ Golf/
 │   ├── agents.py              # AI agent implementations
 │   ├── requirements.txt       # Python dependencies
 │   └── run_app.py             # Script to run the application
-├── RL/                        # Reinforcement Learning components
+│   └── RL/                    # Reinforcement Learning components
+│       ├── RL_analytics.py
+│       ├── train.py
+│       ├── RL_viz.py
+│       └── ...
 ├── create/                    # Additional creation tools
 ├── venv/                      # Python virtual environment
 ├── .gitignore                 # Git ignore rules

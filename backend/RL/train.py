@@ -60,8 +60,8 @@ else:
 os.makedirs(output_dir, exist_ok=True)
 
 # Import your custom modules
-from backend.agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
-from backend.game import GolfGame # Ensure game.py has GolfGame
+from agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
+from game import GolfGame # Ensure game.py has GolfGame
 
 # ============================================================================
 # FILE I/O UTILITIES FOR COLAB (using Google Drive paths from 'output_dir')
