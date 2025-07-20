@@ -199,6 +199,8 @@ def create_game():
             # Handle multiple custom bots for 1v3 mode
             if custom_bots_1v3 and len(custom_bots_1v3) > 0:
                 print(f"🎯 Backend: Processing {len(custom_bots_1v3)} custom bots for 1v3 mode")
+                print(f"🎯 Backend: Bot sources: {[bot.get('name', 'Unknown') for bot in custom_bots_1v3]}")
+
                 # Map custom bot difficulties to agent types
                 difficulty_to_agent = {
                     'easy': 'random',
@@ -216,9 +218,35 @@ def create_game():
                     bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
                     custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
 
+                    # Register the bot in the chatbot system if it has a description
+                    if 'description' in custom_bot:
+                        try:
+                            register_custom_bot(bot_id, custom_bot['name'], custom_bot['description'], difficulty)
+                            print(f"🎯 Backend: Registered random bot '{custom_bot['name']}' in chatbot system")
+                        except Exception as reg_error:
+                            print(f"🎯 Backend: Error registering random bot {bot_id}: {reg_error}")
+
                     print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (bot_id: {bot_id})")
             else:
                 print(f"🎯 Backend: No custom bots provided for 1v3 mode, using default agents")
+
+        # Handle custom bot info for 1v1 mode
+        custom_bot_info = data.get('custom_bot_info')
+        if custom_bot_info:
+            print(f"🎯 Backend: Processing custom bot for 1v1 mode: {custom_bot_info.get('name', 'Unknown')}")
+
+            # Register the bot in the chatbot system
+            bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
+            try:
+                register_custom_bot(bot_id, custom_bot_info['name'], custom_bot_info['description'], custom_bot_info['difficulty'])
+                print(f"🎯 Backend: Registered custom bot '{custom_bot_info['name']}' in chatbot system")
+            except Exception as reg_error:
+                print(f"🎯 Backend: Error registering custom bot {bot_id}: {reg_error}")
+
+            # Store bot info for chatbot lookup
+            custom_bot_data.append(('custom_bot_id_0', bot_id, 'custom_bot_name_0', custom_bot_info['name']))
+        else:
+            print(f"🎯 Backend: No custom bot info provided for 1v1 mode")
 
         # Create the game
         game = GolfGame(num_players=num_players, agent_types=agent_types)

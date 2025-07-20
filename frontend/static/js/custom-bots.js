@@ -181,6 +181,9 @@ function initializeCustomBots() {
 
     // Load existing custom bots when page loads
     loadExistingCustomBots();
+
+    // Populate opponent dropdown with bots from JSON
+    populateOpponentDropdown();
 }
 
 // Initialize custom bot modal functionality
@@ -279,7 +282,6 @@ function updateMultipleBotsForm() {
 
     // Create bot sections
     for (let i = 0; i < customBotCount; i++) {
-        const placeholder = getRandomPlaceholderBot();
         const botSection = document.createElement('div');
         botSection.className = 'custom-bot-section';
         botSection.innerHTML = `
@@ -290,21 +292,21 @@ function updateMultipleBotsForm() {
             <div class="form-row">
                 <div class="form-group">
                     <label for="botName${i}" class="form-label">Bot Name:</label>
-                    <input type="text" id="botName${i}" placeholder="Enter bot name" required class="form-input" value="${placeholder.name}">
+                    <input type="text" id="botName${i}" placeholder="Enter bot name" required class="form-input" value="">
                 </div>
                 <div class="form-group">
                     <label for="botDifficulty${i}" class="form-label">Difficulty:</label>
                     <select id="botDifficulty${i}" required class="form-select">
                         <option value="">Select difficulty</option>
-                        <option value="easy" ${placeholder.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
-                        <option value="medium" ${placeholder.difficulty === 'medium' ? 'selected' : ''}>Medium</option>
-                        <option value="hard" ${placeholder.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
                 <label for="botDescription${i}" class="form-label">Description:</label>
-                <textarea id="botDescription${i}" placeholder="Enter bot description" required class="form-textarea">${placeholder.description}</textarea>
+                <textarea id="botDescription${i}" placeholder="Enter bot description" required class="form-textarea"></textarea>
             </div>
         `;
         container.appendChild(botSection);
@@ -452,12 +454,69 @@ function loadOpponents() {
 
 // Populate single bot form with random placeholder data
 function populateSingleBotForm() {
-    const placeholder = getRandomPlaceholderBot();
     const nameInput = document.getElementById('customBotName');
     const difficultySelect = document.getElementById('customBotDifficulty');
     const descriptionTextarea = document.getElementById('customBotDescription');
 
-    if (nameInput) nameInput.value = placeholder.name;
-    if (difficultySelect) difficultySelect.value = placeholder.difficulty;
-    if (descriptionTextarea) descriptionTextarea.value = placeholder.description;
+    if (nameInput) nameInput.value = '';
+    if (difficultySelect) difficultySelect.value = '';
+    if (descriptionTextarea) descriptionTextarea.value = '';
+}
+
+// Function to populate the opponent dropdown with bots from JSON
+async function populateOpponentDropdown() {
+    try {
+        const response = await fetch('/static/custom_bot.json');
+        const data = await response.json();
+
+        if (!data.placeholder_bots || data.placeholder_bots.length === 0) {
+            console.log('🎯 No bots found in JSON for dropdown population');
+            return;
+        }
+
+        const botNameSelect = document.getElementById('botNameSelect');
+        if (!botNameSelect) {
+            console.log('🎯 Bot name select dropdown not found');
+            return;
+        }
+
+        // Clear existing options (keep the first few default ones if they exist)
+        const existingOptions = Array.from(botNameSelect.options);
+        const defaultOptions = existingOptions.filter(option =>
+            ['peter_parker', 'happy_gilmore', 'tiger_woods'].includes(option.value)
+        );
+
+        botNameSelect.innerHTML = '';
+
+        // Add default options first
+        defaultOptions.forEach(option => {
+            botNameSelect.appendChild(option);
+        });
+
+        // Add custom bots from JSON
+        data.placeholder_bots.forEach(bot => {
+            const option = document.createElement('option');
+            option.value = 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_');
+            option.textContent = `${bot.name} (${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)})`;
+            botNameSelect.appendChild(option);
+        });
+
+        // Randomly select one of the custom bots as default
+        if (data.placeholder_bots.length > 0) {
+            const randomIndex = Math.floor(Math.random() * data.placeholder_bots.length);
+            const randomBot = data.placeholder_bots[randomIndex];
+            const randomBotValue = 'custom_' + randomBot.name.toLowerCase().replace(' ', '_').replace('-', '_');
+
+            // Find and select the random bot option
+            const randomOption = botNameSelect.querySelector(`option[value="${randomBotValue}"]`);
+            if (randomOption) {
+                randomOption.selected = true;
+                console.log(`🎯 Randomly selected ${randomBot.name} as default opponent`);
+            }
+        }
+
+        console.log(`🎯 Populated dropdown with ${data.placeholder_bots.length} custom bots from JSON`);
+    } catch (error) {
+        console.log('🎯 Error populating opponent dropdown:', error);
+    }
 }
