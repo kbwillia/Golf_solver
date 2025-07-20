@@ -73,7 +73,7 @@ async function startGame() {
     // Get game mode from buttons instead of dropdown
     const gameMode = getCurrentGameMode();
     const playerName = document.getElementById('playerName').value || 'Human';
-    const numGames = parseInt(document.getElementById('numGames').value) || 1;
+    const numGames = getCurrentHoles();
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
     // Prepare game data
@@ -838,4 +838,64 @@ function setGameMode(mode) {
 function getCurrentGameMode() {
     const activeBtn = document.querySelector('.game-mode-btn.active');
     return activeBtn ? activeBtn.getAttribute('data-mode') : '1v1';
+}
+
+// Initialize holes buttons
+function initializeHolesButtons() {
+    const holes1Btn = document.getElementById('holes1');
+    const holes3Btn = document.getElementById('holes3');
+    const holes9Btn = document.getElementById('holes9');
+    const holes18Btn = document.getElementById('holes18');
+
+    if (holes1Btn && holes3Btn && holes9Btn && holes18Btn) {
+        holes1Btn.addEventListener('click', function() {
+            setHoles(1);
+        });
+
+        holes3Btn.addEventListener('click', function() {
+            setHoles(3);
+        });
+
+        holes9Btn.addEventListener('click', function() {
+            setHoles(9);
+        });
+
+        holes18Btn.addEventListener('click', function() {
+            setHoles(18);
+        });
+    }
+}
+
+// Set number of holes and update button states
+function setHoles(holes) {
+    const holes1Btn = document.getElementById('holes1');
+    const holes3Btn = document.getElementById('holes3');
+    const holes9Btn = document.getElementById('holes9');
+    const holes18Btn = document.getElementById('holes18');
+
+    // Update button states
+    if (holes1Btn && holes3Btn && holes9Btn && holes18Btn) {
+        holes1Btn.classList.remove('active');
+        holes3Btn.classList.remove('active');
+        holes9Btn.classList.remove('active');
+        holes18Btn.classList.remove('active');
+
+        if (holes === 1) {
+            holes1Btn.classList.add('active');
+        } else if (holes === 3) {
+            holes3Btn.classList.add('active');
+        } else if (holes === 9) {
+            holes9Btn.classList.add('active');
+        } else if (holes === 18) {
+            holes18Btn.classList.add('active');
+        }
+    }
+
+    console.log('🎯 Number of holes set to:', holes);
+}
+
+// Get current number of holes
+function getCurrentHoles() {
+    const activeBtn = document.querySelector('.holes-btn.active');
+    return activeBtn ? parseInt(activeBtn.getAttribute('data-holes')) : 1;
 }

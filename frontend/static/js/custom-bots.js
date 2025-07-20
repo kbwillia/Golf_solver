@@ -187,6 +187,9 @@ function initializeCustomBots() {
 
     // Initialize game mode buttons
     initializeGameModeButtons();
+
+    // Initialize holes buttons
+    initializeHolesButtons();
 }
 
 // Initialize custom bot modal functionality

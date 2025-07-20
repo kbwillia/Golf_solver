@@ -40,13 +40,12 @@
                     <input type="text" id="playerName" placeholder="Enter your name" value="Kyle" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" /> <!-- Name input -->
                 </p>
                 <!-- Game Mode Buttons -->
-                <p>
-                    <label>Game Mode:</label>
+                <div style="display: flex; justify-content: center; margin: 10px 0;">
                     <div class="game-mode-buttons">
                         <button type="button" id="gameMode1v1" class="btn btn-secondary game-mode-btn active" data-mode="1v1">You vs 1 AI</button>
                         <button type="button" id="gameMode1v3" class="btn btn-secondary game-mode-btn" data-mode="1v3">You vs 3 AI</button>
                     </div>
-                </p>
+                </div>
                 <!-- Opponent Type Dropdown (hidden for 1v3) -->
                 <p id="opponentSection">
                     <label for="botNameSelect">Choose your opponent:</label>
@@ -64,7 +63,7 @@
 
                 <!-- Voice Toggle -->
                 <p>
-                    <button type="button" onclick="toggleVoiceSystem()" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <button type="button" id="voiceToggleBtn" class="btn btn-secondary voice-btn" onclick="toggleVoiceSystem()">
                         <span id="voiceStatus">🔇 Voice: OFF</span>
                     </button>
                 </p>
@@ -117,17 +116,15 @@
                     </div>
                   </div>
                 </div>
-                <!-- Number of Holes Dropdown -->
-                <p>
-                    <label for="numGames">Number of Holes:</label>
-                    <select id="numGames" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;">
-                        <option value="1">1</option>
-                        <option value="3">3</option>
-                        <option value="6">6</option>
-                        <option value="9">9</option>
-                        <option value="18">18</option>
-                    </select> <!-- Number of games/holes -->
-                </p>
+                <!-- Number of Holes Buttons -->
+                <div style="display: flex; justify-content: center; margin: 10px 0;">
+                    <div class="holes-buttons">
+                        <button type="button" id="holes1" class="btn btn-secondary holes-btn active" data-holes="1">1 Hole</button>
+                        <button type="button" id="holes3" class="btn btn-secondary holes-btn" data-holes="3">3 Holes</button>
+                        <button type="button" id="holes9" class="btn btn-secondary holes-btn" data-holes="9">9 Holes</button>
+                        <button type="button" id="holes18" class="btn btn-secondary holes-btn" data-holes="18">18 Holes</button>
+                    </div>
+                </div>
                 <!-- Bottom Cards Visibility Duration -->
                 <p>
                     <label for="cardVisibilityDuration">Bottom two cards visible for:</label>

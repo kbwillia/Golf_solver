@@ -31,9 +31,19 @@ function loadVoices() {
 function toggleVoiceSystem() {
     voiceEnabled = !voiceEnabled;
     const voiceStatus = document.getElementById('voiceStatus');
+    const voiceToggleBtn = document.getElementById('voiceToggleBtn');
 
     if (voiceStatus) {
         voiceStatus.textContent = voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+    }
+
+    // Update button styling
+    if (voiceToggleBtn) {
+        if (voiceEnabled) {
+            voiceToggleBtn.classList.add('active');
+        } else {
+            voiceToggleBtn.classList.remove('active');
+        }
     }
 
     console.log('🎤 Voice system:', voiceEnabled ? 'enabled' : 'disabled');
