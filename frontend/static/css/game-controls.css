@@ -361,6 +361,8 @@
     box-shadow: none;
     position: relative;
     overflow: hidden;
+    pointer-events: auto;
+    z-index: 10;
 }
 
 .game-mode-btn::before {

@@ -213,15 +213,6 @@ function showCelebrationGif() {
     }
 }
 
-// Hide opponent selection for 1v3 mode
-document.getElementById('gameMode').addEventListener('change', function() {
-    const opponentSection = document.getElementById('opponentSection');
-    opponentSection.style.display = this.value === '1v1' ? 'block' : 'none';
-
-    // Update custom bot count display when mode changes
-    // updateCustomBotCount(); // REMOVED
-});
-
 // showSetupViewTimer() and hideSetupViewTimer() functions moved to game-core.js
 
 // startGame() function moved to game-core.js

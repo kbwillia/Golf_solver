@@ -616,8 +616,10 @@ async function renderBotSelectRow() {
       (isSelected ? (isMultiMode ? ' multi-selected' : ' selected') : '');
     btn.setAttribute('data-bot', bot.value);
     btn.innerHTML = `
-      <span class="bot-name">${bot.name}</span>
-      <span class="bot-difficulty ${bot.difficultyClass}">${bot.difficulty}</span>
+      <div class="bot-header">
+        <span class="bot-name">${bot.name}</span>
+        <span class="bot-difficulty ${bot.difficultyClass}">${bot.difficulty}</span>
+      </div>
       <span class="bot-desc">${bot.desc}</span>
     `;
     btn.onclick = () => selectBotButton(bot.value);
@@ -656,8 +658,16 @@ function selectBotButton(botValue) {
       }
     }
   } else {
-    // Single selection mode (1v1)
-    window.selectedBots = [botValue];
+    // Single selection mode (1v1) - allow deselection by clicking again
+    const index = window.selectedBots.indexOf(botValue);
+    if (index > -1 && window.selectedBots.length > 1) {
+      // If already selected and there are other bots, deselect it
+      window.selectedBots.splice(index, 1);
+    } else if (index === -1) {
+      // If not selected, select it
+      window.selectedBots = [botValue];
+    }
+    // If it's the only selected bot, keep it selected (no deselection)
   }
 
   // Update visual state
@@ -682,36 +692,104 @@ function initializeGameModeButtons() {
   const gameMode1v1 = document.getElementById('gameMode1v1');
   const gameMode1v3 = document.getElementById('gameMode1v3');
 
+  console.log('🎯 Initializing game mode buttons:', {
+    '1v1 found': !!gameMode1v1,
+    '1v3 found': !!gameMode1v3,
+    '1v1 onclick': gameMode1v1 ? gameMode1v1.onclick : 'none',
+    '1v3 onclick': gameMode1v3 ? gameMode1v3.onclick : 'none'
+  });
+
   if (gameMode1v1 && gameMode1v3) {
-    gameMode1v1.addEventListener('click', () => {
-      // Switch to single selection mode
-      if (window.selectedBots.length > 1) {
-        window.selectedBots = [window.selectedBots[0]];
-        renderBotSelectRow();
-      }
-    });
+    // Remove any existing listeners to prevent conflicts
+    gameMode1v1.removeEventListener('click', handle1v1Mode);
+    gameMode1v3.removeEventListener('click', handle1v3Mode);
 
-    gameMode1v3.addEventListener('click', () => {
-      // Switch to multi-selection mode
-      if (window.selectedBots.length === 1) {
-        // Add more bots if needed for 1v3
-        const allBots = botList.map(bot => bot.value);
-        const currentBot = window.selectedBots[0];
-        const availableBots = allBots.filter(bot => bot !== currentBot);
+    // Add new listeners
+    gameMode1v1.addEventListener('click', handle1v1Mode);
+    gameMode1v3.addEventListener('click', handle1v3Mode);
 
-        // Add up to 2 more bots
-        for (let i = 0; i < Math.min(2, availableBots.length); i++) {
-          if (!window.selectedBots.includes(availableBots[i])) {
-            window.selectedBots.push(availableBots[i]);
-          }
-        }
-        renderBotSelectRow();
+    // Test if buttons are clickable
+    gameMode1v1.style.pointerEvents = 'auto';
+    gameMode1v3.style.pointerEvents = 'auto';
+
+    console.log('🎯 Game mode button listeners attached successfully');
+  } else {
+    console.error('❌ Game mode buttons not found!');
+  }
+}
+
+function handle1v1Mode() {
+  console.log('🎯 1v1 mode button clicked!');
+
+  // Set the button to active state
+  const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+
+  if (gameMode1v1 && gameMode1v3) {
+    gameMode1v1.classList.add('active');
+    gameMode1v3.classList.remove('active');
+    console.log('🎯 1v1 button set to active state');
+  }
+
+  // Call the setGameMode function to properly register the mode
+  if (typeof setGameMode === 'function') {
+    setGameMode('1v1');
+  }
+
+  // Switch to single selection mode
+  if (window.selectedBots.length > 1) {
+    window.selectedBots = [window.selectedBots[0]];
+    renderBotSelectRow();
+  }
+}
+
+function handle1v3Mode() {
+  console.log('🎯 1v3 mode button clicked!');
+
+  // Set the button to active state
+  const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+
+  if (gameMode1v1 && gameMode1v3) {
+    gameMode1v1.classList.remove('active');
+    gameMode1v3.classList.add('active');
+    console.log('🎯 1v3 button set to active state');
+  }
+
+  // Call the setGameMode function to properly register the mode
+  if (typeof setGameMode === 'function') {
+    setGameMode('1v3');
+  }
+
+  // Switch to multi-selection mode
+  if (window.selectedBots.length === 1) {
+    // Add more bots if needed for 1v3
+    const allBots = botList.map(bot => bot.value);
+    const currentBot = window.selectedBots[0];
+    const availableBots = allBots.filter(bot => bot !== currentBot);
+
+    // Add up to 2 more bots
+    for (let i = 0; i < Math.min(2, availableBots.length); i++) {
+      if (!window.selectedBots.includes(availableBots[i])) {
+        window.selectedBots.push(availableBots[i]);
       }
-    });
+    }
+    renderBotSelectRow();
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('🎯 Custom bots: DOMContentLoaded - initializing bot selection');
   renderBotSelectRow();
   initializeGameModeButtons();
+
+  // Debug: Check if game mode buttons exist
+  const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+  console.log('🎯 Game mode buttons found:', {
+    '1v1': !!gameMode1v1,
+    '1v3': !!gameMode1v3,
+    '1v1 classes': gameMode1v1 ? gameMode1v1.className : 'not found',
+    '1v3 classes': gameMode1v3 ? gameMode1v3.className : 'not found'
+  });
 });

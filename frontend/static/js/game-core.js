@@ -85,41 +85,77 @@ async function startGame() {
 
     // Add custom bot information for 1v3 mode
     if (gameMode === '1v3') {
-        // For 1v3 mode, get random bots from the JSON file
-        try {
-            const randomBots = await getRandomBotsFromJSON(3);
+        // For 1v3 mode, use the selected bots from the button system
+        const selectedBots = window.selectedBots || ['peter_parker', 'happy_gilmore', 'tiger_woods'];
 
-            if (randomBots.length > 0) {
-                // Convert the random bots to the format expected by the backend
-                const customBots = randomBots.map(bot => ({
-                    id: 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_'),
-                    name: bot.name,
-                    difficulty: bot.difficulty
-                }));
+        if (selectedBots.length > 0) {
+            // Convert the selected bots to the format expected by the backend
+            const customBots = [];
 
-                gameData.custom_bots_1v3 = customBots;
-                console.log('🎯 Frontend: Using random bots from JSON for 1v3 mode:', customBots);
-            } else {
-                console.log('🎯 Frontend: No random bots found, using default AI opponents for 1v3 mode');
+            for (const botValue of selectedBots) {
+                if (botValue.startsWith('custom_')) {
+                    // Custom bot - get data from JSON
+                    try {
+                        const response = await fetch('/static/custom_bot.json');
+                        const data = await response.json();
+
+                        if (data.placeholder_bots) {
+                            const selectedBot = data.placeholder_bots.find(bot =>
+                                'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_') === botValue
+                            );
+
+                            if (selectedBot) {
+                                customBots.push({
+                                    id: botValue,
+                                    name: selectedBot.name,
+                                    difficulty: selectedBot.difficulty
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Error loading custom bot:', error);
+                    }
+                } else {
+                    // Default bot - map to name and difficulty
+                    const botNames = {
+                        'peter_parker': 'Peter Parker',
+                        'happy_gilmore': 'Happy Gilmore',
+                        'tiger_woods': 'Tiger Woods'
+                    };
+                    const botDifficulties = {
+                        'peter_parker': 'easy',
+                        'happy_gilmore': 'medium',
+                        'tiger_woods': 'hard'
+                    };
+
+                    customBots.push({
+                        id: botValue,
+                        name: botNames[botValue] || 'AI Opponent',
+                        difficulty: botDifficulties[botValue] || 'medium'
+                    });
+                }
             }
-        } catch (error) {
-            console.log('🎯 Frontend: Error loading random bots, using default AI opponents:', error);
+
+            gameData.custom_bots_1v3 = customBots;
+            console.log('🎯 Frontend: Using selected bots for 1v3 mode:', customBots);
+        } else {
+            console.log('🎯 Frontend: No bots selected, using default AI opponents for 1v3 mode');
         }
     } else {
-        // 1v1 mode - check if a custom bot is selected, otherwise use random bot from JSON
-        const botNameSelect = document.getElementById('botNameSelect');
-        let botValue = botNameSelect ? botNameSelect.value : 'peter_parker';
+        // 1v1 mode - use the selected bot from the new button system
+        const selectedBots = window.selectedBots || ['peter_parker'];
+        const selectedBotValue = selectedBots[0]; // Use first selected bot for 1v1
 
-        // Check if a custom bot is selected from the dropdown
-        if (botValue.startsWith('custom_')) {
-            // User selected a custom bot from dropdown - get its data from JSON
+        // Check if a custom bot is selected
+        if (selectedBotValue.startsWith('custom_')) {
+            // User selected a custom bot from button system - get its data from JSON
             try {
                 const response = await fetch('/static/custom_bot.json');
                 const data = await response.json();
 
                 if (data.placeholder_bots) {
                     const selectedBot = data.placeholder_bots.find(bot =>
-                        'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_') === botValue
+                        'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_') === selectedBotValue
                     );
 
                     if (selectedBot) {
@@ -153,8 +189,24 @@ async function startGame() {
                 await useRandomBotFor1v1(gameData);
             }
         } else {
-            // User selected a default bot or no selection - use random bot from JSON
-            await useRandomBotFor1v1(gameData);
+            // User selected a default bot - map to opponent type
+            const botToOpponent = {
+                'peter_parker': 'random',
+                'happy_gilmore': 'heuristic',
+                'tiger_woods': 'ev_ai'
+            };
+
+            const opponentType = botToOpponent[selectedBotValue] || 'random';
+            const botNames = {
+                'peter_parker': 'Peter Parker',
+                'happy_gilmore': 'Happy Gilmore',
+                'tiger_woods': 'Tiger Woods'
+            };
+
+            gameData.opponent = opponentType;
+            gameData.bot_name = botNames[selectedBotValue] || 'AI Opponent';
+
+            console.log('🎯 Frontend: Using selected default bot for 1v1 mode:', gameData.bot_name);
         }
     }
 
@@ -796,26 +848,25 @@ function hideDrawnCardArea() { /* Will be implemented in actions module */ }
 function onGameStart() { /* Will be implemented in UI module */ }
 
 // Initialize game mode buttons
-function initializeGameModeButtons() {
-    const gameMode1v1Btn = document.getElementById('gameMode1v1');
-    const gameMode1v3Btn = document.getElementById('gameMode1v3');
+// function initializeGameModeButtons() {
+//     const gameMode1v1Btn = document.getElementById('gameMode1v1');
+//     const gameMode1v3Btn = document.getElementById('gameMode1v3');
 
-    if (gameMode1v1Btn && gameMode1v3Btn) {
-        gameMode1v1Btn.addEventListener('click', function() {
-            setGameMode('1v1');
-        });
+//     if (gameMode1v1Btn && gameMode1v3Btn) {
+//         gameMode1v1Btn.addEventListener('click', function() {
+//             setGameMode('1v1');
+//         });
 
-        gameMode1v3Btn.addEventListener('click', function() {
-            setGameMode('1v3');
-        });
-    }
-}
+//         gameMode1v3Btn.addEventListener('click', function() {
+//             setGameMode('1v3');
+//         });
+//     }
+// }
 
 // Set game mode and update button states
 function setGameMode(mode) {
     const gameMode1v1Btn = document.getElementById('gameMode1v1');
     const gameMode1v3Btn = document.getElementById('gameMode1v3');
-    const opponentSection = document.getElementById('opponentSection');
 
     // Update button states
     if (gameMode1v1Btn && gameMode1v3Btn) {
@@ -824,10 +875,8 @@ function setGameMode(mode) {
 
         if (mode === '1v1') {
             gameMode1v1Btn.classList.add('active');
-            if (opponentSection) opponentSection.style.display = 'block';
         } else if (mode === '1v3') {
             gameMode1v3Btn.classList.add('active');
-            if (opponentSection) opponentSection.style.display = 'none';
         }
     }
 
