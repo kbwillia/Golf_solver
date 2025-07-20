@@ -22,3 +22,4 @@ frontend/static/**/*.gif filter=lfs diff=lfs merge=lfs -text
 frontend/static/**/*.webp filter=lfs diff=lfs merge=lfs -text
 frontend/static/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
 frontend/static/**/*.wav filter=lfs diff=lfs merge=lfs -text
+frontend/static/sounds/*.mp3 filter=lfs diff=lfs merge=lfs -text
