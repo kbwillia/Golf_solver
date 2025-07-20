@@ -696,18 +696,20 @@ class ChatHandler:
 
         for player in all_bots:
             print(f"DEBUG: Bot name: {player.name}")
-            # Use the player's name directly as the personality
-            bot_personality = player.name
-            print(f"DEBUG: Bot personality: {bot_personality}")
+
+            # Convert display name to bot_id if it's a custom bot
+            bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, player.name)
+            print(f"DEBUG: Bot personality (after ID lookup): {bot_id_for_lookup}")
+
             try:
-                # Use enhanced response generation
+                # Use enhanced response generation with proper bot_id
                 enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
                     message,         # user_message
                     game_state,      # game_state
-                    bot_personality  # personality
+                    bot_id_for_lookup  # personality (use bot_id for lookup)
                 )
                 responses.append({
-                    'bot_name': player.name,
+                    'bot_name': player.name,  # Keep original display name for frontend
                     'message': enhanced_response["message"],
                     'should_send_gif': enhanced_response.get("should_send_gif", False),
                     'gif_context': enhanced_response.get("gif_context", ""),
@@ -832,7 +834,12 @@ class ChatHandler:
             # Enhanced AI player comments
             for player in ai_players:
                 original_personality = self.chatbot.bot_type
-                self.chatbot.change_personality(player.name)
+
+                # Convert display name to bot_id if it's a custom bot
+                bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, player.name)
+                print(f"DEBUG: Proactive comment - Bot name: {player.name}, Bot ID: {bot_id_for_lookup}")
+
+                self.chatbot.change_personality(bot_id_for_lookup)
 
                 # Use enhanced contextual proactive comment generation
                 enhanced_comment = self.chatbot.generate_contextual_proactive_comment(
@@ -843,7 +850,7 @@ class ChatHandler:
 
                 if enhanced_comment:
                     comments.append({
-                        'bot_name': player.name,
+                        'bot_name': player.name,  # Keep original display name for frontend
                         'message': enhanced_comment["message"],
                         'event_type': enhanced_comment.get("event_type", event_type),
                         'should_send_gif': enhanced_comment.get("should_send_gif", False),
