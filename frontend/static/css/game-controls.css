@@ -16,10 +16,174 @@
     font-size: 16px;
 }
 
-/* Primary button style */
+/* Modern Animated Start Game Button */
 .btn-primary {
-    background: #007bff;
+    background: linear-gradient(45deg, #ff0000, #00ff00, #0000ff, #ffff00, #ff00ff, #00ffff, #ff0000);
+    background-size: 500% 500%;
     color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    font-weight: 700;
+    border-radius: 12px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation:
+        /* gradientPulse 1.5s ease-in-out infinite; */
+        glowPulse 2s ease-in-out infinite alternate;
+        /* float 4s ease-in-out infinite; */
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 15px 0;
+    z-index: 10;
+}
+
+/* Gradient animation */
+/*
+@keyframes gradientPulse {
+    0% {
+        background-position: 0% 50%;
+    }
+    20% {
+        background-position: 100% 50%;
+    }
+    40% {
+        background-position: 100% 100%;
+    }
+    60% {
+        background-position: 0% 100%;
+    }
+    80% {
+        background-position: 0% 0%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+*/
+
+/* Glow pulse animation */
+@keyframes glowPulse {
+    0% {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(255, 0, 0, 0.6), 0 0 50px rgba(255, 0, 0, 0.3);
+    }
+    100% {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 50px rgba(0, 255, 0, 1), 0 0 80px rgba(0, 255, 0, 0.5);
+    }
+}
+
+/* Shimmer effect */
+/*
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    transition: left 0.6s;
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+*/
+
+/* Floating animation */
+/*
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+*/
+
+/* Hover effects */
+.btn-primary:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 50px rgba(255, 0, 0, 0.8);
+    /* Keep the glow animation running on hover */
+    animation: glowPulse 1s ease-in-out infinite alternate;
+}
+
+/* Active/click effect */
+.btn-primary:active {
+    transform: translateY(-1px) scale(1.02);
+    /* animation: clickPulse 0.3s ease-out; */
+}
+
+/*
+@keyframes clickPulse {
+    0% {
+        transform: translateY(-1px) scale(1.02);
+    }
+    50% {
+        transform: translateY(-3px) scale(1.08);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 60px rgba(78, 205, 196, 1);
+    }
+    100% {
+        transform: translateY(-1px) scale(1.02);
+    }
+}
+*/
+
+/* Particle effect */
+/*
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:hover::after {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+    transition: width 0.6s, height 0.6s, opacity 0.6s;
+}
+*/
+
+/* Gaming-style text shadow with rainbow effect */
+.btn-primary {
+    text-shadow:
+        0 0 5px rgba(255, 255, 255, 1),
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 15px rgba(255, 255, 255, 0.6);
+        /* 0 0 20px rgba(255, 107, 107, 0.8), */
+        /* 0 0 25px rgba(78, 205, 196, 0.6); */
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+    .btn-primary {
+        padding: 10px 20px;
+        font-size: 1em;
+    }
 }
 
 /* Secondary button style */
