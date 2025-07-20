@@ -186,7 +186,7 @@
 }
 
 .chat-messages .bot-name {
-    font-size: 0.5em !important; /* Much smaller font size for chat bubble names */
+    font-size: 0.6em !important; /* Much smaller font size for chat bubble names */
     color: white !important;   /* White color for bot names */
     font-weight: bold;        /* Optional: make it bold */
     margin-bottom: 2px;       /* Small space below the name */
