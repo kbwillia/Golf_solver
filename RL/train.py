@@ -24,8 +24,12 @@ import pandas as pd
 try:
     from google.colab import drive
     IN_COLAB = True
-    # Mount Google Drive at the beginning
-    drive.mount('/content/drive')
+    # Mount Google Drive at the beginning (only if we're actually in Colab)
+    try:
+        drive.mount('/content/drive')
+    except Exception as e:
+        print(f"Could not mount Google Drive: {e}")
+        IN_COLAB = False
 except ImportError:
     IN_COLAB = False
     print("Running locally - Google Drive not available")
