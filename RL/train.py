@@ -209,7 +209,7 @@ class QLearningAgent:
 
     def train_on_trajectory(self, trajectory, reward, score):
         # Your actual Q-learning update logic goes here.
-        # This is a simplified example.
+        # This is a simplified example.  asdf
         if not trajectory:
             return
 
