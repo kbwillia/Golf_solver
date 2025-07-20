@@ -54,6 +54,22 @@ async function startGame() {
     // Hide replay button when starting new game
     onGameStart();
 
+    // Reset chart data for new game
+    window.cumulativeScoreHistory = null;
+    window.cumulativeScoreLabels = null;
+    window.lastMatchId = null;
+
+    // Destroy existing chart instance to ensure fresh start
+    if (cumulativeScoreChart) {
+        cumulativeScoreChart.destroy();
+        cumulativeScoreChart = null;
+    }
+    // Clear the chart container's HTML
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
+    }
+
     const gameMode = document.getElementById('gameMode').value;
 
     // Get bot name and map to difficulty
