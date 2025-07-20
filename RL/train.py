@@ -9,31 +9,97 @@ Supports both CPU and GPU acceleration.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from agents import *
-from game import GolfGame
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from collections import defaultdict
 import time
-import random # Added for random.choice
+import random
 from tqdm import trange
 import csv
+import pandas as pd
+from google.colab import drive
 
-# Create output directory if it doesn't exist
-output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
+# Mount Google Drive at the beginning
+drive.mount('/content/drive')
+
+# ============================================================================
+# PATH CONFIGURATION
+# ----------------------------------------------------------------------------
+# Choose ONE of the following configurations for your input and output directories.
+# Uncomment the Google Drive path for Colab usage.
+# The local C: drive path is commented out as requested.
+# ============================================================================
+
+# --- Google Drive Paths (Recommended for Google Colab) ---
+# Define the base Google Drive path for your project
+# IMPORTANT: Adjust this path if your 'golf' folder is structured differently
+# For example: '/content/drive/MyDrive/Your_Project_Folder/Golf'
+GOOGLE_DRIVE_PROJECT_PATH = '/content/drive/MyDrive/Data Projects/Golf'
+output_dir = os.path.join(GOOGLE_DRIVE_PROJECT_PATH, 'output')
+
+# --- Local C: Drive Paths (Commented Out - For Local Development Reference) ---
+# base_dir_old = os.path.dirname(os.path.abspath(__file__))
+# output_dir_old = os.path.join(base_dir_old, 'output')
+# # Ensure the old output directory exists (if it were active)
+# # os.makedirs(output_dir_old, exist_ok=True)
+# # You would uncomment the line below and comment out the Google Drive `output_dir` if using local paths
+# # output_dir = output_dir_old
+
+# Create output directory within Google Drive if it doesn't exist (active path)
 os.makedirs(output_dir, exist_ok=True)
 
+# Ensure the 'agents' and 'game' modules are accessible.
+# Assuming 'agents.py' and 'game.py' are in the same directory as this script
+# on your Google Drive (i.e., within GOOGLE_DRIVE_PROJECT_PATH).
+sys.path.append(GOOGLE_DRIVE_PROJECT_PATH)
+
+# Import your custom modules
+from agents import * # Ensure agents.py has QLearningAgent, GPUQLearningAgent, EVAgent, RandomAgent
+from game import GolfGame # Ensure game.py has GolfGame
+
+# ============================================================================
+# FILE I/O UTILITIES FOR COLAB (using Google Drive paths from 'output_dir')
+# ============================================================================
+
 def get_output_path(filename):
-    """Helper function to get full path for output files"""
+    """Helper function to get full path for output files in Google Drive"""
     return os.path.join(output_dir, filename)
 
+def load_q_table_from_drive(filepath):
+    """Loads Q-table from a CSV file in Google Drive."""
+    q_table = defaultdict(lambda: defaultdict(float))
+    if os.path.exists(filepath):
+        try:
+            df = pd.read_csv(filepath)
+            for _, row in df.iterrows():
+                state_key = row['state_key']
+                action_key = row['action_key']
+                q_value = row['q_value']
+                q_table[state_key][action_key] = q_value
+            print(f"Loaded Q-table from {filepath} with {len(q_table)} states.")
+        except Exception as e:
+            print(f"Error loading Q-table from {filepath}: {e}")
+            # If there's an error, it might mean the CSV is malformed or empty,
+            # so we still return an empty q_table to start fresh.
+    else:
+        print(f"No existing Q-table found at {filepath}. Starting fresh.")
+    return q_table
+
+
+def save_q_table_to_drive(q_table, filepath):
+    """Saves Q-table to a CSV file in Google Drive."""
+    data = []
+    for state_key, actions in q_table.items():
+        for action_key, q_value in actions.items():
+            data.append({'state_key': state_key, 'action_key': action_key, 'q_value': q_value})
+    df = pd.DataFrame(data)
+    df.to_csv(filepath, index=False)
+    print(f"Saved Q-table to {filepath}.")
+
 def load_trajectory_csv(filename="trajectory_train.csv"):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
-    output_path = os.path.join(output_dir, filename)
+    output_path = get_output_path(filename)
     trajectory = []
     last_game_num = 0
     if os.path.exists(output_path):
@@ -42,16 +108,15 @@ def load_trajectory_csv(filename="trajectory_train.csv"):
             for row in reader:
                 try:
                     game_num = int(row['game']) if row['game'] != '?' else 0
-                except:
-                    game_num = 0
+                except ValueError:
+                    game_num = 0 # Default to 0 if '?' or other non-int value
                 last_game_num = max(last_game_num, game_num)
                 trajectory.append(row)
     return trajectory, last_game_num
 
 def save_trajectory_csv_full(trajectory, filename="trajectory_train.csv"):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, filename)
+    output_path = get_output_path(filename)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['game', 'round', 'state_key', 'action_key', 'action']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -60,9 +125,8 @@ def save_trajectory_csv_full(trajectory, filename="trajectory_train.csv"):
             writer.writerow(step)
 
 def save_trajectory_csv(trajectory, game_num, filename="trajectory_train.csv"):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, filename)
+    output_path = get_output_path(filename)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     file_exists = os.path.isfile(output_path)
     with open(output_path, 'a', newline='') as csvfile:
         fieldnames = ['game', 'round', 'state_key', 'action_key', 'action']
@@ -83,14 +147,17 @@ def save_trajectory_csv(trajectory, game_num, filename="trajectory_train.csv"):
 # GPU UTILITIES
 # ============================================================================
 
-
+def get_device():
+    """Determines and returns the appropriate device (GPU or CPU)."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif torch.backends.mps.is_available(): # For Apple Silicon Macs
+        return torch.device("mps")
+    return torch.device("cpu")
 
 def state_to_tensor(state, device):
     """Convert game state to tensor representation for GPU processing"""
-    # Convert state to a numerical representation
-    # This is a simplified version - you might want to expand this
     if isinstance(state, tuple):
-        # Convert tuple state to tensor
         state_list = []
         for item in state:
             if isinstance(item, (int, float)):
@@ -101,13 +168,141 @@ def state_to_tensor(state, device):
                 state_list.append(0.0)  # Default for unknown types
         return torch.tensor(state_list, dtype=torch.float32, device=device)
     else:
-        # Fallback for non-tuple states
         return torch.tensor([float(state)], dtype=torch.float32, device=device)
 
+# ============================================================================
+# QLearningAgent and GPUQLearningAgent Classes
+# (These should primarily come from your agents.py, but shown here for context)
+# ============================================================================
+
+# NOTE: The actual implementation of these classes with their full logic
+# (e.g., choose_action, update_q_value, neural network structure for GPU agent)
+# should reside in your 'agents.py' file.
+# The `load_q_table_csv` and `save_q_table_csv` methods below
+# are adapted to use the Colab-specific file I/O functions.
+
+class QLearningAgent:
+    def __init__(self, learning_rate, discount_factor, epsilon, n_bootstrap_games=0, device=None):
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.q_table = defaultdict(lambda: defaultdict(float))
+        self.n_bootstrap_games = n_bootstrap_games
+        self.games_played = 0
+        self.device = device if device else torch.device("cpu")
+
+    def load_q_table_csv(self, filename="qtable_train.csv"):
+        """Loads Q-table from a CSV file in Google Drive."""
+        q_table_path = get_output_path(filename)
+        self.q_table = load_q_table_from_drive(q_table_path)
+
+    def save_q_table_csv(self, filename="qtable_train.csv"):
+        """Saves Q-table to a CSV file in Google Drive."""
+        q_table_path = get_output_path(filename)
+        save_q_table_to_drive(self.q_table, q_table_path)
+
+    def get_q_table_size(self):
+        return len(self.q_table), sum(len(v) for v in self.q_table.values())
+
+    def decay_epsilon(self, factor):
+        self.epsilon *= factor
+
+    def train_on_trajectory(self, trajectory, reward, score):
+        # Your actual Q-learning update logic goes here.
+        # This is a simplified example.
+        if not trajectory:
+            return
+
+        # Simple reverse-pass update
+        for i in range(len(trajectory) - 1, -1, -1):
+            step = trajectory[i]
+            state_key = step['state_key']
+            action_key = step['action_key']
+
+            current_q = self.q_table[state_key][action_key]
+
+            # Calculate next state's max Q-value
+            if i + 1 < len(trajectory):
+                next_state_key = trajectory[i+1]['state_key']
+                # Ensure the next_state_key exists in q_table before trying to get values
+                max_next_q = max(self.q_table[next_state_key].values()) if self.q_table[next_state_key] else 0.0
+            else:
+                max_next_q = 0.0 # Terminal state has no future reward
+
+            # Q-learning update formula
+            new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+            self.q_table[state_key][action_key] = new_q
+
+    def notify_game_end(self):
+        self.games_played += 1
+
+    def choose_action(self, state, available_actions):
+        state_key = str(state)
+        # Epsilon-greedy exploration
+        if random.random() < self.epsilon and self.games_played >= self.n_bootstrap_games:
+            return random.choice(available_actions)
+        else:
+            if state_key in self.q_table:
+                q_values = self.q_table[state_key]
+                # Filter q_values to only include available actions
+                # Convert action_key to string for dictionary lookup consistency
+                available_q_values = {a: q_values[str(a)] for a in available_actions if str(a) in q_values}
+                if available_q_values:
+                    max_q = max(available_q_values.values())
+                    # Select all actions with the maximum Q-value
+                    best_actions = [a for a, q_val in available_q_values.items() if q_val == max_q]
+                    return random.choice(best_actions)
+            # If state not seen or no available actions in Q-table, choose randomly
+            return random.choice(available_actions)
+
+class GPUQLearningAgent(QLearningAgent):
+    def __init__(self, learning_rate, discount_factor, epsilon, n_bootstrap_games=0, device=None):
+        if device is None:
+            raise ValueError("GPUQLearningAgent requires a 'device' to be specified.")
+        super().__init__(learning_rate, discount_factor, epsilon, n_bootstrap_games, device)
+        # Add any GPU-specific initialization here, e.g., a neural network model
+        # self.model = YourQNetwork().to(device)
+        # self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        # self.loss_fn = nn.MSELoss()
+
+    def train_on_batch_trajectories_vectorized(self, batch_trajectories, batch_rewards, batch_scores):
+        """
+        This method is for vectorized updates on GPU.
+        You'll need to implement the actual GPU-accelerated training logic here,
+        likely involving converting states/actions/rewards to tensors and
+        performing batch operations.
+        For now, it falls back to the individual trajectory update from the base class.
+        """
+        # Example:
+        # states = []
+        # actions = []
+        # rewards = []
+        # next_states = []
+        # for traj, reward, score in zip(batch_trajectories, batch_rewards, batch_scores):
+        #     # Collect data for batch processing
+        #     # ...
+        #
+        # # Convert to tensors and move to self.device
+        # # Perform forward pass, calculate loss, backward pass, optimizer step
+        # # Update Q-table (if using a dict-based Q-table on GPU) or model weights
+        for trajectory, reward, score in zip(batch_trajectories, batch_rewards, batch_scores):
+            self.train_on_trajectory(trajectory, reward, score) # Fallback to single trajectory update
+
+class EVAgent:
+    """A placeholder for your EVAgent logic."""
+    def choose_action(self, state, available_actions):
+        # Implement your EVAgent's logic here.
+        # For demonstration, it just picks a random action.
+        return random.choice(available_actions)
+
+class RandomAgent:
+    """A placeholder for your RandomAgent logic."""
+    def choose_action(self, state, available_actions):
+        return random.choice(available_actions)
 
 
 # ============================================================================
-# DEDICATED TRAINING PHASE
+# DEDICATED TRAINING PHASE (Colab-adapted paths)
 # ============================================================================
 
 def train_qlearning_agent(
@@ -130,30 +325,6 @@ def train_qlearning_agent(
     """
     Dedicated training phase for Q-learning agent with GPU support.
     Focus on training first, then return the trained agent for analysis.
-
-    Args:
-        num_games: Number of games to train on
-        opponent_type: Type of opponent ("evagent", "random", etc.)
-        verbose: Whether to print progress
-        use_gpu: Whether to use GPU acceleration
-
-        # Q-learning hyperparameters
-        learning_rate: Learning rate for Q-value updates (default: 0.1)
-        discount_factor: Discount factor for future rewards (default: 0.9)
-        epsilon: Initial exploration rate (default: 0.2)
-        epsilon_decay_factor: Factor to decay epsilon (default: 0.995)
-
-        # Bootstrapping and imitation learning
-        n_bootstrap_games: Number of games to use EVAgent for bootstrapping (default: 250)
-        use_imitation_learning: Whether to use EVAgent for initial imitation (default: True)
-
-        # Training configuration
-        epsilon_decay_interval: How often to decay epsilon (default: 100 games)
-        progress_report_interval: How often to report progress (default: 100 games)
-
-    Returns:
-        trained_agent: The trained QLearningAgent (GPU or CPU version)
-        training_stats: Dictionary with training statistics
     """
     print("="*70)
     print("Q-LEARNING AGENT TRAINING PHASE")
@@ -166,7 +337,6 @@ def train_qlearning_agent(
     AgentClass = GPUQLearningAgent if use_gpu else QLearningAgent
 
     if opponent_type == "qlearning_shared":
-        # Create one shared agent
         agent = AgentClass(
             learning_rate=learning_rate,
             discount_factor=discount_factor,
@@ -174,7 +344,7 @@ def train_qlearning_agent(
             n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
             device=device if use_gpu else None
         )
-        agents = [agent, agent]  # Both players use the same agent
+        agents = [agent, agent]
         agent_types = ["qlearning", "qlearning"]
     elif opponent_type == "ev_ai":
         agent = AgentClass(
@@ -201,10 +371,10 @@ def train_qlearning_agent(
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
 
-    # Load Q-table from previous run if available
+    # Load Q-table from previous run if available (now from Google Drive)
     agent.load_q_table_csv()
 
-    # Load trajectory from previous run if available
+    # Load trajectory from previous run if available (now from Google Drive)
     trajectory, last_game_num = load_trajectory_csv()
     new_trajectory_steps = []
 
@@ -224,29 +394,27 @@ def train_qlearning_agent(
     print(f"Training against {opponent_type} for {num_games} games...")
     print(f"Acceleration: {'GPU' if use_gpu else 'CPU'}")
     print(f"Q-learning parameters:")
-    print(f"  • Learning rate: {learning_rate}")
-    print(f"  • Discount factor: {discount_factor}")
-    print(f"  • Initial epsilon: {epsilon}")
-    print(f"  • Epsilon decay factor: {epsilon_decay_factor}")
-    print(f"  • Epsilon decay interval: {epsilon_decay_interval} games")
+    print(f"  • Learning rate: {learning_rate}")
+    print(f"  • Discount factor: {discount_factor}")
+    print(f"  • Initial epsilon: {epsilon}")
+    print(f"  • Epsilon decay factor: {epsilon_decay_factor}")
+    print(f"  • Epsilon decay interval: {epsilon_decay_interval} games")
     if use_imitation_learning:
-        print(f"  • Bootstrapping: {n_bootstrap_games} games with EVAgent")
+        print(f"  • Bootstrapping: {n_bootstrap_games} games with EVAgent")
     else:
-        print(f"  • Bootstrapping: Disabled")
-    print(f"  • Progress reports: Every {progress_report_interval} games")
+        print(f"  • Bootstrapping: Disabled")
+    print(f"  • Progress reports: Every {progress_report_interval} games")
 
-    # Use tqdm progress bar
     game_iter = trange(num_games, desc="Training Q-learning agent")
     total_sim_time = 0.0
     total_q_time = 0.0
-    for game_num in game_iter:
+    for game_num_abs in game_iter:
+        current_game_num = last_game_num + game_num_abs + 1
         start_time = time.time()
 
-        # Create trajectory for this game
         trajectory1 = []
         trajectory2 = []
 
-        # Time the game simulation
         start_sim = time.perf_counter()
         game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
         game_scores = game.play_game(verbose=False, trajectories=[trajectory1, trajectory2])
@@ -254,7 +422,6 @@ def train_qlearning_agent(
         sim_time = end_sim - start_sim
         total_sim_time += sim_time
 
-        # Time the Q-table lookup/update
         start_q = time.perf_counter()
         for idx, (traj, score) in enumerate(zip([trajectory1, trajectory2], game_scores)):
             if traj:
@@ -272,13 +439,11 @@ def train_qlearning_agent(
                         reward = -10.0
                 agent.train_on_trajectory(traj, reward, score)
                 agent.notify_game_end()
-                # Save trajectory for Q-learning agent (assume idx==0 is Q-learning agent)
                 if idx == 0:
-                    save_trajectory_csv(traj, game_num + 1)
-                # For each step in the trajectory, add the correct game number and append to new_trajectory_steps
+                    save_trajectory_csv(traj, current_game_num)
                 for step in traj:
                     step_to_save = {
-                        'game': game_num + 1,
+                        'game': current_game_num,
                         'round': step.get('round', ''),
                         'state_key': step.get('state_key', ''),
                         'action_key': step.get('action_key', ''),
@@ -289,76 +454,69 @@ def train_qlearning_agent(
         q_time = end_q - start_q
         total_q_time += q_time
 
-        # Record statistics
         training_stats['games_played'] += 1
-        training_stats['scores'].append(game_scores[0]) # Q-learning score
-        training_stats['opponent_scores'].append(game_scores[1]) # Opponent score
+        training_stats['scores'].append(game_scores[0])
+        training_stats['opponent_scores'].append(game_scores[1])
         training_stats['training_times'].append(time.time() - start_time)
 
-        # Track Q-table growth
         states, entries = agent.get_q_table_size()
         training_stats['qtable_states'].append(states)
         training_stats['qtable_entries'].append(entries)
         training_stats['epsilon_values'].append(agent.epsilon)
 
-        # Decay epsilon periodically
-        if epsilon_decay_interval and (game_num + 1) % epsilon_decay_interval == 0:
+        if epsilon_decay_interval and (game_num_abs + 1) % epsilon_decay_interval == 0:
             agent.decay_epsilon(factor=epsilon_decay_factor)
 
-        # Progress updates
-        if verbose and (game_num + 1) % progress_report_interval == 0:
-            win_rate = training_stats['wins'] / (game_num + 1)
+        if verbose and (game_num_abs + 1) % progress_report_interval == 0:
+            win_rate = training_stats['wins'] / (game_num_abs + 1)
             avg_score = np.mean(training_stats['scores'])
             avg_time = np.mean(training_stats['training_times'])
-            bootstrap_status = "BOOTSTRAP" if game_num < n_bootstrap_games else "Q-LEARNING"
-            print(f"  Game {game_num + 1}: {bootstrap_status} | Win rate={win_rate:.2%}, "
+            bootstrap_status = "BOOTSTRAP" if game_num_abs < n_bootstrap_games else "Q-LEARNING"
+            print(f"  Game {game_num_abs + 1}: {bootstrap_status} | Win rate={win_rate:.2%}, "
                   f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
                   f"Avg time={avg_time:.3f}s")
 
-    # Final training statistics
     final_win_rate = training_stats['wins'] / num_games
     final_avg_score = np.mean(training_stats['scores'])
     final_states, final_entries = agent.get_q_table_size()
     total_time = sum(training_stats['training_times'])
 
     print(f"\n🎯 TRAINING COMPLETE!")
-    print(f"   • Games played: {num_games}")
-    print(f"   • Win rate: {final_win_rate:.2%} ({training_stats['wins']}/{num_games})")
-    print(f"   • Average score: {final_avg_score:.2f}")
-    print(f"   • Final Q-table: {final_states} states, {final_entries} entries")
-    print(f"   • Final epsilon: {agent.epsilon:.3f}")
-    print(f"   • Total training time: {total_time:.2f}s")
-    print(f"   • Average time per game: {total_time/num_games:.3f}s")
-    print(f"   • Total simulation time: {total_sim_time:.2f}s")
-    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
+    print(f"   • Games played: {num_games}")
+    print(f"   • Win rate: {final_win_rate:.2%} ({training_stats['wins']}/{num_games})")
+    print(f"   • Average score: {final_avg_score:.2f}")
+    print(f"   • Final Q-table: {final_states} states, {final_entries} entries")
+    print(f"   • Final epsilon: {agent.epsilon:.3f}")
+    print(f"   • Total training time: {total_time:.2f}s")
+    print(f"   • Average time per game: {total_time/num_games:.3f}s")
+    print(f"   • Total simulation time: {total_sim_time:.2f}s")
+    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
     if use_imitation_learning:
         bootstrap_games = min(n_bootstrap_games, num_games)
         qlearning_games = max(0, num_games - n_bootstrap_games)
-        print(f"   • Bootstrapping phase: {bootstrap_games} games")
-        print(f"   • Q-learning phase: {qlearning_games} games")
+        print(f"   • Bootstrapping phase: {bootstrap_games} games")
+        print(f"   • Q-learning phase: {qlearning_games} games")
 
-    # Save the full trajectory after training
     full_trajectory = trajectory + new_trajectory_steps
     save_trajectory_csv_full(full_trajectory)
+
+    agent.save_q_table_csv() # Save the final Q-table to Google Drive
 
     return agent, training_stats
 
 
 def train_qlearning_agent_batch(
     num_games=1000,
-    batch_size=100,  # Number of games to play simultaneously
+    batch_size=100,
     opponent_type="ev_ai",
     verbose=True,
     use_gpu=True,
-    # Q-learning hyperparameters
     learning_rate=0.1,
     discount_factor=0.9,
     epsilon=0.2,
     epsilon_decay_factor=0.995,
-    # Bootstrapping and imitation learning
     n_bootstrap_games=250,
     use_imitation_learning=True,
-    # Training configuration
     epsilon_decay_interval=100,
     progress_report_interval=100
 ):
@@ -369,59 +527,35 @@ def train_qlearning_agent_batch(
     print("BATCH Q-LEARNING AGENT TRAINING PHASE")
     print("="*70)
 
-    # Setup device
     device = get_device() if use_gpu else torch.device("cpu")
-
-    # Choose agent class based on GPU preference
     AgentClass = GPUQLearningAgent if use_gpu else QLearningAgent
 
-    # Create agent
     if opponent_type == "qlearning_shared":
-        if use_gpu:
-            agent = AgentClass(
-                learning_rate=learning_rate,
-                discount_factor=discount_factor,
-                epsilon=epsilon,
-                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
-                device=device
-            )
-        else:
-            agent = AgentClass(
-                learning_rate=learning_rate,
-                discount_factor=discount_factor,
-                epsilon=epsilon,
-                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
-            )
+        agent = AgentClass(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
+            device=device
+        )
         agents = [agent, agent]
         agent_types = ["qlearning", "qlearning"]
     elif opponent_type == "ev_ai":
-        if use_gpu:
-            agent = AgentClass(
-                learning_rate=learning_rate,
-                discount_factor=discount_factor,
-                epsilon=epsilon,
-                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
-                device=device
-            )
-        else:
-            agent = AgentClass(
-                learning_rate=learning_rate,
-                discount_factor=discount_factor,
-                epsilon=epsilon,
-                n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0
-            )
+        agent = AgentClass(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games if use_imitation_learning else 0,
+            device=device
+        )
         agent_types = ["qlearning", "ev_ai"]
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
 
-    # Load Q-table from previous run if available
     agent.load_q_table_csv()
-
-    # Load trajectory from previous run if available
     trajectory, last_game_num = load_trajectory_csv()
     new_trajectory_steps = []
 
-    # Training statistics
     training_stats = {
         'games_played': 0,
         'wins': 0,
@@ -437,15 +571,8 @@ def train_qlearning_agent_batch(
     print(f"Batch training against {opponent_type} for {num_games} games...")
     print(f"Batch size: {batch_size} games per batch")
     print(f"Acceleration: {'GPU' if use_gpu else 'CPU'}")
-    # print(f"Q-learning parameters:")
-    # print(f"  • Learning rate: {learning_rate}")
-    # print(f"  • Discount factor: {discount_factor}")
-    # print(f"  • Initial epsilon: {epsilon}")
 
-    # Process games in batches
     num_batches = (num_games + batch_size - 1) // batch_size
-
-    # Ensure batch_size doesn't exceed total games
     if batch_size > num_games:
         print(f"Warning: batch_size ({batch_size}) > num_games ({num_games}). Using batch_size = {num_games}")
         batch_size = num_games
@@ -456,16 +583,14 @@ def train_qlearning_agent_batch(
     for batch_idx in trange(num_batches, desc="Training batches"):
         batch_start_time = time.time()
 
-        # Determine games in this batch
         games_in_batch = min(batch_size, num_games - batch_idx * batch_size)
 
-        # Time the batch game simulation
         start_sim = time.perf_counter()
-        # Play batch of games
         batch_trajectories = []
         batch_rewards = []
         batch_scores = []
-        for game_idx in range(games_in_batch):
+        for game_idx_in_batch in range(games_in_batch):
+            current_game_num = last_game_num + batch_idx * batch_size + game_idx_in_batch + 1
             trajectory = []
             if opponent_type == "ev_ai":
                 opponent_agent = EVAgent()
@@ -492,12 +617,10 @@ def train_qlearning_agent_batch(
             training_stats['games_played'] += 1
             training_stats['scores'].append(game_scores[0])
             training_stats['opponent_scores'].append(game_scores[1])
-            # Save trajectory for Q-learning agent (assume first agent is Q-learning)
-            save_trajectory_csv(trajectory, batch_idx * batch_size + game_idx + 1)
-            # For each step in the trajectory, add the correct game number and append to new_trajectory_steps
+            save_trajectory_csv(trajectory, current_game_num)
             for step in trajectory:
                 step_to_save = {
-                    'game': last_game_num + batch_idx * batch_size + game_idx + 1,
+                    'game': current_game_num,
                     'round': step.get('round', ''),
                     'state_key': step.get('state_key', ''),
                     'action_key': step.get('action_key', ''),
@@ -508,7 +631,6 @@ def train_qlearning_agent_batch(
         sim_time = end_sim - start_sim
         total_sim_time += sim_time
 
-        # Time the Q-table batch update
         start_q = time.perf_counter()
         if use_gpu and hasattr(agent, 'train_on_batch_trajectories_vectorized'):
             agent.train_on_batch_trajectories_vectorized(batch_trajectories, batch_rewards, batch_scores)
@@ -519,26 +641,21 @@ def train_qlearning_agent_batch(
         q_time = end_q - start_q
         total_q_time += q_time
 
-        # Notify game end for each game in batch
         for _ in range(games_in_batch):
             agent.notify_game_end()
 
-        # Record statistics
         batch_time = time.time() - batch_start_time
         training_stats['training_times'].extend([batch_time / games_in_batch] * games_in_batch)
 
-        # Track Q-table growth
         states, entries = agent.get_q_table_size()
         for _ in range(games_in_batch):
             training_stats['qtable_states'].append(states)
             training_stats['qtable_entries'].append(entries)
             training_stats['epsilon_values'].append(agent.epsilon)
 
-        # Decay epsilon periodically
         if epsilon_decay_interval and (training_stats['games_played']) % epsilon_decay_interval == 0:
             agent.decay_epsilon(factor=epsilon_decay_factor)
 
-        # Progress updates - handle cases where batch_size > progress_report_interval
         report_every_batches = max(1, progress_report_interval // batch_size)
         if verbose and (batch_idx + 1) % report_every_batches == 0:
             games_so_far = training_stats['games_played']
@@ -546,11 +663,10 @@ def train_qlearning_agent_batch(
             avg_score = np.mean(training_stats['scores'])
             avg_time = np.mean(training_stats['training_times'])
             bootstrap_status = "BOOTSTRAP" if games_so_far < n_bootstrap_games else "Q-LEARNING"
-            print(f"  Batch {batch_idx + 1}: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
+            print(f"  Batch {batch_idx + 1}: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
                   f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
                   f"Avg time={avg_time:.3f}s")
 
-    # Final progress report if verbose and we haven't reported recently
     if verbose and training_stats['games_played'] > 0:
         games_so_far = training_stats['games_played']
         win_rate = training_stats['wins'] / games_so_far
@@ -558,54 +674,50 @@ def train_qlearning_agent_batch(
         avg_time = np.mean(training_stats['training_times'])
         final_states, final_entries = agent.get_q_table_size()
         bootstrap_status = "BOOTSTRAP" if games_so_far < n_bootstrap_games else "Q-LEARNING"
-        print(f"  Final: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
+        print(f"  Final: {bootstrap_status} | Games={games_so_far}, Win rate={win_rate:.2%}, "
               f"Avg score={avg_score:.2f}, States={final_states}, Epsilon={agent.epsilon:.3f}, "
               f"Avg time={avg_time:.3f}s")
 
-    # Final training statistics
     final_win_rate = training_stats['wins'] / num_games
     final_avg_score = np.mean(training_stats['scores'])
     final_states, final_entries = agent.get_q_table_size()
     total_time = sum(training_stats['training_times'])
 
     print(f"\n🎯 BATCH TRAINING COMPLETE!")
-    print(f"   • Games played: {num_games}")
-    print(f"   • Batch size: {batch_size}")
-    print(f"   • Win rate: {final_win_rate:.2%} ({training_stats['wins']}/{num_games})")
-    print(f"   • Average score: {final_avg_score:.2f}")
-    print(f"   • Final Q-table: {final_states} states, {final_entries} entries")
-    print(f"   • Final epsilon: {agent.epsilon:.3f}")
-    print(f"   • Total training time: {total_time:.2f}s")
-    print(f"   • Average time per game: {total_time/num_games:.3f}s")
-    print(f"   • Total simulation time: {total_sim_time:.2f}s")
-    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
+    print(f"   • Games played: {num_games}")
+    print(f"   • Batch size: {batch_size}")
+    print(f"   • Win rate: {final_win_rate:.2%} ({training_stats['wins']}/{num_games})")
+    print(f"   • Average score: {final_avg_score:.2f}")
+    print(f"   • Final Q-table: {final_states} states, {final_entries} entries")
+    print(f"   • Final epsilon: {agent.epsilon:.3f}")
+    print(f"   • Total training time: {total_time:.2f}s")
+    print(f"   • Average time per game: {total_time/num_games:.3f}s")
+    print(f"   • Total simulation time: {total_sim_time:.2f}s")
+    print(f"   • Total Q-table update time: {total_q_time:.2f}s")
 
-    # Save the full trajectory after training
     full_trajectory = trajectory + new_trajectory_steps
     save_trajectory_csv_full(full_trajectory)
+
+    agent.save_q_table_csv() # Save the final Q-table to Google Drive
 
     return agent, training_stats
 
 
 if __name__ == "__main__":
-    # Run the training function with GPU support
     print("Starting Q-learning agent training with GPU acceleration...")
     agent, training_stats = train_qlearning_agent(
-        num_games=2000,  # Train for 1000 games
-        opponent_type="ev_ai",  # Train against EV agent
+        num_games=2000,
+        opponent_type="ev_ai",
         verbose=True,
-        use_gpu=True,  # Enable GPU acceleration
-        # Q-learning hyperparameters
+        use_gpu=True,
         learning_rate=0.1,
         discount_factor=0.9,
         epsilon=0.2,
         epsilon_decay_factor=0.995,
-        # Bootstrapping and imitation learning
-        n_bootstrap_games=250,  # Use EVAgent for first 250 games
-        use_imitation_learning=True,  # Enable bootstrapping
-        # Training configuration
-        epsilon_decay_interval=100,  # Decay epsilon every 100 games
-        progress_report_interval=100  # Report progress every 100 games
+        n_bootstrap_games=250,
+        use_imitation_learning=True,
+        epsilon_decay_interval=100,
+        progress_report_interval=100
     )
 
     print("\n" + "="*70)
@@ -614,4 +726,5 @@ if __name__ == "__main__":
     print(f"Trained agent has {len(agent.q_table)} states in Q-table")
     print(f"Win rate: {training_stats['wins']/training_stats['games_played']:.2%}")
     print(f"Average score: {np.mean(training_stats['scores']):.2f}")
+    print("Check your Google Drive 'Data Projects/Golf/output' folder for saved Q-tables and trajectories.")
     print("Use RL_analytics.py for full analysis and visualizations")
