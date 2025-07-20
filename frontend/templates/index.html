@@ -39,13 +39,13 @@
                     <label for="playerName">Your Name:</label>
                     <input type="text" id="playerName" placeholder="Enter your name" value="Kyle" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" /> <!-- Name input -->
                 </p>
-                <!-- Game Mode Dropdown -->
+                <!-- Game Mode Buttons -->
                 <p>
                     <label>Game Mode:</label>
-                    <select id="gameMode">
-                        <option value="1v1">You vs 1 AI</option>
-                        <option value="1v3">You vs 3 AI</option>
-                    </select> <!-- Game mode selection -->
+                    <div class="game-mode-buttons">
+                        <button type="button" id="gameMode1v1" class="btn btn-secondary game-mode-btn active" data-mode="1v1">You vs 1 AI</button>
+                        <button type="button" id="gameMode1v3" class="btn btn-secondary game-mode-btn" data-mode="1v3">You vs 3 AI</button>
+                    </div>
                 </p>
                 <!-- Opponent Type Dropdown (hidden for 1v3) -->
                 <p id="opponentSection">

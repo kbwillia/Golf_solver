@@ -70,7 +70,8 @@ async function startGame() {
         chartContainer.innerHTML = '<canvas id="cumulativeScoreChart"></canvas><div id="customLegend"></div>';
     }
 
-    const gameMode = document.getElementById('gameMode').value;
+    // Get game mode from buttons instead of dropdown
+    const gameMode = getCurrentGameMode();
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = parseInt(document.getElementById('numGames').value) || 1;
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
@@ -793,3 +794,48 @@ function playCardShuffleSound() { /* Will be implemented in utils module */ }
 function showHeaderButtons() { /* Will be implemented in UI module */ }
 function hideDrawnCardArea() { /* Will be implemented in actions module */ }
 function onGameStart() { /* Will be implemented in UI module */ }
+
+// Initialize game mode buttons
+function initializeGameModeButtons() {
+    const gameMode1v1Btn = document.getElementById('gameMode1v1');
+    const gameMode1v3Btn = document.getElementById('gameMode1v3');
+
+    if (gameMode1v1Btn && gameMode1v3Btn) {
+        gameMode1v1Btn.addEventListener('click', function() {
+            setGameMode('1v1');
+        });
+
+        gameMode1v3Btn.addEventListener('click', function() {
+            setGameMode('1v3');
+        });
+    }
+}
+
+// Set game mode and update button states
+function setGameMode(mode) {
+    const gameMode1v1Btn = document.getElementById('gameMode1v1');
+    const gameMode1v3Btn = document.getElementById('gameMode1v3');
+    const opponentSection = document.getElementById('opponentSection');
+
+    // Update button states
+    if (gameMode1v1Btn && gameMode1v3Btn) {
+        gameMode1v1Btn.classList.remove('active');
+        gameMode1v3Btn.classList.remove('active');
+
+        if (mode === '1v1') {
+            gameMode1v1Btn.classList.add('active');
+            if (opponentSection) opponentSection.style.display = 'block';
+        } else if (mode === '1v3') {
+            gameMode1v3Btn.classList.add('active');
+            if (opponentSection) opponentSection.style.display = 'none';
+        }
+    }
+
+    console.log('🎯 Game mode set to:', mode);
+}
+
+// Get current game mode
+function getCurrentGameMode() {
+    const activeBtn = document.querySelector('.game-mode-btn.active');
+    return activeBtn ? activeBtn.getAttribute('data-mode') : '1v1';
+}

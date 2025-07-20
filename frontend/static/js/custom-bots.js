@@ -184,6 +184,9 @@ function initializeCustomBots() {
 
     // Populate opponent dropdown with bots from JSON
     populateOpponentDropdown();
+
+    // Initialize game mode buttons
+    initializeGameModeButtons();
 }
 
 // Initialize custom bot modal functionality
