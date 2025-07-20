@@ -528,39 +528,26 @@ async function populateOpponentDropdown() {
 }
 
 // Bot selection button logic for setup screen
-const botList = [
+
+// Special announcer bots (not selectable opponents)
+const announcerBots = [
   {
-    value: 'peter_parker',
-    name: 'Peter Parker',
-    difficulty: 'Easy',
-    difficultyClass: 'easy',
-    desc: 'Friendly neighborhood bot. Plays safe and simple.'
-  },
-  {
-    value: 'happy_gilmore',
-    name: 'Happy Gilmore',
-    difficulty: 'Medium',
-    difficultyClass: 'medium',
-    desc: 'Wild swings, but can surprise you!'
-  },
-  {
-    value: 'tiger_woods',
-    name: 'Tiger Woods',
-    difficulty: 'Hard',
-    difficultyClass: 'hard',
-    desc: 'Calculated, tough, and rarely makes mistakes.'
+    value: 'jim_nantz',
+    name: 'Jim Nantz',
+    role: 'announcer',
+    desc: 'Professional golf commentator who provides expert analysis and commentary throughout your game.'
   }
 ];
 
 // Track selected bots for multi-selection mode
-window.selectedBots = [botList[0].value]; // Start with first bot selected
+window.selectedBots = []; // Will be populated when bots are loaded
 
 async function renderBotSelectRow() {
   const row = document.getElementById('botSelectRow');
   if (!row) return;
 
-  // Get all bots including custom ones
-  let allBots = [...botList];
+  // Only load bots from custom_bot.json
+  let allBots = [];
 
   try {
     // Load custom bots from JSON
@@ -602,6 +589,26 @@ async function renderBotSelectRow() {
     console.log('Could not load existing custom bots:', error);
   }
 
+  // Add special announcer bots - but don't include them in selectable bots
+  // allBots = [...announcerBots, ...allBots];
+
+  // If no bots found, show a message
+  if (allBots.length === 0) {
+    row.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">No bots found. Create some custom bots to get started!</p>';
+    return;
+  }
+
+  // Update selected bots if current selection is not in available bots
+  if (window.selectedBots.length > 0) {
+    const availableBotValues = allBots.map(bot => bot.value);
+    window.selectedBots = window.selectedBots.filter(bot => availableBotValues.includes(bot));
+    if (window.selectedBots.length === 0) {
+      window.selectedBots = [allBots[0].value]; // Select first available bot
+    }
+  } else {
+    window.selectedBots = [allBots[0].value]; // Select first available bot
+  }
+
   // Render all bots
   row.innerHTML = '';
   allBots.forEach((bot, idx) => {
@@ -628,7 +635,7 @@ async function renderBotSelectRow() {
 
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
-  console.log(`✅ Rendered ${allBots.length} bots in selection row`);
+  console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json`);
 }
 
 function isMultiSelectionMode() {
@@ -763,18 +770,21 @@ function handle1v3Mode() {
 
   // Switch to multi-selection mode
   if (window.selectedBots.length === 1) {
-    // Add more bots if needed for 1v3
-    const allBots = botList.map(bot => bot.value);
-    const currentBot = window.selectedBots[0];
-    const availableBots = allBots.filter(bot => bot !== currentBot);
+    // Get available bots from the rendered buttons
+    const row = document.getElementById('botSelectRow');
+    if (row) {
+      const availableBots = Array.from(row.children).map(btn => btn.getAttribute('data-bot'));
+      const currentBot = window.selectedBots[0];
+      const otherBots = availableBots.filter(bot => bot !== currentBot);
 
-    // Add up to 2 more bots
-    for (let i = 0; i < Math.min(2, availableBots.length); i++) {
-      if (!window.selectedBots.includes(availableBots[i])) {
-        window.selectedBots.push(availableBots[i]);
+      // Add up to 2 more bots
+      for (let i = 0; i < Math.min(2, otherBots.length); i++) {
+        if (!window.selectedBots.includes(otherBots[i])) {
+          window.selectedBots.push(otherBots[i]);
+        }
       }
+      renderBotSelectRow();
     }
-    renderBotSelectRow();
   }
 }
 

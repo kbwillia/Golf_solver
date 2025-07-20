@@ -34,7 +34,7 @@ function toggleVoiceSystem() {
     const voiceToggleBtn = document.getElementById('voiceToggleBtn');
 
     if (voiceStatus) {
-        voiceStatus.textContent = voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+        voiceStatus.textContent = voiceEnabled ? '🔊 Announcing Voice: ON' : '🔇 Announcing Voice: OFF';
     }
 
     // Update button styling

@@ -348,9 +348,33 @@
     justify-content: center;
     max-width: calc(3 * 160px + 2 * 10px); /* Width for exactly 3 buttons + gaps */
     margin: 0 auto; /* Center the container */
+    position: relative; /* For gradient overlay */
     /* Custom scrollbar styling - make it invisible and thin */
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Gradient fade overlay to indicate scrollability */
+.bot-select-row::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: linear-gradient(to bottom,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.1) 30%,
+        rgba(255, 255, 255, 0.4) 70%,
+        rgba(255, 255, 255, 0.85) 100%);
+    pointer-events: none; /* Allow clicking through the gradient */
+    z-index: 1;
+}
+
+/* Ensure bot buttons are above the gradient */
+.bot-select-btn {
+    position: relative;
+    z-index: 2;
 }
 
 /* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */

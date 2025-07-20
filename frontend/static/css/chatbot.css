@@ -187,7 +187,7 @@
 
 .bot-name {
     font-size: 0.6em;         /* Make the name smaller */
-    color: #ffff;              /* Subtle gray color */
+    color: white !important;              /* White color for bot names */
     font-weight: bold;        /* Optional: make it bold */
     margin-bottom: 2px;       /* Small space below the name */
     margin-left: 8px;         /* Indent to align with bubble */
