@@ -240,22 +240,71 @@ class QLearningAgent:
     def notify_game_end(self):
         self.games_played += 1
 
-    def choose_action(self, state, available_actions):
-        state_key = str(state)
+    def choose_action(self, player, game_state, trajectory=None):
+        # Get available actions for the player
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+
+        if not available_positions:
+            return None  # No moves available
+
+        # Create state representation for Q-learning
+        state = self.get_state_key(player, game_state)
+
+        # Generate available actions
+        available_actions = []
+
+        # Action 1: Take from discard pile
+        if game_state.discard_pile:
+            discard_card = game_state.discard_pile[-1]
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'take_discard',
+                    'position': pos,
+                    'card': discard_card
+                })
+
+        # Action 2: Draw from deck
+        if game_state.deck:
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'draw_deck',
+                    'position': pos,
+                    'keep': True
+                })
+
+        # Action 3: Draw from deck and discard, then flip a card
+        if game_state.deck:
+            for pos in available_positions:
+                for flip_pos in available_positions:
+                    if flip_pos != pos:
+                        available_actions.append({
+                            'type': 'draw_deck',
+                            'position': pos,
+                            'keep': False,
+                            'flip_position': flip_pos
+                        })
+
+        if not available_actions:
+            return None
+
         # Epsilon-greedy exploration
         if random.random() < self.epsilon and self.games_played >= self.n_bootstrap_games:
             return random.choice(available_actions)
         else:
+            state_key = str(state)
             if state_key in self.q_table:
                 q_values = self.q_table[state_key]
                 # Filter q_values to only include available actions
-                # Convert action_key to string for dictionary lookup consistency
-                available_q_values = {a: q_values[str(a)] for a in available_actions if str(a) in q_values}
+                available_q_values = {str(a): q_values.get(str(a), 0.0) for a in available_actions}
                 if available_q_values:
                     max_q = max(available_q_values.values())
                     # Select all actions with the maximum Q-value
                     best_actions = [a for a, q_val in available_q_values.items() if q_val == max_q]
-                    return random.choice(best_actions)
+                    best_action_str = random.choice(best_actions)
+                    # Convert back to action dict
+                    for action in available_actions:
+                        if str(action) == best_action_str:
+                            return action
             # If state not seen or no available actions in Q-table, choose randomly
             return random.choice(available_actions)
 
@@ -294,14 +343,100 @@ class GPUQLearningAgent(QLearningAgent):
 
 class EVAgent:
     """A placeholder for your EVAgent logic."""
-    def choose_action(self, state, available_actions):
-        # Implement your EVAgent's logic here.
-        # For demonstration, it just picks a random action.
+    def choose_action(self, player, game_state, trajectory=None):
+        # Get available actions for the player
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+
+        if not available_positions:
+            return None  # No moves available
+
+        # Generate available actions
+        available_actions = []
+
+        # Action 1: Take from discard pile
+        if game_state.discard_pile:
+            discard_card = game_state.discard_pile[-1]
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'take_discard',
+                    'position': pos,
+                    'card': discard_card
+                })
+
+        # Action 2: Draw from deck
+        if game_state.deck:
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'draw_deck',
+                    'position': pos,
+                    'keep': True
+                })
+
+        # Action 3: Draw from deck and discard, then flip a card
+        if game_state.deck:
+            for pos in available_positions:
+                for flip_pos in available_positions:
+                    if flip_pos != pos:
+                        available_actions.append({
+                            'type': 'draw_deck',
+                            'position': pos,
+                            'keep': False,
+                            'flip_position': flip_pos
+                        })
+
+        if not available_actions:
+            return None
+
+        # For now, just pick a random action
         return random.choice(available_actions)
 
 class RandomAgent:
     """A placeholder for your RandomAgent logic."""
-    def choose_action(self, state, available_actions):
+    def choose_action(self, player, game_state, trajectory=None):
+        # Get available actions for the player
+        available_positions = [i for i, known in enumerate(player.known) if not known]
+
+        if not available_positions:
+            return None  # No moves available
+
+        # Generate available actions
+        available_actions = []
+
+        # Action 1: Take from discard pile
+        if game_state.discard_pile:
+            discard_card = game_state.discard_pile[-1]
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'take_discard',
+                    'position': pos,
+                    'card': discard_card
+                })
+
+        # Action 2: Draw from deck
+        if game_state.deck:
+            for pos in available_positions:
+                available_actions.append({
+                    'type': 'draw_deck',
+                    'position': pos,
+                    'keep': True
+                })
+
+        # Action 3: Draw from deck and discard, then flip a card
+        if game_state.deck:
+            for pos in available_positions:
+                for flip_pos in available_positions:
+                    if flip_pos != pos:
+                        available_actions.append({
+                            'type': 'draw_deck',
+                            'position': pos,
+                            'keep': False,
+                            'flip_position': flip_pos
+                        })
+
+        if not available_actions:
+            return None
+
+        # Pick a random action
         return random.choice(available_actions)
 
 
