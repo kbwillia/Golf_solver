@@ -71,6 +71,7 @@
     scrollbar-width: thin;
     /* scrollbar-color: rgba(40, 167, 69, 0.5) transparent; */
     scrollbar-color: rgba(40, 167, 69, 0.015) transparent;
+    overflow-x: visible; /* Allow horizontal overflow if needed */
 }
 
 /* Webkit scrollbar styling (Chrome, Safari, Edge) */
@@ -104,6 +105,8 @@
 
 .message.bot-message {
     align-items: flex-start;
+    overflow: visible;
+    margin-left: 6px; /* Add space for pointer */
 }
 
 .message-content {
@@ -114,6 +117,7 @@
     line-height: 1.3;
     word-wrap: break-word;
     position: relative;
+    overflow: visible;
 }
 
 .user-message {
@@ -121,6 +125,7 @@
     flex-direction: column;
     align-items: flex-end;
     margin-bottom: 8px;
+    overflow: visible;
 }
 
 .user-message .message-content {
@@ -134,6 +139,8 @@
     border-radius: 16px;
     word-break: break-word;
     text-align: left;
+    position: relative;
+    overflow: visible;
 }
 
 .user-message .message-content::after {
@@ -148,6 +155,8 @@
     border-right: 0;
     border-bottom: 0;
     margin-bottom: 0;
+    display: block;
+    z-index: 2;
 }
 
 /* Hide bubble pointer for GIF-only messages */
@@ -563,4 +572,50 @@ input:checked + .toggle-slider {
 
 input:checked + .toggle-slider:before {
     transform: translateX(26px);
+}
+
+/* Typing indicator bubble for bots */
+.typing-indicator {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    flex-direction: column;
+    overflow: visible;
+    margin-left: 6px; /* Add space for pointer */
+}
+.typing-indicator .message-content {
+    background: #e6f4ea;
+    color: #155724;
+    border-radius: 18px;
+    padding: 8px 16px;
+    font-size: 0.75em; /* Match regular bot bubble */
+    font-style: italic;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    margin-left: 8px;
+    margin-right: 8px;
+    min-width: 80px;
+    max-width: 95%; /* Increased from 90% */
+    position: relative;
+    opacity: 0.95;
+    overflow: visible;
+    word-break: break-word;
+}
+.typing-bot-name {
+    font-weight: bold;
+    color: #217a3a;
+    margin-right: 4px;
+}
+.typing-dots {
+    display: inline;
+    width: auto;
+    margin-left: 2px;
+}
+.typing-dots::after {
+    content: '...';
+    animation: typing-dots-blink 1.2s infinite steps(3);
+}
+@keyframes typing-dots-blink {
+    0% { opacity: 0.2; }
+    20% { opacity: 1; }
+    100% { opacity: 0.2; }
 }

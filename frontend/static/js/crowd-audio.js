@@ -32,7 +32,7 @@ class CrowdAudio {
             // Try to load real audio files first
             await this.loadRealAudio();
         } catch (error) {
-            console.log('Real audio files not found, using synthetic crowd sounds');
+            // console.log('Real audio files not found, using synthetic crowd sounds');
             // Fallback to synthetic audio
             await this.initSyntheticAudio();
         }
@@ -41,26 +41,26 @@ class CrowdAudio {
         this.startButton = document.querySelector('button[onclick="startGame()"]') ||
                           document.querySelector('.btn-primary');
 
-        console.log('Start button found:', this.startButton);
+        // console.log('Start button found:', this.startButton);
         if (this.startButton) {
             const rect = this.startButton.getBoundingClientRect();
-            console.log('Button position:', {
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-                centerX: rect.left + rect.width / 2,
-                centerY: rect.top + rect.height / 2
-            });
+            // console.log('Button position:', {
+            //     left: rect.left,
+            //     top: rect.top,
+            //     width: rect.width,
+            //     height: rect.height,
+            //     centerX: rect.left + rect.width / 2,
+            //     centerY: rect.top + rect.height / 2
+            // });
         }
 
         if (this.startButton) {
             // this.createDebugElement(); // Debug panel commented out
             this.setupEventListeners();
             this.isInitialized = true;
-            console.log('✅ Crowd audio initialized successfully');
+            // console.log('✅ Crowd audio initialized successfully');
         } else {
-            console.warn('❌ Start button not found - crowd audio not initialized');
+            // console.warn('❌ Start button not found - crowd audio not initialized');
         }
     }
 
@@ -103,9 +103,9 @@ class CrowdAudio {
             this.roarAudio.preload = 'auto';
 
             this.useSynthetic = true;
-            console.log('Synthetic crowd audio initialized');
+            // console.log('Synthetic crowd audio initialized');
         } catch (error) {
-            console.warn('Could not initialize synthetic audio:', error);
+            // console.warn('Could not initialize synthetic audio:', error);
         }
     }
 
@@ -165,20 +165,20 @@ class CrowdAudio {
 
                 // Debug panel is now read-only (console logging always enabled)
         this.debugElement.style.backgroundColor = 'rgba(0, 100, 0, 0.8)'; // Green background to show it's active
-        console.log('🎵 Crowd audio console logging: AUTO-ENABLED');
+        // console.log('🎵 Crowd audio console logging: AUTO-ENABLED');
     }
 
     preloadAndStartAudio() {
         // Try to start audio immediately without user interaction
         if (this.ambientAudio && this.ambientAudio.readyState >= 2) {
-            console.log('🎵 Attempting to auto-start ambient audio...');
+            // console.log('🎵 Attempting to auto-start ambient audio...');
             this.ambientAudio.play().then(() => {
-                console.log('✅ Ambient audio auto-started successfully');
+                // console.log('✅ Ambient audio auto-started successfully');
                 // Pause it immediately so it's ready to play when needed
                 this.ambientAudio.pause();
                 this.ambientAudio.currentTime = 0;
             }).catch(error => {
-                console.log('⚠️ Auto-start failed (will start on first proximity):', error.message);
+                // console.log('⚠️ Auto-start failed (will start on first proximity):', error.message);
             });
         }
     }
@@ -214,7 +214,7 @@ class CrowdAudio {
                     if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                         const isVisible = gameSetup.style.display !== 'none';
                         if (isVisible && !this.isEnabled) {
-                            console.log('🎵 Game setup screen detected - re-enabling crowd audio');
+                            // console.log('🎵 Game setup screen detected - re-enabling crowd audio');
                             this.enableCrowdAudio();
                         }
                     }
@@ -226,7 +226,7 @@ class CrowdAudio {
                 const isVisible = gameSetup.style.display !== 'none' &&
                                 gameSetup.offsetParent !== null;
                 if (isVisible && !this.isEnabled) {
-                    console.log('🎵 Game setup screen detected - re-enabling crowd audio');
+                    // console.log('🎵 Game setup screen detected - re-enabling crowd audio');
                     this.enableCrowdAudio();
                 }
             };
@@ -238,9 +238,9 @@ class CrowdAudio {
                 attributeFilter: ['style', 'class']
             });
 
-            console.log('👀 Watching for game setup screen to re-enable crowd audio');
+            // console.log('👀 Watching for game setup screen to re-enable crowd audio');
         } else {
-            console.warn('Game setup element not found for crowd audio re-enabling');
+            // console.warn('Game setup element not found for crowd audio re-enabling');
         }
     }
 
@@ -252,13 +252,13 @@ class CrowdAudio {
             if (!this.synthAmbient) {
                 this.generateCrowdNoise();
             }
-            console.log('🎵 Synthetic ambient crowd audio started');
+            // console.log('🎵 Synthetic ambient crowd audio started');
         } else if (this.ambientAudio && this.ambientAudio.readyState >= 2) {
             try {
                 await this.ambientAudio.play();
-                console.log('🎵 Ambient crowd audio started');
+                // console.log('🎵 Ambient crowd audio started');
             } catch (error) {
-                console.warn('⚠️ Could not start ambient audio:', error);
+                // console.warn('⚠️ Could not start ambient audio:', error);
             }
         }
     }
@@ -266,7 +266,7 @@ class CrowdAudio {
     handleMouseMove(event) {
         if (!this.isInitialized || !this.startButton || !this.isEnabled) {
             if (this.consoleLogging) {
-                console.log('Mouse move ignored: initialized=', this.isInitialized, 'startButton=', !!this.startButton, 'enabled=', this.isEnabled);
+                // console.log('Mouse move ignored: initialized=', this.isInitialized, 'startButton=', !!this.startButton, 'enabled=', this.isEnabled);
             }
             return;
         }
@@ -286,9 +286,9 @@ class CrowdAudio {
 
         // Debug logging for position calculations
         if (this.consoleLogging) {
-            console.log('Mouse position:', { x: mouseX, y: mouseY });
-            console.log('Button center:', { x: buttonCenterX, y: buttonCenterY });
-            console.log('Button rect:', buttonRect);
+            // console.log('Mouse position:', { x: mouseX, y: mouseY });
+            // console.log('Button center:', { x: buttonCenterX, y: buttonCenterY });
+            // console.log('Button rect:', buttonRect);
         }
 
         // Calculate volume based on proximity
@@ -307,7 +307,7 @@ class CrowdAudio {
 
         // Console logging for debugging (click debug panel to toggle)
         if (this.consoleLogging) {
-            console.log(`Distance: ${distance.toFixed(1)}px, Volume: ${(volume * 100).toFixed(1)}%, Proximity: ${(proximity * 100).toFixed(1)}%, InRange: ${inRange}`);
+            // console.log(`Distance: ${distance.toFixed(1)}px, Volume: ${(volume * 100).toFixed(1)}%, Proximity: ${(proximity * 100).toFixed(1)}%, InRange: ${inRange}`);
         }
 
         // Handle audio based on range
@@ -320,12 +320,12 @@ class CrowdAudio {
             this.ensureAudioPlaying();
             this.setAmbientVolume(volume);
             if (this.consoleLogging) {
-                console.log(`🎵 In range: setting volume to ${(volume * 100).toFixed(1)}%`);
+                // console.log(`🎵 In range: setting volume to ${(volume * 100).toFixed(1)}%`);
             }
         } else if (!inRange) {
             this.stopAmbientAudio();
             if (this.consoleLogging) {
-                console.log('🔇 Out of range: stopping audio');
+                // console.log('🔇 Out of range: stopping audio');
             }
         }
     }
@@ -404,26 +404,26 @@ class CrowdAudio {
 
         ensureAudioPlaying() {
         if (!this.isEnabled) {
-            console.log('❌ Audio play ignored - system disabled');
+            // console.log('❌ Audio play ignored - system disabled');
             return;
         }
 
         if (this.useSynthetic) {
             // Synthetic audio should already be playing if initialized
             if (this.audioContext && this.audioContext.state === 'suspended') {
-                this.audioContext.resume().catch(console.warn);
+                // this.audioContext.resume().catch(console.warn);
             }
         } else if (this.ambientAudio) {
             // Real audio: make sure it's playing
             if (this.ambientAudio.paused) {
                 // Try to play, and if blocked, set up a click listener
                 this.ambientAudio.play().then(() => {
-                    console.log('✅ Ambient audio started automatically');
+                    // console.log('✅ Ambient audio started automatically');
                     this.awaitingUserGesture = false;
                     this.removeUserGestureListener();
                 }).catch(error => {
                     if (!this.awaitingUserGesture) {
-                        console.warn('⚠️ Audio play blocked by browser, waiting for user gesture...');
+                        // console.warn('⚠️ Audio play blocked by browser, waiting for user gesture...');
                         this.awaitingUserGesture = true;
                         this.addUserGestureListener();
                     }
@@ -445,40 +445,40 @@ class CrowdAudio {
         }
 
         if (this.consoleLogging) {
-            console.log('Ambient audio stopped - out of range');
+            // console.log('Ambient audio stopped - out of range');
         }
     }
 
         setAmbientVolume(targetVolume) {
         if (!this.isEnabled) {
-            console.log('❌ Volume change ignored - system disabled');
+            // console.log('❌ Volume change ignored - system disabled');
             return;
         }
 
-        console.log(`🎵 Setting ambient volume to: ${targetVolume.toFixed(3)} (${(targetVolume * 100).toFixed(1)}%)`);
-        console.log(`Using synthetic: ${this.useSynthetic}, Has ambientAudio: ${!!this.ambientAudio}, Has gainNode: ${!!this.gainNode}`);
+        // console.log(`🎵 Setting ambient volume to: ${targetVolume.toFixed(3)} (${(targetVolume * 100).toFixed(1)}%)`);
+        // console.log(`Using synthetic: ${this.useSynthetic}, Has ambientAudio: ${!!this.ambientAudio}, Has gainNode: ${!!this.gainNode}`);
 
         if (this.useSynthetic && this.gainNode) {
             // Smooth volume transition for synthetic audio
             const currentTime = this.audioContext.currentTime;
             const currentVolume = this.gainNode.gain.value;
-            console.log(`🎵 Synthetic audio: ${currentVolume.toFixed(3)} → ${targetVolume.toFixed(3)}`);
+            // console.log(`🎵 Synthetic audio: ${currentVolume.toFixed(3)} → ${targetVolume.toFixed(3)}`);
             this.gainNode.gain.linearRampToValueAtTime(targetVolume, currentTime + 0.1);
         } else if (this.ambientAudio) {
             // Direct volume setting for real audio (more responsive)
             const currentVolume = this.ambientAudio.volume;
-            console.log(`🎵 Real audio: ${currentVolume.toFixed(3)} → ${targetVolume.toFixed(3)}`);
-            console.log(`Audio state: paused=${this.ambientAudio.paused}, readyState=${this.ambientAudio.readyState}, currentTime=${this.ambientAudio.currentTime.toFixed(2)}`);
+            // console.log(`🎵 Real audio: ${currentVolume.toFixed(3)} → ${targetVolume.toFixed(3)}`);
+            // console.log(`Audio state: paused=${this.ambientAudio.paused}, readyState=${this.ambientAudio.readyState}, currentTime=${this.ambientAudio.currentTime.toFixed(2)}`);
 
             // Set volume directly for more immediate response
             this.ambientAudio.volume = Math.max(0, Math.min(1, targetVolume));
         } else {
-            console.log('❌ No audio source available for volume control');
+            // console.log('❌ No audio source available for volume control');
         }
     }
 
         async playRoarAndDisable() {
-        console.log('🎮 Start button clicked - playing roar and disabling crowd audio');
+        // console.log('🎮 Start button clicked - playing roar and disabling crowd audio');
 
         // Play the roar sound first
         await this.playRoar();
@@ -504,7 +504,7 @@ class CrowdAudio {
             }, fadeDuration);
         }
         // Then disable the entire crowd audio system immediately
-        console.log('🔇 Disabling crowd audio system...');
+        // console.log('🔇 Disabling crowd audio system...');
         this.disableCrowdAudio();
     }
 
@@ -543,7 +543,7 @@ class CrowdAudio {
                 }, 2000);
             }
 
-            console.log('Crowd roar played (crowd_woo.mp3)');
+            // console.log('Crowd roar played (crowd_woo.mp3)');
 
             // Update debug display to show roar is playing
             const statusEl = document.getElementById('crowdStatus');
@@ -559,20 +559,20 @@ class CrowdAudio {
                 }, 2000);
             }
         } catch (error) {
-            console.warn('Could not play roar audio:', error);
+            // console.warn('Could not play roar audio:', error);
         }
     }
 
     // Public methods for control
             disableCrowdAudio() {
-        console.log('🔇 DISABLING crowd audio system...');
+        // console.log('🔇 DISABLING crowd audio system...');
         this.isEnabled = false;
 
                 // Quick fade out over 0.2 seconds
         if (this.useSynthetic && this.gainNode) {
             const currentTime = this.audioContext.currentTime;
             this.gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.2);
-            console.log('🔇 Synthetic audio fading out over 0.2 seconds');
+            // console.log('🔇 Synthetic audio fading out over 0.2 seconds');
         }
 
         if (this.ambientAudio) {
@@ -581,7 +581,7 @@ class CrowdAudio {
             const fadeSteps = 10; // 10 steps over 0.2 seconds = 20ms per step
             const volumeStep = currentVolume / fadeSteps;
 
-            console.log('🔇 Real audio fading out over 0.2 seconds');
+            // console.log('🔇 Real audio fading out over 0.2 seconds');
 
             for (let i = 1; i <= fadeSteps; i++) {
                 setTimeout(() => {
@@ -596,7 +596,7 @@ class CrowdAudio {
                 if (this.ambientAudio && !this.isEnabled) {
                     this.ambientAudio.pause();
                     this.ambientAudio.currentTime = 0;
-                    console.log('🔇 Real audio completely stopped after fade');
+                    // console.log('🔇 Real audio completely stopped after fade');
                 }
             }, 200);
         }
@@ -604,7 +604,7 @@ class CrowdAudio {
         // Update debug display
         this.updateSystemStatus();
 
-        console.log('✅ Crowd audio system DISABLED - Game started');
+        // console.log('✅ Crowd audio system DISABLED - Game started');
     }
 
     enableCrowdAudio() {
@@ -613,7 +613,7 @@ class CrowdAudio {
         // Update debug display
         this.updateSystemStatus();
 
-        console.log('🎵 Crowd audio system ENABLED - Back to setup screen');
+        // console.log('🎵 Crowd audio system ENABLED - Back to setup screen');
     }
 
     updateSystemStatus() {
@@ -640,11 +640,11 @@ class CrowdAudio {
         this._userGestureHandler = () => {
             if (this.ambientAudio && this.ambientAudio.paused) {
                 this.ambientAudio.play().then(() => {
-                    console.log('✅ Ambient audio started after user gesture');
+                    // console.log('✅ Ambient audio started after user gesture');
                     this.awaitingUserGesture = false;
                     this.removeUserGestureListener();
                 }).catch(error => {
-                    console.warn('❌ Still blocked after user gesture:', error);
+                    // console.warn('❌ Still blocked after user gesture:', error);
                 });
             }
         };

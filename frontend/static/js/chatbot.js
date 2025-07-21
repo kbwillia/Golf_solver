@@ -8,32 +8,6 @@ let proactiveCommentSent = false;
 // let chatbotEnabled = true; // REMOVED - already declared in game-core.js
 // let currentPersonality = 'opponent'; // REMOVED - already declared in game-core.js
 
-// Parse @ mentions from a message
-function parseMentions(message) {
-    const mentionRegex = /@(\w+)/g;
-    const mentions = [];
-    let match;
-
-    while ((match = mentionRegex.exec(message)) !== null) {
-        const mentionedName = match[1].toLowerCase();
-
-        // Map mention variations to actual bot names
-        const botNameMap = {
-            'golfbro': 'Golf Bro',
-            'golfpro': 'Golf Pro',
-            'golf_bro': 'Golf Bro',
-            'golf_pro': 'Golf Pro'
-        };
-
-        // Check if it's a valid bot mention
-        if (botNameMap[mentionedName]) {
-            mentions.push(botNameMap[mentionedName]);
-        }
-    }
-
-    return mentions;
-}
-
 // Setup autocomplete for chat input
 function setupAutocomplete(chatInput) {
     const suggestions = ['@golfbro', '@golfpro'];
@@ -229,12 +203,12 @@ function initializeChatbot() {
 
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
-    const personalitySelect = document.getElementById('personalitySelect');
+    // const personalitySelect = document.getElementById('personalitySelect'); // REMOVED
 
     console.log('Chat elements found:', {
         chatInput: !!chatInput,
         sendBtn: !!sendBtn,
-        personalitySelect: !!personalitySelect
+        // personalitySelect: !!personalitySelect // REMOVED
     });
 
     if (chatInput && sendBtn) {
@@ -269,12 +243,12 @@ function initializeChatbot() {
         });
     }
 
-    if (personalitySelect) {
-        personalitySelect.addEventListener('change', function(e) {
-            console.log('Personality changed to:', e.target.value);
-            changePersonality(e.target.value);
-        });
-    }
+    // if (personalitySelect) { // REMOVED
+    //     personalitySelect.addEventListener('change', function(e) { // REMOVED
+    //         console.log('Personality changed to:', e.target.value); // REMOVED
+    //         changePersonality(e.target.value); // REMOVED
+    //     }); // REMOVED
+    // } // REMOVED
 }
 
 // Add a message to the chat display
@@ -414,7 +388,120 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
     }, 10);
 }
 
-// Send a message to the chatbot
+// Helper to handle all bot responses (main and proactive)
+async function handleAllBotMessages(data, userMessage) {
+    let botResponses = [];
+    if (data.responses && Array.isArray(data.responses)) {
+        botResponses = botResponses.concat(data.responses);
+    }
+    if (data.proactive_comments && Array.isArray(data.proactive_comments)) {
+        botResponses = botResponses.concat(data.proactive_comments);
+    }
+    // Legacy sequential path
+    if (data.response_type === 'sequential' && data.bot_names) {
+        let conversationContext = [
+            { role: 'user', content: userMessage }
+        ];
+        for (const botName of data.bot_names) {
+            try {
+                const botResponse = await fetch('/chatbot/get_bot_response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        game_id: gameId,
+                        message: userMessage,
+                        bot_name: botName,
+                        conversation_context: conversationContext
+                    })
+                });
+                if (botResponse.ok) {
+                    const botData = await botResponse.json();
+                    if (botData.success) {
+                        botResponses.push(botData);
+                        conversationContext.push({
+                            role: 'assistant',
+                            content: `${botData.bot_name}: ${botData.message}`
+                        });
+                    } else {
+                        addMessageToChat('bot', `Sorry, ${botName} is having trouble responding.`, botName);
+                    }
+                } else {
+                    addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
+                }
+            } catch (error) {
+                addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
+            }
+        }
+    }
+    // Unified handling for all bot messages (main and proactive)
+    for (const botData of botResponses) {
+        await handleSingleBotResponse(botData);
+    }
+}
+
+// Handle a single bot response object
+async function handleSingleBotResponse(botData) {
+    const botName = botData.bot_name;
+    let message = botData.message;
+    console.log('Bot response data:', botData);
+    // Wait for the reading delay (private, no indicator)
+    const readingDelayMs = Math.max(400, Math.round((botData.reading_delay || 1.2) * 1000));
+    console.log(`[Bot: ${botName}] Reading delay: ${readingDelayMs}ms`);
+    await new Promise(res => setTimeout(res, readingDelayMs));
+    // Show typing indicator
+    console.log(`[Bot: ${botName}] Typing indicator shown`);
+    showBotTypingIndicator(botName);
+    // Typing delay based on message length
+    const typingDelayMs = Math.max(600, Math.min(3000, 40 * (message ? message.length : 20)));
+    console.log(`[Bot: ${botName}] Typing delay: ${typingDelayMs}ms (message length: ${message ? message.length : 0})`);
+    await new Promise(res => setTimeout(res, typingDelayMs));
+    removeBotTypingIndicator(botName);
+    console.log(`[Bot: ${botName}] Message shown:`, message);
+    // Add the text message
+    addMessageToChat('bot', message, botName);
+    // If this is Jim Nantz, speak the commentary
+    if (botName === 'Jim Nantz' || botName === 'jim_nantz') {
+        console.log('🎤 Jim Nantz bot response detected:', message);
+        console.log('🎤 About to call jimNantzCommentVoice...');
+        jimNantzCommentVoice(message);
+    }
+    // Send GIF as a separate message if needed
+    if (botData.should_send_gif) {
+        const relevantGif = await getRelevantGif(message, botName);
+        addMessageToChat('bot', relevantGif, botName, true);
+    }
+}
+
+// Handle proactive comments
+async function handleProactiveComments(data) {
+    if (data.proactive_comments && Array.isArray(data.proactive_comments)) {
+        for (const comment of data.proactive_comments) {
+            const botName = comment.bot_name;
+            let message = comment.message;
+            console.log(`[Proactive][Bot: ${botName}] Typing indicator shown`);
+            showBotTypingIndicator(botName);
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                const indicator = Array.from(chatMessages.children).find(div => div.classList.contains('typing-indicator') && div.textContent.includes(botName));
+                console.log(`[Proactive][Bot: ${botName}] Typing indicator in DOM:`, !!indicator);
+            }
+            const typingDelayMs = Math.max(600, Math.min(3000, 40 * (message ? message.length : 20)));
+            console.log(`[Proactive][Bot: ${botName}] Typing delay: ${typingDelayMs}ms (message length: ${message ? message.length : 0})`);
+            await new Promise(res => setTimeout(res, typingDelayMs));
+            if (chatMessages) {
+                const indicator = Array.from(chatMessages.children).find(div => div.classList.contains('typing-indicator') && div.textContent.includes(botName));
+                console.log(`[Proactive][Bot: ${botName}] Typing indicator still in DOM before removal:`, !!indicator);
+            }
+            removeBotTypingIndicator(botName);
+            console.log(`[Proactive][Bot: ${botName}] Proactive message shown:`, message);
+            addMessageToChat('bot', message, botName);
+            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+}
+
+// Refactored main sendChatMessage function
 async function sendChatMessage() {
     console.log('📤 sendChatMessage called');
     console.log('🔍 Checking elements in sendChatMessage...');
@@ -437,7 +524,6 @@ async function sendChatMessage() {
     const message = chatInput.value.trim();
 
     console.log('Message:', message);
-    console.log('Game ID:', gameId);
 
     if (!message) {
         console.log('❌ No message to send');
@@ -470,30 +556,15 @@ async function sendChatMessage() {
     chatInput.focus();
 
     try {
-        console.log('🌐 Making API request to /chatbot/send_message');
-
-        // Parse @ mentions in the message
-        const mentionedBots = parseMentions(message);
-        console.log('Mentioned bots:', mentionedBots);
-
-        // Determine personality type based on mentions
+        console.log(' Making API request to /chatbot/send_message');
         let personalityType = 'opponent';
         let mentionedBotNames = [];
-
-        if (mentionedBots.length > 0) {
-            // If specific bots are mentioned, only send to those bots
-            personalityType = 'mentioned';
-            mentionedBotNames = mentionedBots;
-        }
-
-        // Debug what will be sent
         console.log('Sending to backend:', {
             game_id: gameId,
             message: message,
             personality_type: personalityType,
             mentioned_bots: mentionedBotNames
         });
-
         console.log('🔄 Awaiting response...');
         const response = await fetch('/chatbot/send_message', {
             method: 'POST',
@@ -505,131 +576,19 @@ async function sendChatMessage() {
                 mentioned_bots: mentionedBotNames
             })
         });
-
         console.log('📥 Response received:', response.status);
         console.log('📥 Response ok:', response.ok);
-
         if (!response.ok) {
             console.error('❌ Response not ok:', response.status, response.statusText);
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-
         const data = await response.json();
         console.log('📄 Response data:', data);
         console.log('📄 Response data.bot:', data.bot);
         console.log('📄 Response data.bot_name:', data.bot_name);
         console.log('📄 Response data.message:', data.message);
-
         if (data.success) {
-            if (data.responses) {
-                // Handle responses sequentially to use async/await
-                for (const resp of data.responses) {
-                    // For opponent responses, use bot_name field
-                    const botName = resp.bot_name || resp.bot;
-                    let message = resp.message;
-
-                    // Add the text message first
-                    addMessageToChat('bot', message, botName);
-
-                    // Send GIF as a separate message if needed
-                    if (shouldBotSendGif(botName)) {
-                        // Extract relevant search terms from the message
-                        const searchTerms = extractSearchTerms(message, botName);
-                        const relevantGif = await getRelevantGif(searchTerms, botName);
-                        addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
-                    }
-                }
-            } else if (data.response_type === 'sequential' && data.bot_names) {
-                // Handle sequential responses - get each bot's response individually
-                console.log('🔄 Handling sequential responses for bots:', data.bot_names);
-
-                // Track conversation context for subsequent bots
-                let conversationContext = [
-                    { role: 'user', content: message }
-                ];
-
-                for (const botName of data.bot_names) {
-                    try {
-                        console.log(`🤖 Getting response from ${botName}...`);
-
-                        // Add a typing indicator for a bot
-                        showBotTypingIndicator(botName);
-                        // Simulate delay based on bot's reaction speed (already implemented in backend)
-                        // Wait for the backend delay (no need to add extra delay here)
-                        const botResponse = await fetch('/chatbot/get_bot_response', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                game_id: gameId,
-                                message: message,
-                                bot_name: botName,
-                                conversation_context: conversationContext
-                            })
-                        });
-                        // Remove typing indicator before showing the real message
-                        removeBotTypingIndicator(botName);
-
-                        if (botResponse.ok) {
-                            const botData = await botResponse.json();
-                            if (botData.success) {
-                                // Add the text message
-                                addMessageToChat('bot', botData.message, botData.bot_name);
-
-                                // If this is Jim Nantz, speak the commentary
-                                if (botData.bot_name === 'Jim Nantz' || botData.bot_name === 'jim_nantz') {
-                                    console.log('🎤 Jim Nantz bot response detected:', botData.message);
-                                    console.log('🎤 About to call jimNantzCommentVoice...');
-                                    jimNantzCommentVoice(botData.message);
-                                }
-
-                                // Add this bot's response to conversation context for next bots
-                                conversationContext.push({
-                                    role: 'assistant',
-                                    content: `${botData.bot_name}: ${botData.message}`
-                                });
-
-                                // Send GIF as a separate message if needed
-                                if (await shouldBotSendGif(botData.bot_name)) {
-                                    const searchTerms = extractSearchTerms(botData.message, botData.bot_name);
-                                    const relevantGif = await getRelevantGif(searchTerms, botData.bot_name);
-                                    addMessageToChat('bot', relevantGif, botData.bot_name, true);
-                                }
-                            } else {
-                                console.error(`❌ Bot ${botName} failed:`, botData.message);
-                                addMessageToChat('bot', `Sorry, ${botName} is having trouble responding.`, botName);
-                            }
-                        } else {
-                            console.error(`❌ HTTP error for ${botName}:`, botResponse.status);
-                            addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error getting response from ${botName}:`, error);
-                        addMessageToChat('bot', `Sorry, ${botName} is having trouble connecting.`, botName);
-                    }
-                }
-            } else if (data.message) {
-                // Try both bot and bot_name fields to handle different response formats
-                const botName = data.bot || data.bot_name;
-                let message = data.message;
-
-                // Add the text message first
-                addMessageToChat('bot', message, botName);
-
-                // If this is Jim Nantz, speak the commentary
-                if (botName === 'Jim Nantz' || botName === 'jim_nantz') {
-                    console.log('🎤 Jim Nantz response detected:', message);
-                    console.log('🎤 About to call jimNantzCommentVoice...');
-                    jimNantzCommentVoice(message);
-                }
-
-                // Send GIF as a separate message if needed
-                if (shouldBotSendGif(botName)) {
-                    // Extract relevant search terms from the message
-                    const searchTerms = extractSearchTerms(message, botName);
-                    const relevantGif = await getRelevantGif(searchTerms, botName);
-                    addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
-                }
-            }
+            await handleAllBotMessages(data, message);
         } else {
             console.error('❌ Chatbot response not successful:', data.error);
             addMessageToChat('bot', 'Sorry, I\'m having trouble responding right now.');
@@ -641,17 +600,14 @@ async function sendChatMessage() {
 }
 
 // Random threshold function for GIF triggers (placeholder for future event-based system)
-function shouldSendGif() {
-    // Random 95% chance for now - can be replaced with event-based logic later
-    return Math.random() < 0.25;
-}
+// deleted and replaced with backend logic
 
 // Get relevant GIF from backend Giphy API
 async function getRelevantGif(searchTerm, botName = null) {
     try {
         // Use the search term as the message, and get bot name from parameter or fallback
         const message = searchTerm || '';
-        const botNameToUse = botName || currentPersonality || 'Jim Nantz';
+        const botNameToUse = botName || 'Jim Nantz'; // REMOVED currentPersonality
 
         const response = await fetch('/chatbot/get_giphy_gif', {
             method: 'POST',
@@ -675,116 +631,16 @@ async function getRelevantGif(searchTerm, botName = null) {
         console.error('Error fetching GIF from backend:', error);
     }
 
-    // Fallback to static GIFs if API fails
-    // const fallbackGifs = [
-    //     "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif",
-    //     "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif",
-    //     "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif"
-    // ];
+
     return fallbackGifs[Math.floor(Math.random() * fallbackGifs.length)];
 }
 
-// Extract relevant search terms from message and bot name
-function extractSearchTerms(message, botName) {
-    const golfTerms = ['golf', 'putt', 'drive', 'swing', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'club'];
-    const emotionTerms = ['amazing', 'great', 'awesome', 'wow', 'incredible', 'fantastic', 'excellent', 'perfect', 'brilliant'];
-    const actionTerms = ['shot', 'hit', 'play', 'move', 'turn', 'game', 'match', 'round'];
-
-    // Check for golf-specific terms first
-    for (const term of golfTerms) {
-        if (message.toLowerCase().includes(term)) {
-            return `${term} golf`;
-        }
-    }
-
-    // Check for emotion terms
-    for (const term of emotionTerms) {
-        if (message.toLowerCase().includes(term)) {
-            return `${term} reaction`;
-        }
-    }
-
-    // Check for action terms
-    for (const term of actionTerms) {
-        if (message.toLowerCase().includes(term)) {
-            return `${term} golf`;
-        }
-    }
-
-    // Bot-specific searches
-    if (botName) {
-        if (botName.includes('Peter Parker')) {
-            return 'spiderman reaction';
-        } else if (botName.includes('Tiger')) {
-            return 'tiger woods golf';
-        } else if (botName.includes('Happy')) {
-            return 'happy gilmore golf';
-        }
-    }
-
-    // Default fallback
-    return 'golf celebration';
-}
-
 // Export functions globally for backward compatibility
-window.parseMentions = parseMentions;
 window.setupAutocomplete = setupAutocomplete;
 window.initializeChatbot = initializeChatbot;
 window.addMessageToChat = addMessageToChat;
-// Change chatbot personality
-async function changePersonality(personalityType) {
-    proactiveCommentSent = false;
-    try {
-        const response = await fetch('/chatbot/change_personality', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                personality_type: personalityType
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            const chatbotName = document.getElementById('chatbotName');
-            if (chatbotName) {
-                chatbotName.textContent = data.personality.name;
-            }
-
-            currentPersonality = personalityType;
-            updateChatInputState();
-
-            // Disable chat input for Jim Nantz
-            const chatInput = document.getElementById('chatInput');
-            const sendBtn = document.getElementById('sendChatBtn');
-            if (personalityType === 'nantz') {
-                if (chatInput) chatInput.disabled = true;
-                if (sendBtn) sendBtn.disabled = true;
-                // Update default message
-                const chatMessages = document.getElementById('chatMessages');
-                if (chatMessages) {
-                    chatMessages.innerHTML = '';
-                    // Removed Jim Nantz intro message
-                }
-            } else {
-                if (chatInput) chatInput.disabled = false;
-                if (sendBtn) sendBtn.disabled = false;
-                // Clear chat and add welcome message
-                const chatMessages = document.getElementById('chatMessages');
-                if (chatMessages) {
-                    chatMessages.innerHTML = '';
-                    addMessageToChat('bot', `Hi! I'm ${data.personality.name}. ${data.personality.description}`);
-                }
-            }
-        } else {
-            console.error('Failed to change personality:', data.error);
-        }
-    } catch (error) {
-        console.error('Error changing personality:', error);
-    }
-}
+// Remove the changePersonality function and all references to it, including any personalitySelect event listeners
+// If personalitySelect is not used elsewhere, remove its related code as well
 
 function getAllowedBotsForProactive() {
     console.log('[getAllowedBotsForProactive] function called');
@@ -806,23 +662,23 @@ function getAllowedBotsForProactive() {
 }
 
 // Start periodic proactive comments
-function startPeriodicProactiveComments() {
-    // Clear any existing interval.
-    console.log('[startPeriodicProactiveComments] proactiveCommentInterval:', proactiveCommentInterval);
-    if (proactiveCommentInterval) {
-        clearInterval(proactiveCommentInterval);
-    }
+// function startPeriodicProactiveComments() {
+//     // Clear any existing interval.
+//     console.log('[startPeriodicProactiveComments] proactiveCommentInterval:', proactiveCommentInterval);
+//     if (proactiveCommentInterval) {
+//         clearInterval(proactiveCommentInterval);
+//     }
 
-    // Start new interval - trigger proactive comments every 5-10 seconds
-    // Backend will handle all timing decisions (cooldowns, probabilities, etc.)
-    window.proactiveCommentInterval = setInterval(() => {
-        if (gameId && chatbotEnabled && currentGameState && !currentGameState.game_over) {
-            const eventTypes = ['general', 'turn_start', 'card_played', 'score_update'];
-            const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-            requestProactiveComment(randomEvent);
-        }
-    }, 5000 + Math.random() * 5000); // 5-10 seconds - backend handles actual timing
-}
+//     // Start new interval - trigger proactive comments every 5-10 seconds
+//     // Backend will handle all timing decisions (cooldowns, probabilities, etc.)
+//     window.proactiveCommentInterval = setInterval(() => {
+//         if (gameId && chatbotEnabled && currentGameState && !currentGameState.game_over) {
+//             const eventTypes = ['general', 'turn_start', 'card_played', 'score_update'];
+//             const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+//             requestProactiveComment(randomEvent);
+//         }
+//     }, 5000 + Math.random() * 5000); // 5-10 seconds - backend handles actual timing
+// }
 
 // Clear chat UI
 function clearChatUI() {
@@ -858,7 +714,7 @@ function setJimNantzDefault() {
 }
 
 function updateChatInputState() {
-    console.log('updateChatInputState called. currentPersonality:', currentPersonality);
+    console.log('updateChatInputState called. currentPersonality:', 'opponent'); // REMOVED
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
 
@@ -876,33 +732,6 @@ function updateChatInputState() {
     }
 }
 
-// Update custom bot count display
-function updateCustomBotCount() {
-    const countElement = document.getElementById('customBotCount');
-    if (!countElement) return;
-
-    const gameMode = document.getElementById('gameMode').value;
-    const customBotCount = window.customBots ? Object.keys(window.customBots).length : 0;
-
-    if (gameMode === '1v3') {
-        if (customBotCount === 0) {
-            countElement.textContent = '';
-        } else if (customBotCount === 1) {
-            countElement.textContent = '';
-        } else if (customBotCount === 2) {
-            countElement.textContent = '';
-        } else if (customBotCount >= 3) {
-            countElement.textContent = '';
-        }
-    } else {
-        // 1v1 mode
-        if (customBotCount === 0) {
-            countElement.textContent = '';
-        } else {
-            countElement.textContent = `${customBotCount} custom bot${customBotCount > 1 ? 's' : ''} available`;
-        }
-    }
-}
 
 // Request proactive comment from bots
 async function requestProactiveComment(eventType = 'general') {
@@ -938,10 +767,9 @@ async function requestProactiveComment(eventType = 'general') {
             }
 
             // Prevent Jim Nantz and Golf Pro from sending GIFs
-            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && comment.bot_name !== 'Golf Pro' && shouldSendGif()) {
+            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && comment.bot_name !== 'Golf Pro' && data.should_send_gif) {
                 // Extract relevant search terms from the message
-                const searchTerms = extractSearchTerms(comment.message, comment.bot_name);
-                const relevantGif = await getRelevantGif(searchTerms, comment.bot_name);
+                const relevantGif = await getRelevantGif(comment.message, comment.bot_name);
                 addMessageToChat('bot', relevantGif, comment.bot_name, true); // true = GIF only
             }
         });
@@ -987,7 +815,7 @@ function showBotTypingIndicator(botName) {
     typingDiv.dataset.botName = botName;
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.innerHTML = `<span class="typing-bot-name">${botName}</span> is typing <span class="typing-dots">...</span>`;
+    contentDiv.innerHTML = `<span class="typing-bot-name">${botName}</span> is typing&nbsp;<span class="typing-dots">...</span>`;
     typingDiv.appendChild(contentDiv);
     chatMessages.appendChild(typingDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -1026,10 +854,8 @@ function sendUserGifToChat(gifUrl) {
 }
 
 window.sendChatMessage = sendChatMessage;
-window.shouldSendGif = shouldSendGif;
-window.getRelevantGif = getRelevantGif;
-window.extractSearchTerms = extractSearchTerms;
-window.changePersonality = changePersonality;
+// Remove the changePersonality function and all references to it, including any personalitySelect event listeners
+// If personalitySelect is not used elsewhere, remove its related code as well
 window.getAllowedBotsForProactive = getAllowedBotsForProactive;
 window.startPeriodicProactiveComments = startPeriodicProactiveComments;
 window.clearChatUI = clearChatUI;

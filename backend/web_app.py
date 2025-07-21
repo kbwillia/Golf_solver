@@ -330,7 +330,10 @@ def create_game():
             'cumulative_scores': [0] * num_players,
             'round_cumulative_scores': [0] * num_players,
             'match_winner': None,
-            'cumulative_updated_for_game': False  # NEW: Track if cumulative updated for this game
+            'cumulative_updated_for_game': False,  # NEW: Track if cumulative updated for this game
+            'conversation_history': [],  # Initialize conversation history for chatbot
+            'last_proactive_comment_time': time.time(),
+            'proactive_comment_cooldown': 10,
         }
 
         # Add custom bot data to the game session if any
@@ -645,6 +648,20 @@ def get_game_state(game_id):
         game_session['waiting_for_next_game'] = True
     else:
         game_session['waiting_for_next_game'] = False
+
+    # --- Proactive Comment Logic ---
+
+
+    # Use chatbot to decide if a proactive comment should be generated
+    proactive_comment = chatbot.check_for_proactive_comment(
+        game_state=state,
+        conversation_history=game_session['conversation_history'],
+        last_proactive_comment_time=game_session['last_proactive_comment_time'],
+        cooldown_seconds=game_session['proactive_comment_cooldown']
+    )
+    if proactive_comment:
+        state['proactive_comments'] = [proactive_comment]
+        game_session['last_proactive_comment_time'] = time.time()
 
     return state
 

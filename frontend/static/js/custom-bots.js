@@ -513,10 +513,14 @@ async function renderBotSelectRow() {
     const availableBotValues = allBots.map(bot => bot.value);
     window.selectedBots = window.selectedBots.filter(bot => availableBotValues.includes(bot));
     if (window.selectedBots.length === 0) {
-      window.selectedBots = [allBots[0].value]; // Select first available bot
+      // Pick a random bot if none of the previous selection is available
+      const randomIdx = Math.floor(Math.random() * allBots.length);
+      window.selectedBots = [allBots[randomIdx].value];
     }
   } else {
-    window.selectedBots = [allBots[0].value]; // Select first available bot
+    // Pick a random bot for initial selection
+    const randomIdx = Math.floor(Math.random() * allBots.length);
+    window.selectedBots = [allBots[randomIdx].value];
   }
 
   // Render all bots
@@ -546,6 +550,12 @@ async function renderBotSelectRow() {
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
   console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json (placeholder + custom)`);
+
+  // Scroll the selected bot into view
+  const selectedBtn = Array.from(row.children).find(btn => btn.classList.contains('selected') || btn.classList.contains('multi-selected'));
+  if (selectedBtn) {
+    selectedBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 
 function isMultiSelectionMode() {

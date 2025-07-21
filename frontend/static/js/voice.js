@@ -20,10 +20,10 @@ function initializeVoiceStatus() {
 function loadVoices() {
     if (speechSynthesis) {
         const voices = speechSynthesis.getVoices();
-        console.log('Available voices:', voices.length);
-        voices.forEach(voice => {
-            console.log('Voice:', voice.name, voice.lang);
-        });
+        // console.log('Available voices:', voices.length);
+        // voices.forEach(voice => {
+        //     console.log('Voice:', voice.name, voice.lang);
+        // });
     }
 }
 
@@ -62,19 +62,19 @@ function loadBrowserVoices() {
         // Wait for voices to load
         speechSynthesis.onvoiceschanged = function() {
             browserVoices = speechSynthesis.getVoices();
-            console.log('🎤 Available voices:', browserVoices.length);
-            browserVoices.forEach(voice => {
-                console.log('🎤 Voice:', voice.name, voice.lang);
-            });
+            // console.log('🎤 Available voices:', browserVoices.length);
+            // browserVoices.forEach(voice => {
+            //     console.log('🎤 Voice:', voice.name, voice.lang);
+            // });
         };
 
         // Try to get voices immediately (might already be loaded)
         browserVoices = speechSynthesis.getVoices();
         if (browserVoices.length > 0) {
-            console.log('🎤 Available voices:', browserVoices.length);
-            browserVoices.forEach(voice => {
-                console.log('🎤 Voice:', voice.name, voice.lang);
-            });
+            // console.log('🎤 Available voices:', browserVoices.length);
+            // browserVoices.forEach(voice => {
+            //     console.log('🎤 Voice:', voice.name, voice.lang);
+            // });
         }
     }
 }
@@ -221,10 +221,10 @@ window.testVoiceSystem = function() {
     console.log('🎤 browserVoices loaded:', browserVoices.length);
 
     if (browserVoices.length > 0) {
-        console.log('🎤 Available voices:');
-        browserVoices.forEach((voice, index) => {
-            console.log(`🎤 ${index}: ${voice.name} (${voice.lang})`);
-        });
+        // console.log('🎤 Available voices:');
+        // browserVoices.forEach((voice, index) => {
+        //     console.log(`🎤 ${index}: ${voice.name} (${voice.lang})`);
+        // });
     }
 
     // Test speech
@@ -235,22 +235,22 @@ window.testVoiceSystem = function() {
 window.listAvailableVoices = function() {
     console.log('🎤 === AVAILABLE VOICES ===');
     if (browserVoices.length === 0) {
-        console.log('🎤 No voices loaded yet. Try again in a few seconds.');
+        // console.log('🎤 No voices loaded yet. Try again in a few seconds.');
         return;
     }
 
-    browserVoices.forEach((voice, index) => {
-        const isPreferred = [
-            'Google US English',
-            'Google UK English Male',
-            'Google UK English Female',
-            'Microsoft David - English (United States)',
-            'Microsoft Zira - English (United States)'
-        ].includes(voice.name);
+    // browserVoices.forEach((voice, index) => {
+    //     const isPreferred = [
+    //         'Google US English',
+    //         'Google UK English Male',
+    //         'Google UK English Female',
+    //         'Microsoft David - English (United States)',
+    //         'Microsoft Zira - English (United States)'
+    //     ].includes(voice.name);
 
-        const marker = isPreferred ? '⭐' : '  ';
-        console.log(`🎤 ${marker} ${index}: ${voice.name} (${voice.lang})`);
-    });
+    //     const marker = isPreferred ? '⭐' : '  ';
+    //     console.log(`🎤 ${marker} ${index}: ${voice.name} (${voice.lang})`);
+    // });
     console.log('🎤 === END VOICES ===');
 };
 

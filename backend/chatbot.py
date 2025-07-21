@@ -5,6 +5,7 @@ from llm_cerebras import call_cerebras_llm
 import random
 import os
 from bot_personalities import create_bot, BaseBot
+import re
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
@@ -551,6 +552,45 @@ class GolfChatbot:
             print(f"DEBUG: Error generating contextual proactive comment: {e}")
             return None
 
+    def check_for_proactive_comment(
+        self,
+        game_state: dict,
+        conversation_history: list,
+        last_proactive_comment_time: float,
+        cooldown_seconds: int = 30
+    ) -> Optional[dict]:
+        """
+        Decide if a proactive comment should be generated, and return it if so.
+        - Checks for dramatic events, silence, or other triggers.
+        - Returns a proactive comment dict (same format as generate_contextual_proactive_comment), or None.
+        """
+        import time
+        now = time.time()
+        time_since_last = now - last_proactive_comment_time
+
+        # Dramatic event trigger
+        dramatic_event = False
+        if game_state.get('last_action') and 'dramatic' in str(game_state['last_action']).lower():
+            dramatic_event = True
+
+        # Silence trigger (no user chat for X seconds)
+        last_chat_time = 0
+        if conversation_history:
+            last_chat_time = max(
+                msg.get('timestamp', 0)
+                for msg in conversation_history if msg.get('role') == 'user'
+            ) if any(msg.get('role') == 'user' for msg in conversation_history) else 0
+        time_since_chat = now - last_chat_time if last_chat_time else float('inf')
+        silence_trigger = time_since_chat > cooldown_seconds
+
+        # Decide if we should generate a comment
+        if dramatic_event or time_since_last > cooldown_seconds or silence_trigger:
+            event_type = 'dramatic_moment' if dramatic_event else 'general'
+            comment = self.generate_contextual_proactive_comment(game_state=game_state, event_type=event_type)
+            if comment:
+                return comment
+        return None
+
     def _get_turn_start_prompt(self, game_state: Dict[str, Any]) -> str:
         """Generate turn start specific prompts based on personality"""
         advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
@@ -602,6 +642,23 @@ class GolfChatbot:
 
 # Create a global chatbot instance
 chatbot = GolfChatbot("Jim Nantz")
+
+def parse_mentions(message: str) -> list:
+    """Extract @mentions from a message and map to bot names."""
+    mention_regex = r'@(\w+)'
+    matches = re.findall(mention_regex, message)
+    bot_name_map = {
+        'golfbro': 'Golf Bro',
+        'golfpro': 'Golf Pro',
+        'golf_bro': 'Golf Bro',
+        'golf_pro': 'Golf Pro',
+    }
+    mentions = []
+    for m in matches:
+        key = m.lower()
+        if key in bot_name_map:
+            mentions.append(bot_name_map[key])
+    return mentions
 
 class ChatHandler:
     """Handler for all chat-related functionality"""
@@ -676,13 +733,49 @@ class ChatHandler:
         game_state = None
         if game_id and game_id in games:
             game_state = get_game_state_func(game_id)
-
-        if personality_type == 'opponent':
-            return self._handle_opponent_chat(game_id, message, game_state, games)
+            game_session = games[game_id]
         else:
-            return self._handle_single_personality_chat(message, game_state, personality_type)
+            game_session = None
 
-    def _handle_opponent_chat(self, game_id: str, message: str, game_state: Dict[str, Any], games: Dict) -> Dict[str, Any]:
+        # Parse mentions from the message
+        mentioned_bots = parse_mentions(message)
+        print(f"DEBUG: Mentioned bots: {mentioned_bots}")
+
+        # Generate main bot responses (existing logic)
+        if personality_type == 'opponent':
+            main_result = self._handle_opponent_chat(game_id, message, game_state, games, mentioned_bots)
+        else:
+            main_result = self._handle_single_personality_chat(message, game_state, personality_type, mentioned_bots)
+
+        # After updating conversation history, check for proactive comments for each bot
+        proactive_comments = []
+        if game_session and 'conversation_history' in game_session:
+            # Use allowed bots from the main_result if available, else default to all AI players
+            allowed_bots = [resp['bot_name'] for resp in main_result.get('responses', [])]
+            for bot_name in allowed_bots:
+                # Use each bot's own cooldown/attributes if needed
+                last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
+                cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
+                comment = self.chatbot.check_for_proactive_comment(
+                    game_state=game_state,
+                    conversation_history=game_session['conversation_history'],
+                    last_proactive_comment_time=last_time,
+                    cooldown_seconds=cooldown
+                )
+                if comment:
+                    proactive_comments.append({
+                        'bot_name': bot_name,
+                        **comment
+                    })
+                    game_session[f'last_proactive_comment_time_{bot_name}'] = time.time()
+        # Return both main responses and proactive comments
+        return {
+            'success': True,
+            'responses': main_result.get('responses', []),
+            'proactive_comments': proactive_comments
+        }
+
+    def _handle_opponent_chat(self, game_id: str, message: str, game_state: Dict[str, Any], games: Dict, mentioned_bots: List[str]) -> Dict[str, Any]:
         """Handle chat with all opponent bots"""
         print("DEBUG: Handling opponent chat message")
         game_session = games[game_id]
@@ -731,7 +824,7 @@ class ChatHandler:
 
         return {'success': True, 'responses': responses}
 
-    def _handle_single_personality_chat(self, message: str, game_state: Dict[str, Any], personality_type: str) -> Dict[str, Any]:
+    def _handle_single_personality_chat(self, message: str, game_state: Dict[str, Any], personality_type: str, mentioned_bots: List[str]) -> Dict[str, Any]:
         """Handle chat with single personality"""
         # Enhanced response generation
         enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
@@ -739,14 +832,18 @@ class ChatHandler:
             game_state,       # game_state
             personality_type  # personality
         )
-
+        # Calculate reading delay for this bot
+        delay = self.calculate_bot_response_delay(personality_type)
         return {
             'success': True,
-            'message': enhanced_response["message"],
-            'bot_name': enhanced_response["bot_name"],
-            'should_send_gif': enhanced_response.get("should_send_gif", False),
-            'gif_context': enhanced_response.get("gif_context", ""),
-            'personality_info': enhanced_response.get("personality_info", {})
+            'responses': [{
+                'bot_name': enhanced_response["bot_name"],
+                'message': enhanced_response["message"],
+                'reading_delay': delay,
+                'should_send_gif': enhanced_response.get('should_send_gif', False),
+                'gif_context': enhanced_response.get('gif_context', ""),
+                'personality_info': enhanced_response.get('personality_info', {})
+            }]
         }
 
     def handle_get_bot_response(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
@@ -772,9 +869,8 @@ class ChatHandler:
 
             # Calculate delay for this bot
             delay = self.calculate_bot_response_delay(bot_name)
-            print(f"DEBUG: Adding {delay:.2f}s delay for {bot_name}")
-            import time
-            time.sleep(delay)
+            print(f"DEBUG: Calculated {delay:.2f}s delay for {bot_name}")
+            # Do NOT sleep here; let frontend handle the delay for typing indicator
 
             # Create bot instance and add conversation context
             from bot_personalities import create_bot
@@ -791,10 +887,12 @@ class ChatHandler:
                 bot_id_for_lookup  # personality (use bot_id for lookup)
             )
 
+            print(f"Returning bot response: bot_name={bot_name}, reading_delay={delay}, message={response[:60]}")
             return {
                 'success': True,
                 'bot_name': bot_name,  # Return the original display name
-                'message': response
+                'message': response,
+                'reading_delay': delay  # Renamed for clarity
             }
 
         except Exception as e:
@@ -930,6 +1028,39 @@ class ChatHandler:
             import traceback; traceback.print_exc()
             return {'error': f'Error changing personality: {str(e)}'}, 500
 
+    def _generate_gif_search_terms(self, bot_name: str, message: str) -> str:
+        """Generate GIF search terms based on bot's description, prompt, and message."""
+        # Try to get the bot instance (use your bot registry/factory)
+        bot = None
+        try:
+            bot = self.chatbot.create_bot(bot_name)
+        except Exception:
+            pass
+
+        terms = []
+        # Add bot's description keywords
+        if bot and hasattr(bot, 'description') and bot.description:
+            terms.extend([w for w in bot.description.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Add bot's prompt keywords
+        if bot and hasattr(bot, 'get_system_prompt'):
+            prompt = bot.get_system_prompt()
+            terms.extend([w for w in prompt.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Add message keywords
+        if message:
+            terms.extend([w for w in message.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Remove duplicates, keep order
+        seen = set()
+        filtered_terms = []
+        for t in terms:
+            if t not in seen:
+                seen.add(t)
+                filtered_terms.append(t)
+        # Fallback if nothing found
+        if not filtered_terms:
+            filtered_terms = ['golf', 'celebration']
+        # Use up to 3 terms for Giphy
+        return ' '.join(filtered_terms[:3])
+
     def handle_get_giphy_gif(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Get a relevant GIF from Giphy API based on message content and bot name"""
         try:
@@ -943,40 +1074,8 @@ class ChatHandler:
             if not api_key:
                 return {'error': 'GIPHY_API_KEY not found in environment variables'}, 500
 
-            # Extract search terms from message and bot name
-            search_terms = []
-
-            # Add bot-specific terms
-            bot_terms = {
-                'peter_parker': ['spiderman', 'web', 'swing', 'hero'],
-                'happy_gilmore': ['golf', 'happy', 'funny', 'swing', 'comedy'],
-                'tiger_woods': ['golf', 'tiger', 'champion', 'professional', 'swing'],
-                'shooter_mcgavin': ['golf', 'villain', 'competitive', 'swing']
-            }
-
-            bot_key = bot_name.lower().replace(' ', '_')
-            if bot_key in bot_terms:
-                search_terms.extend(bot_terms[bot_key])
-
-            # Add golf-related terms from message
-            golf_terms = ['golf', 'swing', 'putt', 'hole', 'birdie', 'eagle', 'par', 'bogey', 'fairway', 'green', 'rough', 'sand', 'water', 'club', 'driver', 'iron', 'wedge', 'putter']
-            message_lower = message.lower()
-            for term in golf_terms:
-                if term in message_lower:
-                    search_terms.append(term)
-
-            # Add general terms from message
-            general_terms = ['win', 'lose', 'good', 'bad', 'great', 'terrible', 'amazing', 'awful', 'excellent', 'horrible', 'fantastic', 'disaster', 'success', 'failure', 'happy', 'sad', 'excited', 'disappointed']
-            for term in general_terms:
-                if term in message_lower:
-                    search_terms.append(term)
-
-            # If no specific terms found, use generic golf terms
-            if not search_terms:
-                search_terms = ['golf', 'swing']
-
-            # Create search query
-            search_query = ' '.join(search_terms[:3])  # Use up to 3 terms
+            # Use new helper to generate search query
+            search_query = self._generate_gif_search_terms(bot_name, message)
             print('gif search query:', search_query)
 
             # Call Giphy API
@@ -996,11 +1095,11 @@ class ChatHandler:
 
             if response_data.get('data'):
                 # Return a random GIF from the results
+                import random
                 gif = random.choice(response_data['data'])
 
                 # Clean the URL by removing tracking parameters
                 gif_url = gif['images']['downsized_medium']['url']
-                # Remove everything after ?cid= to clean up tracking parameters
                 if '?' in gif_url:
                     gif_url = gif_url.split('?')[0]
 
