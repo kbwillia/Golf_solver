@@ -19,6 +19,8 @@ from game import GolfGame
 from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
 from chatbot import chatbot, chat_handler
 from bot_personalities import create_bot, register_custom_bot
+import json
+import os
 
 # Load environment variables from .env file
 load_dotenv()
@@ -55,6 +57,66 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 games = {}
 
 AI_TURN_DELAY = 02.0  # seconds
+
+# Custom bot storage functions
+def get_custom_bots_file_path():
+    """Get the path to the custom_bot.json file"""
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    frontend_dir = os.path.join(backend_dir, '..', 'frontend')
+    return os.path.join(frontend_dir, 'static', 'custom_bot.json')
+
+def load_custom_bots_from_json():
+    """Load custom bots from JSON file"""
+    try:
+        file_path = get_custom_bots_file_path()
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Extract custom bots (not placeholder_bots)
+                custom_bots = data.get('custom_bots', {})
+                print(f"✅ Loaded {len(custom_bots)} custom bots from JSON")
+                return custom_bots
+        else:
+            print("📄 Custom bots JSON file not found, starting with empty storage")
+            return {}
+    except Exception as e:
+        print(f"❌ Error loading custom bots from JSON: {e}")
+        return {}
+
+def save_custom_bots_to_json(custom_bots_dict):
+    """Save custom bots to JSON file"""
+    try:
+        file_path = get_custom_bots_file_path()
+
+        # Load existing data to preserve placeholder_bots
+        existing_data = {}
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+
+        # Update with new custom bots
+        existing_data['custom_bots'] = custom_bots_dict
+
+        # Save back to file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(existing_data, f, indent=2, ensure_ascii=False)
+
+        print(f"✅ Saved {len(custom_bots_dict)} custom bots to JSON")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving custom bots to JSON: {e}")
+        return False
+
+# Initialize custom bots from JSON
+custom_bots = load_custom_bots_from_json()
+
+# Register all loaded custom bots in the chatbot system
+for bot_id, bot_data in custom_bots.items():
+    try:
+        register_custom_bot(bot_id, bot_data['name'], bot_data['description'], bot_data['difficulty'])
+        print(f"✅ Registered custom bot from JSON: {bot_data['name']}")
+    except Exception as e:
+        print(f"❌ Error registering custom bot {bot_id}: {e}")
 
 # Add this mapping somewhere in your backend
 # BOT_PERSONALITIES = {
@@ -976,7 +1038,7 @@ def tts():
 
 from flask import request, jsonify
 
-custom_bots = {}  # In-memory store; use a database for persistence
+# custom_bots = {}  # In-memory store; use a database for persistence
 
 @app.route('/api/create_custom_bot', methods=['POST'])
 def create_custom_bot():
@@ -987,17 +1049,27 @@ def create_custom_bot():
     description = data.get('description')
     if not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
+
     bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
-    custom_bots[bot_id] = {
+    bot_data = {
         'name': name,
         'difficulty': difficulty,
         'description': description
     }
 
+    # Add to memory
+    custom_bots[bot_id] = bot_data
+
+    # Save to JSON file
+    if save_custom_bots_to_json(custom_bots):
+        print(f"✅ Custom bot '{name}' saved to JSON file")
+    else:
+        print(f"❌ Failed to save custom bot '{name}' to JSON file")
+
     # Register the custom bot for use in the chatbot system
     register_custom_bot(bot_id, name, description, difficulty)
 
-    return jsonify({'success': True, 'bot_id': bot_id, 'bot': custom_bots[bot_id]})
+    return jsonify({'success': True, 'bot_id': bot_id, 'bot': bot_data})
 
 @app.route('/save_custom_bots', methods=['POST'])
 def save_custom_bots():
@@ -1051,6 +1123,12 @@ def save_custom_bots():
                 import traceback
                 traceback.print_exc()
 
+        # Save all bots to JSON file
+        if save_custom_bots_to_json(custom_bots):
+            print(f"✅ All {len(saved_bots)} custom bots saved to JSON file")
+        else:
+            print(f"❌ Failed to save custom bots to JSON file")
+
             saved_bots.append({
                 'id': bot_id,
                 'name': name,
@@ -1078,6 +1156,11 @@ def get_custom_bots():
     """Get all existing custom bots for the dropdown"""
     try:
         print("🔥 /get_custom_bots endpoint hit")
+
+        # Reload from JSON to ensure we have the latest data
+        global custom_bots
+        custom_bots = load_custom_bots_from_json()
+
         print(f"🔥 Current custom_bots dict: {custom_bots}")
 
         # Convert the custom_bots dict to a list format

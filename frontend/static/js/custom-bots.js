@@ -182,9 +182,6 @@ function initializeCustomBots() {
     // Load existing custom bots when page loads
     loadExistingCustomBots();
 
-    // Populate opponent dropdown with bots from JSON
-    populateOpponentDropdown();
-
     // Initialize game mode buttons
     initializeGameModeButtons();
 
@@ -265,8 +262,8 @@ function saveSingleCustomBot() {
             document.getElementById('customBotDifficulty').value = 'easy';
             document.getElementById('customBotDescription').value = '';
 
-            // Update opponent dropdown with new custom bot as default
-            updateOpponentDropdown(data.bots[0]);
+            // Refresh bot selection buttons to show the new bot
+            renderBotSelectRow();
         } else {
             alert('Error saving custom bot: ' + (data.error || 'Unknown error'));
         }
@@ -383,10 +380,8 @@ function saveMultipleCustomBots() {
             }
             customBotCount = 1;
 
-            // Update opponent dropdown with the first custom bot as default
-            if (data.bots && data.bots.length > 0) {
-                updateOpponentDropdown(data.bots[0]);
-            }
+            // Refresh bot selection buttons to show the new bots
+            renderBotSelectRow();
         } else {
             alert('Error saving custom bots: ' + (data.error || 'Unknown error'));
         }
@@ -397,54 +392,10 @@ function saveMultipleCustomBots() {
     });
 }
 
-function updateOpponentDropdown(savedBot) {
-    const opponentSelect = document.getElementById('botNameSelect');
-    if (!opponentSelect) return;
-
-    // Create the custom bot option
-    const customOption = document.createElement('option');
-    customOption.value = savedBot.id; // Use the bot_id as the value
-    customOption.textContent = `${savedBot.name} (${savedBot.difficulty.charAt(0).toUpperCase() + savedBot.difficulty.slice(1)})`; // Format: "Karen (Easy)"
-    customOption.selected = true; // Make it the default selection
-
-    // Add the new custom bot option to the dropdown
-    opponentSelect.appendChild(customOption);
-
-    // Trigger change event to update any dependent UI
-    const changeEvent = new Event('change', { bubbles: true });
-    opponentSelect.dispatchEvent(changeEvent);
-
-    console.log(`✅ Added custom bot "${savedBot.name}" to opponent dropdown as default selection`);
-}
-
 // Load existing custom bots when page loads
 function loadExistingCustomBots() {
-    fetch('/get_custom_bots', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.bots) {
-            const opponentSelect = document.getElementById('botNameSelect');
-            if (!opponentSelect) return;
-
-            // Add each existing custom bot to the dropdown
-            data.bots.forEach(bot => {
-                const customOption = document.createElement('option');
-                customOption.value = bot.id;
-                customOption.textContent = `${bot.name} (${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)})`;
-                opponentSelect.appendChild(customOption);
-            });
-
-            console.log(`✅ Loaded ${data.bots.length} existing custom bots into opponent dropdown`);
-        }
-    })
-    .catch(error => {
-        console.log('No existing custom bots to load or error loading them:', error);
-    });
+    // This function is now handled by renderBotSelectRow() which loads from JSON
+    console.log('✅ Custom bots are now loaded automatically from JSON via renderBotSelectRow()');
 }
 
 function loadOpponents() {
@@ -469,63 +420,7 @@ function populateSingleBotForm() {
     if (descriptionTextarea) descriptionTextarea.value = '';
 }
 
-// Function to populate the opponent dropdown with bots from JSON
-async function populateOpponentDropdown() {
-    try {
-        const response = await fetch('/static/custom_bot.json');
-        const data = await response.json();
 
-        if (!data.placeholder_bots || data.placeholder_bots.length === 0) {
-            console.log('🎯 No bots found in JSON for dropdown population');
-            return;
-        }
-
-        const botNameSelect = document.getElementById('botNameSelect');
-        if (!botNameSelect) {
-            console.log('🎯 Bot name select dropdown not found');
-            return;
-        }
-
-        // Clear existing options (keep the first few default ones if they exist)
-        const existingOptions = Array.from(botNameSelect.options);
-        const defaultOptions = existingOptions.filter(option =>
-            ['peter_parker', 'happy_gilmore', 'tiger_woods'].includes(option.value)
-        );
-
-        botNameSelect.innerHTML = '';
-
-        // Add default options first
-        defaultOptions.forEach(option => {
-            botNameSelect.appendChild(option);
-        });
-
-        // Add custom bots from JSON
-        data.placeholder_bots.forEach(bot => {
-            const option = document.createElement('option');
-            option.value = 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_');
-            option.textContent = `${bot.name} (${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)})`;
-            botNameSelect.appendChild(option);
-        });
-
-        // Randomly select one of the custom bots as default
-        if (data.placeholder_bots.length > 0) {
-            const randomIndex = Math.floor(Math.random() * data.placeholder_bots.length);
-            const randomBot = data.placeholder_bots[randomIndex];
-            const randomBotValue = 'custom_' + randomBot.name.toLowerCase().replace(' ', '_').replace('-', '_');
-
-            // Find and select the random bot option
-            const randomOption = botNameSelect.querySelector(`option[value="${randomBotValue}"]`);
-            if (randomOption) {
-                randomOption.selected = true;
-                console.log(`🎯 Randomly selected ${randomBot.name} as default opponent`);
-            }
-        }
-
-        console.log(`🎯 Populated dropdown with ${data.placeholder_bots.length} custom bots from JSON`);
-    } catch (error) {
-        console.log('🎯 Error populating opponent dropdown:', error);
-    }
-}
 
 // Bot selection button logic for setup screen
 
@@ -546,7 +441,7 @@ async function renderBotSelectRow() {
   const row = document.getElementById('botSelectRow');
   if (!row) return;
 
-  // Only load bots from custom_bot.json
+  // Load bots from custom_bot.json
   let allBots = [];
 
   try {
@@ -554,6 +449,7 @@ async function renderBotSelectRow() {
     const response = await fetch('/static/custom_bot.json');
     const data = await response.json();
 
+    // Add placeholder bots from JSON
     if (data.placeholder_bots && data.placeholder_bots.length > 0) {
       data.placeholder_bots.forEach(bot => {
         allBots.push({
@@ -565,32 +461,46 @@ async function renderBotSelectRow() {
         });
       });
     }
+
+    // Add custom bots from JSON (user-created bots)
+    if (data.custom_bots && Object.keys(data.custom_bots).length > 0) {
+      Object.entries(data.custom_bots).forEach(([bot_id, bot_data]) => {
+        allBots.push({
+          value: bot_id,
+          name: bot_data.name,
+          difficulty: bot_data.difficulty.charAt(0).toUpperCase() + bot_data.difficulty.slice(1),
+          difficultyClass: bot_data.difficulty,
+          desc: bot_data.description || 'Custom bot with unique personality.'
+        });
+      });
+    }
   } catch (error) {
     console.log('Could not load custom bots from JSON:', error);
   }
 
-  // Load existing custom bots from server
+  // Load existing custom bots from server (for backward compatibility)
   try {
     const serverResponse = await fetch('/get_custom_bots');
     const serverData = await serverResponse.json();
 
     if (serverData.success && serverData.bots) {
       serverData.bots.forEach(bot => {
-        allBots.push({
-          value: bot.id,
-          name: bot.name,
-          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
-          difficultyClass: bot.difficulty,
-          desc: bot.description || 'Custom bot with unique personality.'
-        });
+        // Check if this bot is already in allBots (from JSON)
+        const existingBot = allBots.find(existing => existing.value === bot.id);
+        if (!existingBot) {
+          allBots.push({
+            value: bot.id,
+            name: bot.name,
+            difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
+            difficultyClass: bot.difficulty,
+            desc: bot.description || 'Custom bot with unique personality.'
+          });
+        }
       });
     }
   } catch (error) {
-    console.log('Could not load existing custom bots:', error);
+    console.log('Could not load existing custom bots from server:', error);
   }
-
-  // Add special announcer bots - but don't include them in selectable bots
-  // allBots = [...announcerBots, ...allBots];
 
   // If no bots found, show a message
   if (allBots.length === 0) {
@@ -635,7 +545,7 @@ async function renderBotSelectRow() {
 
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
-  console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json`);
+  console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json (placeholder + custom)`);
 }
 
 function isMultiSelectionMode() {
