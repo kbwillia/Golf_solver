@@ -13,7 +13,7 @@ class GolfChatbot:
         self.bot_type = bot_type
         self.current_bot = create_bot(bot_type)  # Create bot instance
         self.base_prompt = (
-            "CRITICAL: Keep your response to 2 sentences maximum and under 150 characters total.Be extremely concise and direct. This is a chat environment, not an essay.         If your response is too long, it will be truncated."
+            "CRITICAL: Keep your response to 2 sentences maximum and under 150 characters total.Be extremely concise. This is a chat environment, not an essay. ."
         )
 
         # Load rules once

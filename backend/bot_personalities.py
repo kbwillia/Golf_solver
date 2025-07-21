@@ -758,7 +758,7 @@ Generate a complete behavioral configuration for this bot.
         print(f"🔧 CUSTOM BOT DEBUG: self.difficulty = '{self.difficulty}'")
 
         # Create a system prompt based on the custom description
-        base_prompt = f"You are {self.name}, a custom golf bot. "
+        base_prompt = f"You are {self.name}. "
 
         # Add personality traits from the description
         if self.custom_description:

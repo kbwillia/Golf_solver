@@ -676,11 +676,11 @@ async function getRelevantGif(searchTerm, botName = null) {
     }
 
     // Fallback to static GIFs if API fails
-    const fallbackGifs = [
-        "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif",
-        "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif",
-        "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif"
-    ];
+    // const fallbackGifs = [
+    //     "https://media.giphy.com/media/3oriNYQX2lC6dfW2cK/giphy.gif",
+    //     "https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif",
+    //     "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif"
+    // ];
     return fallbackGifs[Math.floor(Math.random() * fallbackGifs.length)];
 }
 
