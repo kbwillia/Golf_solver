@@ -42,6 +42,8 @@ let proactiveCommentInterval = null;
 // ===== CORE GAME FUNCTIONS =====
 
 async function startGame() {
+    // Set background for first hole
+    if (window.setHoleBackground) setHoleBackground(0);
     // Reset turn tracking for new game
     lastTurnIndex = null;
 
@@ -72,17 +74,20 @@ async function startGame() {
 
     // Get game mode from buttons instead of dropdown
     const gameMode = getCurrentGameMode();
+
+    // Validate that at least one bot is selected
+    if (!gameMode || !window.selectedBots || window.selectedBots.length === 0) {
+        alert('Please select at least 1 AI opponent to start a game!');
+        return;
+    }
+
     const playerName = document.getElementById('playerName').value || 'Human';
     const numGames = getCurrentHoles();
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
     console.log('🎯 Frontend: Starting game with mode:', gameMode);
     console.log('🎯 Frontend: Selected bots:', window.selectedBots);
-    console.log('🎯 Frontend: Current game mode buttons state:', {
-        '1v1 active': document.getElementById('gameMode1v1')?.classList.contains('active'),
-        '1v2 active': document.getElementById('gameMode1v2')?.classList.contains('active'),
-        '1v3 active': document.getElementById('gameMode1v3')?.classList.contains('active')
-    });
+    console.log('🎯 Frontend: Auto-detected mode from', window.selectedBots?.length || 0, 'selected bots');
 
     // Prepare game data
     const gameData = {
@@ -1057,10 +1062,21 @@ function setGameMode(mode) {
     console.log('🎯 Game mode set to:', mode);
 }
 
-// Get current game mode
+// Get current game mode based on selected bots
 function getCurrentGameMode() {
-    const activeBtn = document.querySelector('.game-mode-btn.active');
-    return activeBtn ? activeBtn.getAttribute('data-mode') : '1v1';
+    const selectedCount = window.selectedBots ? window.selectedBots.length : 0;
+
+    if (selectedCount === 0) {
+        return null; // No game mode if no bots selected
+    } else if (selectedCount === 1) {
+        return '1v1';
+    } else if (selectedCount === 2) {
+        return '1v2';
+    } else if (selectedCount >= 3) {
+        return '1v3';
+    } else {
+        return '1v1'; // Default fallback
+    }
 }
 
 // Initialize holes buttons
@@ -1121,5 +1137,45 @@ function setHoles(holes) {
 function getCurrentHoles() {
     const activeBtn = document.querySelector('.holes-btn.active');
     return activeBtn ? parseInt(activeBtn.getAttribute('data-holes')) : 1;
+}
+
+const holeBackgrounds = [
+  '/static/masters_images/H_hole1__Hole_1_-_Tea_Olive.jpg',
+  '/static/masters_images/H_hole2__Hole_2_-_Pink_Dogwood.jpg',
+  '/static/masters_images/H_hole3__Hole_3_-_Flowering_Peach.jpg',
+  // ...add all your hole images in order
+];
+
+function setHoleBackground(holeIndex) {
+  const img = holeBackgrounds[holeIndex % holeBackgrounds.length];
+  console.log('setHoleBackground called with index:', holeIndex, 'using image:', img);
+  console.log('Available images in array:', holeBackgrounds.length, 'images');
+
+  // Use the correct image for each hole
+  // (Removed test override)
+
+  // 1. Clear and set on body
+  document.body.style.backgroundImage = '';
+  document.body.offsetHeight; // Force reflow
+  document.body.style.backgroundImage = `url('${img}')`;
+  document.body.style.backgroundSize = 'cover';
+  document.body.style.backgroundPosition = 'center';
+  document.body.style.backgroundRepeat = 'no-repeat';
+  document.body.style.backgroundAttachment = 'fixed';
+
+  // 2. Also try on html
+  document.documentElement.style.backgroundImage = `url('${img}')`;
+  document.documentElement.style.backgroundSize = 'cover';
+  document.documentElement.style.backgroundPosition = 'center';
+
+  // 3. Remove any backgrounds from containers that might cover it
+  const containers = document.querySelectorAll('.container, .setup-and-board, .header, .game-board, .main, .wrapper');
+  containers.forEach(el => {
+    el.style.background = 'none';
+    el.style.backgroundColor = 'transparent';
+  });
+
+  console.log('Background should now be set to:', img);
+  console.log('Check DevTools Elements tab for <body> background-image style');
 }
 

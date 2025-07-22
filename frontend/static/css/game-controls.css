@@ -652,3 +652,16 @@
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
+#opponentDisplay {
+    color: #fff !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 1.18em;
+    font-weight: bold;
+    text-shadow: 1px 1px 4px #333, 0 0 2px #000;
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+    display: inline-block;
+}

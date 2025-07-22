@@ -551,6 +551,9 @@ async function renderBotSelectRow() {
   window.selectedBotValue = window.selectedBots[0];
   console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json (placeholder + custom)`);
 
+  // Update the opponent display to show the initially selected bot
+  updateOpponentDisplay();
+
   // Scroll the selected bot into view
   const selectedBtn = Array.from(row.children).find(btn => btn.classList.contains('selected') || btn.classList.contains('multi-selected'));
   if (selectedBtn) {
@@ -559,60 +562,40 @@ async function renderBotSelectRow() {
 }
 
 function isMultiSelectionMode() {
-  // Check if we're in 1v3 or 1v2 mode
-  const gameMode1v2 = document.getElementById('gameMode1v2');
-  const gameMode1v3 = document.getElementById('gameMode1v3');
-  return (gameMode1v2 && gameMode1v2.classList.contains('active')) ||
-         (gameMode1v3 && gameMode1v3.classList.contains('active'));
+  // Always allow multi-selection now (1-3 bots)
+  return true;
 }
 
 function selectBotButton(botValue) {
   const row = document.getElementById('botSelectRow');
   if (!row) return;
 
-  const isMultiMode = isMultiSelectionMode();
-  const gameMode1v2 = document.getElementById('gameMode1v2');
-  const gameMode1v3 = document.getElementById('gameMode1v3');
-  const is1v2Mode = gameMode1v2 && gameMode1v2.classList.contains('active');
-  const is1v3Mode = gameMode1v3 && gameMode1v3.classList.contains('active');
+  const currentCount = window.selectedBots.length;
+  const index = window.selectedBots.indexOf(botValue);
+  const maxBots = 3; // Allow up to 3 bots for 1v3 mode
 
-  if (isMultiMode) {
-    // Multi-selection mode (1v2 or 1v3)
-    const index = window.selectedBots.indexOf(botValue);
-    const maxBots = is1v2Mode ? 2 : 3; // 2 bots for 1v2, 3 bots for 1v3
-
-    if (index > -1) {
-      // Remove if already selected (but keep at least 1)
-      if (window.selectedBots.length > 1) {
-        window.selectedBots.splice(index, 1);
-      }
-    } else {
-      // Add if not selected (but limit based on mode)
-      if (window.selectedBots.length < maxBots) {
-        window.selectedBots.push(botValue);
-      }
-    }
+  if (index > -1) {
+    // Remove if already selected (now allow removing even the last bot)
+    window.selectedBots.splice(index, 1);
   } else {
-    // Single selection mode (1v1) - allow deselection by clicking again
-    const index = window.selectedBots.indexOf(botValue);
-    if (index > -1 && window.selectedBots.length > 1) {
-      // If already selected and there are other bots, deselect it
-      window.selectedBots.splice(index, 1);
-    } else if (index === -1) {
-      // If not selected, select it
-      window.selectedBots = [botValue];
+    // Add if not selected (up to max limit)
+    if (currentCount < maxBots) {
+      window.selectedBots.push(botValue);
+    } else {
+      // If at max, replace the first bot with the new selection
+      window.selectedBots.shift();
+      window.selectedBots.push(botValue);
     }
-    // If it's the only selected bot, keep it selected (no deselection)
   }
 
-  // Update visual state
+  // Update visual state - always use multi-selected style now
   Array.from(row.children).forEach(btn => {
     const btnValue = btn.getAttribute('data-bot');
     const isSelected = window.selectedBots.includes(btnValue);
 
     btn.classList.remove('selected', 'multi-selected');
     if (isSelected) {
-      btn.classList.add(isMultiMode ? 'multi-selected' : 'selected');
+      btn.classList.add('multi-selected');
     }
   });
 
@@ -620,6 +603,9 @@ function selectBotButton(botValue) {
   window.selectedBotValue = window.selectedBots[0];
 
   console.log(`Selected bots: ${window.selectedBots.join(', ')}`);
+
+  // Update the opponent display
+  updateOpponentDisplay();
 }
 
 // Listen for game mode changes to update selection behavior
@@ -754,13 +740,45 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBotSelectRow();
   initializeGameModeButtons();
 
-  // Debug: Check if game mode buttons exist
-  const gameMode1v1 = document.getElementById('gameMode1v1');
-  const gameMode1v3 = document.getElementById('gameMode1v3');
-  console.log('🎯 Game mode buttons found:', {
-    '1v1': !!gameMode1v1,
-    '1v3': !!gameMode1v3,
-    '1v1 classes': gameMode1v1 ? gameMode1v1.className : 'not found',
-    '1v3 classes': gameMode1v3 ? gameMode1v3.className : 'not found'
-  });
+  // Initialize the opponent display
+  updateOpponentDisplay();
+
+  console.log('🎯 Bot selection and opponent display initialized');
 });
+
+// Update opponent display based on selected bots
+function updateOpponentDisplay() {
+    const opponentDisplay = document.getElementById('opponentDisplay');
+    if (!opponentDisplay) return;
+
+    if (window.selectedBots.length === 0) {
+        opponentDisplay.textContent = 'Select 1-3 AI opponents to start a game';
+    } else {
+        const botNames = window.selectedBots.map(botId => {
+            // Get bot name from loaded bot data
+            const bot = window.loadedBotData?.placeholder_bots?.find(b => b.id === botId) ||
+                       window.loadedBotData?.custom_bots?.find(b => b.id === botId);
+            return bot
+              ? bot.name
+              : botId
+                  .replace('custom_', '')
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, c => c.toUpperCase());
+        });
+
+        let displayText;
+        if (botNames.length === 1) {
+            displayText = `You vs ${botNames[0]}`;
+        } else if (botNames.length === 2) {
+            displayText = `You vs ${botNames[0]} & ${botNames[1]}`;
+        } else if (botNames.length === 3) {
+            displayText = `You vs ${botNames[0]}, ${botNames[1]} & ${botNames[2]}`;
+        } else {
+            displayText = `You vs ${botNames.length} AI opponents`;
+        }
+
+        opponentDisplay.textContent = displayText;
+    }
+
+    console.log('🎯 Updated opponent display:', opponentDisplay.textContent);
+}

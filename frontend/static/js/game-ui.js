@@ -3,7 +3,24 @@
 
 // ===== UI UPDATE FUNCTIONS =====
 
+// Track the last game we set background for
+let lastBackgroundGame = null;
+
 function updateGameDisplay() {
+    // Debug: log the current round and game values
+    if (window.currentGameState) {
+        console.log('updateGameDisplay: currentGameState.round =', currentGameState.round, 'current_game =', currentGameState.current_game, 'num_games =', currentGameState.num_games);
+    }
+
+    // Set background image for current game (not round) - but only when game changes
+    if (window.setHoleBackground && currentGameState && currentGameState.current_game) {
+        const currentGame = currentGameState.current_game;
+        if (lastBackgroundGame !== currentGame) {
+            console.log('Game changed from', lastBackgroundGame, 'to', currentGame, '- updating background');
+            setHoleBackground(currentGame - 1);
+            lastBackgroundGame = currentGame;
+        }
+    }
     if (!currentGameState || !currentGameState.players) return;
 
     try {

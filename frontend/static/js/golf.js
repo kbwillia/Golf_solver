@@ -235,28 +235,28 @@ function updatePlayerGrids() {
     container.innerHTML = '';
 
     // 🎯 DEBUG: Log player count and layout decisions
-    console.log('🎯 DEBUG: Player count:', currentGameState.players.length);
-    console.log('🎯 DEBUG: Player names:', currentGameState.players.map(p => p.name));
+    // console.log('🎯 DEBUG: Player count:', currentGameState.players.length);
+    // console.log('🎯 DEBUG: Player names:', currentGameState.players.map(p => p.name));
 
     // Add or remove grid classes based on player count
     if (currentGameState.players.length === 4) {
         container.classList.remove('three-player-grid');
         container.classList.add('four-player-grid');
-        console.log('🎯 DEBUG: Applied four-player-grid class');
+        // console.log('🎯 DEBUG: Applied four-player-grid class');
     } else if (currentGameState.players.length === 3) {
         container.classList.remove('four-player-grid');
         container.classList.add('three-player-grid');
-        console.log('🎯 DEBUG: Applied three-player-grid class');
+        // console.log('🎯 DEBUG: Applied three-player-grid class');
     } else {
         container.classList.remove('four-player-grid');
         container.classList.remove('three-player-grid');
-        console.log('🎯 DEBUG: Removed all grid classes (default layout)');
+        // console.log('🎯 DEBUG: Removed all grid classes (default layout)');
     }
 
     // 🎯 DEBUG: Log final CSS classes
-    console.log('🎯 DEBUG: Container classes:', container.className);
-    console.log('🎯 DEBUG: Has three-player-grid:', container.classList.contains('three-player-grid'));
-    console.log('🎯 DEBUG: Has four-player-grid:', container.classList.contains('four-player-grid'));
+    // console.log('🎯 DEBUG: Container classes:', container.className);
+    // console.log('🎯 DEBUG: Has three-player-grid:', container.classList.contains('three-player-grid'));
+    // console.log('🎯 DEBUG: Has four-player-grid:', container.classList.contains('four-player-grid'));
     // Only clear timeout and remove animation if turn index changes
     if (lastTurnIndex !== currentTurnIndex) {
         if (turnAnimateTimeout) {
@@ -385,16 +385,16 @@ function updatePlayerGrids() {
     lastTurnIndex = currentTurnIndex;
 
     // 🎯 DEBUG: Log final DOM structure
-    console.log('🎯 DEBUG: Total player grids created:', container.children.length);
-    console.log('🎯 DEBUG: Player grid elements:', Array.from(container.children).map((el, i) => ({
-        index: i,
-        classes: el.className,
-        playerIndex: el.getAttribute('data-player'),
-        playerName: el.querySelector('.player-name')?.textContent || 'Unknown'
-    })));
-    console.log('🎯 DEBUG: Container computed style display:', getComputedStyle(container).display);
-    console.log('🎯 DEBUG: Container computed grid-template-columns:', getComputedStyle(container).gridTemplateColumns);
-    console.log('🎯 DEBUG: Container computed grid-template-rows:', getComputedStyle(container).gridTemplateRows);
+    // console.log('🎯 DEBUG: Total player grids created:', container.children.length);
+    // console.log('🎯 DEBUG: Player grid elements:', Array.from(container.children).map((el, i) => ({
+    //     index: i,
+    //     classes: el.className,
+    //     playerIndex: el.getAttribute('data-player'),
+    //     playerName: el.querySelector('.player-name')?.textContent || 'Unknown'
+    // })));
+    // console.log('🎯 DEBUG: Container computed style display:', getComputedStyle(container).display);
+    // console.log('🎯 DEBUG: Container computed grid-template-columns:', getComputedStyle(container).gridTemplateColumns);
+    // console.log('🎯 DEBUG: Container computed grid-template-rows:', getComputedStyle(container).gridTemplateRows);
 
     // Attach click handler to flippable cards in flip mode
     if (window.flipDrawnMode) {

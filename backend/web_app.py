@@ -60,7 +60,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 02.0  # seconds
+AI_TURN_DELAY = 0.50  # seconds
 
 # Custom bot storage functions
 def get_custom_bots_file_path():
