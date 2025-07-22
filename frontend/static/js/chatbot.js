@@ -1,6 +1,8 @@
 // ===== CHATBOT MODULE =====
 // Contains all chatbot functionality, bot interactions, and chat UI management
 
+import { setupChatMicButton } from './voice-input.js';
+
 // Global variables for chatbot state (some are already declared in game-core.js)
 let proactiveCommentSent = false;
 // let lastNantzCommentTime = 0; // REMOVED - already declared in game-core.js
@@ -203,11 +205,13 @@ function initializeChatbot() {
 
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
+    const micBtn = document.getElementById('micChatBtn');
     // const personalitySelect = document.getElementById('personalitySelect'); // REMOVED
 
     console.log('Chat elements found:', {
         chatInput: !!chatInput,
         sendBtn: !!sendBtn,
+        micBtn: !!micBtn,
         // personalitySelect: !!personalitySelect // REMOVED
     });
 
@@ -234,6 +238,11 @@ function initializeChatbot() {
 
         // Add autocomplete functionality
         setupAutocomplete(chatInput);
+
+        // Set up speech-to-text mic button
+        if (micBtn && chatInput) {
+            setupChatMicButton(micBtn, chatInput);
+        }
 
         console.log('✅ Chat event listeners set up');
     } else {

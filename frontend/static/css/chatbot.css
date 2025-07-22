@@ -229,21 +229,36 @@
     box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
 }
 
+/* i think this might do send and gif buttons */
 .chat-send-btn {
-    padding: 6px 0px;
+    padding: 6px 12px; /* reduced horizontal padding */
     background: #0b501b;
-    /*rgba(11, 80, 27, 1) same as above*/
     color: white;
     border: none;
     border-radius: 6px;
     font-size: 0.9em;
     cursor: pointer;
     transition: background-color 0.2s;
-    /* Ensure button is visible and clickable */
     display: inline-block;
-    min-width: 60px;
+    min-width: 36px; /* reduced min-width */
     z-index: 1000;
     position: relative;
+}
+
+#sendGifBtn, #micChatBtn {
+    padding: 6px 4px; /*height, width, padding*/
+    min-width: 0;
+    width: auto;
+}
+
+#micChatBtn {
+    padding: 0px 0px;
+    min-width: 0;
+    width: 22px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .chat-send-btn:hover {

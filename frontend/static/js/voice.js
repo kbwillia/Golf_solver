@@ -2,10 +2,10 @@
 // Voice system functionality for the Golf Card Game
 
 // ===== VOICE VARIABLES =====
-let voiceEnabled = true; // Track if voice is enabled - DEFAULT TO OFF
-// let voiceType = 'browser'; // Fixed to browser-only since out of API credits
+let voiceEnabled = false; // Track if voice is enabled - DEFAULT TO OFF
+let voiceType = 'browser'; // Fixed to browser-only since out of API credits
 // let voiceType = 'Top_Media';
-let voiceType = 'Google';
+// let voiceType = 'Google';
 let browserVoices = []; // Available browser voices
 
 // ===== VOICE FUNCTIONS =====
