@@ -7,6 +7,7 @@ import os
 from bot_personalities import create_bot, BaseBot
 from game_state import get_game_state
 import re
+LAST_X_MESSAGES = 10
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities"""
@@ -189,7 +190,7 @@ class GolfChatbot:
             # Add conversation history for context (but never the rules again)
             if self.current_bot.conversation_history:
                 context += "Recent conversation:\n"
-                for msg in self.current_bot.conversation_history[-3:]:  # Last 3 messages
+                for msg in self.current_bot.conversation_history[-LAST_X_MESSAGES:]:  # Last 3 messages
                     context += f"{msg['role']}: {msg['content']}\n"
                 context += "\n"
 
