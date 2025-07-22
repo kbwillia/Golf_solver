@@ -34,7 +34,7 @@
 #setupRightColumn {
   flex: 1;
   min-width: 220px;
-  max-width: 420px;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -49,15 +49,15 @@
 .ai-bot-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  margin: 18px 0 18px 0;
+  align-items: flex-start;
+  margin: 12px 0 12px 0;
   gap: 18px;
   min-height: 170px; /* Add this line (adjust value as needed) */
 }
 
 .ai-bot-img {
-  max-width: 150px;
-  max-height: 150px;
+  max-width: 175px;   /* or larger, e.g., 200px, 220px, etc. */
+  max-height: px;
   border-radius: 12px;
   margin: 0;
 }
