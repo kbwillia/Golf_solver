@@ -406,14 +406,14 @@ function updateCumulativeScoreChart() {
     if (currentGameState.cumulative_scores && currentGameState.cumulative_scores.every(score => score !== null && score !== undefined)) {
         // Use cumulative scores first (contains accumulated match totals)
         roundScores = currentGameState.cumulative_scores;
-        console.log('Using cumulative_scores:', roundScores);
+        // console.log('Using cumulative_scores:', roundScores);
     } else if (currentGameState.public_scores && currentGameState.public_scores.some(score => typeof score === 'number')) {
         // Fallback to public scores if cumulative not available
         roundScores = currentGameState.public_scores.map(score => typeof score === 'number' ? score : 0);
         console.log('Using public_scores:', roundScores);
     }
 
-    console.log('Chart Debug - Game:', currentGameState.current_game, 'Round:', currentGameState.round, 'Scores:', roundScores, 'Game Over:', currentGameState.game_over);
+    // console.log('Chart Debug - Game:', currentGameState.current_game, 'Round:', currentGameState.round, 'Scores:', roundScores, 'Game Over:', currentGameState.game_over);
 
     // Only proceed if we have valid scores to chart
     if (!roundScores) {

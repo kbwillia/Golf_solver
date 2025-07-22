@@ -27,7 +27,7 @@ class BaseBot(ABC):
         # Proactive behavior configuration
         self.proactive_config = {
             "enabled": True,
-            "base_rate": 0.93,  # 30% chance to comment by default
+            "base_rate": 0.33,  # 30% chance to comment by default
             "event_triggers": {
                 "turn_start": 0.4,
                 "card_drawn": 0.2,

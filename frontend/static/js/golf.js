@@ -4,6 +4,11 @@
 // ===== CHATBOT VARIABLES =====
 // Chatbot variables are now defined in game-core.js
 
+// ===== PEEK FUNCTIONALITY VARIABLES =====
+let peekCooldownTime = 30; // Cooldown in seconds
+let lastPeekTime = 0; // Timestamp of last peek
+let peekCooldownInterval = null; // Interval for cooldown countdown
+let isPeeking = false; // Whether currently peeking
 
 
 console.log('🎯 Golf.js loaded successfully!');
@@ -117,34 +122,10 @@ function showHurryUpGif() {
 
 // Helper function to clear celebrations and reset header
 function clearCelebration() {
-    const celebrationContainer = document.getElementById('celebrationGif');
-    const headerTitle = document.querySelector('.header h1');
-    const youWonMessage = document.getElementById('youWonHeaderMessage');
-
-    if (celebrationContainer) {
-        celebrationContainer.innerHTML = '';
-    }
-
-    // Remove the You Won message from header
-    if (youWonMessage) {
-        youWonMessage.remove();
-    }
-
-    // Reset header positioning
-    const header = document.querySelector('.header');
-    if (header) {
-        header.style.position = '';
-    }
-
-    // Reset header title to original (in case it was modified)
-    if (headerTitle) {
-        headerTitle.innerHTML = '🏌️ Golf Card Game';
-    }
-
-    // Hide Next Hole button when clearing celebrations
-    const nextHoleContainer = document.getElementById('nextHoleContainer');
-    if (nextHoleContainer) {
-        nextHoleContainer.style.display = 'none';
+    const celebrationDiv = document.getElementById('celebrationGif');
+    if (celebrationDiv) {
+        celebrationDiv.innerHTML = '';
+        celebrationDiv.style.display = 'none';
     }
 }
 
@@ -341,7 +322,7 @@ function updatePlayerGrids() {
                 extraAttrs += ' ondragenter="event.preventDefault();this.classList.add(\'drop-target\');"';
                 extraAttrs += ' ondragleave="if(!event.relatedTarget || !this.contains(event.relatedTarget)) this.classList.remove(\'drop-target\');"';
                 extraAttrs += ` ondrop="console.log('🎯 DROP EVENT FIRED on position ${pos}');handleDropOnGrid(${pos});this.classList.remove('drop-target');event.preventDefault();event.stopPropagation();"`;
-                console.log(`🎯 Created drop zone for position ${pos}`);
+                // console.log(`🎯 Created drop zone for position ${pos}`);
                 // If in flip mode, add flippable class and different styling
                 if (window.flipDrawnMode) {
                     cardClass += ' flippable';
@@ -352,7 +333,7 @@ function updatePlayerGrids() {
                 }
             } else if (isHuman) {
                 extraAttrs += ' class="card not-droppable"';
-                console.log(`🎯 Position ${pos} marked as not-droppable`);
+                // console.log(`🎯 Position ${pos} marked as not-droppable`);
             }
             return `<div class="${cardClass}" data-position="${pos}" ${extraAttrs}>${displayContent}</div>`;
         }).join('');
@@ -393,6 +374,9 @@ function updatePlayerGrids() {
             };
         });
     }
+
+    // Update peek button visibility
+    updatePeekButtonVisibility();
 
     // Handle deck and discard interactivity based on game state
     const deckCard = document.getElementById('deckCard');
@@ -639,7 +623,7 @@ async function executeAction(position, actionType = null) {
 
                         // Continue with AI turn logic
                         if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                            console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
+                            // console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
                             pollAITurns();
                         }
                     });
@@ -755,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Function to setup discard drag after game starts
 function setupDiscardDrag() {
     const discardCard = document.getElementById('discardCard');
-    console.log('🎯 Setting up discard drag, element found:', !!discardCard);
+    // console.log('🎯 Setting up discard drag, element found:', !!discardCard);
 
     if (!discardCard) {
         console.error('❌ Discard card element not found!');
@@ -772,33 +756,33 @@ function setupDiscardDrag() {
 
     // Ensure draggable attribute is set
     discardCard.setAttribute('draggable', 'true');
-    console.log('🎯 Discard card draggable attribute set to:', discardCard.getAttribute('draggable'));
+    // console.log('🎯 Discard card draggable attribute set to:', discardCard.getAttribute('draggable'));
 }
 
 // Drag start handler
 function handleDiscardDragStart(e) {
-    console.log('🎯 DRAG START EVENT FIRED!');
+    // console.log('🎯 DRAG START EVENT FIRED!');
 
     const discardCard = document.getElementById('discardCard');
 
     // Check if the discard card is disabled
     if (discardCard.classList.contains('disabled')) {
-        console.log('🚫 DRAG BLOCKED: Discard card is disabled');
+        // console.log('�� DRAG BLOCKED: Discard card is disabled');
         e.preventDefault();
         return false;
     }
 
-    console.log('🎯 DRAG START: Discard card drag initiated!');
+    // console.log('🎯 DRAG START: Discard card drag initiated!');
     window.dragActive = true;
 
     // Add drag-active class to all potential drop targets (grid cards only)
     const dropTargets = document.querySelectorAll('.card:not(.public):not(.not-droppable)');
-    console.log('🎯 Found drop targets:', dropTargets.length);
+    // console.log('🎯 Found drop targets:', dropTargets.length);
 
     dropTargets.forEach(el => {
         if (el.classList.contains('drop-target')) {
             el.classList.add('drag-active');
-            console.log('🎯 Added drag-active to drop target');
+            // console.log('🎯 Added drag-active to drop target');
         }
     });
 
@@ -808,10 +792,10 @@ function handleDiscardDragStart(e) {
             rank: currentGameState.discard_top.rank,
             suit: currentGameState.discard_top.suit
         };
-        console.log('🃏 DRAG START: Stored discard card:', window.draggedDiscardCard);
+        // console.log('🃏 DRAG START: Stored discard card:', window.draggedDiscardCard);
     } else {
         window.draggedDiscardCard = null;
-        console.log('🃏 DRAG START: No discard card available');
+        // console.log('🃏 DRAG START: No discard card available');
     }
 
     // Set data transfer effect
@@ -820,7 +804,7 @@ function handleDiscardDragStart(e) {
 
 // Drag end handler
 function handleDiscardDragEnd(e) {
-    console.log('🎯 DRAG END: Discard card drag ended!');
+    // console.log('🎯 DRAG END: Discard card drag ended!');
     window.dragActive = false;
     window.draggedDiscardCard = null;
 
@@ -866,10 +850,10 @@ function animateSnapToGrid(cardElem, targetElem, callback) {
 }
 
 function handleDropOnGrid(pos) {
-    console.log('🎯 handleDropOnGrid called with position:', pos);
-    console.log('🎯 window.dragActive:', window.dragActive);
-    console.log('🎯 window.drawnCardDragActive:', window.drawnCardDragActive);
-    console.log('🎯 drawnCardData:', drawnCardData);
+    // console.log('🎯 handleDropOnGrid called with position:', pos);
+    // console.log('🎯 window.dragActive:', window.dragActive);
+    // console.log('🎯 window.drawnCardDragActive:', window.drawnCardDragActive);
+    // console.log('🎯 drawnCardData:', drawnCardData);
 
     // Find the grid cell element
     const gridCells = document.querySelectorAll('.player-grid.current-turn .grid-container .card');
@@ -880,11 +864,11 @@ function handleDropOnGrid(pos) {
         }
     });
 
-    console.log('🎯 Target element found:', !!targetElem);
+    // console.log('🎯 Target element found:', !!targetElem);
 
     // Drawn card drop
     if (window.drawnCardDragActive && drawnCardData) {
-        console.log('🎯 Processing drawn card drop');
+        // console.log('🎯 Processing drawn card drop');
         // Store position for animation AFTER the move (similar to discard logic)
         humanDrawnCardPosition = pos;
         humanDiscardAction = 'draw_keep';
@@ -903,27 +887,27 @@ function handleDropOnGrid(pos) {
     }
     // Discard card drop
     if (!window.dragActive) {
-        console.log('🚫 Drop blocked: dragActive is false');
+        // console.log('🚫 Drop blocked: dragActive is false');
         return;
     }
     if (currentGameState.current_turn !== 0 || currentGameState.game_over || !currentGameState.discard_top) {
-        console.log('🚫 Drop blocked: not human turn or game over or no discard');
+        // console.log('🚫 Drop blocked: not human turn or game over or no discard');
         return;
     }
     const card = currentGameState.players[0].grid[pos];
     if (!card || card.public) {
-        console.log('🚫 Drop blocked: invalid card or public card');
+        // console.log('🚫 Drop blocked: invalid card or public card');
         return;
     }
     if (!window.draggedDiscardCard ||
         currentGameState.discard_top.rank !== window.draggedDiscardCard.rank ||
         currentGameState.discard_top.suit !== window.draggedDiscardCard.suit) {
-        console.log('🚫 Drop blocked: discard card changed');
+        // console.log('🚫 Drop blocked: discard card changed');
         alert('The discard card has changed. Please try again.');
         return;
     }
-    console.log('🎯 handleDropOnGrid: About to take discard at position', pos);
-    console.log('🃏 handleDropOnGrid: Current discard top before move:', currentGameState.discard_top);
+    // console.log('🎯 handleDropOnGrid: About to take discard at position', pos);
+    // console.log('🃏 handleDropOnGrid: Current discard top before move:', currentGameState.discard_top);
 
     // Store position and action for animation AFTER the move
     humanDiscardPosition = pos;
@@ -1137,7 +1121,7 @@ function setupGifFunctionality() {
       }, 100);
       if (gifInput && !gifInput._listenerAttached) {
         gifInput.addEventListener('keydown', async function(e) {
-          console.log('Key pressed:', e.key);
+          // console.log('Key pressed:', e.key);
           if (e.key === 'Enter') {
             e.preventDefault();
             const searchTerm = e.target.value;
@@ -1297,3 +1281,176 @@ jimNantzCommentVoice("Hello friends, what a beautiful day for golf!")
 
 // Check voice settings
 // Voice status logging moved to voice.js
+
+// ===== PEEK FUNCTIONALITY =====
+
+function peekAtCards() {
+    // Check if peek is on cooldown
+    const now = Date.now();
+    if (now - lastPeekTime < peekCooldownTime * 1000) {
+        console.log('Peek on cooldown');
+        return;
+    }
+
+    // Check if it's valid to peek (player's turn, cards are hidden, game active)
+    if (!currentGameState || currentGameState.current_turn !== 0 || currentGameState.game_over) {
+        console.log('Cannot peek: not player turn or game over');
+        return;
+    }
+
+    if (!setupCardsHidden) {
+        console.log('Cannot peek: cards not hidden yet');
+        return;
+    }
+
+    // Check if player has face-down cards to peek at
+    const humanPlayer = currentGameState.players[0];
+    const hasHiddenCards = humanPlayer.grid.some((card, pos) =>
+        card && pos >= 2 && !card.public
+    );
+
+    if (!hasHiddenCards) {
+        console.log('No hidden cards to peek at');
+        return;
+    }
+
+    // Start peeking
+    isPeeking = true;
+    lastPeekTime = now;
+
+    // Disable peek button and start cooldown
+    const peekButton = document.getElementById('peekButton');
+    peekButton.disabled = true;
+
+    // Show the cards temporarily with special styling
+    showPeekCards();
+
+    // Hide cards again after the same duration as initial card visibility
+    setTimeout(() => {
+        hidePeekCards();
+        isPeeking = false;
+        startPeekCooldown();
+    }, cardVisibilityDuration * 1000);
+
+    // Trigger proactive comments for peek action
+    if (window.chatbotEnabled) {
+        requestProactiveComment('peek_cards');
+    }
+}
+
+function showPeekCards() {
+    if (!currentGameState) return;
+
+    const humanPlayer = currentGameState.players[0];
+    const playerGrid = document.querySelector('.player-grid[data-player="0"]');
+
+    if (!playerGrid) return;
+
+    humanPlayer.grid.forEach((card, pos) => {
+        if (card && pos >= 2 && !card.public) {
+            const cardElement = playerGrid.querySelector(`[data-position="${pos}"]`);
+            if (cardElement) {
+                // Add peek styling and show card content
+                cardElement.classList.add('peeking');
+                cardElement.classList.remove('face-down');
+                cardElement.classList.add('privately-visible');
+                cardElement.innerHTML = getCardDisplayContent(card, false);
+            }
+        }
+    });
+}
+
+function hidePeekCards() {
+    if (!currentGameState) return;
+
+    const humanPlayer = currentGameState.players[0];
+    const playerGrid = document.querySelector('.player-grid[data-player="0"]');
+
+    if (!playerGrid) return;
+
+    humanPlayer.grid.forEach((card, pos) => {
+        if (card && pos >= 2 && !card.public) {
+            const cardElement = playerGrid.querySelector(`[data-position="${pos}"]`);
+            if (cardElement) {
+                // Remove peek styling and hide card content
+                cardElement.classList.remove('peeking', 'privately-visible');
+                cardElement.classList.add('face-down');
+                cardElement.innerHTML = '';
+            }
+        }
+    });
+}
+
+function startPeekCooldown() {
+    const peekButton = document.getElementById('peekButton');
+    const cooldownDiv = document.getElementById('peekCooldown');
+    const cooldownTimeSpan = document.getElementById('peekCooldownTime');
+
+    // Show cooldown display
+    cooldownDiv.style.display = 'block';
+
+    let secondsLeft = peekCooldownTime;
+    cooldownTimeSpan.textContent = `${secondsLeft}s`;
+
+    peekCooldownInterval = setInterval(() => {
+        secondsLeft--;
+        cooldownTimeSpan.textContent = `${secondsLeft}s`;
+
+        if (secondsLeft <= 0) {
+            clearInterval(peekCooldownInterval);
+            peekCooldownInterval = null;
+
+            // Re-enable peek button
+            peekButton.disabled = false;
+            cooldownDiv.style.display = 'none';
+        }
+    }, 1000);
+}
+
+function updatePeekButtonVisibility() {
+    const peekContainer = document.getElementById('peekButtonContainer');
+
+    if (!peekContainer) {
+        console.log('🔍 Peek button container not found');
+        return;
+    }
+
+    if (!currentGameState) {
+        console.log('🔍 No current game state');
+        return;
+    }
+
+    // Show peek button when:
+    // 1. It's the human player's turn
+    // 2. Cards are hidden (after setup phase)
+    // 3. Game is not over
+    // 4. Player has face-down cards to peek at
+    const isPlayerTurn = currentGameState.current_turn === 0;
+    const cardsAreHidden = setupCardsHidden;
+    const gameActive = !currentGameState.game_over;
+
+    let hasHiddenCards = false;
+    if (currentGameState.players && currentGameState.players[0]) {
+        const humanPlayer = currentGameState.players[0];
+        hasHiddenCards = humanPlayer.grid.some((card, pos) =>
+            card && pos >= 2 && !card.public
+        );
+    }
+
+    const shouldShow = isPlayerTurn && cardsAreHidden && gameActive && hasHiddenCards;
+
+    // console.log('🔍 Peek button visibility check:', {
+    //     isPlayerTurn,
+    //     cardsAreHidden,
+    //     gameActive,
+    //     hasHiddenCards,
+    //     shouldShow
+    // });
+
+    peekContainer.style.display = shouldShow ? 'flex' : 'none';
+}
+
+// Hook into existing updatePlayerGrids to update peek button visibility
+function updatePeekButtonOnGameUpdate() {
+    updatePeekButtonVisibility();
+}

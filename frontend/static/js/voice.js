@@ -2,8 +2,10 @@
 // Voice system functionality for the Golf Card Game
 
 // ===== VOICE VARIABLES =====
-let voiceEnabled = false; // Track if voice is enabled - DEFAULT TO OFF
-let voiceType = 'browser'; // Fixed to browser-only since out of API credits
+let voiceEnabled = true; // Track if voice is enabled - DEFAULT TO OFF
+// let voiceType = 'browser'; // Fixed to browser-only since out of API credits
+// let voiceType = 'Top_Media';
+let voiceType = 'Google';
 let browserVoices = []; // Available browser voices
 
 // ===== VOICE FUNCTIONS =====
@@ -20,10 +22,7 @@ function initializeVoiceStatus() {
 function loadVoices() {
     if (speechSynthesis) {
         const voices = speechSynthesis.getVoices();
-        // console.log('Available voices:', voices.length);
-        // voices.forEach(voice => {
-        //     console.log('Voice:', voice.name, voice.lang);
-        // });
+
     }
 }
 
@@ -91,6 +90,8 @@ function speakText(text, voiceName = null) {
 
     if (voiceType === 'browser') {
         speakWithBrowser(text, voiceName);
+    } else if (voiceType === 'Google') {
+        speakWithGoogle(text, voiceName);
     } else {
         speakWithBackend(text, voiceName);
     }
@@ -197,6 +198,26 @@ function speakWithBackend(text, voiceName = null) {
     });
 }
 
+function speakWithGoogle(text, voiceName = null) {
+    // Optionally pass voiceName to backend for custom voices
+    voiceName = "en-AU-Chirp-HD-D";
+    fetch('/api/tts_google', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ text: text, voice_name: voiceName })
+    })
+    .then(res => res.json())
+    .then(data => playBase64Audio(data.audioContent));
+}
+
+function playBase64Audio(base64Audio) {
+    const audioBytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+    const blob = new Blob([audioBytes], { type: 'audio/mp3' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+}
+
 // ===== SPECIALIZED VOICE FUNCTIONS =====
 
 // Jim Nantz voice function
@@ -231,30 +252,7 @@ window.testVoiceSystem = function() {
     speakText("Hello friends, this is a test of the voice system!");
 };
 
-// Function to list all available voices (for debugging)
-window.listAvailableVoices = function() {
-    console.log('🎤 === AVAILABLE VOICES ===');
-    if (browserVoices.length === 0) {
-        // console.log('🎤 No voices loaded yet. Try again in a few seconds.');
-        return;
-    }
 
-    // browserVoices.forEach((voice, index) => {
-    //     const isPreferred = [
-    //         'Google US English',
-    //         'Google UK English Male',
-    //         'Google UK English Female',
-    //         'Microsoft David - English (United States)',
-    //         'Microsoft Zira - English (United States)'
-    //     ].includes(voice.name);
-
-    //     const marker = isPreferred ? '⭐' : '  ';
-    //     console.log(`🎤 ${marker} ${index}: ${voice.name} (${voice.lang})`);
-    // });
-    console.log('🎤 === END VOICES ===');
-};
-
-// ===== INITIALIZATION =====
 
 // Wait for voices to load
 if (speechSynthesis) {

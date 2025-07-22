@@ -439,7 +439,25 @@ async function handleAllBotMessages(data, userMessage) {
     }
 }
 
-// Handle a single bot response object
+// Helper to handle extras like Jim Nantz voice and GIFs
+async function handleBotExtras(botData, message) {
+    const botName = botData.bot_name;
+    // If this is Jim Nantz, speak the commentary
+    if (botName === 'Jim Nantz' || botName === 'jim_nantz') {
+        console.log('🎤 Jim Nantz comment detected:', message);
+        console.log('🎤 About to call jimNantzCommentVoice...');
+        jimNantzCommentVoice(message);
+    } else {
+        console.log('🎤 Not Jim Nantz, bot_name is:', botName);
+    }
+    // Prevent Jim Nantz and Golf Pro from sending GIFs
+    if (botName !== 'Jim Nantz' && botName !== 'jim_nantz' && botName !== 'Golf Pro' && botData.should_send_gif) {
+        const relevantGif = await getRelevantGif(message, botName);
+        addMessageToChat('bot', relevantGif, botName, true); // true = GIF only
+    }
+}
+
+// Update handleSingleBotResponse to call handleBotExtras
 async function handleSingleBotResponse(botData) {
     const botName = botData.bot_name;
     let message = botData.message;
@@ -459,17 +477,8 @@ async function handleSingleBotResponse(botData) {
     console.log(`[Bot: ${botName}] Message shown:`, message);
     // Add the text message
     addMessageToChat('bot', message, botName);
-    // If this is Jim Nantz, speak the commentary
-    if (botName === 'Jim Nantz' || botName === 'jim_nantz') {
-        console.log('🎤 Jim Nantz bot response detected:', message);
-        console.log('🎤 About to call jimNantzCommentVoice...');
-        jimNantzCommentVoice(message);
-    }
-    // Send GIF as a separate message if needed
-    if (botData.should_send_gif) {
-        const relevantGif = await getRelevantGif(message, botName);
-        addMessageToChat('bot', relevantGif, botName, true);
-    }
+    // Handle extras (Jim Nantz voice, GIFs)
+    await handleBotExtras(botData, message);
 }
 
 // Handle proactive comments
@@ -661,24 +670,7 @@ function getAllowedBotsForProactive() {
     return allowed;
 }
 
-// Start periodic proactive comments
-// function startPeriodicProactiveComments() {
-//     // Clear any existing interval.
-//     console.log('[startPeriodicProactiveComments] proactiveCommentInterval:', proactiveCommentInterval);
-//     if (proactiveCommentInterval) {
-//         clearInterval(proactiveCommentInterval);
-//     }
 
-//     // Start new interval - trigger proactive comments every 5-10 seconds
-//     // Backend will handle all timing decisions (cooldowns, probabilities, etc.)
-//     window.proactiveCommentInterval = setInterval(() => {
-//         if (gameId && chatbotEnabled && currentGameState && !currentGameState.game_over) {
-//             const eventTypes = ['general', 'turn_start', 'card_played', 'score_update'];
-//             const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-//             requestProactiveComment(randomEvent);
-//         }
-//     }, 5000 + Math.random() * 5000); // 5-10 seconds - backend handles actual timing
-// }
 
 // Clear chat UI
 function clearChatUI() {
@@ -733,46 +725,25 @@ function updateChatInputState() {
 }
 
 
-// Request proactive comment from bots
-async function requestProactiveComment(eventType = 'general') {
-    console.log('[requestProactiveComment] called with eventType:', eventType);
-    const allowed_bots = getAllowedBotsForProactive();
-    // Example fetch:
-    const payload = {
-        game_id: currentGameState.game_id, // or .id, or whatever the correct property is
-        event_type: eventType,
-        allowed_bots: allowed_bots
-    };
-    console.log('[requestProactiveComment] Sending payload:', payload);
-    const response = await fetch('/chatbot/proactive_comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    console.log('[requestProactiveComment] Response:', data);
-    // ...handle/display comments...
-    if (data.comments && data.comments.length > 0) {
-        data.comments.forEach(async (comment) => {
-            // Add the text message first
-            addMessageToChat('bot', comment.message, comment.bot_name);
-
-            // If this is Jim Nantz, speak the commentary
-            if (comment.bot_name === 'Jim Nantz' || comment.bot_name === 'jim_nantz') {
-                console.log('🎤 Jim Nantz comment detected:', comment.message);
-                console.log('🎤 About to call jimNantzCommentVoice...');
-                jimNantzCommentVoice(comment.message);
-            } else {
-                console.log('🎤 Not Jim Nantz, bot_name is:', comment.bot_name);
+// Request proactive comment from backend (simple display only)
+async function requestProactiveComment() {
+    if (!gameId) return;
+    const url = `/chatbot/proactive_comment?game_id=${gameId}`;
+    console.log('[Proactive] Polling for proactive comments at:', url);
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log('[Proactive] Response from backend:', data);
+        if (data.comments && data.comments.length > 0) {
+            for (const comment of data.comments) {
+                // Show typing indicator, then display the message
+                await handleSingleBotResponse(comment);
             }
-
-            // Prevent Jim Nantz and Golf Pro from sending GIFs
-            if (comment.bot_name !== 'Jim Nantz' && comment.bot_name !== 'jim_nantz' && comment.bot_name !== 'Golf Pro' && data.should_send_gif) {
-                // Extract relevant search terms from the message
-                const relevantGif = await getRelevantGif(comment.message, comment.bot_name);
-                addMessageToChat('bot', relevantGif, comment.bot_name, true); // true = GIF only
-            }
-        });
+        } else {
+            console.log('[Proactive] No proactive comments received.');
+        }
+    } catch (error) {
+        console.error('[Proactive] Error fetching proactive comments:', error);
     }
 }
 
@@ -857,11 +828,11 @@ window.sendChatMessage = sendChatMessage;
 // Remove the changePersonality function and all references to it, including any personalitySelect event listeners
 // If personalitySelect is not used elsewhere, remove its related code as well
 window.getAllowedBotsForProactive = getAllowedBotsForProactive;
-window.startPeriodicProactiveComments = startPeriodicProactiveComments;
+window.requestProactiveComment = requestProactiveComment;
 window.clearChatUI = clearChatUI;
 window.setJimNantzDefault = setJimNantzDefault;
 window.updateChatInputState = updateChatInputState;
-window.updateCustomBotCount = updateCustomBotCount;
+// window.updateCustomBotCount = updateCustomBotCount;
 
 // Add missing exports for functions that might be called from other modules
 window.requestProactiveComment = requestProactiveComment;
@@ -874,8 +845,8 @@ window.sendUserGifToChat = sendUserGifToChat;
 // Initialize chatbot when DOM is ready
 function initChatbotWhenReady() {
     console.log('🚀 Attempting to initialize chatbot...');
-    console.log('📋 Document ready state:', document.readyState);
-    console.log('🔍 Looking for chat elements...');
+    // console.log('📋 Document ready state:', document.readyState);
+    // console.log('🔍 Looking for chat elements...');
 
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendChatBtn');
@@ -890,6 +861,8 @@ function initChatbotWhenReady() {
     if (chatInput && sendBtn) {
         console.log('✅ Chat elements found, initializing...');
         initializeChatbot();
+        // Poll for proactive comments every 10 seconds
+        setInterval(requestProactiveComment, 50000);
     } else {
         console.log('⏳ Chat elements not found yet, retrying in 100ms...');
         setTimeout(initChatbotWhenReady, 100);

@@ -167,7 +167,7 @@ async function startGame() {
                     console.log('🎯 Frontend: Searching placeholder_bots for:', selectedBotValue);
                     selectedBot = data.placeholder_bots.find(bot => {
                         const generatedId = 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_');
-                        console.log('🎯 Frontend: Checking bot:', bot.name, 'generated ID:', generatedId, 'matches:', generatedId === selectedBotValue);
+                        // console.log('🎯 Frontend: Checking bot:', bot.name, 'generated ID:', generatedId, 'matches:', generatedId === selectedBotValue);
                         return generatedId === selectedBotValue;
                     });
                 }
@@ -722,11 +722,11 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
 }
 
 async function pollAITurns() {
-    console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over, 'aiTurnInProgress:', aiTurnInProgress);
+    // console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over, 'aiTurnInProgress:', aiTurnInProgress);
 
     // Prevent multiple concurrent AI turn polling
     if (aiTurnInProgress) {
-        console.log('🤖 AI turn already in progress, skipping...');
+        // console.log('🤖 AI turn already in progress, skipping...');
         return;
     }
 
@@ -744,13 +744,13 @@ async function pollAITurns() {
             });
             const data = await response.json();
             if (data.success) {
-                console.log('🤖 AI turn successful, updating game state');
+                // console.log('🤖 AI turn successful, updating game state');
                 currentGameState = data.game_state;
                 updateGameDisplay();
 
                 // If there's another AI turn needed, schedule it after a delay
                 if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                    console.log('🤖 Scheduling next AI turn after delay...');
+                    // console.log('🤖 Scheduling next AI turn after delay...');
                     setTimeout(() => {
                         aiTurnInProgress = false; // Reset flag before next call
                         pollAITurns(); // Recursive call for next AI turn
@@ -767,7 +767,7 @@ async function pollAITurns() {
             aiTurnInProgress = false; // Reset flag on error
         }
     }
-    console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn, 'aiTurnInProgress:', aiTurnInProgress);
+    // console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn, 'aiTurnInProgress:', aiTurnInProgress);
 }
 
 // Helper function to use a random bot for 1v1 mode
@@ -794,7 +794,7 @@ async function useRandomBotFor1v1(gameData) {
                 description: randomBot.description
             };
 
-            console.log('🎯 Frontend: Using random bot for 1v1 mode:', randomBot.name);
+            // console.log('🎯 Frontend: Using random bot for 1v1 mode:', randomBot.name);
         } else {
             // Fallback to default bot if no random bots found
             const selectedBots = window.selectedBots || ['peter_parker'];
@@ -816,7 +816,7 @@ async function useRandomBotFor1v1(gameData) {
             gameData.opponent = opponentType;
             gameData.bot_name = botNames[botValue] || 'AI Opponent';
 
-            console.log('🎯 Frontend: Using default bot for 1v1 mode:', gameData.bot_name);
+            // console.log('🎯 Frontend: Using default bot for 1v1 mode:', gameData.bot_name);
         }
     } catch (error) {
         console.log('🎯 Frontend: Error loading random bot for 1v1, using default:', error);

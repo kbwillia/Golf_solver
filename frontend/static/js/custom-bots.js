@@ -466,7 +466,7 @@ async function renderBotSelectRow() {
     if (data.custom_bots && Object.keys(data.custom_bots).length > 0) {
       Object.entries(data.custom_bots).forEach(([bot_id, bot_data]) => {
         allBots.push({
-          value: bot_id,
+          value: bot_id, // e.g., "custom_fat_bastard"
           name: bot_data.name,
           difficulty: bot_data.difficulty.charAt(0).toUpperCase() + bot_data.difficulty.slice(1),
           difficultyClass: bot_data.difficulty,

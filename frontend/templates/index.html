@@ -165,6 +165,7 @@
                                 <input type="text" id="chatInput" placeholder="Type @golfbro or @golfpro to ask specific bots..." class="chat-input">
                                 <button id="sendChatBtn" class="chat-send-btn">Send it</button>
                                 <button id="sendGifBtn" class="chat-send-btn">GIF</button>
+                                <button id="micChatBtn" class="chat-send-btn" title="Speak"><span style="font-size:1.2em;">🎤</span></button>
                             </div>
                             <!-- GIF Search Modal moved here -->
                             <div id="gifModal" style="display:none;">
@@ -205,6 +206,15 @@
                                         <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
                                         <div id="drawnCardInstructions">
                                             Drag to replace or click your card to flip
+                                        </div>
+                                        <!-- Peek Button -->
+                                        <div class="peek-button-container" id="peekButtonContainer" style="display: none;">
+                                            <button id="peekButton" class="peek-btn" onclick="peekAtCards()" title="Peek at your hidden cards">
+                                                👀 <span class="peek-text">Peek</span>
+                                            </button>
+                                            <div id="peekCooldown" class="peek-cooldown" style="display: none;">
+                                                <span id="peekCooldownTime">30s</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

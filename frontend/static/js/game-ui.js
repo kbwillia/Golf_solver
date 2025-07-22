@@ -61,7 +61,7 @@ function updateGameDisplay() {
             const newCardContent = getCardDisplayContent(currentGameState.discard_top, false);
             discardCard.innerHTML = newCardContent;
 
-            console.log('🔄 UPDATED DISCARD PILE:', currentGameState.discard_top.rank + currentGameState.discard_top.suit);
+            // console.log('🔄 UPDATED DISCARD PILE:', currentGameState.discard_top.rank + currentGameState.discard_top.suit);
         } else {
             discardCard.innerHTML = '';
             discardCard.classList.add('face-down');
@@ -86,7 +86,7 @@ function updateGameDisplay() {
         if (currentGameState.game_over) {
             // Check if human player won and show celebration
             if (currentGameState.winner === 0) {
-                console.log('🎉 Human player won! Showing celebration...');
+                // console.log('🎉 Human player won! Showing celebration...');
                 showCelebrationGif();
             }
 
@@ -148,12 +148,12 @@ function updateGameDisplay() {
         }
     }
 
-    console.log('DEBUG: updateGameDisplay called');
-    console.log('DEBUG: currentGameState 561:', currentGameState);
-    console.log('DEBUG: previousGameState:', previousGameState);
-    if (currentGameState && previousGameState) {
-        console.log('DEBUG: current_player:', currentGameState.current_player, 'previous_player:', previousGameState.current_player);
-    }
+    // console.log('DEBUG: updateGameDisplay called');
+    // console.log('DEBUG: currentGameState 561:', currentGameState);
+    // console.log('DEBUG: previousGameState:', previousGameState);
+    // if (currentGameState && previousGameState) {
+    //     console.log('DEBUG: current_player:', currentGameState.current_player, 'previous_player:', previousGameState.current_player);
+    // }
 
     if (
         currentGameState &&
@@ -168,11 +168,11 @@ function updateGameDisplay() {
                 const now = Date.now();
                 // Keep Nantz cooldown for immediate action responses
                 if (now - lastNantzCommentTime > 4000) { // 4s cooldown for Nantz
-                    console.log('Proactive comment triggered for new action');
+                    // console.log('Proactive comment triggered for new action');
                     requestProactiveComment('card_played');
                     lastNantzCommentTime = now;
                 } else {
-                    console.log('Skipped Nantz comment due to cooldown');
+                    // console.log('Skipped Nantz comment due to cooldown');
                 }
                 // Backend handles timing for all other bots
             }, 800); // 800ms debounce window
@@ -187,11 +187,11 @@ function updateGameDisplay() {
         !previousGameState.game_over &&
         chatbotEnabled
     ) {
-        console.log('Proactive comment triggered for game over');
+        // console.log('Proactive comment triggered for game over');
         requestProactiveComment('game_over');
     }
 
-    console.log('After move, action_history.length:', currentGameState.action_history.length);
+    // console.log('After move, action_history.length:', currentGameState.action_history.length);
 
     // Update the chat participants header
     updateChatParticipantsHeader();

@@ -533,3 +533,122 @@
     box-shadow: 0 6px 16px rgba(40, 167, 69, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
     transform: translateY(-3px) scale(1.08);
 }
+
+/* ===== PEEK BUTTON STYLING ===== */
+
+.peek-button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 8px;
+    gap: 4px;
+}
+
+.peek-btn {
+    background: rgba(40, 167, 69, 0.00); /* Light green with opacity */
+    color: #218838;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    /* box-shadow: 0 2px 8px rgba(40, 167, 69, 0.10); */
+    position: relative;
+    overflow: hidden;
+    text-shadow: none;
+    letter-spacing: 0.5px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.peek-btn .peek-text {
+    color: white;
+    margin-left: 8px;
+    opacity: 0 !important;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    font-size: 0.7em;
+    font-weight: 600;
+    letter-spacing: 1px;
+    user-select: none;
+    display: inline-block;
+}
+
+.peek-btn:hover .peek-text {
+    opacity: 1 !important;
+}
+
+.peek-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.003), transparent);
+    transition: left 0.5s;
+}
+
+.peek-btn:hover::before {
+    left: 100%;
+}
+
+.peek-btn:hover {
+    background: rgba(40, 167, 69, 0.42);
+    color: #155724;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.18);
+    transform: scale(1.08);
+}
+
+.peek-btn:active {
+    background: rgba(40, 167, 69, 0.00);
+    color: #155724;
+    /* box-shadow: 0 1px 3px rgba(40, 167, 69, 0.10); */
+    transform: scale(0.98);
+}
+
+.peek-btn:disabled {
+    /* background: #cccccc; */
+    /* color: #666666; */
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.peek-btn:disabled::before {
+    display: none;
+}
+
+/* Peek Cooldown Display */
+.peek-cooldown {
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-align: center;
+    min-width: 30px;
+}
+
+.peek-cooldown span {
+    font-family: 'Courier New', monospace;
+}
+
+/* Peeking state - cards temporarily visible */
+.card.peeking {
+    border: 3px solid #ff6b6b !important;
+    box-shadow: 0 0 12px #ff6b6b, 0 2px 4px rgba(0,0,0,0.2) !important;
+    animation: peekPulse 0.5s ease-in-out;
+}
+
+@keyframes peekPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}

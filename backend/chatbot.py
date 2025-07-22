@@ -5,6 +5,7 @@ from llm_cerebras import call_cerebras_llm
 import random
 import os
 from bot_personalities import create_bot, BaseBot
+from game_state import get_game_state
 import re
 
 class GolfChatbot:
@@ -353,18 +354,6 @@ class GolfChatbot:
             else:
                 return None
 
-    def change_personality(self, new_type: str) -> bool:
-        """Change the chatbot personality"""
-        print(f"DEBUG: Attempting to change personality to: {new_type}")
-        try:
-            self.current_bot = create_bot(new_type)
-            self.bot_type = new_type
-            print(f"DEBUG: Successfully changed personality to: {new_type}")
-            return True
-        except Exception as e:
-            print(f"DEBUG: Failed to change personality - {new_type}: {e}")
-            return False
-
     def reset_for_new_game(self):
         """Reset bot state for a new game"""
         self.current_bot.reset_for_new_game()
@@ -557,7 +546,7 @@ class GolfChatbot:
         game_state: dict,
         conversation_history: list,
         last_proactive_comment_time: float,
-        cooldown_seconds: int = 30
+        cooldown_seconds: int = 3 # 30 was default
     ) -> Optional[dict]:
         """
         Decide if a proactive comment should be generated, and return it if so.
@@ -570,7 +559,7 @@ class GolfChatbot:
 
         # Dramatic event trigger
         dramatic_event = False
-        if game_state.get('last_action') and 'dramatic' in str(game_state['last_action']).lower():
+        if game_state and game_state.get('last_action') and 'dramatic' in str(game_state['last_action']).lower():
             dramatic_event = True
 
         # Silence trigger (no user chat for X seconds)
@@ -756,6 +745,8 @@ class ChatHandler:
                 # Use each bot's own cooldown/attributes if needed
                 last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
                 cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
+                print(f"[Timer] allowed_bots: {allowed_bots}", flush=True)
+                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {self.get_bot_id_from_display_name(game_session, bot_name)}", flush=True)
                 comment = self.chatbot.check_for_proactive_comment(
                     game_state=game_state,
                     conversation_history=game_session['conversation_history'],
@@ -921,26 +912,33 @@ class ChatHandler:
             game_session = games[game_id]
             game = game_session['game']
 
-            # Use allowed_bots from frontend!
-            allowed_bots = data.get('allowed_bots', ["Jim Nantz"])
-            print("ALLOWED BOTS RECEIVED:", allowed_bots)  # Debug print
+            # Determine allowed bots: all AI players except 'Golf Pro' and 'Golf Bro', unless overridden
+            if 'allowed_bots' in data:
+                allowed_bots = data['allowed_bots']
+            else:
+                allowed_bots = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
+            print("ALLOWED BOTS:", allowed_bots)
             ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
-            print("AI PLAYERS SELECTED:", [p.name for p in ai_players])  # Debug print
+            print("AI PLAYERS SELECTED:", [p.name for p in ai_players])
 
             comments = []
 
-            # Enhanced AI player comments
-            for player in ai_players:
-                original_personality = self.chatbot.bot_type
+            # Build the list of all allowed bots (including Jim Nantz if desired)
+            all_bot_names = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
+            if "Jim Nantz" in allowed_bots and "Jim Nantz" not in all_bot_names:
+                all_bot_names.append("Jim Nantz")
 
-                # Convert display name to bot_id if it's a custom bot
-                bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, player.name)
-                print(f"DEBUG: Proactive comment - Bot name: {player.name}, Bot ID: {bot_id_for_lookup}")
+            print(f"DEBUG: all_bot_names = {all_bot_names}")
+            for bot_name in all_bot_names:
+                bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, bot_name)
+                print(f"DEBUG: Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id_for_lookup}", flush=True)
 
-                self.chatbot.change_personality(bot_id_for_lookup)
+                bot_instance = create_bot(bot_id_for_lookup)
+                from chatbot import GolfChatbot
+                temp_chatbot = GolfChatbot(bot_id_for_lookup)
+                temp_chatbot.current_bot = bot_instance
 
-                # Use enhanced contextual proactive comment generation
-                enhanced_comment = self.chatbot.generate_contextual_proactive_comment(
+                enhanced_comment = temp_chatbot.generate_contextual_proactive_comment(
                     game_state,
                     event_type,
                     specific_context
@@ -948,38 +946,13 @@ class ChatHandler:
 
                 if enhanced_comment:
                     comments.append({
-                        'bot_name': player.name,  # Keep original display name for frontend
+                        'bot_name': bot_name,
                         'message': enhanced_comment["message"],
                         'event_type': enhanced_comment.get("event_type", event_type),
                         'should_send_gif': enhanced_comment.get("should_send_gif", False),
                         'gif_context': enhanced_comment.get("gif_context", ""),
                         'personality_info': enhanced_comment.get("personality_info", {})
                     })
-
-                self.chatbot.change_personality(original_personality)
-
-            # Special case: Always allow Jim Nantz to comment if requested, even if not a player
-            if "Jim Nantz" in allowed_bots and not any(p.name == "Jim Nantz" for p in ai_players):
-                original_personality = self.chatbot.bot_type
-                self.chatbot.change_personality("Jim Nantz")
-
-                enhanced_comment = self.chatbot.generate_contextual_proactive_comment(
-                    game_state,
-                    event_type,
-                    specific_context
-                )
-
-                if enhanced_comment:
-                    comments.append({
-                        'bot_name': "Jim Nantz",
-                        'message': enhanced_comment["message"],
-                        'event_type': enhanced_comment.get("event_type", event_type),
-                        'should_send_gif': enhanced_comment.get("should_send_gif", False),
-                        'gif_context': enhanced_comment.get("gif_context", ""),
-                        'personality_info': enhanced_comment.get("personality_info", {})
-                    })
-
-                self.chatbot.change_personality(original_personality)
 
             print(f"DEBUG: Generated {len(comments)} enhanced proactive comments")
             return {'success': True, 'comments': comments}
@@ -990,43 +963,7 @@ class ChatHandler:
             traceback.print_exc()
             return {'error': str(e)}, 500
 
-    def handle_get_personalities(self) -> Dict[str, Any]:
-        """Get available chatbot personalities"""
-        try:
-            personalities = self.chatbot.get_available_personalities()
-            current_personality = self.chatbot.get_bot_info()
-            return {
-                'success': True,
-                'personalities': personalities,
-                'current': current_personality
-            }
-        except Exception as e:
-            print("Error in handle_get_personalities:", e)
-            import traceback; traceback.print_exc()
-            return {'error': f'Error getting personalities: {str(e)}'}, 500
 
-    def handle_change_personality(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle personality change requests"""
-        personality_type = data.get('personality_type', 'nantz')
-        valid_types = ['nantz', 'opponent', 'helpful', 'funny']
-        if personality_type not in valid_types:
-            return {'success': False, 'error': 'Invalid personality type.'}, 400
-
-        try:
-            success = self.chatbot.change_personality(personality_type)
-            if success:
-                new_personality = self.chatbot.get_bot_info()
-                return {
-                    'success': True,
-                    'message': f'Changed to {new_personality["name"]}',
-                    'personality': new_personality
-                }
-            else:
-                return {'error': 'Invalid personality type'}, 400
-        except Exception as e:
-            print("Error in handle_change_personality:", e)
-            import traceback; traceback.print_exc()
-            return {'error': f'Error changing personality: {str(e)}'}, 500
 
     def _generate_gif_search_terms(self, bot_name: str, message: str) -> str:
         """Generate GIF search terms based on bot's description, prompt, and message."""

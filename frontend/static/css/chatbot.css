@@ -101,6 +101,8 @@
 
 .message.user-message {
     align-items: flex-end;
+    overflow: visible;
+    margin-right: 6px; /* Add space for pointer */
 }
 
 .message.bot-message {
@@ -120,6 +122,7 @@
     overflow: visible;
 }
 
+/* ===== User Message Fixes ===== */
 .user-message {
     display: flex;
     flex-direction: column;
@@ -583,22 +586,41 @@ input:checked + .toggle-slider:before {
     overflow: visible;
     margin-left: 6px; /* Add space for pointer */
 }
+
+/* ===== Typing Indicator Fixes ===== */
 .typing-indicator .message-content {
     background: #e6f4ea;
     color: #155724;
     border-radius: 18px;
     padding: 8px 16px;
-    font-size: 0.75em; /* Match regular bot bubble */
+    font-size: 0.75em;
     font-style: italic;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     margin-left: 8px;
     margin-right: 8px;
     min-width: 80px;
-    max-width: 95%; /* Increased from 90% */
+    max-width: 95%;
     position: relative;
     opacity: 0.95;
     overflow: visible;
     word-break: break-word;
+}
+
+/* Add bubble pointer for typing indicator */
+.typing-indicator .message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right-color: #e6f4ea;
+    border-left: 0;
+    border-bottom: 0;
+    margin-bottom: 0;
+    display: block;
+    z-index: 2;
 }
 .typing-bot-name {
     font-weight: bold;

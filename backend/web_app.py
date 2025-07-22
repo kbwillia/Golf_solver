@@ -4,7 +4,7 @@
 #   /static/golf_celebration_gifs.json # Celebration GIFs data (downsized_medium URLs)
 #   /templates/index.html             # Main HTML template (structure only, links to CSS/JS)
 
-from flask import Flask, render_template, request, jsonify, session, send_from_directory
+from flask import Flask, render_template, request, jsonify, session, send_from_directory, send_file
 import uuid
 import json
 import random
@@ -13,6 +13,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import requests
+import threading
 
 # Import from same directory
 from game import GolfGame
@@ -21,6 +22,9 @@ from chatbot import chatbot, chat_handler
 from bot_personalities import create_bot, register_custom_bot
 import json
 import os
+from game_state import get_game_state
+from flask import send_file
+from google_chipr_api import chirp3_voice
 
 # Load environment variables from .env file
 load_dotenv()
@@ -117,16 +121,6 @@ for bot_id, bot_data in custom_bots.items():
         print(f"✅ Registered custom bot from JSON: {bot_data['name']}")
     except Exception as e:
         print(f"❌ Error registering custom bot {bot_id}: {e}")
-
-# Add this mapping somewhere in your backend
-# BOT_PERSONALITIES = {
-#     "Peter Parker": "Peter Parker",
-#     "Happy Gilmore": "Happy Gilmore",
-#     "Tiger Woods": "Tiger Woods",
-#     "Shooter McGavin": "Shooter McGavin"
-# }
-
-
 
 
 
@@ -260,6 +254,7 @@ def create_game():
             print(f"🎯 Backend: No custom bot info provided for 1v1 mode")
 
         # Create the game
+        games.clear()  # Remove all previous games; only keep the current one
         game = GolfGame(num_players=num_players, agent_types=agent_types)
         # Set the human player's name
         game.players[0].name = player_name
@@ -334,6 +329,7 @@ def create_game():
             'conversation_history': [],  # Initialize conversation history for chatbot
             'last_proactive_comment_time': time.time(),
             'proactive_comment_cooldown': 10,
+            'pending_proactive_comments': [], # New: Store pending proactive comments
         }
 
         # Add custom bot data to the game session if any
@@ -348,6 +344,7 @@ def create_game():
         chatbot.conversation_history = []
         chatbot.reset_for_new_game()  # Reset bot state for new game
 
+        # Now call get_game_state(game_id) after games[game_id] is set
         return jsonify({
             'success': True,
             'game_id': game_id,
@@ -482,188 +479,8 @@ def draw_card(game_id):
         }
     })
 
-def get_game_state(game_id):
-    """Get formatted game state for frontend"""
-    if game_id not in games:
-        return None
-
-    game_session = games[game_id]
-    game = game_session['game']
-
-    # Format player grids - show what the human player can see
-    players_data = []
-    for i, player in enumerate(game.players):
-        player_data = {
-            'name': player.name,
-            'agent_type': player.agent_type,
-            'grid': [],
-            'is_human': player.agent_type == 'human'
-        }
-
-        # Format grid cards based on what human player can see
-        for j in range(4):
-            card = player.grid[j]
-            if card:
-                if i == 0:
-                    # Human player - show privately visible cards and publicly known cards
-                    if player.known[j] or player.privately_visible[j]:
-                        player_data['grid'].append({
-                            'rank': card.rank,
-                            'suit': card.suit,
-                            'visible': True,
-                            'public': player.known[j],  # Whether this card is known to all players
-                            'score': card.score()
-                        })
-                    else:
-                        # Hidden cards for human (top row that aren't publicly known)
-                        player_data['grid'].append({
-                            'rank': None,
-                            'suit': None,
-                            'visible': False,
-                            'public': False,
-                            'score': None
-                        })
-                else:
-                    # AI players - only show publicly known cards
-                    if player.known[j] or game_session['game_over']:
-                        player_data['grid'].append({
-                            'rank': card.rank,
-                            'suit': card.suit,
-                            'visible': True,
-                            'public': True,
-                            'score': card.score()
-                        })
-                    else:
-                        player_data['grid'].append({
-                            'rank': None,
-                            'suit': None,
-                            'visible': False,
-                            'public': False,
-                            'score': None
-                        })
-            else:
-                player_data['grid'].append(None)
-
-        # Add pairs info for human player
-        if i == 0:
-            pairs = game.get_pairs(player.grid)
-            player_data['pairs'] = pairs
-
-        players_data.append(player_data)
-
-    # Get discard pile top card
-    discard_top = None
-    if game.discard_pile:
-        card = game.discard_pile[-1]
-        discard_top = {
-            'rank': card.rank,
-            'suit': card.suit,
-            'score': card.score()
-        }
-
-    # Always calculate scores (not just at game over)
-    scores = [game.calculate_score(p.grid) for p in game.players]
-    public_scores = [get_public_score(p, game) for p in game.players]
-    private_scores = [get_private_score(p, game) for p in game.players]
-    winner = None
-    if game_session['game_over']:
-        winner = scores.index(min(scores))
-
-    # Probabilities/statistics from probabilities.py
-    probabilities = get_probabilities(game)
-
-    # Add deck counts (public cards only)
-    deck_counts = get_deck_counts(game)
-
-    # Calculate expected value analysis for current player only
-    current_player_ev_analysis = None
-    if not game_session['game_over'] and game.turn < len(game.players):
-        current_player = game.players[game.turn]
-        current_player_ev_analysis = expected_value_draw_vs_discard(game, current_player)
-
-    # Add cumulative scores and match info
-    cumulative_scores = game_session.get('cumulative_scores')
-    current_game = game_session.get('current_game', 1)
-    num_games = game_session.get('num_games', 1)
-    match_winner = game_session.get('match_winner')
-
-    # Use round_cumulative_scores if available (during game), otherwise cumulative_scores (between games)
-    display_cumulative_scores = game_session.get('round_cumulative_scores', cumulative_scores)
-
-    # print(f"DEBUG: get_game_state: current_game={current_game}, game_over={game_session['game_over']}, cumulative_scores={game_session['cumulative_scores']}, round_cumulative_scores={game_session.get('round_cumulative_scores')}, cumulative_updated_for_game={game_session.get('cumulative_updated_for_game')}")
-
-    deck_top_card = None
-    if len(game.deck) > 0:
-        card = game.deck[-1]
-        deck_top_card = {
-            'rank': card.rank,
-            'suit': card.suit,
-            'score': card.score()
-        }
-
-    state = {
-        'players': players_data,
-        'current_turn': game.turn,
-        'round': game.round,
-        'max_rounds': game.max_rounds,
-        'discard_top': discard_top,
-        'deck_size': len(game.deck),
-        'game_over': game_session['game_over'],
-        'scores': scores,
-        'public_scores': public_scores,
-        'private_scores': private_scores,
-        'winner': winner,
-        'mode': game_session['mode'],
-        'probabilities': probabilities,
-        'dictionary_of_cards_left_in_deck': deck_counts,
-        'current_player_ev_analysis': current_player_ev_analysis,
-        'ai_thinking': game_session.get('ai_thinking', False),
-        'cumulative_scores': display_cumulative_scores,
-        'current_game': current_game,
-        'num_games': num_games,
-        'match_winner': match_winner,
-        'deck_top_card': deck_top_card,
-        'waiting_for_next_game': game_session.get('waiting_for_next_game', False),
-        'last_action': getattr(game, 'last_action', None),
-        'action_history': getattr(game, 'action_history', []),
-        'game_id': game_id  # where game_id is the UUID string
-    }
-        # Set winner for current game if over
-    if game_session['game_over']:
-        scores = [game.calculate_score(p.grid) for p in game.players]
-        winner_index = scores.index(min(scores))
-        state['winner'] = winner_index
-    if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-        # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
-        if not game_session.get('cumulative_updated_for_game', False):
-            scores = [game.calculate_score(p.grid) for p in game.players]
-            for i, s in enumerate(scores):
-                game_session['cumulative_scores'][i] += s
-            game_session['cumulative_updated_for_game'] = True
-            # print(f"DEBUG: get_game_state: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
-        else:
-            # print("DEBUG: get_game_state: Cumulative scores already updated for this game.")
-            pass
-        # Set flag that we're waiting for user to continue to next game
-        game_session['waiting_for_next_game'] = True
-    else:
-        game_session['waiting_for_next_game'] = False
-
-    # --- Proactive Comment Logic ---
 
 
-    # Use chatbot to decide if a proactive comment should be generated
-    proactive_comment = chatbot.check_for_proactive_comment(
-        game_state=state,
-        conversation_history=game_session['conversation_history'],
-        last_proactive_comment_time=game_session['last_proactive_comment_time'],
-        cooldown_seconds=game_session['proactive_comment_cooldown']
-    )
-    if proactive_comment:
-        state['proactive_comments'] = [proactive_comment]
-        game_session['last_proactive_comment_time'] = time.time()
-
-    return state
 
 @app.route('/get_available_actions/<game_id>')
 def get_available_actions(game_id):
@@ -895,32 +712,24 @@ def get_bot_response():
     else:
         return jsonify(result)
 
-@app.route('/chatbot/proactive_comment', methods=['POST'])
-def get_proactive_comment():
-    data = request.json
-    result = chat_handler.handle_proactive_comment(data, get_game_state, games)
 
-    if isinstance(result, tuple):
-        response_data, status_code = result
-        return jsonify(response_data), status_code
-    else:
-        return jsonify(result)
+#         return jsonify(result)
+
+@app.route('/chatbot/proactive_comment', methods=['GET'])
+def get_proactive_comment_get():
+    game_id = request.args.get('game_id')
+    if not game_id or game_id not in games:
+        return jsonify({'comments': []})
+    game_session = games[game_id]
+    comments = game_session.get('pending_proactive_comments', [])
+    game_session['pending_proactive_comments'] = []
+    print(f"Returning proactive comments for {game_id}: {comments}")
+    return jsonify({'comments': comments})
 
 @app.route('/chatbot/personalities', methods=['GET'])
 def get_chatbot_personalities():
     """Get available chatbot personalities"""
     result = chat_handler.handle_get_personalities()
-
-    if isinstance(result, tuple):
-        response_data, status_code = result
-        return jsonify(response_data), status_code
-    else:
-        return jsonify(result)
-
-@app.route('/chatbot/change_personality', methods=['POST'])
-def change_chatbot_personality():
-    data = request.json
-    result = chat_handler.handle_change_personality(data)
 
     if isinstance(result, tuple):
         response_data, status_code = result
@@ -995,6 +804,15 @@ def user_gif_search():
     except Exception as e:
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
+# Voice mapping for logical names to Google voice names
+GOOGLE_VOICE_MAPPING = {
+    'nantz': 'en-AU-Chirp-HD-D',
+    'female': 'en-US-Wavenet-F',
+    'male': 'en-US-Wavenet-D',
+    'default': 'en-AU-Chirp-HD-D',
+    # Add more mappings as needed
+}
+
 @app.route('/api/tts', methods=['POST'])
 def tts():
     try:
@@ -1050,6 +868,14 @@ def tts():
         print("🎤 Exception in /api/tts:", e)
         traceback.print_exc()
         return jsonify({"error": "Server error", "details": str(e)}), 500
+
+@app.route('/api/tts_google', methods=['POST'])
+def tts_google():
+    data = request.json
+    text = data['text']
+    voice_name = data.get("en-AU-Chirp-HD-D", "en-AU-Chirp-HD-D")
+    audio_base64 = chirp3_voice(text, voice_name)
+    return jsonify({'audioContent': audio_base64})
 
 # In your web_app.py or similar
 
@@ -1202,6 +1028,48 @@ def get_custom_bots():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+def proactive_comment_timer():
+    from chatbot import create_bot, GolfChatbot
+    while True:
+        time.sleep(5)  # Check every 5 seconds
+        for game_id, game_session in games.items():
+            game = game_session['game']
+            # Build allowed bots: all AI except Golf Pro and Golf Bro, plus Jim Nantz
+            allowed_bots = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
+            if "Jim Nantz" not in allowed_bots:
+                allowed_bots.append("Jim Nantz")
+            for bot_name in allowed_bots:
+                # Debug: Show custom bot mappings in game session
+                print(f"[DEBUG] Custom bot mappings in session:", flush=True)
+                for k, v in game_session.items():
+                    if 'custom_bot' in k:
+                        print(f"[DEBUG]   {k}: {v}", flush=True)
+                bot_id_for_lookup = chat_handler.get_bot_id_from_display_name(game_session, bot_name)
+                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id_for_lookup}", flush=True)
+                bot_instance = create_bot(bot_id_for_lookup)
+                temp_chatbot = GolfChatbot(bot_id_for_lookup)
+                temp_chatbot.current_bot = bot_instance
+                last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
+                cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
+                comment = temp_chatbot.check_for_proactive_comment(
+                    game_state=get_game_state(game_id),
+                    conversation_history=game_session['conversation_history'],
+                    last_proactive_comment_time=last_time,
+                    cooldown_seconds=cooldown
+                )
+                if comment:
+                    if 'pending_proactive_comments' not in game_session:
+                        game_session['pending_proactive_comments'] = []
+                    game_session['pending_proactive_comments'].append({
+                        'bot_name': bot_name,
+                        **comment
+                    })
+                    game_session[f'last_proactive_comment_time_{bot_name}'] = time.time()
+                    print(f"[Timer] Proactive comment generated for {bot_name}: {comment}", flush=True)
+
+# Start the timer in a background thread (add this near your app startup)
+threading.Thread(target=proactive_comment_timer, daemon=True).start()
 
 if __name__ == '__main__':
     # Get port from environment variable (for deployment) or use 5000 for local development

@@ -13,3 +13,7 @@ elevenlabs>=0.2.0
 gunicorn>=21.0.0
 Werkzeug>=2.3.0
 pandas>=1.5.0
+google-cloud-texttospeech
+playsound
+supabase
+pinecone-client
