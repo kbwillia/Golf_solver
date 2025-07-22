@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
     <link rel="stylesheet" href="/static/css/custom-bots.css">
+    <link rel="stylesheet" href="/static/css/setup.css">
 </head>
 <body>
     <!-- Main container for the entire app --> <!-- App root -->
@@ -32,13 +33,13 @@
         <!-- Setup and Game Board Wrapper -->
         <div class="setup-and-board">
             <!-- 3-column layout for setup screen -->
-            <div id="setupColumns" style="display: flex; flex-direction: row; justify-content: center; align-items: flex-start; gap: 32px; min-height: 420px;">
+            <div id="setupColumns">
                 <!-- Left column: placeholder for chatbot/rules -->
-                <div id="setupLeftColumn" style="flex: 1; min-width: 220px; max-width: 320px; background: rgba(230,249,230,0.05); border-radius: 12px; min-height: 320px; display: flex; align-items: flex-start; justify-content: center;">
+                <div id="setupLeftColumn">
                     <!-- Chatbot/rules will go here -->
                 </div>
                 <!-- Center column: game setup -->
-                <div id="setupCenterColumn" style="flex: 2; min-width: 340px; max-width: 540px; display: flex; flex-direction: column; align-items: center;">
+                <div id="setupCenterColumn">
                     <div class="game-setup" id="gameSetup">
                         <h2>Game Setup</h2>
                         <!-- Player Name Input -->
@@ -141,8 +142,8 @@
                     </div>
                 </div>
                 <!-- Right column: AI bot image container -->
-                <div id="setupRightColumn" style="flex: 1; min-width: 220px; max-width: 320px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
-                    <div id="aiBotImageContainer" style="width:100%;"></div>
+                <div id="setupRightColumn">
+                    <div id="aiBotImageContainer"></div>
                 </div>
             </div>
             <!-- REDESIGNED: Modern responsive game board layout -->

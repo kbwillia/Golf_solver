@@ -537,12 +537,14 @@ async function renderBotSelectRow() {
     btn.className = 'bot-select-btn' +
       (isSelected ? (isMultiMode ? ' multi-selected' : ' selected') : '');
     btn.setAttribute('data-bot', bot.value);
+
+    // No JS truncation, let CSS handle it
     btn.innerHTML = `
       <div class="bot-header">
         <span class="bot-name">${bot.name}</span>
         <span class="bot-difficulty ${bot.difficultyClass}">${bot.difficulty}</span>
       </div>
-      <span class="bot-desc">${bot.desc}</span>
+      <span class="bot-desc bot-desc-short">${bot.desc}</span>
     `;
     btn.onclick = () => selectBotButton(bot.value);
     row.appendChild(btn);
@@ -571,7 +573,7 @@ function updateAIBotImageContainer(allBots) {
   imageContainer.innerHTML = '';
 
   if (!window.selectedBots || window.selectedBots.length === 0) {
-    imageContainer.innerHTML = '<div style="color:#888; font-style:italic; margin-top:24px;">Select a bot to see their image and description.</div>';
+    imageContainer.innerHTML = '<div style="color:#888; font-style:italic; margin-top:24px;"></div>';
     return;
   }
 
@@ -581,33 +583,36 @@ function updateAIBotImageContainer(allBots) {
     // Try to match bot name to image filename
     const imgName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
     const imgPath = `/static/AI_bot_images/${imgName}`;
+
+    // Create a row container for image + text
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'ai-bot-row';
+
     const img = document.createElement('img');
     img.src = imgPath;
     img.alt = bot.name;
-    img.style.maxWidth = '180px';
-    img.style.maxHeight = '180px';
-    img.style.borderRadius = '12px';
-    img.style.margin = '12px 0 8px 0';
+    img.className = 'ai-bot-img';
     img.onerror = function() {
       this.style.display = 'none';
     };
-    const desc = document.createElement('div');
-    desc.style.textAlign = 'center';
-    desc.style.color = '#fff';
-    desc.style.fontWeight = 'bold';
-    desc.style.textShadow = '1px 1px 4px #333, 0 0 2px #000';
-    desc.style.marginBottom = '18px';
-    desc.innerText = bot.desc;
+
+    // Text container
+    const textDiv = document.createElement('div');
+    textDiv.className = 'ai-bot-info';
+
     const name = document.createElement('div');
-    name.style.textAlign = 'center';
-    name.style.fontSize = '1.1em';
-    name.style.fontWeight = 'bold';
-    name.style.color = '#fff';
-    name.style.textShadow = '1px 1px 4px #333, 0 0 2px #000';
+    name.className = 'ai-bot-name';
     name.innerText = bot.name;
-    imageContainer.appendChild(name);
-    imageContainer.appendChild(img);
-    imageContainer.appendChild(desc);
+
+    const desc = document.createElement('div');
+    desc.className = 'ai-bot-desc';
+    desc.innerText = bot.desc;
+
+    textDiv.appendChild(name);
+    textDiv.appendChild(desc);
+    rowDiv.appendChild(img);
+    rowDiv.appendChild(textDiv);
+    imageContainer.appendChild(rowDiv);
   });
 }
 

@@ -116,10 +116,10 @@
 /* Bot Sections Container */
 .bot-sections-container {
     display: flex;
-    gap: 12px;
+    gap: 2px;
     flex-wrap: wrap;
     justify-content: center;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 /* Individual Bot Section */
@@ -341,12 +341,13 @@
 .bot-select-row {
     display: grid;
     grid-template-columns: repeat(3, 220px); /* Match the button width */
-    grid-auto-rows: 120px; /* Increased to match new button height */
-    gap: 10px;
+    grid-auto-rows: min-content; /* or remove this line entirely was previous 120px */
+    gap: 10px; /* <--- THIS CONTROLS THE GAP */
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal overflow */
-    max-height: 180px !important; /* Smaller max height to force scrolling */
-    padding: 10px 0;
+    max-height: 220px; /* Increase this value as needed. This controls the panel of the bot selection buttons */
+    min-height: 100px; /* Optionally set a minimum height */
+    padding: 4px 0;
     justify-content: center;
     max-width: calc(3 * 270px + 2 * 10px); /* Increased width for bigger buttons */
     margin: 0 auto; /* Center the container */
@@ -385,9 +386,7 @@
 /* Bot selection button styling */
 .bot-select-btn {
     width: 220px; /* Increased from 160px */
-    height: 120px; /* Increased from 100px to allow more description space */
-    padding: 8px;
-    border: 2px solid #ddd;
+    height: 85px; /* Increased from 100px to allow more description space */
     border-radius: 8px;
     background: white;
     cursor: pointer;
@@ -398,6 +397,9 @@
     text-align: left;
     font-size: 0.8em;
     position: relative;
+    border: none; /* Remove or comment out the border property */
+    margin-bottom: 0;
+    padding: 0px; /* or less */
 }
 
 /* Add fade effect to bot selection row using mask */
@@ -419,13 +421,14 @@
     align-items: center;
     width: 100%;
     margin-bottom: 4px;
+    margin-top: 0px;
 }
 
 .bot-name {
     font-weight: bold;
     color:white !important;
     flex: 1;
-    font-size: 0.8em;
+    font-size: 0.9em;
     letter-spacing: 0.5px; /* Add spacing between letters */
     /* text-shadow:
         -0.5px -0.5px 0 #000,
@@ -467,6 +470,7 @@
     display: -webkit-box;
     -webkit-line-clamp: 4; /* Increased from 2 to 4 lines */
     -webkit-box-orient: vertical;
+
 }
 
 .bot-select-btn.selected {
