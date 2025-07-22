@@ -1,7 +1,6 @@
 numpy>=1.21.0
 flask
 requests
-json
 beautifulsoup4
 requests
 pytest-playwright
@@ -17,3 +16,4 @@ python-dotenv
 elevenlabs
 gunicorn
 Werkzeug>=2.0.0
+google-cloud-texttospeech
