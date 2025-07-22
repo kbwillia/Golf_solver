@@ -559,9 +559,11 @@ async function renderBotSelectRow() {
 }
 
 function isMultiSelectionMode() {
-  // Check if we're in 1v3 mode
+  // Check if we're in 1v3 or 1v2 mode
+  const gameMode1v2 = document.getElementById('gameMode1v2');
   const gameMode1v3 = document.getElementById('gameMode1v3');
-  return gameMode1v3 && gameMode1v3.classList.contains('active');
+  return (gameMode1v2 && gameMode1v2.classList.contains('active')) ||
+         (gameMode1v3 && gameMode1v3.classList.contains('active'));
 }
 
 function selectBotButton(botValue) {
@@ -569,18 +571,24 @@ function selectBotButton(botValue) {
   if (!row) return;
 
   const isMultiMode = isMultiSelectionMode();
+  const gameMode1v2 = document.getElementById('gameMode1v2');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+  const is1v2Mode = gameMode1v2 && gameMode1v2.classList.contains('active');
+  const is1v3Mode = gameMode1v3 && gameMode1v3.classList.contains('active');
 
   if (isMultiMode) {
-    // Multi-selection mode (1v3)
+    // Multi-selection mode (1v2 or 1v3)
     const index = window.selectedBots.indexOf(botValue);
+    const maxBots = is1v2Mode ? 2 : 3; // 2 bots for 1v2, 3 bots for 1v3
+
     if (index > -1) {
       // Remove if already selected (but keep at least 1)
       if (window.selectedBots.length > 1) {
         window.selectedBots.splice(index, 1);
       }
     } else {
-      // Add if not selected (but limit to 3)
-      if (window.selectedBots.length < 3) {
+      // Add if not selected (but limit based on mode)
+      if (window.selectedBots.length < maxBots) {
         window.selectedBots.push(botValue);
       }
     }
@@ -617,26 +625,32 @@ function selectBotButton(botValue) {
 // Listen for game mode changes to update selection behavior
 function initializeGameModeButtons() {
   const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v2 = document.getElementById('gameMode1v2');
   const gameMode1v3 = document.getElementById('gameMode1v3');
 
   console.log('🎯 Initializing game mode buttons:', {
     '1v1 found': !!gameMode1v1,
+    '1v2 found': !!gameMode1v2,
     '1v3 found': !!gameMode1v3,
     '1v1 onclick': gameMode1v1 ? gameMode1v1.onclick : 'none',
+    '1v2 onclick': gameMode1v2 ? gameMode1v2.onclick : 'none',
     '1v3 onclick': gameMode1v3 ? gameMode1v3.onclick : 'none'
   });
 
-  if (gameMode1v1 && gameMode1v3) {
+  if (gameMode1v1 && gameMode1v2 && gameMode1v3) {
     // Remove any existing listeners to prevent conflicts
     gameMode1v1.removeEventListener('click', handle1v1Mode);
+    gameMode1v2.removeEventListener('click', handle1v2Mode);
     gameMode1v3.removeEventListener('click', handle1v3Mode);
 
     // Add new listeners
     gameMode1v1.addEventListener('click', handle1v1Mode);
+    gameMode1v2.addEventListener('click', handle1v2Mode);
     gameMode1v3.addEventListener('click', handle1v3Mode);
 
     // Test if buttons are clickable
     gameMode1v1.style.pointerEvents = 'auto';
+    gameMode1v2.style.pointerEvents = 'auto';
     gameMode1v3.style.pointerEvents = 'auto';
 
     console.log('🎯 Game mode button listeners attached successfully');
@@ -668,6 +682,48 @@ function handle1v1Mode() {
     window.selectedBots = [window.selectedBots[0]];
     renderBotSelectRow();
   }
+}
+
+function handle1v2Mode() {
+  console.log('🎯 1v2 mode button clicked!');
+  const gameMode1v1 = document.getElementById('gameMode1v1');
+  const gameMode1v2 = document.getElementById('gameMode1v2');
+  const gameMode1v3 = document.getElementById('gameMode1v3');
+
+  if (gameMode1v1 && gameMode1v2 && gameMode1v3) {
+    gameMode1v1.classList.remove('active');
+    gameMode1v2.classList.add('active');
+    gameMode1v3.classList.remove('active');
+  }
+
+  // Call the setGameMode function to properly register the mode
+  if (typeof setGameMode === 'function') {
+    setGameMode('1v2');
+  }
+
+  // Switch to 2-bot selection mode
+  if (window.selectedBots.length > 2) {
+    // If more than 2 bots selected, keep only the first 2
+    window.selectedBots = window.selectedBots.slice(0, 2);
+  } else if (window.selectedBots.length === 1) {
+    // If only 1 bot selected, add one more random bot
+    const allBots = Array.from(document.querySelectorAll('.bot-select-btn')).map(btn => btn.getAttribute('data-bot'));
+    const availableBots = allBots.filter(bot => !window.selectedBots.includes(bot));
+    if (availableBots.length > 0) {
+      const randomBot = availableBots[Math.floor(Math.random() * availableBots.length)];
+      window.selectedBots.push(randomBot);
+    }
+  } else if (window.selectedBots.length === 0) {
+    // If no bots selected, select 2 random bots
+    const allBots = Array.from(document.querySelectorAll('.bot-select-btn')).map(btn => btn.getAttribute('data-bot'));
+    if (allBots.length >= 2) {
+      const shuffled = allBots.sort(() => 0.5 - Math.random());
+      window.selectedBots = shuffled.slice(0, 2);
+    }
+  }
+
+  // Re-render to update visual state
+  renderBotSelectRow();
 }
 
 function handle1v3Mode() {

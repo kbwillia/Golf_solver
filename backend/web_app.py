@@ -182,9 +182,11 @@ def create_game():
         bot_name = data.get('bot_name', 'peter_parker')
         custom_bot_info = data.get('custom_bot_info')
         custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
+        custom_bots_1v2 = data.get('custom_bots_1v2', [])  # Array of custom bots for 1v2 mode
 
         print(f"🎯 Backend: Game mode: {game_mode}")
         print(f"🎯 Backend: Custom bots 1v3: {custom_bots_1v3}")
+        print(f"🎯 Backend: Custom bots 1v2: {custom_bots_1v2}")
 
         # Generate unique game ID
         game_id = str(uuid.uuid4())
@@ -196,6 +198,43 @@ def create_game():
         if game_mode == '1v1':
             agent_types = ["human", opponent]
             num_players = 2
+        elif game_mode == '1v2':
+            agent_types = ["human", "ev_ai", "random"]
+            num_players = 3
+
+            # Handle multiple custom bots for 1v2 mode
+            if custom_bots_1v2 and len(custom_bots_1v2) > 0:
+                print(f"🎯 Backend: Processing {len(custom_bots_1v2)} custom bots for 1v2 mode")
+                print(f"🎯 Backend: Bot sources: {[bot.get('name', 'Unknown') for bot in custom_bots_1v2]}")
+
+                # Map custom bot difficulties to agent types
+                difficulty_to_agent = {
+                    'easy': 'random',
+                    'medium': 'heuristic',
+                    'hard': 'ev_ai'
+                }
+
+                # Update agent types based on custom bot difficulties (up to 2)
+                for i, custom_bot in enumerate(custom_bots_1v2[:2]):
+                    difficulty = custom_bot.get('difficulty', 'medium').lower()
+                    agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
+                    agent_types[i + 1] = agent_type  # +1 because index 0 is human
+
+                    # Store bot_id for chatbot lookup
+                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
+                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
+
+                    # Register the bot in the chatbot system if it has a description
+                    if 'description' in custom_bot:
+                        try:
+                            register_custom_bot(bot_id, custom_bot['name'], custom_bot['description'], difficulty)
+                            print(f"🎯 Backend: Registered custom bot '{custom_bot['name']}' in chatbot system")
+                        except Exception as reg_error:
+                            print(f"🎯 Backend: Error registering custom bot {bot_id}: {reg_error}")
+
+                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (bot_id: {bot_id})")
+            else:
+                print(f"🎯 Backend: No custom bots provided for 1v2 mode, using default agents")
         else:  # 1v3
             # Default agent types for 1v3 mode
             agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
@@ -271,29 +310,30 @@ def create_game():
                 game.players[1].name = "EV AI"
             elif opponent == "advanced_ev":
                 game.players[1].name = "Advanced EV AI"
+        elif game_mode == '1v2':
+            # In 1v2, set names for the two AIs from selected custom bots
+            if custom_bots_1v2 and len(custom_bots_1v2) > 0:
+                for i, custom_bot in enumerate(custom_bots_1v2[:2]):
+                    game.players[i + 1].name = custom_bot['name']
+            else:
+                # Fallback to default names if no custom bots
+                game.players[1].name = "EV AI"
+                game.players[2].name = "Random move AI"
         else:
-            # In 1v3, give custom names to each AI
-            ai_names = [
-                "Peter Parker",      # Easy (random)
-                "Happy Gilmore",    # Medium (basic logic)
-                "Tiger Woods",      # Hard (ev_ai)
-                "Shooter McGavin"   # Advanced (advanced_ev)
-            ]
-
-            # Handle multiple custom bots for 1v3 mode
+            # In 1v3, give custom names to each AI from selected custom bots
             if custom_bots_1v3 and len(custom_bots_1v3) > 0:
-                # Replace AI names with custom bot names (up to 3)
-                for i, custom_bot in enumerate(custom_bots_1v3[:3]):  # Max 3 custom bots
-                    ai_names[i] = custom_bot['name']
-            elif custom_bot_info:
-                # Legacy: single custom bot replaces first AI
-                ai_names[0] = custom_bot_info['name']
-                # Store bot_id for chatbot lookup (will be added after games[game_id] is created)
-                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
-                custom_bot_data.append(('custom_bot_id_0', bot_id, 'custom_bot_name_0', custom_bot_info['name']))
-
-            for i in range(1, num_players):
-                game.players[i].name = ai_names[i-1]
+                for i, custom_bot in enumerate(custom_bots_1v3[:3]):
+                    game.players[i + 1].name = custom_bot['name']
+            else:
+                # Fallback to default names if no custom bots
+                ai_names = [
+                    "Peter Parker",      # Easy (random)
+                    "Happy Gilmore",    # Medium (basic logic)
+                    "Tiger Woods",      # Hard (ev_ai)
+                    "Shooter McGavin"   # Advanced (advanced_ev)
+                ]
+                for i in range(1, num_players):
+                    game.players[i].name = ai_names[i-1]
 
         # Set the AI player's name
         if game_mode == '1v1':
@@ -310,6 +350,9 @@ def create_game():
                     'happy_gilmore': 'Happy Gilmore',
                     'tiger_woods': 'Tiger Woods'
                 }.get(bot_name, 'AI Opponent')
+        elif game_mode == '1v2':
+            # No custom bot support for 1v2 yet, but could be added here
+            pass
 
         # No need to run AI turns here; handled by /run_ai_turn
         game_over = False
@@ -546,6 +589,9 @@ def next_game():
         if game_session['mode'] == '1v1':
             agent_types = ["human", game_session['game'].players[1].agent_type]
             num_players = 2
+        elif game_session['mode'] == '1v2':
+            agent_types = ["human", "ev_ai", "random"]
+            num_players = 3
         else:
             agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
             num_players = 4

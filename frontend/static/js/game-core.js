@@ -80,6 +80,7 @@ async function startGame() {
     console.log('🎯 Frontend: Selected bots:', window.selectedBots);
     console.log('🎯 Frontend: Current game mode buttons state:', {
         '1v1 active': document.getElementById('gameMode1v1')?.classList.contains('active'),
+        '1v2 active': document.getElementById('gameMode1v2')?.classList.contains('active'),
         '1v3 active': document.getElementById('gameMode1v3')?.classList.contains('active')
     });
 
@@ -147,6 +148,73 @@ async function startGame() {
             console.log('🎯 Frontend: Using selected bots for 1v3 mode:', customBots);
         } else {
             console.log('🎯 Frontend: No bots selected, using default AI opponents for 1v3 mode');
+        }
+    } else if (gameMode === '1v2') {
+        // For 1v2 mode, use the selected bots from the button system (up to 2)
+        const selectedBots = window.selectedBots || ['peter_parker', 'happy_gilmore'];
+
+        if (selectedBots.length > 0) {
+            // Convert the selected bots to the format expected by the backend
+            const customBots = [];
+
+            for (const botValue of selectedBots.slice(0, 2)) { // Limit to 2 bots
+                if (botValue.startsWith('custom_')) {
+                    // Custom bot - get data from JSON
+                    try {
+                        const response = await fetch('/static/custom_bot.json');
+                        const data = await response.json();
+
+                        let selectedBot = null;
+
+                        // Check placeholder_bots first
+                        if (data.placeholder_bots) {
+                            selectedBot = data.placeholder_bots.find(bot =>
+                                'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_') === botValue
+                            );
+                        }
+
+                        // Check custom_bots if not found in placeholder_bots
+                        if (!selectedBot && data.custom_bots) {
+                            selectedBot = data.custom_bots[botValue];
+                        }
+
+                        if (selectedBot) {
+                            customBots.push({
+                                id: botValue,
+                                name: selectedBot.name,
+                                difficulty: selectedBot.difficulty,
+                                description: selectedBot.description
+                            });
+                        }
+                    } catch (error) {
+                        console.log('Error loading custom bot:', error);
+                    }
+                } else {
+                    // Default bot - map to name and difficulty
+                    const botNames = {
+                        'peter_parker': 'Peter Parker',
+                        'happy_gilmore': 'Happy Gilmore',
+                        'tiger_woods': 'Tiger Woods'
+                    };
+                    const botDifficulties = {
+                        'peter_parker': 'easy',
+                        'happy_gilmore': 'medium',
+                        'tiger_woods': 'hard'
+                    };
+
+                    customBots.push({
+                        id: botValue,
+                        name: botNames[botValue] || 'AI Opponent',
+                        difficulty: botDifficulties[botValue] || 'medium'
+                    });
+                }
+            }
+
+            gameData.custom_bots_1v2 = customBots;
+            console.log('🎯 Frontend: Using selected bots for 1v2 mode:', customBots);
+            console.log('🎯 Frontend: 1v2 gameData being sent:', gameData);
+        } else {
+            console.log('🎯 Frontend: No bots selected, using default AI opponents for 1v2 mode');
         }
     } else {
         // 1v1 mode - use the selected bot from the new button system
@@ -940,33 +1008,47 @@ function hideDrawnCardArea() { /* Will be implemented in actions module */ }
 function onGameStart() { /* Will be implemented in UI module */ }
 
 // Initialize game mode buttons
-// function initializeGameModeButtons() {
-//     const gameMode1v1Btn = document.getElementById('gameMode1v1');
-//     const gameMode1v3Btn = document.getElementById('gameMode1v3');
+function initializeGameModeButtons() {
+    const gameMode1v1 = document.getElementById('gameMode1v1');
+    const gameMode1v2 = document.getElementById('gameMode1v2');
+    const gameMode1v3 = document.getElementById('gameMode1v3');
 
-//     if (gameMode1v1Btn && gameMode1v3Btn) {
-//         gameMode1v1Btn.addEventListener('click', function() {
-//             setGameMode('1v1');
-//         });
+    console.log('🔍 Button check:', {
+        '1v1': !!gameMode1v1,
+        '1v2': !!gameMode1v2,
+        '1v3': !!gameMode1v3
+    });
 
-//         gameMode1v3Btn.addEventListener('click', function() {
-//             setGameMode('1v3');
-//         });
-//     }
-// }
+    if (gameMode1v1) {
+        gameMode1v1.addEventListener('click', function() { setGameMode('1v1'); });
+    }
+    if (gameMode1v2) {
+        gameMode1v2.addEventListener('click', function() {
+            console.log('🎯 1v2 mode button clicked!');
+            setGameMode('1v2');
+        });
+    }
+    if (gameMode1v3) {
+        gameMode1v3.addEventListener('click', function() { setGameMode('1v3'); });
+    }
+}
 
 // Set game mode and update button states
 function setGameMode(mode) {
     const gameMode1v1Btn = document.getElementById('gameMode1v1');
+    const gameMode1v2Btn = document.getElementById('gameMode1v2');
     const gameMode1v3Btn = document.getElementById('gameMode1v3');
 
     // Update button states
-    if (gameMode1v1Btn && gameMode1v3Btn) {
+    if (gameMode1v1Btn && gameMode1v2Btn && gameMode1v3Btn) {
         gameMode1v1Btn.classList.remove('active');
+        gameMode1v2Btn.classList.remove('active');
         gameMode1v3Btn.classList.remove('active');
 
         if (mode === '1v1') {
             gameMode1v1Btn.classList.add('active');
+        } else if (mode === '1v2') {
+            gameMode1v2Btn.classList.add('active');
         } else if (mode === '1v3') {
             gameMode1v3Btn.classList.add('active');
         }
@@ -1040,3 +1122,4 @@ function getCurrentHoles() {
     const activeBtn = document.querySelector('.holes-btn.active');
     return activeBtn ? parseInt(activeBtn.getAttribute('data-holes')) : 1;
 }
+
