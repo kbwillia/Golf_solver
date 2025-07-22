@@ -151,7 +151,7 @@ class GolfChatbot:
         if game_state:
             self.current_bot.update_emotional_state_advanced(game_state)
 
-        # Build the context with enhanced personality integration
+        # Always add system prompt and rules ONCE at the top
         context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
 
         if game_state:
@@ -186,7 +186,7 @@ class GolfChatbot:
             # For proactive responses, we don't have a user message
             context += "Provide a brief, relevant comment about the current game situation."
         else:
-            # Add conversation history for context
+            # Add conversation history for context (but never the rules again)
             if self.current_bot.conversation_history:
                 context += "Recent conversation:\n"
                 for msg in self.current_bot.conversation_history[-3:]:  # Last 3 messages

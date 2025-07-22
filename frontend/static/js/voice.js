@@ -13,7 +13,7 @@ let browserVoices = []; // Available browser voices
 function initializeVoiceStatus() {
     const voiceStatus = document.getElementById('voiceStatus');
     if (voiceStatus) {
-        voiceStatus.textContent = voiceEnabled ? '🔊 Announcing Voice: ON' : '🔇 Announcing Voice: OFF';
+        voiceStatus.textContent = voiceEnabled ? 'Announcing: 🔊' : ' Announcing: 🔇';
     }
     console.log('🎤 Voice system initialized with status:', voiceEnabled ? 'enabled' : 'disabled');
 }
@@ -33,7 +33,7 @@ function toggleVoiceSystem() {
     const voiceToggleBtn = document.getElementById('voiceToggleBtn');
 
     if (voiceStatus) {
-        voiceStatus.textContent = voiceEnabled ? '🔊 Announcing Voice: ON' : '🔇 Announcing Voice: OFF';
+        voiceStatus.textContent = voiceEnabled ? 'Announcing: 🔊' : 'Announcing: 🔇';
     }
 
     // Update button styling
