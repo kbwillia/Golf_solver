@@ -270,7 +270,7 @@ function updatePlayerGrids() {
         playerDiv.className = 'player-grid';
         playerDiv.setAttribute('data-player', index);
         if (index === currentGameState.current_turn) {
-            playerDiv.classList.add('current-turn'); // Highlight current turn
+            playerDiv.classList.add('current-turn'); // Highlight cu  rrent turn
             // Set animation offset to prevent restart on DOM updates
             const animationOffset = (Date.now() % 8000) / 1000; // 8s animation cycle
             playerDiv.style.setProperty('--animation-offset', `${animationOffset}s`);
