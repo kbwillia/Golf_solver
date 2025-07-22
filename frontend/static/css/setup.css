@@ -68,21 +68,30 @@
   justify-content: flex-start;
   align-items: flex-start;
   max-width: 220px;
+  background: #d4edda !important;
+  border-radius: 12px;
+  padding: 4px;
 }
 
 .ai-bot-name {
   font-size: 0.95em;
   font-weight: bold;
-  color: #fff;
-  text-shadow: 1px 1px 4px #333, 0 0 2px #000;
   margin-bottom: 4px;
+  background: #d4edda !important;
+  color: #155724 !important;
+  border-radius: 18px;
+  padding: 8px 12px;
+  font-size: 1em;
 }
 
 .ai-bot-desc {
   font-size: 0.85em;
   color: #eee;
-  text-shadow: 1px 1px 4px #333, 0 0 2px #000;
+  /* text-shadow: 1px 1px 4px #333, 0 0 2px #000; */
   text-align: top;
+  /* background-color: rgba(230,249,230,0.95); */
+  background: #d4edda !important;
+  color: #155724 !important;
 }
 
 .bot-desc-short {
@@ -106,6 +115,11 @@
   margin-bottom: 4px; /* Reduce this value as needed */
 }
 
+
+#gameSetup p {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
 
 
 @media (max-width: 1100px) {

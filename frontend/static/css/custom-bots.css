@@ -337,7 +337,7 @@
     font-size: 1.5em;
 }
 
-/* Bot selection row - 3 per row with wrapping */
+/* Bot selection row - 3 per row with wrapping. This is the panel of the bot selection buttons */
 .bot-select-row {
     display: grid;
     grid-template-columns: repeat(3, 220px); /* Match the button width */
@@ -345,7 +345,7 @@
     gap: 10px; /* <--- THIS CONTROLS THE GAP */
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal overflow */
-    max-height: 220px; /* Increase this value as needed. This controls the panel of the bot selection buttons */
+    max-height: 260px; /* Increase this value as needed. This controls the panel of the bot selection buttons */
     min-height: 100px; /* Optionally set a minimum height */
     padding: 4px 0;
     justify-content: center;
@@ -399,7 +399,7 @@
     position: relative;
     border: none; /* Remove or comment out the border property */
     margin-bottom: 0;
-    padding: 0px; /* or less */
+    padding: 4px; /* or less */
 }
 
 /* Add fade effect to bot selection row using mask */
