@@ -439,6 +439,7 @@ window.selectedBots = []; // Will be populated when bots are loaded
 
 async function renderBotSelectRow() {
   const row = document.getElementById('botSelectRow');
+  const imageContainer = document.getElementById('aiBotImageContainer');
   if (!row) return;
 
   // Load bots from custom_bot.json
@@ -559,6 +560,55 @@ async function renderBotSelectRow() {
   if (selectedBtn) {
     selectedBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+
+  // Show selected bot images and descriptions
+  updateAIBotImageContainer(allBots);
+}
+
+function updateAIBotImageContainer(allBots) {
+  const imageContainer = document.getElementById('aiBotImageContainer');
+  if (!imageContainer) return;
+  imageContainer.innerHTML = '';
+
+  if (!window.selectedBots || window.selectedBots.length === 0) {
+    imageContainer.innerHTML = '<div style="color:#888; font-style:italic; margin-top:24px;">Select a bot to see their image and description.</div>';
+    return;
+  }
+
+  window.selectedBots.forEach(botValue => {
+    const bot = allBots.find(b => b.value === botValue);
+    if (!bot) return;
+    // Try to match bot name to image filename
+    const imgName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+    const imgPath = `/static/AI_bot_images/${imgName}`;
+    const img = document.createElement('img');
+    img.src = imgPath;
+    img.alt = bot.name;
+    img.style.maxWidth = '180px';
+    img.style.maxHeight = '180px';
+    img.style.borderRadius = '12px';
+    img.style.margin = '12px 0 8px 0';
+    img.onerror = function() {
+      this.style.display = 'none';
+    };
+    const desc = document.createElement('div');
+    desc.style.textAlign = 'center';
+    desc.style.color = '#fff';
+    desc.style.fontWeight = 'bold';
+    desc.style.textShadow = '1px 1px 4px #333, 0 0 2px #000';
+    desc.style.marginBottom = '18px';
+    desc.innerText = bot.desc;
+    const name = document.createElement('div');
+    name.style.textAlign = 'center';
+    name.style.fontSize = '1.1em';
+    name.style.fontWeight = 'bold';
+    name.style.color = '#fff';
+    name.style.textShadow = '1px 1px 4px #333, 0 0 2px #000';
+    name.innerText = bot.name;
+    imageContainer.appendChild(name);
+    imageContainer.appendChild(img);
+    imageContainer.appendChild(desc);
+  });
 }
 
 function isMultiSelectionMode() {
@@ -606,6 +656,19 @@ function selectBotButton(botValue) {
 
   // Update the opponent display
   updateOpponentDisplay();
+
+  // Update the AI bot image container
+  // Find allBots from the current botSelectRow render
+  const allBots = Array.from(row.children).map(btn => {
+    return {
+      value: btn.getAttribute('data-bot'),
+      name: btn.querySelector('.bot-name')?.innerText || '',
+      desc: btn.querySelector('.bot-desc')?.innerText || '',
+      difficulty: btn.querySelector('.bot-difficulty')?.innerText || '',
+      difficultyClass: btn.querySelector('.bot-difficulty')?.className?.replace('bot-difficulty', '').trim() || ''
+    };
+  });
+  updateAIBotImageContainer(allBots);
 }
 
 // Listen for game mode changes to update selection behavior

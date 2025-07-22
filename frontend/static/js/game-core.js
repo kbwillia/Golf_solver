@@ -41,6 +41,8 @@ let proactiveCommentInterval = null;
 
 // ===== CORE GAME FUNCTIONS =====
 
+// (setDefaultBackground moved to game-ui.js)
+
 async function startGame() {
     // Set background for first hole
     if (window.setHoleBackground) setHoleBackground(0);
@@ -473,6 +475,9 @@ function restartGame() {
 
     // Hide the drawn card area
     hideDrawnCardArea();
+
+    // Reset background to default setup background
+    if (window.setDefaultBackground) window.setDefaultBackground();
 
     // Optionally reset form fields or keep last settings
 }
@@ -1141,7 +1146,21 @@ const holeBackgrounds = [
   '/static/masters_images/H_hole1__Hole_1_-_Tea_Olive.jpg',
   '/static/masters_images/H_hole2__Hole_2_-_Pink_Dogwood.jpg',
   '/static/masters_images/H_hole3__Hole_3_-_Flowering_Peach.jpg',
-  // ...add all your hole images in order
+  '/static/masters_images/H_hole4__Hole_4_-_Flowering_Crab_Apple.jpg',
+  '/static/masters_images/H_hole5__Hole_5_-_Magnolia.jpg',
+  '/static/masters_images/H_hole6__Hole_6_-_Juniper.jpg',
+  '/static/masters_images/H_hole7__Hole_7_-_Pampas.jpg',
+  '/static/masters_images/H_hole8__Hole_8_-_Yellow_Jasmine.jpg',
+  '/static/masters_images/H_hole9__Hole_9_-_Carolina_Cherry.jpg',
+  '/static/masters_images/H_hole10__Hole_10_-_Camellia.jpg',
+  '/static/masters_images/H_hole11__Hole_11_-_White_Dogwood.jpg',
+  '/static/masters_images/H_hole12__Hole_12_-_Golden_Bell.jpg',
+  '/static/masters_images/H_hole13__Hole_13_-_Azalea.jpg',
+  '/static/masters_images/H_hole14__Hole_14_-_Chinese_Fir.jpg',
+  '/static/masters_images/H_hole15__Hole_15_-_Firethorn.jpg',
+  '/static/masters_images/H_hole16__Hole_16_-_Redbud.jpg',
+  '/static/masters_images/H_hole17__Hole_17_-_Nandina.jpg',
+  '/static/masters_images/H_hole18__Hole_18_-_Holly.jpg',
 ];
 
 function setHoleBackground(holeIndex) {

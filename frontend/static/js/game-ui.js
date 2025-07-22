@@ -31,7 +31,7 @@ function updateGameDisplay() {
 
         // Show current game number and total games
         const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-        let infoText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
+        let infoText = `Hole ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
 
         // Put game info in the notification area instead of the game info bar
         const gameInfoDisplay = document.getElementById('gameInfoDisplay');
@@ -394,7 +394,7 @@ function updateGameAndRoundInfo() {
 
     // Game and round info for header
     const roundDisplay = Math.min(currentGameState.round, currentGameState.max_rounds);
-    const gameText = `Game ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
+    const gameText = `Hole ${currentGameState.current_game || 1} of ${currentGameState.num_games || 1} | Round ${roundDisplay}/${currentGameState.max_rounds}`;
 
     container.textContent = gameText;
 }
@@ -577,6 +577,29 @@ function playGolfClap() {
         audio.play();
     }
 }
+
+function setDefaultBackground() {
+    // Set the default background image for setup screen
+    document.body.style.backgroundImage = '';
+    document.body.offsetHeight; // Force reflow
+    document.body.style.backgroundImage = "url('/static/4k-golf-1.jpg')";
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundRepeat = 'no-repeat';
+    document.body.style.backgroundAttachment = 'fixed';
+
+    document.documentElement.style.backgroundImage = "url('/static/4k-golf-1.jpg')";
+    document.documentElement.style.backgroundSize = 'cover';
+    document.documentElement.style.backgroundPosition = 'center';
+
+    // Remove any backgrounds from containers that might cover it
+    const containers = document.querySelectorAll('.container, .setup-and-board, .header, .game-board, .main, .wrapper');
+    containers.forEach(el => {
+        el.style.background = 'none';
+        el.style.backgroundColor = 'transparent';
+    });
+}
+window.setDefaultBackground = setDefaultBackground;
 
 // ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
