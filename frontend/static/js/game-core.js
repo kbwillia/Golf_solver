@@ -531,13 +531,11 @@ function replayGame() {
 }
 
 async function nextGame() {
+    clearCelebration(); // Hide You Won banner and celebration gif at the start of next game
     if (!gameId) {
         console.error('No game ID available');
         return;
     }
-
-    // Clear the celebration GIF when starting next game
-    clearCelebration();
 
     try {
         const response = await fetch('/next_game', {

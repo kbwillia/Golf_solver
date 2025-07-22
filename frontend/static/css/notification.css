@@ -64,6 +64,7 @@
     text-align: center;
     margin-top: 6px;
     margin-right: 6px;
+    margin-left: 200px; /* Move GIF further right as requested */
     /* margin-bottom: 12px; */
 }
 

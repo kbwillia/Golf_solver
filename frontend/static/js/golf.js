@@ -127,6 +127,11 @@ function clearCelebration() {
         celebrationDiv.innerHTML = '';
         celebrationDiv.style.display = 'none';
     }
+    // Remove the You Won banner if it exists
+    const youWonBanner = document.getElementById('youWonHeaderMessage');
+    if (youWonBanner && youWonBanner.parentNode) {
+        youWonBanner.parentNode.removeChild(youWonBanner);
+    }
 }
 
 function clearHurryUpGif() {
@@ -135,8 +140,14 @@ function clearHurryUpGif() {
 
 // Show celebration GIF when human wins
 function showCelebrationGif() {
+    console.log('🎉 showCelebrationGif called!');
     const celebrationContainer = document.getElementById('celebrationGif');
     const header = document.querySelector('.header');
+
+    // Make sure the container is visible
+    if (celebrationContainer) {
+        celebrationContainer.style.display = 'block';
+    }
 
     // Prevent duplicate celebrations
     const existingMessage = document.getElementById('youWonHeaderMessage');

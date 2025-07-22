@@ -582,7 +582,7 @@ function playGolfClap() {
 
 function getCardDisplayContent() { /* Will be implemented in cards module */ }
 // updateProbabilitiesPanel() and updateCumulativeScoreChart() implemented in probabilities.js
-function showCelebrationGif() { /* Will be implemented in notifications module */ }
+// function showCelebrationGif() { /* Will be implemented in notifications module */ }
 function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
 function requestProactiveComment() { /* Will be implemented in chatbot module */ }
 function takeDiscard() { /* Will be implemented in actions module */ }
