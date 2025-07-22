@@ -1,6 +1,9 @@
 import os
 #(venv) C:\Users\kbwil\Documents\Kyle\Data_Projects\Golf>set GOOGLE_APPLICATION_CREDENTIALS=C:\Users\kbwil\Documents\Kyle\Data_Projects\google keys\pizza-ratings-405719-e66479b9147e.json
 
+
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\kbwil\Documents\Kyle\Data_Projects\google keys\pizza-ratings-405719-e66479b9147e.json"
 import base64
 from google.cloud import texttospeech
 import csv
@@ -120,5 +123,6 @@ def chirp3_voice(text, voice_name):
 
 
 if __name__ == "__main__":
-    list_google_voices()
+    # list_google_voices()
+    test_chirp3_voice(text, voice_name)
     chirp3_voice(text, voice_name)
