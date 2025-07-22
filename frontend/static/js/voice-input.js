@@ -12,7 +12,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
 
         recognition.onstart = function() {
             recognizing = true;
-            micBtn.style.background = '#2e7d32';
+            micBtn.style.background = '#b71c1c';
             micBtn.innerHTML = '<span style="font-size:1.2em;">🎙️</span>';
         };
         recognition.onend = function() {
@@ -40,7 +40,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
             }
         });
 
-        // Ctrl (push-to-talk) shortcut logic
+        // Ctrl (push-to-talk) shortcut logic for chat input only
         if (enableSpacebarShortcut && chatInput) {
             let ctrlHeld = false;
             chatInput.addEventListener('keydown', function(e) {
@@ -62,6 +62,81 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
                 }
             });
         }
+
+        // Global Ctrl shortcut for voice input (works anywhere)
+        let globalCtrlHeld = false;
+        window.addEventListener('keydown', function(e) {
+            if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && !globalCtrlHeld) {
+                globalCtrlHeld = true;
+                e.preventDefault();
+                if (!recognizing) {
+                    recognition.start();
+                }
+            }
+        });
+        window.addEventListener('keyup', function(e) {
+            if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && globalCtrlHeld) {
+                globalCtrlHeld = false;
+                e.preventDefault();
+                if (recognizing) {
+                    recognition.stop();
+                }
+            }
+        });
+
+        let spaceHeld = false;
+        let spaceHoldTimeout = null;
+        let chatInputPrevValue = '';
+        const SPACE_HOLD_THRESHOLD = 400; // ms
+
+        window.addEventListener('keydown', function(e) {
+            if (e.code === 'Space' && !spaceHeld) {
+                spaceHeld = true;
+                // Start a timer to trigger recording only if held long enough
+                spaceHoldTimeout = setTimeout(() => {
+                    // Only start recording if still held
+                    if (spaceHeld) {
+                        e.preventDefault();
+                        if (chatInput) {
+                            chatInputPrevValue = chatInput.value;
+                        }
+                        if (!recognizing) {
+                            recognition.start();
+                        }
+                    }
+                }, SPACE_HOLD_THRESHOLD);
+            }
+            // If recording is already active, always prevent default
+            if (e.code === 'Space' && recognizing) {
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', function(e) {
+            if (e.code === 'Space' && spaceHeld) {
+                spaceHeld = false;
+                clearTimeout(spaceHoldTimeout);
+                // Only stop recording if it was started
+                if (recognizing) {
+                    e.preventDefault();
+                    recognition.stop();
+                }
+            }
+        });
+        // Patch onresult to restore input value before inserting transcript
+        const originalOnResult = recognition.onresult;
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            if (chatInput) {
+                // Restore the value before spacebar was pressed, then insert transcript
+                chatInput.value = transcript;
+                chatInput.focus();
+                chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
+            }
+            if (typeof originalOnResult === 'function') {
+                originalOnResult.apply(this, arguments);
+            }
+        };
     } else {
         micBtn.disabled = true;
         micBtn.title = 'Speech recognition not supported in this browser.';
