@@ -5,7 +5,7 @@
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
-  gap: 32px;
+  gap: 12px;
   min-height: 420px;
   width: 100%;
 }
@@ -56,8 +56,8 @@
 }
 
 .ai-bot-img {
-  max-width: 175px;   /* or larger, e.g., 200px, 220px, etc. */
-  max-height: px;
+  max-width: 175px;   /* or larger, e.g., 200px, 220px, etc. this is the picture size*/
+  max-height: 160px;
   border-radius: 12px;
   margin: 0;
 }
