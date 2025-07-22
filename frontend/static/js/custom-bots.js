@@ -819,8 +819,12 @@ function updateOpponentDisplay() {
     const opponentDisplay = document.getElementById('opponentDisplay');
     if (!opponentDisplay) return;
 
+    // Use the value from the playerName input, fallback to 'You'
+    const playerNameInput = document.getElementById('playerName');
+    const playerName = playerNameInput && playerNameInput.value.trim() ? playerNameInput.value.trim() : 'You';
+
     if (window.selectedBots.length === 0) {
-        opponentDisplay.textContent = 'Select 1-3 AI opponents to start a game';
+        opponentDisplay.textContent = `Select 1-3 AI opponents to start a game`;
     } else {
         const botNames = window.selectedBots.map(botId => {
             // Get bot name from loaded bot data
@@ -836,13 +840,13 @@ function updateOpponentDisplay() {
 
         let displayText;
         if (botNames.length === 1) {
-            displayText = `You vs ${botNames[0]}`;
+            displayText = `${playerName} vs ${botNames[0]}`;
         } else if (botNames.length === 2) {
-            displayText = `You vs ${botNames[0]} & ${botNames[1]}`;
+            displayText = `${playerName} vs ${botNames[0]} & ${botNames[1]}`;
         } else if (botNames.length === 3) {
-            displayText = `You vs ${botNames[0]}, ${botNames[1]} & ${botNames[2]}`;
+            displayText = `${playerName} vs ${botNames[0]}, ${botNames[1]} & ${botNames[2]}`;
         } else {
-            displayText = `You vs ${botNames.length} AI opponents`;
+            displayText = `${playerName} vs ${botNames.length} AI opponents`;
         }
 
         opponentDisplay.textContent = displayText;

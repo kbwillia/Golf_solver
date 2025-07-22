@@ -44,6 +44,11 @@ let proactiveCommentInterval = null;
 // (setDefaultBackground moved to game-ui.js)
 
 async function startGame() {
+    // Hide setup columns and AI bot image container
+    const setupColumns = document.getElementById('setupColumns');
+    if (setupColumns) setupColumns.style.display = 'none';
+    const aiBotImageContainer = document.getElementById('aiBotImageContainer');
+    if (aiBotImageContainer) aiBotImageContainer.style.display = 'none';
     // Set background for first hole
     if (window.setHoleBackground) setHoleBackground(0);
     // Reset turn tracking for new game
