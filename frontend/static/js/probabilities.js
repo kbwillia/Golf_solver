@@ -556,6 +556,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the chart when page loads
     setTimeout(() => {
         initializeCumulativeScoreChart();
+
+        // Add double-click functionality to hide/show chart
+        const chartContainer = document.querySelector('.chart-container');
+        if (chartContainer) {
+            chartContainer.addEventListener('dblclick', function() {
+                this.classList.toggle('hidden');
+            });
+        }
     }, 100); // Small delay to ensure DOM is ready
 });
 

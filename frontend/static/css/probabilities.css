@@ -225,6 +225,16 @@
     flex-shrink: 0; /* Don't let it shrink too much */
     transition: all 0.3s ease; /* Smooth any layout changes */
     margin-bottom: 0;
+    cursor: pointer; /* Indicate it's clickable */
+}
+
+.chart-container.hidden {
+    opacity: 0;
+    /* Keep all dimensions the same */
+    width: 680px;
+    height: 250px;
+    min-width: 550px;
+    min-height: 250px;
 }
 
 .chart-container canvas {
