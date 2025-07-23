@@ -99,19 +99,20 @@
     padding: 4px !important;
 }
 
-.probabilities-title {
-    margin-top: 0;
-    margin-bottom: 0;
-    font-size: 1.1em;
+/* Style for panel headers to match main header */
+.probabilities-title,
+.cards-left-header {
+    color: #fff !important;
+    font-size: 1.25em;
     font-weight: bold;
-    color: #fff;
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    letter-spacing: 1px;
     text-shadow:
         -1px -1px 0 black,
          1px -1px 0 black,
         -1px  1px 0 black,
-         1px  1px 0 black; /* Black outline in all directions */
-    font-weight: bold;
-    /* border: 9px solid #a90dc8; */
+         1px  1px 0 black;
 }
 
 /* probabilities cards left table   */
@@ -362,4 +363,25 @@
 @keyframes shimmer {
   0% { left: -75%; }
   100% { left: 125%; }
+}
+
+/* Make all main text in the probabilities panel dark green */
+.probabilities-panel-box,
+.probabilities-panel-box h4,
+.probabilities-panel-box .probabilities-title,
+.probabilities-panel-box .probabilities-bar-main,
+.probabilities-panel-box .probabilities-bar-detail,
+.probabilities-panel-box .probabilities-stat,
+.probabilities-panel-box b {
+    color: #155724 !important;
+}
+
+/* If you want only the bold labels (not the numbers) to be dark green: */
+.probabilities-panel-box b {
+    color: #155724 !important;
+}
+
+.probabilities-panel-box .probabilities-title,
+.unknown-cards-column .cards-left-header {
+    color: #fff !important;
 }
