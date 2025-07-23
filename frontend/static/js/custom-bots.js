@@ -589,6 +589,7 @@ function handleCreateBotFormSubmit(event) {
   const name = document.getElementById('customBotName').value.trim();
   const description = document.getElementById('customBotDescription').value.trim();
   const difficulty = document.getElementById('customBotDifficulty').value;
+  console.log('all d data', name, description, difficulty);
 
   // Generate ai_bot_id
   const ai_bot_id = uuidv4();
@@ -610,7 +611,10 @@ function handleCreateBotFormSubmit(event) {
       document.getElementById('customBotName').value = '';
       document.getElementById('customBotDifficulty').value = 'easy';
       document.getElementById('customBotDescription').value = '';
-      // Optionally update UI, fetch bots, etc.
+      // Refresh the bot list so the new bot appears
+      if (typeof renderBotSelectRow === 'function') {
+        renderBotSelectRow();
+      }
     } else {
       alert('Error: ' + data.error);
     }

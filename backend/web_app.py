@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, session, send_from_directory, send_file
 import uuid
 import json
@@ -722,10 +721,12 @@ from flask import request, jsonify
 @app.route('/api/create_custom_bot', methods=['POST'])
 def create_custom_bot():
     data = request.get_json()
+    print(f"🔥 /api/create_custom_bot endpoint hit - data: {data}")
     ai_bot_id = data.get('ai_bot_id')
     name = data.get('name')
     difficulty = data.get('difficulty')
     description = data.get('description')
+    print(f' data is {data} and ai_bot_id is {ai_bot_id} and name is {name} and difficulty is {difficulty} and description is {description}')
     if not ai_bot_id or not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
 
@@ -735,12 +736,15 @@ def create_custom_bot():
     enhanced_bot = enhance_custom_bot(ai_bot_id, name, description, difficulty)
 
     # 2. Save to Supabase
-    save_result = save_bot_to_supabase(enhanced_bot)
+    response = save_bot_to_supabase(enhanced_bot)
 
-    if not save_result['success']:
-        return jsonify({'success': False, 'error': save_result['error']}), 500
-
-    return jsonify({'success': True, 'bot': save_result['bot']})
+    # Check for success
+    if response.data and len(response.data) > 0:
+        return jsonify({'success': True, 'bot': response.data[0]})
+    else:
+        # Optionally, log response.model_dump() for debugging
+        details = response.model_dump()
+        return jsonify({'success': False, 'error': 'Failed to save bot', 'details': details}), 500
 
 
 

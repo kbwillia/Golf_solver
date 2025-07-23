@@ -4,6 +4,18 @@ from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 from llm_cerebras import call_cerebras_llm
 
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+from supabase import create_client, Client
+
+url = os.environ.get("SUPABASE_URL")
+# print("url:", url)
+key = os.environ.get("SUPABASE_LEGACY_SECRET")
+test = os.environ.get("TEST")
+
+
 class BaseBot(ABC):
     """Base class for all bot personalities"""
 
@@ -27,7 +39,7 @@ class BaseBot(ABC):
         # Proactive behavior configuration
         self.proactive_config = {
             "enabled": True,
-            "base_rate": 0.33,  # 30% chance to comment by default
+            "base_rate": 0.03,  # 30% chance to comment by default
             "event_triggers": {
                 "turn_start": 0.4,
                 "card_drawn": 0.2,
@@ -36,7 +48,7 @@ class BaseBot(ABC):
                 "game_over": 0.9,  # High chance for game over
                 "dramatic_moment": 0.8  # High chance for dramatic moments
             },
-            "cooldown_seconds": 10,  # Minimum time between comments
+            "cooldown_seconds": 100,  # og was 10
             "max_comments_per_game": 15
         }
 
@@ -554,10 +566,12 @@ class GolfProBot(BaseBot):
 class CustomBot(BaseBot):
     """Custom bot with user-defined personality"""
 
-    def __init__(self, name: str, description: str, difficulty: str = "medium"):
+    def __init__(self, ai_bot_id: str, name: str, description: str, difficulty: str = "medium"):
         super().__init__(name, description)
-        self.difficulty = difficulty
+        self.ai_bot_id = ai_bot_id
+        self.name = name
         self.custom_description = description
+        self.difficulty = difficulty
 
         # Generate dynamic configurations using LLM
         self._generate_llm_configurations()
@@ -785,8 +799,6 @@ Generate a complete behavioral configuration for this bot.
         return []
 
 
-
-
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
     """Factory function to create bot instances"""
@@ -801,7 +813,6 @@ def create_bot(bot_type: str) -> BaseBot:
         "opponent": GenericBot
     }
 
-
     bot_class = bot_classes.get(bot_type)
     if bot_class:
         print(f"🔧 CUSTOM BOT: Creating built-in bot '{bot_type}'")
@@ -812,12 +823,12 @@ def create_bot(bot_type: str) -> BaseBot:
         return GenericBot()
 
 # not in a class.
-def enhance_custom_bot(self, ai_bot_id: str, name: str, description: str, difficulty: str):
+def enhance_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str):
     """Enhance a custom bot with updated characteristics added by LLM.
     Returns a CustomBot instance with all attributes set."""
-    return CustomBot(name=name, description=description, difficulty=difficulty)
+    return CustomBot(ai_bot_id=ai_bot_id, name=name, description=description, difficulty=difficulty)
 
-def save_bot_to_supabase(self, bot):
+def save_bot_to_supabase(bot):
     """Unpacks the bot class and attributes and saves to Supabase."""
     from supabase import create_client, Client
     import os, json
@@ -836,9 +847,8 @@ def save_bot_to_supabase(self, bot):
         'response_config': json.dumps(bot.response_config),
         'gif_config': json.dumps(bot.gif_config)
     }
-    print(f"🔧 CUSTOM BOT: Saving bot to supabase: {bot_data}")
+    print(f"🔧 CUSTOM BOT: Saving bot to supabase:")
 
     response = supabase.table('custom_bots').insert(bot_data).execute()
-    if response.error:
-        return {'success': False, 'error': str(response.error)}
-    return {'success': True, 'bot': bot_data}
+    # if response.model_dump() possibly add error handling
+    return response
