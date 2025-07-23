@@ -14,7 +14,7 @@ url = os.environ.get("SUPABASE_URL")
 # print("url:", url)
 key = os.environ.get("SUPABASE_LEGACY_SECRET")
 test = os.environ.get("TEST")
-
+print("key:", key)
 
 class BaseBot(ABC):
     """Base class for all bot personalities"""

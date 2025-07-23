@@ -751,8 +751,14 @@ from flask import request, jsonify
 
 # custom_bots = {}  # In-memory store; use a database for persistence
 
+@app.route('/api/test', methods=['POST'])
+def test_route():
+    print("Test route hit!")
+    return {"success": True}
+
 @app.route('/api/create_custom_bot', methods=['POST'])
 def create_custom_bot():
+    print("Route hit!")  # <--- Add this as the first line
     data = request.get_json()
     print(f"🔥 /api/create_custom_bot endpoint hit - data: {data}")
     ai_bot_id = data.get('ai_bot_id')
