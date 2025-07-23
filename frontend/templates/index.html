@@ -190,7 +190,7 @@
                                 <div class="deck-discard-container">
                                     <div class="deck-area">
                                         <h4>Deck</h4>
-                                        <div class="card face-down" id="deckCard" title="Draw from Deck" onclick="drawFromDeck()"></div>
+                                        <div class="card face-down" id="deckCard" title="(Hint) Draw from Deck" onclick="drawFromDeck()"></div>
                                         <div id="deckSize"></div>
                                         <!-- Drawn card area moved here, right below deck -->
                                         <div id="drawnCardArea">
@@ -199,14 +199,14 @@
                                     </div>
                                     <div class="discard-area">
                                         <h4>Discard</h4>
-                                        <div class="card face-up" id="discardCard" title="Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                        <div class="card face-up" id="discardCard" title="(Hint)Take Discard" onclick="takeDiscard()" draggable="true"></div>
                                         <div id="drawnCardInstructions">
                                             Drag to replace or click your card to flip
                                         </div>
                                         <!-- Peek Button -->
                                         <div class="peek-button-container" id="peekButtonContainer" style="display: none;">
                                             <button id="peekButton" class="peek-btn" onclick="peekAtCards()" title="Peek at your hidden cards">
-                                                👀 <span class="peek-text">Peek</span>
+                                                 <span class="peek-text">👀 Peek</span>
                                             </button>
                                             <div id="peekCooldown" class="peek-cooldown" style="display: none;">
                                                 <span id="peekCooldownTime">30s</span>

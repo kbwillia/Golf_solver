@@ -73,10 +73,30 @@ function updateProbabilitiesPanel() {
 
     const probs = currentGameState.probabilities;
 
+    // Always use currentGameState.deck_size for the cards left header
+    const deckSize = (typeof currentGameState !== 'undefined' && currentGameState && typeof currentGameState.deck_size !== 'undefined') ? currentGameState.deck_size : 0;
+
     // LEFT COLUMN: Unknown Cards Chart
     if (unknownCardsPanel && probs.deck_counts) {
+        // Remove any previous cards left header
+        let cardsLeftHeader = unknownCardsPanel.querySelector('.cards-left-header');
+        if (cardsLeftHeader) cardsLeftHeader.remove();
+        // Add new header at the top with the actual count
+        cardsLeftHeader = document.createElement('div');
+        cardsLeftHeader.className = 'cards-left-header';
+        cardsLeftHeader.style.fontWeight = 'bold';
+        cardsLeftHeader.style.fontSize = '1.1em';
+        cardsLeftHeader.style.marginBottom = '6px';
+        // cardsLeftHeader.textContent = `${deckSize} Cards Left`;
+        cardsLeftHeader.textContent = `Cards Left`;
+
+        unknownCardsPanel.prepend(cardsLeftHeader);
+
         let unknownHtml = '<div class="probabilities-panel-box">';
-        unknownHtml += '<h4 class="probabilities-title">Cards Left</h4>';
+        // Insert the deck size before the word 'Cards' in the header
+        // unknownHtml += `<h4 class="probabilities-title">${deckSize} Cards Left</h4>`;
+        unknownHtml += `<h4 class="probabilities-title">Cards Left</h4>`;
+
 
         // Desired order: J, A, 2-10, Q, K
         const order = ['J', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Q', 'K'];
@@ -127,7 +147,7 @@ function updateProbabilitiesPanel() {
         if (probs.expected_value_draw_vs_discard && currentGameState.current_turn === 0 && !currentGameState.game_over) {
             const ev = probs.expected_value_draw_vs_discard;
             otherHtml += '<div class="probabilities-bar">';
-            otherHtml += '<div class="probabilities-bar-title">🎯 Strategery!</div>';
+            // otherHtml += '<div class="probabilities-bar-title">🎯 Strategery!</div>';
             otherHtml += `<div class="probabilities-bar-main"><b>${ev.recommendation}</b></div>`;
             otherHtml += `<div class="probabilities-bar-detail">Draw: ${ev.draw_expected_value > 0 ? '+' : ''}${ev.draw_expected_value} EV</div>`;
             otherHtml += `<div class="probabilities-bar-detail">Discard: ${ev.discard_expected_value > 0 ? '+' : ''}${ev.discard_expected_value} EV</div>`;

@@ -45,12 +45,6 @@ function updateGameDisplay() {
             gameInfoBar.textContent = '';
         }
 
-        // Update deck size
-        const deckSizeElem = document.getElementById('deckSize');
-        if (deckSizeElem) {
-            deckSizeElem.textContent = currentGameState.deck_size || 0;
-        }
-
         // Update discard pile
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
