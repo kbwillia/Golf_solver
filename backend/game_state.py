@@ -151,7 +151,8 @@ def get_game_state(game_id, games):
         'waiting_for_next_game': game_session.get('waiting_for_next_game', False),
         'last_action': getattr(game, 'last_action', None),
         'action_history': getattr(game, 'action_history', []),
-        'game_id': game_id  # where game_id is the UUID string
+        'game_id': game_id,  # where game_id is the UUID string
+        'whos_first': game_session.get('whos_first', 0),
     }
         # Set winner for current game if over
     if game_session['game_over']:

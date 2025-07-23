@@ -54,7 +54,7 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 # Store active games
 games = {}
 
-AI_TURN_DELAY = 3.50  # seconds
+AI_TURN_DELAY = 0.50  # seconds
 
 # Custom bot storage functions
 def get_custom_bots_file_path():
@@ -178,7 +178,7 @@ def create_game():
     for bot in selected_bots:
         # Only add as player if not an announcer or non-player bot
         if bot.get('difficulty') not in ('announcer', 'nonplayer', 'announcer_only'):
-            agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'nonplayer').lower(), 'heuristic'))
+            agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
             player_names.append(bot.get('name', 'AI Opponent'))
             print(f' player_names: {player_names}')
 
@@ -207,6 +207,7 @@ def create_game():
         'proactive_comment_cooldown': 10,
         'pending_proactive_comments': [],
         'selected_bots': selected_bots, # Store selected_bots in session
+        'whos_first': 0,  # Human starts first. Kinda like dealer, but want the human to start.
     }
 
     return jsonify({
@@ -401,14 +402,24 @@ def next_game():
         selected_bots = game_session.get('selected_bots', [])
         difficulty_to_agent = {'easy': 'random', 'medium': 'heuristic', 'hard': 'ev_ai'}
         for bot in selected_bots:
-            agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
-            player_names.append(bot.get('name', 'AI Opponent'))
+            # Only add as player if not an announcer or non-player bot
+            if bot.get('difficulty') not in ('announcer', 'nonplayer', 'announcer_only'):
+                agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
+                player_names.append(bot.get('name', 'AI Opponent'))
         num_players = len(agent_types)
+
+        # Rotate whos_first
+        game_session['whos_first'] = (game_session.get('whos_first', 0) + 1) % num_players
 
         # Re-create the game
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
         for i, name in enumerate(player_names):
             new_game.players[i].name = name
+
+        # Set the starting player for this game
+        new_game.turn = game_session['whos_first']
+        # Ensure round is set to 1 for new game
+        new_game.round = 1
 
         # Update session
         game_session['game'] = new_game
