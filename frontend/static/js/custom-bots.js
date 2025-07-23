@@ -161,18 +161,10 @@ async function renderBotSelectRow() {
     } else {
       console.log(`📊 Found ${data.length} bots from Supabase:`, data);
 
+      // Store all fields for each bot
       data.forEach(bot => {
-        // console.log('🔍 Bot data from Supabase:', bot); // Debug the actual data structure
-        allBots.push({
-          value: bot.ai_bot_id || bot.id, // Try both column names
-          name: bot.name,
-          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
-          difficultyClass: bot.difficulty,
-          desc: bot.description || 'Custom bot with unique personality.'
-        });
+          allBots.push(bot); // Keep the full bot object
       });
-
-      // Store all bots globally for lookup in updateOpponentDisplay
       window.allBotsData = allBots;
 
       // Randomize the order of bots for display
@@ -195,20 +187,22 @@ async function renderBotSelectRow() {
     window.selectedBots = [];
   }
 
-  // Update selected bots if current selection is not in available bots
+  // When initializing or updating selectedBots, always map ids to full objects
   if (window.selectedBots.length > 0) {
-    const availableBotValues = allBots.map(bot => bot.value);
-    window.selectedBots = window.selectedBots.filter(bot => availableBotValues.includes(bot));
+    const availableBotIds = allBots.map(bot => bot.ai_bot_id || bot.id);
+    window.selectedBots = window.selectedBots
+      .map(sel => typeof sel === 'object' ? sel : allBots.find(bot => (bot.ai_bot_id || bot.id) === sel))
+      .filter(bot => bot && availableBotIds.includes(bot.ai_bot_id || bot.id));
     if (window.selectedBots.length === 0) {
       // Pick a random bot if none of the previous selection is available
       const randomIdx = Math.floor(Math.random() * allBots.length);
-      window.selectedBots = [allBots[randomIdx].value];
+      window.selectedBots = [allBots[randomIdx]];
     }
-  } else {
+} else {
     // Pick a random bot for initial selection
     const randomIdx = Math.floor(Math.random() * allBots.length);
-    window.selectedBots = [allBots[randomIdx].value];
-  }
+    window.selectedBots = [allBots[randomIdx]];
+}
 
 
   // Render all bots
@@ -218,22 +212,22 @@ async function renderBotSelectRow() {
     btn.type = 'button';
 
     // Determine if this bot is selected
-    const isSelected = window.selectedBots.includes(bot.value);
+    const isSelected = window.selectedBots.some(sel => sel && (sel.ai_bot_id || sel.id) === (bot.ai_bot_id || bot.id));
 
-    // console.log(`🎯 Bot ${bot.name} (${bot.value}): selected=${isSelected}`);
+    // console.log(`�� Bot ${bot.name} (${bot.value}): selected=${isSelected}`);
 
     btn.className = 'bot-select-btn' + (isSelected ? ' multi-selected' : '');
-    btn.setAttribute('data-bot', bot.value);
+    btn.setAttribute('data-bot', bot.ai_bot_id || bot.id);
 
-    // No JS truncation, let CSS handle it
+    // Only use name, difficulty, description for display
     btn.innerHTML = `
       <div class="bot-header">
         <span class="bot-name">${bot.name}</span>
-        <span class="bot-difficulty ${bot.difficultyClass}">${bot.difficulty}</span>
+        <span class="bot-difficulty ${bot.difficulty}">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)}</span>
       </div>
-      <span class="bot-desc bot-desc-short">${bot.desc}</span>
+      <span class="bot-desc bot-desc-short">${bot.description || 'Custom bot with unique personality.'}</span>
     `;
-    btn.onclick = () => selectBotButton(bot.value);
+    btn.onclick = () => selectBotButton(bot.ai_bot_id || bot.id);
     row.appendChild(btn);
   });
 
@@ -289,11 +283,11 @@ function updateAIBotImageContainer(allBots) {
     return;
   }
 
-  window.selectedBots.forEach(botValue => {
-    const bot = allBots.find(b => b.value === botValue);
-    if (!bot) return;
+  window.selectedBots.forEach(selectedBot => {
+    const botObj = allBots.find(b => (b.ai_bot_id || b.id) === (selectedBot.ai_bot_id || selectedBot.id));
+    if (!botObj) return;
     // Try to match bot name to image filename
-    const imgName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+    const imgName = botObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
     const imgPath = `/static/AI_bot_images/${imgName}`;
 
     // Create a row container for image + text
@@ -302,7 +296,7 @@ function updateAIBotImageContainer(allBots) {
 
     const img = document.createElement('img');
     img.src = imgPath;
-    img.alt = bot.name;
+    img.alt = botObj.name;
     img.className = 'ai-bot-img';
     img.onerror = function() {
       this.style.display = 'none';
@@ -314,11 +308,11 @@ function updateAIBotImageContainer(allBots) {
 
     const name = document.createElement('div');
     name.className = 'ai-bot-name';
-    name.innerText = bot.name;
+    name.innerText = botObj.name;
 
     const desc = document.createElement('div');
     desc.className = 'ai-bot-desc';
-    desc.innerText = bot.desc;
+    desc.innerText = botObj.description || 'No description available.';
 
     textDiv.appendChild(name);
     textDiv.appendChild(desc);
@@ -330,90 +324,58 @@ function updateAIBotImageContainer(allBots) {
 
 
 
+// In selectBotButton, support multi-select (up to 3 bots) with full objects
 function selectBotButton(botValue) {
-  const row = document.getElementById('botSelectRow');
-  if (!row) return;
-
-  const currentCount = window.selectedBots.length;
-  const index = window.selectedBots.indexOf(botValue);
-  const maxBots = 3; // Allow up to 3 bots for 1v3 mode
-
-  if (index > -1) {
-    // Remove if already selected (now allow removing even the last bot)
-    window.selectedBots.splice(index, 1);
-  } else {
-    // Add if not selected (up to max limit)
-    if (currentCount < maxBots) {
-      window.selectedBots.push(botValue);
+    if (!window.allBotsData) return;
+    const botObj = window.allBotsData.find(bot => (bot.ai_bot_id || bot.id) === botValue);
+    if (!botObj) return;
+    const maxBots = 3;
+    // Check if already selected
+    const index = window.selectedBots.findIndex(sel => (sel.ai_bot_id || sel.id) === (botObj.ai_bot_id || botObj.id));
+    if (index > -1) {
+        // Remove if already selected
+        window.selectedBots.splice(index, 1);
     } else {
-      // If at max, replace the first bot with the new selection
-      window.selectedBots.shift();
-      window.selectedBots.push(botValue);
+        // Add if not selected (up to max limit)
+        if (window.selectedBots.length < maxBots) {
+            window.selectedBots.push(botObj);
+        } else {
+            // If at max, replace the first bot with the new selection
+            window.selectedBots.shift();
+            window.selectedBots.push(botObj);
+        }
     }
-  }
-
-  // Update visual state - always use multi-selected style now
-  Array.from(row.children).forEach(btn => {
-    const btnValue = btn.getAttribute('data-bot');
-    const isSelected = window.selectedBots.includes(btnValue);
-
-    btn.classList.remove('selected', 'multi-selected');
-    if (isSelected) {
-      btn.classList.add('multi-selected');
-    }
-  });
-
-  // Update backward compatibility
-  window.selectedBotValue = window.selectedBots[0];
-
-  // console.log(`Selected bots: ${window.selectedBots.join(', ')}`);
-
-  // Update the opponent display
-  updateOpponentDisplay();
-
-  // Update the AI bot image container
-  // Find allBots from the current botSelectRow render
-  const allBots = Array.from(row.children).map(btn => {
-    return {
-      value: btn.getAttribute('data-bot'),
-      name: btn.querySelector('.bot-name')?.innerText || '',
-      desc: btn.querySelector('.bot-desc')?.innerText || '',
-      difficulty: btn.querySelector('.bot-difficulty')?.innerText || '',
-      difficultyClass: btn.querySelector('.bot-difficulty')?.className?.replace('bot-difficulty', '').trim() || ''
-    };
-  });
-  updateAIBotImageContainer(allBots);
-
-  // Update start game button state
-  updateStartGameButtonState();
+    renderBotSelectRow();
+    updateStartGameButtonState();
+    updateAIBotImageContainer(window.allBotsData);
 }
 
-// Listen for game mode changes to update selection behavior
-function initializeGameModeButtons() {
-  const gameMode1v1 = document.getElementById('gameMode1v1');
-  const gameMode1v2 = document.getElementById('gameMode1v2');
-  const gameMode1v3 = document.getElementById('gameMode1v3');
+// Listen for game mode changes to update selection behavior. todo might delete because buttons aren't used anymore.
+// function initializeGameModeButtons() {
+//   const gameMode1v1 = document.getElementById('gameMode1v1');
+//   const gameMode1v2 = document.getElementById('gameMode1v2');
+//   const gameMode1v3 = document.getElementById('gameMode1v3');
 
 
 
-  if (gameMode1v1 && gameMode1v2 && gameMode1v3) {
-    // Remove any existing listeners to prevent conflicts
-    gameMode1v1.removeEventListener('click', handle1v1Mode);
-    gameMode1v2.removeEventListener('click', handle1v2Mode);
-    gameMode1v3.removeEventListener('click', handle1v3Mode);
+//   if (gameMode1v1 && gameMode1v2 && gameMode1v3) {
+//     // Remove any existing listeners to prevent conflicts
+//     gameMode1v1.removeEventListener('click', handle1v1Mode);
+//     gameMode1v2.removeEventListener('click', handle1v2Mode);
+//     gameMode1v3.removeEventListener('click', handle1v3Mode);
 
-    // Add new listeners
-    gameMode1v1.addEventListener('click', handle1v1Mode);
-    gameMode1v2.addEventListener('click', handle1v2Mode);
-    gameMode1v3.addEventListener('click', handle1v3Mode);
+//     // Add new listeners
+//     gameMode1v1.addEventListener('click', handle1v1Mode);
+//     gameMode1v2.addEventListener('click', handle1v2Mode);
+//     gameMode1v3.addEventListener('click', handle1v3Mode);
 
-    // Test if buttons are clickable
-    gameMode1v1.style.pointerEvents = 'auto';
-    gameMode1v2.style.pointerEvents = 'auto';
-    gameMode1v3.style.pointerEvents = 'auto';
+//     // Test if buttons are clickable
+//     gameMode1v1.style.pointerEvents = 'auto';
+//     gameMode1v2.style.pointerEvents = 'auto';
+//     gameMode1v3.style.pointerEvents = 'auto';
 
-  }
-}
+//   }
+// }
 
 function handle1v1Mode() {
 
@@ -524,12 +486,12 @@ function updateOpponentDisplay() {
     if (!window.selectedBots || window.selectedBots.length === 0) {
         opponentDisplay.textContent = `Select 1-3 AI opponents to start a game`;
     } else {
-        const botNames = window.selectedBots.map(botId => {
+        const botNames = window.selectedBots.map(selectedBot => {
             // Look up the bot name from the stored bot data
             if (window.allBotsData) {
-                const bot = window.allBotsData.find(b => b.value === botId);
-                if (bot) {
-                    return bot.name;
+                const botObj = window.allBotsData.find(b => (b.ai_bot_id || b.id) === (selectedBot.ai_bot_id || selectedBot.id));
+                if (botObj) {
+                    return botObj.name;
                 }
             }
             // Fallback if bot not found

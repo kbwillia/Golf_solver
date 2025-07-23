@@ -143,19 +143,44 @@ def create_game():
     num_games = int(data.get('num_games', 1))
     selected_bots = data.get('selected_bots', [])  # Always an array of bot objects
 
+    # Ensure Jim Nantz, Golf Pro, and Golf Bro are present exactly once using a loop
+    from bot_personalities import JimNantzBot, GolfProBot, GolfBroBot
+    core_bots = [
+        {"name": "Jim Nantz", "ai_bot_id": "jim_nantz", "class": JimNantzBot, "difficulty": "announcer"},
+        {"name": "Golf Pro", "ai_bot_id": "golf_pro", "class": GolfProBot, "difficulty": "nonplayer"},
+        {"name": "Golf Bro", "ai_bot_id": "golf_bro", "class": GolfBroBot, "difficulty": "nonplayer"}
+    ]
+    for core in core_bots:
+        if not any(bot.get('name') == core["name"] for bot in selected_bots):
+            bot_instance = core["class"]()
+            selected_bots.append({
+                'ai_bot_id': core["ai_bot_id"],
+                'name': bot_instance.name,
+                'description': bot_instance.description,
+                'difficulty': core["difficulty"],
+                'proactive_config': bot_instance.proactive_config,
+                'response_config': bot_instance.response_config
+            })
+    print(f"DEBUG: Selected bots data attributes from frontend:")
+    for idx, bot in enumerate(selected_bots):
+        print(f"  Bot {idx+1}: {json.dumps(bot, indent=2)}")
     # 1. Cache all selected custom bots
     for bot in selected_bots:
         if 'ai_bot_id' in bot:
             custom_bot_cache[bot['ai_bot_id']] = bot
+            print(f"DEBUG: Cached bot {bot['ai_bot_id']}: {bot}")
 
     # 2. Set up agent types and player names
+    # Only add user-selected bots as players
     agent_types = ['human']
     player_names = [player_name]
     difficulty_to_agent = {'easy': 'random', 'medium': 'heuristic', 'hard': 'ev_ai'}
-
     for bot in selected_bots:
-        agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
-        player_names.append(bot.get('name', 'AI Opponent'))
+        # Only add as player if not an announcer or non-player bot
+        if bot.get('difficulty') not in ('announcer', 'nonplayer', 'announcer_only'):
+            agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'nonplayer').lower(), 'heuristic'))
+            player_names.append(bot.get('name', 'AI Opponent'))
+            print(f' player_names: {player_names}')
 
     num_players = len(agent_types)
 
@@ -187,16 +212,13 @@ def create_game():
     return jsonify({
         'success': True,
         'game_id': game_id,
-        'game_state': get_game_state(game_id)
+        'game_state': get_game_state(game_id, games)
     })
 
 @app.route('/game_state/<game_id>')
 def game_state(game_id):
     """Get current game state"""
-    if game_id not in games:
-        return jsonify({'error': 'Game not found'}), 404
-
-    return jsonify(get_game_state(game_id))
+    return jsonify(get_game_state(game_id, games))
 
 @app.route('/make_move', methods=['POST'])
 def make_move():
@@ -273,7 +295,7 @@ def make_move():
         # Return game state BEFORE advancing to next player
         response = jsonify({
             'success': True,
-            'game_state': get_game_state(game_id)
+            'game_state': get_game_state(game_id, games)
         })
 
         # Move to next player (this may advance the round)
@@ -400,7 +422,7 @@ def next_game():
 
         return jsonify({
             'success': True,
-            'game_state': get_game_state(game_id)
+            'game_state': get_game_state(game_id, games)
         })
 
     except Exception as e:
@@ -445,7 +467,7 @@ def run_ai_turn():
         # Return game state BEFORE advancing to next player
         response = jsonify({
             'success': True,
-            'game_state': get_game_state(game_id)
+            'game_state': get_game_state(game_id, games)
         })
 
         # Move to next player (this may advance the round)
@@ -500,7 +522,7 @@ def run_ai_turn():
 
     return jsonify({
         'success': True,
-        'game_state': get_game_state(game_id)
+        'game_state': get_game_state(game_id, games)
     })
 
 def update_round_cumulative_scores(game_session, game):
@@ -797,34 +819,48 @@ def get_custom_bots():
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 def proactive_comment_timer():
-    from chatbot import create_bot, GolfChatbot
+    import time
     while True:
         time.sleep(5)  # Check every 5 seconds
         for game_id, game_session in games.items():
             game = game_session['game']
             # Build allowed bots: all AI except Golf Pro and Golf Bro, plus Jim Nantz
-            allowed_bots = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
-            if "Jim Nantz" not in allowed_bots:
-                allowed_bots.append("Jim Nantz")
-            for bot_name in allowed_bots:
+            allowed_bots = []
+            for idx, player in enumerate(game.players[1:]):
+                # Try to get ai_bot_id from selected_bots
+                selected_bots = game_session.get('selected_bots', [])
+                if idx < len(selected_bots):
+                    bot_id = selected_bots[idx].get('ai_bot_id')
+                    allowed_bots.append(bot_id)
+            # Optionally add Jim Nantz by id if needed
+            # if "Jim Nantz" not in [b.get('name') for b in selected_bots]:
+            #     allowed_bots.append('Jim Nantz')
+            for bot_id in allowed_bots:
                 # Debug: Show custom bot mappings in game session
                 print(f"[DEBUG] Custom bot mappings in session:", flush=True)
                 for k, v in game_session.items():
                     if 'custom_bot' in k:
                         print(f"[DEBUG]   {k}: {v}", flush=True)
-                bot_id_for_lookup = chat_handler.get_bot_id_from_display_name(game_session, bot_name)
-                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id_for_lookup}", flush=True)
-                bot_instance = create_bot(bot_id_for_lookup)
-                temp_chatbot = GolfChatbot(bot_id_for_lookup)
-                temp_chatbot.current_bot = bot_instance
+                # Look up the full bot object
+                bot_obj = next((b for b in game_session.get('selected_bots', []) if b.get('ai_bot_id') == bot_id), None)
+                if not bot_obj:
+                    continue
+                bot_name = bot_obj.get('name', 'Unknown Bot')
+                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id}", flush=True)
+                # Use bot_obj attributes for proactive comment logic
+                # If you need to instantiate a bot class for advanced logic, pass bot_obj as needed
+                # For now, just use the name and attributes directly
                 last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
                 cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
-                comment = temp_chatbot.check_for_proactive_comment(
-                    game_state=get_game_state(game_id),
-                    conversation_history=game_session['conversation_history'],
-                    last_proactive_comment_time=last_time,
-                    cooldown_seconds=cooldown
-                )
+                # Use chatbot to generate comment (you may want to pass bot_obj if needed)
+                comment = None
+                if hasattr(chat_handler.chatbot, 'check_for_proactive_comment'):
+                    comment = chat_handler.chatbot.check_for_proactive_comment(
+                        game_state=get_game_state(game_id, games),
+                        conversation_history=game_session['conversation_history'],
+                        last_proactive_comment_time=last_time,
+                        cooldown_seconds=cooldown
+                    )
                 if comment:
                     if 'pending_proactive_comments' not in game_session:
                         game_session['pending_proactive_comments'] = []

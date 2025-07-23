@@ -443,7 +443,7 @@ class JimNantzBot(BaseBot):
                 "game_over": 1.0,  # Always comments on game over
                 "dramatic_moment": 0.9  # Loves dramatic moments
             },
-            "cooldown_seconds": 12,  # Moderate cooldown
+            "cooldown_seconds": 1200,  # Moderate cooldown
             "max_comments_per_game": 12
         })
 
@@ -505,7 +505,7 @@ class GolfBroBot(BaseBot):
             "Golf Bro",
             "A fun and entertaining golf buddy who makes jokes and keeps spirits high"
         )
-
+        self.difficulty = 'nonplayer'
         # Golf Bro is casual and likely to split messages
         self.response_config.update({
             "message_splitting": 0.7  # Likely to split casual thoughts
@@ -536,12 +536,11 @@ class GolfProBot(BaseBot):
             "Golf Pro",
             "A competitive professional golfer who gives tactical advice"
         )
-
+        self.difficulty = 'nonplayer'
         # Golf Pro is tactical and may split focused advice
         self.response_config.update({
             "message_splitting": 0.5  # Moderate splitting for tactical focus
         })
-
         # Golf Pro does not send GIFs
         self.gif_config["enabled"] = False
 

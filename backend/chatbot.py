@@ -1,12 +1,13 @@
 import json
 from typing import Dict, List, Optional, Any
-# Import from same directory
 from llm_cerebras import call_cerebras_llm
 import random
 import os
 from bot_personalities import create_bot, BaseBot
 from game_state import get_game_state
 import re
+import time
+
 LAST_X_MESSAGES = 10
 
 class GolfChatbot:
@@ -359,31 +360,31 @@ class GolfChatbot:
         """Reset bot state for a new game"""
         self.current_bot.reset_for_new_game()
 
-    def get_available_personalities(self) -> List[Dict[str, str]]:
-        """Get list of available personalities"""
-        from bot_personalities import get_all_custom_bots
+    # def get_available_personalities(self) -> List[Dict[str, str]]:
+    #     """Get list of available personalities"""
+    #     from bot_personalities import get_all_custom_bots
 
-        # Define the allowed personalities
-        allowed_bots = ["Jim Nantz", "Tiger Woods", "Happy Gilmore", "Peter Parker", "Shooter McGavin"]
-        personalities = [
-            {
-                "type": bot_name,
-                "name": bot_name,
-                "description": create_bot(bot_name).description
-            }
-            for bot_name in allowed_bots
-        ]
+    #     # Define the allowed personalities
+    #     allowed_bots = ["Jim Nantz"]
+    #     personalities = [
+    #         {
+    #             "type": bot_name,
+    #             "name": bot_name,
+    #             "description": create_bot(bot_name).description
+    #         }
+    #         for bot_name in allowed_bots
+    #     ]
 
-        # Add custom bots
-        custom_bots = get_all_custom_bots()
-        for bot_id, bot_data in custom_bots.items():
-            personalities.append({
-                "type": bot_id,  # Use bot_id as the type
-                "name": bot_data["name"],
-                "description": bot_data["description"]
-            })
+    #     # Add custom bots
+    #     custom_bots = get_all_custom_bots()
+    #     for bot_id, bot_data in custom_bots.items():
+    #         personalities.append({
+    #             "type": bot_id,  # Use bot_id as the type
+    #             "name": bot_data["name"],
+    #             "description": bot_data["description"]
+    #         })
 
-        return personalities
+    #     return personalities
 
     def generate_enhanced_response_with_gif(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None) -> Dict[str, Any]:
         """Generate an enhanced response that may include GIF suggestions"""
@@ -547,7 +548,7 @@ class GolfChatbot:
         game_state: dict,
         conversation_history: list,
         last_proactive_comment_time: float,
-        cooldown_seconds: int = 3 # 30 was default
+        cooldown_seconds: int = 300 # 30 was default
     ) -> Optional[dict]:
         """
         Decide if a proactive comment should be generated, and return it if so.
@@ -776,25 +777,41 @@ class ChatHandler:
         # Get responses from all AI players in the game ONLY (no chat-only bots)
         all_bots = list(game.players[1:])  # All AI players from the game
 
-        # Generate enhanced responses from all bots
         responses = []
-
-        for player in all_bots:
-            print(f"DEBUG: Bot name: {player.name}")
-
-            # Convert display name to bot_id if it's a custom bot
-            bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, player.name)
+        selected_bots = game_session.get('selected_bots', [])
+        for idx, player in enumerate(all_bots):
+            # Try to get ai_bot_id from selected_bots
+            bot_id_for_lookup = None
+            if idx < len(selected_bots):
+                bot_id_for_lookup = selected_bots[idx].get('ai_bot_id')
             print(f"DEBUG: Bot personality (after ID lookup): {bot_id_for_lookup}")
 
+            # Look up the full bot object
+            bot_obj = next((b for b in selected_bots if b.get('ai_bot_id') == bot_id_for_lookup), None)
+            if not bot_obj:
+                continue
+            bot_name = bot_obj.get('name', 'Unknown Bot _handle_opponent_chat')
+
             try:
-                # Use enhanced response generation with proper bot_id
+                # Use bot_obj attributes directly for chat response logic
+                # If you need to instantiate a bot class for advanced logic, do so here (optional)
+                # For now, just use the name and attributes directly
                 enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
                     message,         # user_message
                     game_state,      # game_state
-                    bot_id_for_lookup  # personality (use bot_id for lookup)
+                    bot_id_for_lookup  # personality (use ai_bot_id for lookup)
                 )
+                # Store bot message in conversation history with ai_bot_id
+                game_session['conversation_history'].append({
+                    'sender': 'bot',
+                    'ai_bot_id': bot_id_for_lookup,
+                    'bot_name': bot_name,
+                    'message': enhanced_response["message"],
+                    'timestamp': time.time()
+                })
                 responses.append({
-                    'bot_name': player.name,  # Keep original display name for frontend
+                    'bot_name': bot_name,  # Use correct name from bot_obj
+                    'ai_bot_id': bot_id_for_lookup,
                     'message': enhanced_response["message"],
                     'should_send_gif': enhanced_response.get("should_send_gif", False),
                     'gif_context': enhanced_response.get("gif_context", ""),
@@ -802,12 +819,13 @@ class ChatHandler:
                 })
             except Exception as e:
                 print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
-                print(f"ERROR: Failed to generate response for {player.name}: {e}")
+                print(f"ERROR: Failed to generate response for {bot_name}: {e}")
                 import traceback
                 traceback.print_exc()
                 print("="*80 + "\n")
                 responses.append({
-                    'bot_name': player.name,
+                    'bot_name': bot_name,
+                    'ai_bot_id': bot_id_for_lookup,
                     'message': f"Error: {e}",
                     'should_send_gif': False,
                     'gif_context': "",
@@ -911,53 +929,39 @@ class ChatHandler:
         try:
             game_state = get_game_state_func(game_id)
             game_session = games[game_id]
-            game = game_session['game']
-
+            selected_bots = game_session.get('selected_bots', [])
             # Determine allowed bots: all AI players except 'Golf Pro' and 'Golf Bro', unless overridden
             if 'allowed_bots' in data:
                 allowed_bots = data['allowed_bots']
             else:
-                allowed_bots = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
+                allowed_bots = [b.get('ai_bot_id') for b in selected_bots if b.get('name') not in ('Golf Pro', 'Golf Bro')]
             print("ALLOWED BOTS:", allowed_bots)
-            ai_players = [p for p in game.players[1:] if p.name in allowed_bots]
-            print("AI PLAYERS SELECTED:", [p.name for p in ai_players])
-
             comments = []
-
-            # Build the list of all allowed bots (including Jim Nantz if desired)
-            all_bot_names = [p.name for p in game.players[1:] if p.name not in ('Golf Pro', 'Golf Bro')]
-            if "Jim Nantz" in allowed_bots and "Jim Nantz" not in all_bot_names:
-                all_bot_names.append("Jim Nantz")
-
-            print(f"DEBUG: all_bot_names = {all_bot_names}")
-            for bot_name in all_bot_names:
-                bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, bot_name)
-                print(f"DEBUG: Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id_for_lookup}", flush=True)
-
-                bot_instance = create_bot(bot_id_for_lookup)
-                from chatbot import GolfChatbot
-                temp_chatbot = GolfChatbot(bot_id_for_lookup)
-                temp_chatbot.current_bot = bot_instance
-
-                enhanced_comment = temp_chatbot.generate_contextual_proactive_comment(
-                    game_state,
-                    event_type,
-                    specific_context
+            for bot_id in allowed_bots:
+                bot_obj = next((b for b in selected_bots if b.get('ai_bot_id') == bot_id), None)
+                if not bot_obj:
+                    continue
+                bot_name = bot_obj.get('name', 'Unknown Bot chatbot.py 936')
+                print(f"DEBUG: Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id}", flush=True)
+                # Use bot_obj attributes directly for proactive comment logic
+                # If you need to instantiate a bot class for advanced logic, do so here (optional)
+                # For now, just use the name and attributes directly
+                last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
+                cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
+                comment = self.chatbot.check_for_proactive_comment(
+                    game_state=game_state,
+                    conversation_history=game_session['conversation_history'],
+                    last_proactive_comment_time=last_time,
+                    cooldown_seconds=cooldown
                 )
-
-                if enhanced_comment:
+                if comment:
                     comments.append({
                         'bot_name': bot_name,
-                        'message': enhanced_comment["message"],
-                        'event_type': enhanced_comment.get("event_type", event_type),
-                        'should_send_gif': enhanced_comment.get("should_send_gif", False),
-                        'gif_context': enhanced_comment.get("gif_context", ""),
-                        'personality_info': enhanced_comment.get("personality_info", {})
+                        **comment
                     })
-
+                    game_session[f'last_proactive_comment_time_{bot_name}'] = time.time()
             print(f"DEBUG: Generated {len(comments)} enhanced proactive comments")
             return {'success': True, 'comments': comments}
-
         except Exception as e:
             print(f"ERROR: Error generating proactive comments: {e}")
             import traceback
@@ -1051,6 +1055,10 @@ class ChatHandler:
 
         except Exception as e:
             return {'error': f'Server error: {str(e)}'}, 500
+
+    # When retrieving conversation history for a bot, filter by ai_bot_id
+    def get_conversation_history_for_bot(self, game_session, ai_bot_id):
+        return [msg for msg in game_session.get('conversation_history', []) if msg.get('ai_bot_id') == ai_bot_id]
 
 # Create global chat handler instance
 chat_handler = ChatHandler(chatbot)

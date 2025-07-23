@@ -1,9 +1,9 @@
 
-def get_game_state(game_id):
+def get_game_state(game_id, games):
     # print(f"DEBUG: get_game_state called with game_id={game_id}")
     """Get formatted game state for frontend"""
     from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
-    from web_app import games, get_public_score, get_private_score
+    from web_app import get_public_score, get_private_score
     if game_id not in games:
         print(f"DEBUG: game_id {game_id} not found in games dict")
         return None

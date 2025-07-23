@@ -788,8 +788,13 @@ function updateChatParticipantsHeader() {
         }
     }
 
-    // Always add Golf Bro and Golf Pro with @ symbols
-    participants.push('@Golf Bro', '@Golf Pro');
+    // Add @Golf Bro and @Golf Pro only if not already present
+    if (!participants.includes('Golf Bro') && !participants.includes('@Golf Bro')) {
+        participants.push('@Golf Bro');
+    }
+    if (!participants.includes('Golf Pro') && !participants.includes('@Golf Pro')) {
+        participants.push('@Golf Pro');
+    }
 
     // Create the display text - show actual opponent names instead of static "Opponents"
     let displayText = '';
