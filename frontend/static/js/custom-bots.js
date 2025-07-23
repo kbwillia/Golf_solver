@@ -4,35 +4,35 @@ let customBotCount = 1;
 let placeholderData = null;
 
 // Load placeholder data from JSON file
-async function loadPlaceholderData() {
-    try {
-        const response = await fetch('/static/custom_bot.json');
-        placeholderData = await response.json();
-        console.log('✅ Loaded placeholder bot data:', placeholderData);
-    } catch (error) {
-        console.log('❌ Could not load placeholder data:', error);
-        // Fallback placeholder data
-        placeholderData = {
-            placeholder_bots: [
-                {
-                    name: "Karen",
-                    description: "Friendly player who loves to chat and make new friends on the course.",
-                    difficulty: "easy"
-                },
-                {
-                    name: "Bob",
-                    description: "Strategic thinker who carefully considers every move.",
-                    difficulty: "medium"
-                },
-                {
-                    name: "Alice",
-                    description: "Competitive player who takes the game seriously.",
-                    difficulty: "hard"
-                }
-            ]
-        };
-    }
-}
+// async function loadPlaceholderData() {
+//     try {
+//         const response = await fetch('/static/custom_bot.json');
+//         placeholderData = await response.json();
+//         // console.log('✅ Loaded placeholder bot data:', placeholderData);
+//     } catch (error) {
+//         console.log('❌ Could not load placeholder data:', error);
+//         // Fallback placeholder data
+//         placeholderData = {
+//             placeholder_bots: [
+//                 {
+//                     name: "Karen",
+//                     description: "Friendly player who loves to chat and make new friends on the course.",
+//                     difficulty: "easy"
+//                 },
+//                 {
+//                     name: "Bob",
+//                     description: "Strategic thinker who carefully considers every move.",
+//                     difficulty: "medium"
+//                 },
+//                 {
+//                     name: "Alice",
+//                     description: "Competitive player who takes the game seriously.",
+//                     difficulty: "hard"
+//                 }
+//             ]
+//         };
+//     }
+// }
 
 // Get random placeholder bot data
 function getRandomPlaceholderBot() {
@@ -192,10 +192,8 @@ function initializeCustomBots() {
 // Initialize custom bot modal functionality
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔧 Custom bots.js: DOMContentLoaded event fired');
-    // Load placeholder data first
-    loadPlaceholderData().then(() => {
-        initializeCustomBots();
-    });
+    // Initialize directly since we're loading from Supabase now
+    initializeCustomBots();
 });
 
 // Fallback: If DOMContentLoaded already fired, initialize immediately
@@ -203,30 +201,11 @@ if (document.readyState === 'loading') {
     console.log('🔧 Custom bots.js: DOM still loading, waiting for DOMContentLoaded');
 } else {
     console.log('🔧 Custom bots.js: DOM already loaded, initializing immediately');
-    loadPlaceholderData().then(() => {
-        initializeCustomBots();
-    });
+    initializeCustomBots();
 }
 
-// Test function to verify button exists
-function testCustomBotButton() {
-    const btn = document.getElementById('createCustomBotBtn');
-    if (btn) {
-        console.log('✅ Custom bot button found and clickable');
-        // Add a test click handler
-        btn.onclick = function() {
-            console.log('✅ Custom bot button click test successful');
-            // Remove test handler and reinitialize
-            btn.onclick = null;
-            initializeCustomBots();
-        };
-    } else {
-        console.error('❌ Custom bot button not found in test');
-    }
-}
 
-// Run test after a short delay
-setTimeout(testCustomBotButton, 1000);
+
 
 function saveSingleCustomBot() {
     const name = document.getElementById('customBotName').value.trim();
@@ -394,8 +373,8 @@ function saveMultipleCustomBots() {
 
 // Load existing custom bots when page loads
 function loadExistingCustomBots() {
-    // This function is now handled by renderBotSelectRow() which loads from JSON
-    console.log('✅ Custom bots are now loaded automatically from JSON via renderBotSelectRow()');
+    // This function is now handled by renderBotSelectRow() which loads from Supabase
+console.log('✅ Custom bots are now loaded automatically from Supabase via renderBotSelectRow()');
 }
 
 function loadOpponents() {
@@ -445,10 +424,13 @@ async function renderBotSelectRow() {
   // Load bots from custom_bot.json
   let allBots = [];
 
+  // TEMPORARILY DISABLED - JSON Loading
+  /*
   try {
     // Load custom bots from JSON
     const response = await fetch('/static/custom_bot.json');
     const data = await response.json();
+    console.log('📄 Loaded bots from JSON:', data); // Add this line to see what's loaded
 
     // Add placeholder bots from JSON
     if (data.placeholder_bots && data.placeholder_bots.length > 0) {
@@ -478,35 +460,62 @@ async function renderBotSelectRow() {
   } catch (error) {
     console.log('Could not load custom bots from JSON:', error);
   }
+  */
 
-  // Load existing custom bots from server (for backward compatibility)
+
+    // Load bots directly from Supabase (no backend needed)
   try {
-    const serverResponse = await fetch('/get_custom_bots');
-    const serverData = await serverResponse.json();
+    console.log('🔍 Attempting to load bots directly from Supabase...');
 
-    if (serverData.success && serverData.bots) {
-      serverData.bots.forEach(bot => {
-        // Check if this bot is already in allBots (from JSON)
-        const existingBot = allBots.find(existing => existing.value === bot.id);
-        if (!existingBot) {
-          allBots.push({
-            value: bot.id,
-            name: bot.name,
-            difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
-            difficultyClass: bot.difficulty,
-            desc: bot.description || 'Custom bot with unique personality.'
-          });
-        }
+    // Check if Supabase client is available
+    if (!supabase) {
+      console.error('❌ Supabase client not initialized');
+      return;
+    }
+
+    // Use the Supabase client we set up earlier
+    const { data, error } = await supabase
+      .from('custom_bots')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Supabase error:', error);
+    } else {
+      console.log(`📊 Found ${data.length} bots from Supabase:`, data);
+
+      data.forEach(bot => {
+        // console.log('🔍 Bot data from Supabase:', bot); // Debug the actual data structure
+        allBots.push({
+          value: bot.ai_bot_id || bot.id, // Try both column names
+          name: bot.name,
+          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
+          difficultyClass: bot.difficulty,
+          desc: bot.description || 'Custom bot with unique personality.'
+        });
       });
+
+      // Store all bots globally for lookup in updateOpponentDisplay
+      window.allBotsData = allBots;
+
+      // Randomize the order of bots for display
+      const shuffledBots = [...allBots].sort(() => Math.random() - 0.5);
+      allBots.length = 0; // Clear the array
+      allBots.push(...shuffledBots); // Add back in random order
     }
   } catch (error) {
-    console.log('Could not load existing custom bots from server:', error);
+    console.log('Could not load bots from Supabase:', error);
   }
 
   // If no bots found, show a message
   if (allBots.length === 0) {
     row.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">No bots found. Create some custom bots to get started!</p>';
     return;
+  }
+
+  // Initialize selectedBots if not already set
+  if (!window.selectedBots) {
+    window.selectedBots = [];
   }
 
   // Update selected bots if current selection is not in available bots
@@ -524,6 +533,9 @@ async function renderBotSelectRow() {
     window.selectedBots = [allBots[randomIdx].value];
   }
 
+  // console.log('🎯 Selected bots after logic:', window.selectedBots);
+  // console.log('🎯 Available bot values:', allBots.map(bot => bot.value));
+
   // Render all bots
   row.innerHTML = '';
   allBots.forEach((bot, idx) => {
@@ -532,10 +544,10 @@ async function renderBotSelectRow() {
 
     // Determine if this bot is selected
     const isSelected = window.selectedBots.includes(bot.value);
-    const isMultiMode = isMultiSelectionMode();
 
-    btn.className = 'bot-select-btn' +
-      (isSelected ? (isMultiMode ? ' multi-selected' : ' selected') : '');
+    // console.log(`🎯 Bot ${bot.name} (${bot.value}): selected=${isSelected}`);
+
+    btn.className = 'bot-select-btn' + (isSelected ? ' multi-selected' : '');
     btn.setAttribute('data-bot', bot.value);
 
     // No JS truncation, let CSS handle it
@@ -552,7 +564,7 @@ async function renderBotSelectRow() {
 
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
-  console.log(`✅ Rendered ${allBots.length} bots from custom_bot.json (placeholder + custom)`);
+  // console.log(`✅ Rendered ${allBots.length} bots total from Supabase`);
 
   // Update the opponent display to show the initially selected bot
   updateOpponentDisplay();
@@ -565,6 +577,31 @@ async function renderBotSelectRow() {
 
   // Show selected bot images and descriptions
   updateAIBotImageContainer(allBots);
+
+  // Update start game button state
+  updateStartGameButtonState();
+}
+
+// Function to update start game button state based on bot selection
+function updateStartGameButtonState() {
+  const startGameBtn = document.querySelector('button[onclick="startGame()"]');
+  if (!startGameBtn) return;
+
+  const hasSelectedBots = window.selectedBots && window.selectedBots.length > 0;
+
+  if (hasSelectedBots) {
+    // Enable the button
+    startGameBtn.disabled = false;
+    startGameBtn.style.opacity = '1';
+    startGameBtn.style.cursor = 'pointer';
+    startGameBtn.title = 'Start the game with selected AI opponents';
+  } else {
+    // Disable the button
+    startGameBtn.disabled = true;
+    startGameBtn.style.opacity = '0.5';
+    startGameBtn.style.cursor = 'not-allowed';
+    startGameBtn.title = 'Please select at least 1 AI opponent to start a game';
+  }
 }
 
 function updateAIBotImageContainer(allBots) {
@@ -616,10 +653,7 @@ function updateAIBotImageContainer(allBots) {
   });
 }
 
-function isMultiSelectionMode() {
-  // Always allow multi-selection now (1-3 bots)
-  return true;
-}
+
 
 function selectBotButton(botValue) {
   const row = document.getElementById('botSelectRow');
@@ -657,7 +691,7 @@ function selectBotButton(botValue) {
   // Update backward compatibility
   window.selectedBotValue = window.selectedBots[0];
 
-  console.log(`Selected bots: ${window.selectedBots.join(', ')}`);
+  // console.log(`Selected bots: ${window.selectedBots.join(', ')}`);
 
   // Update the opponent display
   updateOpponentDisplay();
@@ -674,6 +708,9 @@ function selectBotButton(botValue) {
     };
   });
   updateAIBotImageContainer(allBots);
+
+  // Update start game button state
+  updateStartGameButtonState();
 }
 
 // Listen for game mode changes to update selection behavior
@@ -682,14 +719,7 @@ function initializeGameModeButtons() {
   const gameMode1v2 = document.getElementById('gameMode1v2');
   const gameMode1v3 = document.getElementById('gameMode1v3');
 
-  console.log('🎯 Initializing game mode buttons:', {
-    '1v1 found': !!gameMode1v1,
-    '1v2 found': !!gameMode1v2,
-    '1v3 found': !!gameMode1v3,
-    '1v1 onclick': gameMode1v1 ? gameMode1v1.onclick : 'none',
-    '1v2 onclick': gameMode1v2 ? gameMode1v2.onclick : 'none',
-    '1v3 onclick': gameMode1v3 ? gameMode1v3.onclick : 'none'
-  });
+
 
   if (gameMode1v1 && gameMode1v2 && gameMode1v3) {
     // Remove any existing listeners to prevent conflicts
@@ -707,14 +737,10 @@ function initializeGameModeButtons() {
     gameMode1v2.style.pointerEvents = 'auto';
     gameMode1v3.style.pointerEvents = 'auto';
 
-    console.log('🎯 Game mode button listeners attached successfully');
-  } else {
-    console.error('❌ Game mode buttons not found!');
   }
 }
 
 function handle1v1Mode() {
-  console.log('🎯 1v1 mode button clicked!');
 
   // Set the button to active state
   const gameMode1v1 = document.getElementById('gameMode1v1');
@@ -739,7 +765,6 @@ function handle1v1Mode() {
 }
 
 function handle1v2Mode() {
-  console.log('🎯 1v2 mode button clicked!');
   const gameMode1v1 = document.getElementById('gameMode1v1');
   const gameMode1v2 = document.getElementById('gameMode1v2');
   const gameMode1v3 = document.getElementById('gameMode1v3');
@@ -781,7 +806,6 @@ function handle1v2Mode() {
 }
 
 function handle1v3Mode() {
-  console.log('🎯 1v3 mode button clicked!');
 
   // Set the button to active state
   const gameMode1v1 = document.getElementById('gameMode1v1');
@@ -804,7 +828,6 @@ function handle1v3Mode() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('🎯 Custom bots: DOMContentLoaded - initializing bot selection');
   renderBotSelectRow();
   initializeGameModeButtons();
 
@@ -823,19 +846,19 @@ function updateOpponentDisplay() {
     const playerNameInput = document.getElementById('playerName');
     const playerName = playerNameInput && playerNameInput.value.trim() ? playerNameInput.value.trim() : 'You';
 
-    if (window.selectedBots.length === 0) {
+    if (!window.selectedBots || window.selectedBots.length === 0) {
         opponentDisplay.textContent = `Select 1-3 AI opponents to start a game`;
     } else {
         const botNames = window.selectedBots.map(botId => {
-            // Get bot name from loaded bot data
-            const bot = window.loadedBotData?.placeholder_bots?.find(b => b.id === botId) ||
-                       window.loadedBotData?.custom_bots?.find(b => b.id === botId);
-            return bot
-              ? bot.name
-              : botId
-                  .replace('custom_', '')
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, c => c.toUpperCase());
+            // Look up the bot name from the stored bot data
+            if (window.allBotsData) {
+                const bot = window.allBotsData.find(b => b.value === botId);
+                if (bot) {
+                    return bot.name;
+                }
+            }
+            // Fallback if bot not found
+            return 'Unknown Bot';
         });
 
         let displayText;
@@ -851,6 +874,49 @@ function updateOpponentDisplay() {
 
         opponentDisplay.textContent = displayText;
     }
+}
 
-    console.log('🎯 Updated opponent display:', opponentDisplay.textContent);
+// Supabase client setup (using CDN)
+// Your actual Supabase credentials
+const supabaseUrl = 'https://itnacachbrkpyfgmsziq.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmFjYWNoYnJrcHlmZ21zemlxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjgxMTQ0MywiZXhwIjoyMDYyMzg3NDQzfQ.anx2ToTI7f3LV1vw7scNki_FToqJnntryriOMTQcMos';
+
+// Initialize Supabase client when the script loads
+let supabase;
+if (typeof window.supabase !== 'undefined') {
+  supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+  console.log('✅ Supabase client initialized successfully');
+} else {
+  console.error('❌ Supabase client not available - CDN may not have loaded');
+}
+
+async function fetchBotsFromSupabase() {
+  const { data, error } = await supabase
+    .from('custom_bots')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching bots:', error);
+    return [];
+  }
+  return data;
+}
+
+// Make function globally available
+window.fetchBotsFromSupabase = fetchBotsFromSupabase;
+
+async function createBot(botData) {
+  // Ensure the botData has the correct column name
+  const botDataWithCorrectId = {
+    ...botData,
+    ai_bot_id: botData.ai_bot_id || botData.id // Handle both old and new column names
+  };
+
+  const { data, error } = await supabase
+    .from('custom_bots')
+    .insert([botDataWithCorrectId]);
+  if (error) {
+    alert('Error creating bot: ' + error.message);
+  }
+  return data;
 }

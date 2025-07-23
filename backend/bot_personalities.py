@@ -786,50 +786,50 @@ Generate a complete behavioral configuration for this bot.
 
 
 
-# Global custom bots storage
+# Global custom bots storage (keyed by ai_bot_id)
 custom_bots_storage = {}
 
-def register_custom_bot(bot_id: str, name: str, description: str, difficulty: str):
-    """Register a custom bot for use in the chatbot system"""
+def register_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str):
+    """Register a custom bot for use in the chatbot system (keyed by ai_bot_id)"""
     print(f"🔧 CUSTOM BOT: register_custom_bot() called with:")
-    print(f"🔧 CUSTOM BOT:   bot_id = '{bot_id}'")
+    print(f"🔧 CUSTOM BOT:   ai_bot_id = '{ai_bot_id}'")
     print(f"🔧 CUSTOM BOT:   name = '{name}'")
     print(f"🔧 CUSTOM BOT:   description = '{description}'")
     print(f"🔧 CUSTOM BOT:   difficulty = '{difficulty}'")
 
-    custom_bots_storage[bot_id] = {
+    custom_bots_storage[ai_bot_id] = {
         "name": name,
         "description": description,
         "difficulty": difficulty
     }
 
     # Verify storage
-    stored_data = custom_bots_storage[bot_id]
+    stored_data = custom_bots_storage[ai_bot_id]
     print(f"🔧 CUSTOM BOT: Stored data verification:")
     print(f"🔧 CUSTOM BOT:   stored name = '{stored_data['name']}'")
     print(f"🔧 CUSTOM BOT:   stored description = '{stored_data['description']}'")
     print(f"🔧 CUSTOM BOT:   stored difficulty = '{stored_data['difficulty']}'")
 
-    print(f"🔧 CUSTOM BOT: Registered custom bot '{name}' with ID '{bot_id}'")
+    print(f"🔧 CUSTOM BOT: Registered custom bot '{name}' with ai_bot_id '{ai_bot_id}'")
     print(f"🔧 CUSTOM BOT: Description: {description}")
     print(f"🔧 CUSTOM BOT: Difficulty: {difficulty}")
 
-def get_custom_bot(bot_id: str):
-    """Get a custom bot by ID"""
-    print(f"🔧 CUSTOM BOT: get_custom_bot() called with bot_id = '{bot_id}'")
-    result = custom_bots_storage.get(bot_id)
+def get_custom_bot(ai_bot_id: str):
+    """Get a custom bot by ai_bot_id (UUID from Supabase)"""
+    print(f"🔧 CUSTOM BOT: get_custom_bot() called with ai_bot_id = '{ai_bot_id}'")
+    result = custom_bots_storage.get(ai_bot_id)
     if result:
         print(f"🔧 CUSTOM BOT: Found custom bot data:")
         print(f"🔧 CUSTOM BOT:   name = '{result['name']}'")
         print(f"🔧 CUSTOM BOT:   description = '{result['description']}'")
         print(f"🔧 CUSTOM BOT:   difficulty = '{result['difficulty']}'")
     else:
-        print(f"🔧 CUSTOM BOT: No custom bot found for ID '{bot_id}'")
-        print(f"🔧 CUSTOM BOT: Available bot IDs: {list(custom_bots_storage.keys())}")
+        print(f"🔧 CUSTOM BOT: No custom bot found for ai_bot_id '{ai_bot_id}'")
+        print(f"🔧 CUSTOM BOT: Available ai_bot_ids: {list(custom_bots_storage.keys())}")
     return result
 
 def get_all_custom_bots():
-    """Get all registered custom bots"""
+    """Get all registered custom bots (keyed by ai_bot_id)"""
     return custom_bots_storage.copy()
 
 

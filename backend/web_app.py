@@ -220,19 +220,19 @@ def create_game():
                     agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
                     agent_types[i + 1] = agent_type  # +1 because index 0 is human
 
-                    # Store bot_id for chatbot lookup
-                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
-                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
+                    # Use ai_bot_id from frontend/Supabase
+                    ai_bot_id = custom_bot['ai_bot_id']
+                    custom_bot_data.append((f'custom_bot_id_{i}', ai_bot_id, f'custom_bot_name_{i}', custom_bot['name']))
 
                     # Register the bot in the chatbot system if it has a description
                     if 'description' in custom_bot:
                         try:
-                            register_custom_bot(bot_id, custom_bot['name'], custom_bot['description'], difficulty)
+                            register_custom_bot(ai_bot_id, custom_bot['name'], custom_bot['description'], difficulty)
                             print(f"🎯 Backend: Registered custom bot '{custom_bot['name']}' in chatbot system")
                         except Exception as reg_error:
-                            print(f"🎯 Backend: Error registering custom bot {bot_id}: {reg_error}")
+                            print(f"🎯 Backend: Error registering custom bot {ai_bot_id}: {reg_error}")
 
-                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (bot_id: {bot_id})")
+                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (ai_bot_id: {ai_bot_id})")
             else:
                 print(f"🎯 Backend: No custom bots provided for 1v2 mode, using default agents")
         else:  # 1v3
@@ -258,19 +258,19 @@ def create_game():
                     agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
                     agent_types[i + 1] = agent_type  # +1 because index 0 is human
 
-                    # Store bot_id for chatbot lookup
-                    bot_id = 'custom_' + custom_bot['name'].lower().replace(' ', '_').replace('-', '_')
-                    custom_bot_data.append((f'custom_bot_id_{i}', bot_id, f'custom_bot_name_{i}', custom_bot['name']))
+                    # Use ai_bot_id from frontend/Supabase
+                    ai_bot_id = custom_bot['ai_bot_id']
+                    custom_bot_data.append((f'custom_bot_id_{i}', ai_bot_id, f'custom_bot_name_{i}', custom_bot['name']))
 
                     # Register the bot in the chatbot system if it has a description
                     if 'description' in custom_bot:
                         try:
-                            register_custom_bot(bot_id, custom_bot['name'], custom_bot['description'], difficulty)
+                            register_custom_bot(ai_bot_id, custom_bot['name'], custom_bot['description'], difficulty)
                             print(f"🎯 Backend: Registered random bot '{custom_bot['name']}' in chatbot system")
                         except Exception as reg_error:
-                            print(f"🎯 Backend: Error registering random bot {bot_id}: {reg_error}")
+                            print(f"🎯 Backend: Error registering random bot {ai_bot_id}: {reg_error}")
 
-                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (bot_id: {bot_id})")
+                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (ai_bot_id: {ai_bot_id})")
             else:
                 print(f"🎯 Backend: No custom bots provided for 1v3 mode, using default agents")
 
@@ -279,16 +279,16 @@ def create_game():
         if custom_bot_info:
             print(f"🎯 Backend: Processing custom bot for 1v1 mode: {custom_bot_info.get('name', 'Unknown')}")
 
-            # Register the bot in the chatbot system
-            bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
+            # Use ai_bot_id from frontend/Supabase
+            ai_bot_id = custom_bot_info['ai_bot_id']
             try:
-                register_custom_bot(bot_id, custom_bot_info['name'], custom_bot_info['description'], custom_bot_info['difficulty'])
+                register_custom_bot(ai_bot_id, custom_bot_info['name'], custom_bot_info['description'], custom_bot_info['difficulty'])
                 print(f"🎯 Backend: Registered custom bot '{custom_bot_info['name']}' in chatbot system")
             except Exception as reg_error:
-                print(f"🎯 Backend: Error registering custom bot {bot_id}: {reg_error}")
+                print(f"🎯 Backend: Error registering custom bot {ai_bot_id}: {reg_error}")
 
             # Store bot info for chatbot lookup
-            custom_bot_data.append(('custom_bot_id_0', bot_id, 'custom_bot_name_0', custom_bot_info['name']))
+            custom_bot_data.append(('custom_bot_id_0', ai_bot_id, 'custom_bot_name_0', custom_bot_info['name']))
         else:
             print(f"🎯 Backend: No custom bot info provided for 1v1 mode")
 
@@ -939,7 +939,8 @@ def create_custom_bot():
     if not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
 
-    bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
+    # Generate a unique AI bot ID
+    ai_bot_id = str(uuid.uuid4())
     bot_data = {
         'name': name,
         'difficulty': difficulty,
@@ -947,7 +948,7 @@ def create_custom_bot():
     }
 
     # Add to memory
-    custom_bots[bot_id] = bot_data
+    custom_bots[ai_bot_id] = bot_data
 
     # Save to JSON file
     if save_custom_bots_to_json(custom_bots):
@@ -956,9 +957,9 @@ def create_custom_bot():
         print(f"❌ Failed to save custom bot '{name}' to JSON file")
 
     # Register the custom bot for use in the chatbot system
-    register_custom_bot(bot_id, name, description, difficulty)
+    register_custom_bot(ai_bot_id, name, description, difficulty)
 
-    return jsonify({'success': True, 'bot_id': bot_id, 'bot': bot_data})
+    return jsonify({'success': True, 'bot_id': ai_bot_id, 'bot': bot_data})
 
 @app.route('/save_custom_bots', methods=['POST'])
 def save_custom_bots():
@@ -1042,27 +1043,40 @@ def save_custom_bots():
 
 @app.route('/get_custom_bots', methods=['GET'])
 def get_custom_bots():
-    """Get all existing custom bots for the dropdown"""
+    """Get all existing custom bots from Supabase database"""
     try:
-        print("🔥 /get_custom_bots endpoint hit")
+        print("🔥 /get_custom_bots endpoint hit - loading from Supabase")
 
-        # Reload from JSON to ensure we have the latest data
-        global custom_bots
-        custom_bots = load_custom_bots_from_json()
+        # Import Supabase client
+        from supabase import create_client, Client
+        import os
 
-        print(f"🔥 Current custom_bots dict: {custom_bots}")
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_LEGACY_SECRET")
 
-        # Convert the custom_bots dict to a list format
+        if not url or not key:
+            print("❌ Supabase credentials not found in environment variables")
+            return jsonify({'success': False, 'error': 'Supabase credentials not configured'}), 500
+
+        # Set up Supabase client
+        supabase: Client = create_client(url, key)
+
+        # Fetch all bots from Supabase
+        response = supabase.table('custom_bots').select('*').order('created_at', desc=True).execute()
+
+        print(f"🔥 Supabase response: {response}")
+
         bots_list = []
-        for bot_id, bot_data in custom_bots.items():
-            bots_list.append({
-                'id': bot_id,
-                'name': bot_data['name'],
-                'difficulty': bot_data['difficulty'],
-                'description': bot_data['description']
-            })
+        if response.data:
+            for bot in response.data:
+                bots_list.append({
+                    'id': bot['id'],
+                    'name': bot['name'],
+                    'difficulty': bot['difficulty'],
+                    'description': bot['description']
+                })
 
-        print(f"✅ Returning {len(bots_list)} custom bots: {[bot['name'] for bot in bots_list]}")
+        print(f"✅ Returning {len(bots_list)} custom bots from Supabase: {[bot['name'] for bot in bots_list]}")
 
         return jsonify({
             'success': True,
@@ -1070,7 +1084,7 @@ def get_custom_bots():
         })
 
     except Exception as e:
-        print(f"❌ Error getting custom bots: {e}")
+        print(f"❌ Error getting custom bots from Supabase: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500

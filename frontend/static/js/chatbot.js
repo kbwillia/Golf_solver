@@ -271,7 +271,10 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
     // If sender is 'user', treat as human; otherwise, treat as bot
     const isHuman = sender === 'user';
     const isBot = !isHuman;
-    const displayBotName = botName || (isBot ? 'bot' : null);
+    let displayBotName = botName;
+    if (sender === 'bot' && botName && !botName.match(/\w+ \w+/)) { // If not already a full name
+        displayBotName = getBotNameFromId(botName);
+    }
 
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-message';
@@ -651,6 +654,21 @@ async function getRelevantGif(searchTerm, botName = null) {
 
 
     return fallbackGifs[Math.floor(Math.random() * fallbackGifs.length)];
+}
+
+// Helper to get bot name from global bot list
+function getBotNameFromId(botId) {
+  console.log('getBotNameFromId called with:', botId);
+  if (window.allBotsData && botId) {
+    console.log('window.allBotsData:', window.allBotsData);
+    const bot = window.allBotsData.find(b => b.value === botId);
+    if (bot) {
+      console.log('Found bot:', bot);
+      return bot.name;
+    }
+  }
+  console.log('No match found, returning:', botId);
+  return botId;
 }
 
 // Export functions globally for backward compatibility
