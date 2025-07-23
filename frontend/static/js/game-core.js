@@ -237,6 +237,7 @@ async function refreshGameState() {
 
 function restartGame() {
     // Reset turn tracking for restart
+    console.log('🔄 restartGame: New Game button pressed. turn tracking');
     lastTurnIndex = null;
 
     // Reset AI turn flag
@@ -276,7 +277,30 @@ function restartGame() {
     // Reset background to default setup background
     if (window.setDefaultBackground) window.setDefaultBackground();
 
-    // Optionally reset form fields or keep last settings
+    // ===== NEW: Reset all setup fields to defaults =====
+    window.selectedBots = [];
+    setGameMode('1v1'); // Default game mode
+    document.getElementById('playerName').value = 'Human';
+    document.getElementById('cardVisibilityDuration').value = 1.5;
+    setHoles(1); // Default to 1 hole
+    // Update bot selection UI
+    if (typeof renderBotSelectRow === 'function') renderBotSelectRow();
+    // Update game mode buttons UI
+    if (typeof setGameMode === 'function') setGameMode('1v1');
+    // Update holes buttons UI
+    if (typeof setHoles === 'function') setHoles(1);
+    // Optionally reset any other setup fields here
+
+    // Show setup columns and AI bot image container
+    const setupColumns = document.getElementById('setupColumns');
+    if (setupColumns) setupColumns.style.display = 'flex';
+    const aiBotImageContainer = document.getElementById('aiBotImageContainer');
+    if (aiBotImageContainer) aiBotImageContainer.style.display = 'block';
+
+    // Re-initialize setup UI
+    if (typeof renderBotSelectRow === 'function') renderBotSelectRow();
+    if (typeof initializeGameModeButtons === 'function') initializeGameModeButtons();
+    if (typeof initializeHolesButtons === 'function') initializeHolesButtons();
 }
 
 function replayGame() {
@@ -311,17 +335,37 @@ function replayGame() {
     // Hide the drawn card area
     hideDrawnCardArea();
 
-    // Use the last selected settings
-    const gameMode = currentGameState.mode || '1v1';
-    const opponentType = currentGameState.players && currentGameState.players[1] ? currentGameState.players[1].agent_type : 'random';
-    const playerName = currentGameState.players && currentGameState.players[0] ? currentGameState.players[0].name : 'Human2';
-    const numGames = currentGameState.num_games || 1;
-    // Start a new game with the same settings
-    startGameWithSettings(gameMode, opponentType, playerName, numGames);
+    // ===== NEW: Restore last game settings for replay =====
+    if (currentGameState) {
+        // Restore selected bots
+        if (currentGameState.selected_bots) {
+            window.selectedBots = [...currentGameState.selected_bots];
+        }
+        // Restore game mode
+        if (currentGameState.mode) {
+            setGameMode(currentGameState.mode);
+        }
+        // Restore player name
+        if (currentGameState.players && currentGameState.players[0] && currentGameState.players[0].name) {
+            document.getElementById('playerName').value = currentGameState.players[0].name;
+        }
+        // Restore number of holes
+        if (currentGameState.num_games) {
+            setHoles(currentGameState.num_games);
+        }
+        // Restore card visibility duration if available
+        if (typeof currentGameState.card_visibility_duration !== 'undefined') {
+            document.getElementById('cardVisibilityDuration').value = currentGameState.card_visibility_duration;
+        }
+        // Update bot selection UI
+        if (typeof renderBotSelectRow === 'function') renderBotSelectRow();
+    }
 
-    // Check if it's a multi-hole match
+    // Start a new game with the same settings
+    startGame();
+
+    // Clear chat for single game mode
     if (currentGameState && (currentGameState.num_games === 1 || !currentGameState.num_games)) {
-        // Single game mode: clear chat
         clearChatUI();
     }
     // else: multi-hole match, do NOT clear chat
