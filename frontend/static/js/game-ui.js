@@ -503,6 +503,29 @@ function setPlayerInteractivity(isMyTurn) {
 
 // ===== BUTTON AND HEADER FUNCTIONS =====
 
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('toggleProbabilitiesBtn');
+    if (btn) btn.classList.add('shimmer');
+});
+
+function toggleProbabilitiesPanel() {
+    const content = document.querySelector('.probabilities-content');
+    const btn = document.getElementById('toggleProbabilitiesBtn');
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        if (btn) {
+            btn.textContent = 'Hide Probabilities';
+            btn.classList.remove('shimmer');
+        }
+    } else {
+        content.classList.add('hidden');
+        if (btn) {
+            btn.textContent = 'Ask Hint';
+            btn.classList.add('shimmer');
+        }
+    }
+}
+
 function updateNextHoleButton() {
     const nextHoleContainer = document.getElementById('nextHoleContainer');
     if (nextHoleContainer) {
