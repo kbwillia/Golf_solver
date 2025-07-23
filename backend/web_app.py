@@ -1,8 +1,3 @@
-# Project file structure:
-#   /static/css/golf.css              # All CSS styles for the Golf Card Game UI
-#   /static/js/golf.js                # All JavaScript logic for the Golf Card Game UI
-#   /static/golf_celebration_gifs.json # Celebration GIFs data (downsized_medium URLs)
-#   /templates/index.html             # Main HTML template (structure only, links to CSS/JS)
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory, send_file
 import uuid
@@ -19,7 +14,7 @@ import threading
 from game import GolfGame
 from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
 from chatbot import chatbot, chat_handler
-from bot_personalities import create_bot, register_custom_bot
+from bot_personalities import enhance_custom_bot, save_bot_to_supabase
 import json
 import os
 from game_state import get_game_state
@@ -69,59 +64,32 @@ def get_custom_bots_file_path():
     frontend_dir = os.path.join(backend_dir, '..', 'frontend')
     return os.path.join(frontend_dir, 'static', 'custom_bot.json')
 
-def load_custom_bots_from_json():
-    """Load custom bots from JSON file"""
-    try:
-        file_path = get_custom_bots_file_path()
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                # Extract custom bots (not placeholder_bots)
-                custom_bots = data.get('custom_bots', {})
-                print(f"✅ Loaded {len(custom_bots)} custom bots from JSON")
-                return custom_bots
-        else:
-            print("📄 Custom bots JSON file not found, starting with empty storage")
-            return {}
-    except Exception as e:
-        print(f"❌ Error loading custom bots from JSON: {e}")
-        return {}
 
-def save_custom_bots_to_json(custom_bots_dict):
-    """Save custom bots to JSON file"""
-    try:
-        file_path = get_custom_bots_file_path()
 
-        # Load existing data to preserve placeholder_bots
-        existing_data = {}
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                existing_data = json.load(f)
+custom_bot_cache = {} # cache of custom bots for frontend/backend communication (chatbot)
 
-        # Update with new custom bots
-        existing_data['custom_bots'] = custom_bots_dict
-
-        # Save back to file
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(existing_data, f, indent=2, ensure_ascii=False)
-
-        print(f"✅ Saved {len(custom_bots_dict)} custom bots to JSON")
-        return True
-    except Exception as e:
-        print(f"❌ Error saving custom bots to JSON: {e}")
-        return False
-
-# Initialize custom bots from JSON
-custom_bots = load_custom_bots_from_json()
-
-# Register all loaded custom bots in the chatbot system
-for bot_id, bot_data in custom_bots.items():
-    try:
-        register_custom_bot(bot_id, bot_data['name'], bot_data['description'], bot_data['difficulty'])
-        print(f"✅ Registered custom bot from JSON: {bot_data['name']}")
-    except Exception as e:
-        print(f"❌ Error registering custom bot {bot_id}: {e}")
-
+# todo function needd to be moved to game.py or game startup.py
+def get_or_fetch_custom_bot(ai_bot_id):
+    if ai_bot_id in custom_bot_cache:
+        return custom_bot_cache[ai_bot_id]
+    from supabase import create_client, Client
+    import os, json
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_LEGACY_SECRET")
+    supabase: Client = create_client(url, key)
+    response = supabase.table('custom_bots').select('*').eq('ai_bot_id', ai_bot_id).single().execute()
+    if response.error or not response.data:
+        print(f"❌ Error fetching bot {ai_bot_id} from Supabase: {response.error}")
+        return None
+    bot_data = response.data
+    for field in ['emotional_state', 'proactive_config', 'response_config', 'gif_config']:
+        if field in bot_data and isinstance(bot_data[field], str):
+            try:
+                bot_data[field] = json.loads(bot_data[field])
+            except Exception:
+                pass
+    custom_bot_cache[ai_bot_id] = bot_data
+    return bot_data
 
 
 @app.route('/')
@@ -170,234 +138,58 @@ def test_chatbot():
 
 @app.route('/create_game', methods=['POST'])
 def create_game():
-    """Create a new game session"""
-    try:
-        data = request.json
-        print(f"🎯 Backend: create_game received data: {data}")
+    data = request.json
+    game_mode = data.get('mode', '1v1')
+    player_name = data.get('player_name', 'Human')
+    num_games = int(data.get('num_games', 1))
+    selected_bots = data.get('selected_bots', [])  # Always an array of bot objects
 
-        game_mode = data.get('mode', '1v1')  # '1v1' or '1v3'
-        opponent = data.get('opponent', 'random')
-        player_name = data.get('player_name', 'Human')
-        num_games = int(data.get('num_games', 1))
-        bot_name = data.get('bot_name', 'peter_parker')
-        custom_bot_info = data.get('custom_bot_info')
-        custom_bots_1v3 = data.get('custom_bots_1v3', [])  # Array of custom bots for 1v3 mode
-        custom_bots_1v2 = data.get('custom_bots_1v2', [])  # Array of custom bots for 1v2 mode
+    # 1. Cache all selected custom bots
+    for bot in selected_bots:
+        if 'ai_bot_id' in bot:
+            custom_bot_cache[bot['ai_bot_id']] = bot
 
-        print(f"🎯 Backend: Game mode: {game_mode}")
-        print(f"🎯 Backend: Custom bots 1v3: {custom_bots_1v3}")
-        print(f"🎯 Backend: Custom bots 1v2: {custom_bots_1v2}")
+    # 2. Set up agent types and player names
+    agent_types = ['human']
+    player_names = [player_name]
+    difficulty_to_agent = {'easy': 'random', 'medium': 'heuristic', 'hard': 'ev_ai'}
 
-        # Generate unique game ID
-        game_id = str(uuid.uuid4())
+    for bot in selected_bots:
+        agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
+        player_names.append(bot.get('name', 'AI Opponent'))
 
-        # Initialize custom bot data storage
-        custom_bot_data = []
+    num_players = len(agent_types)
 
-        # Create game based on mode
-        if game_mode == '1v1':
-            agent_types = ["human", opponent]
-            num_players = 2
-        elif game_mode == '1v2':
-            agent_types = ["human", "ev_ai", "random"]
-            num_players = 3
+    # 3. Create the game
+    game_id = str(uuid.uuid4())
+    game = GolfGame(num_players=num_players, agent_types=agent_types)
+    for i, name in enumerate(player_names):
+        game.players[i].name = name
 
-            # Handle multiple custom bots for 1v2 mode
-            if custom_bots_1v2 and len(custom_bots_1v2) > 0:
-                print(f"🎯 Backend: Processing {len(custom_bots_1v2)} custom bots for 1v2 mode")
-                print(f"🎯 Backend: Bot sources: {[bot.get('name', 'Unknown') for bot in custom_bots_1v2]}")
+    # 4. Store the game session
+    games[game_id] = {
+        'game': game,
+        'mode': game_mode,
+        'game_over': False,
+        'player_name': player_name,
+        'num_games': num_games,
+        'current_game': 1,
+        'cumulative_scores': [0] * num_players,
+        'round_cumulative_scores': [0] * num_players,
+        'match_winner': None,
+        'cumulative_updated_for_game': False,
+        'conversation_history': [],
+        'last_proactive_comment_time': time.time(),
+        'proactive_comment_cooldown': 10,
+        'pending_proactive_comments': [],
+        'selected_bots': selected_bots, # Store selected_bots in session
+    }
 
-                # Map custom bot difficulties to agent types
-                difficulty_to_agent = {
-                    'easy': 'random',
-                    'medium': 'heuristic',
-                    'hard': 'ev_ai'
-                }
-
-                # Update agent types based on custom bot difficulties (up to 2)
-                for i, custom_bot in enumerate(custom_bots_1v2[:2]):
-                    difficulty = custom_bot.get('difficulty', 'medium').lower()
-                    agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
-                    agent_types[i + 1] = agent_type  # +1 because index 0 is human
-
-                    # Use ai_bot_id from frontend/Supabase
-                    ai_bot_id = custom_bot['ai_bot_id']
-                    custom_bot_data.append((f'custom_bot_id_{i}', ai_bot_id, f'custom_bot_name_{i}', custom_bot['name']))
-
-                    # Register the bot in the chatbot system if it has a description
-                    if 'description' in custom_bot:
-                        try:
-                            register_custom_bot(ai_bot_id, custom_bot['name'], custom_bot['description'], difficulty)
-                            print(f"🎯 Backend: Registered custom bot '{custom_bot['name']}' in chatbot system")
-                        except Exception as reg_error:
-                            print(f"🎯 Backend: Error registering custom bot {ai_bot_id}: {reg_error}")
-
-                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (ai_bot_id: {ai_bot_id})")
-            else:
-                print(f"🎯 Backend: No custom bots provided for 1v2 mode, using default agents")
-        else:  # 1v3
-            # Default agent types for 1v3 mode
-            agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
-            num_players = 4
-
-            # Handle multiple custom bots for 1v3 mode
-            if custom_bots_1v3 and len(custom_bots_1v3) > 0:
-                print(f"🎯 Backend: Processing {len(custom_bots_1v3)} custom bots for 1v3 mode")
-                print(f"🎯 Backend: Bot sources: {[bot.get('name', 'Unknown') for bot in custom_bots_1v3]}")
-
-                # Map custom bot difficulties to agent types
-                difficulty_to_agent = {
-                    'easy': 'random',
-                    'medium': 'heuristic',
-                    'hard': 'ev_ai'
-                }
-
-                # Update agent types based on custom bot difficulties (up to 3)
-                for i, custom_bot in enumerate(custom_bots_1v3[:3]):
-                    difficulty = custom_bot.get('difficulty', 'medium').lower()
-                    agent_type = difficulty_to_agent.get(difficulty, 'heuristic')
-                    agent_types[i + 1] = agent_type  # +1 because index 0 is human
-
-                    # Use ai_bot_id from frontend/Supabase
-                    ai_bot_id = custom_bot['ai_bot_id']
-                    custom_bot_data.append((f'custom_bot_id_{i}', ai_bot_id, f'custom_bot_name_{i}', custom_bot['name']))
-
-                    # Register the bot in the chatbot system if it has a description
-                    if 'description' in custom_bot:
-                        try:
-                            register_custom_bot(ai_bot_id, custom_bot['name'], custom_bot['description'], difficulty)
-                            print(f"🎯 Backend: Registered random bot '{custom_bot['name']}' in chatbot system")
-                        except Exception as reg_error:
-                            print(f"🎯 Backend: Error registering random bot {ai_bot_id}: {reg_error}")
-
-                    print(f"🎯 Backend: Custom bot {i+1}: {custom_bot['name']} ({difficulty}) -> {agent_type} (ai_bot_id: {ai_bot_id})")
-            else:
-                print(f"🎯 Backend: No custom bots provided for 1v3 mode, using default agents")
-
-        # Handle custom bot info for 1v1 mode
-        custom_bot_info = data.get('custom_bot_info')
-        if custom_bot_info:
-            print(f"🎯 Backend: Processing custom bot for 1v1 mode: {custom_bot_info.get('name', 'Unknown')}")
-
-            # Use ai_bot_id from frontend/Supabase
-            ai_bot_id = custom_bot_info['ai_bot_id']
-            try:
-                register_custom_bot(ai_bot_id, custom_bot_info['name'], custom_bot_info['description'], custom_bot_info['difficulty'])
-                print(f"🎯 Backend: Registered custom bot '{custom_bot_info['name']}' in chatbot system")
-            except Exception as reg_error:
-                print(f"🎯 Backend: Error registering custom bot {ai_bot_id}: {reg_error}")
-
-            # Store bot info for chatbot lookup
-            custom_bot_data.append(('custom_bot_id_0', ai_bot_id, 'custom_bot_name_0', custom_bot_info['name']))
-        else:
-            print(f"🎯 Backend: No custom bot info provided for 1v1 mode")
-
-        # Create the game
-        games.clear()  # Remove all previous games; only keep the current one
-        game = GolfGame(num_players=num_players, agent_types=agent_types)
-        # Set the human player's name
-        game.players[0].name = player_name
-        # set AI names with proper display names
-        if game_mode == '1v1':
-            # In 1v1, second player gets the opponent type name
-            if opponent == "random":
-                game.players[1].name = "Random move AI"
-            elif opponent == "heuristic":
-                game.players[1].name = "Basic Logic AI"
-            elif opponent == "qlearning":
-                game.players[1].name = "Q-Learning AI"
-            elif opponent == "ev_ai":
-                game.players[1].name = "EV AI"
-            elif opponent == "advanced_ev":
-                game.players[1].name = "Advanced EV AI"
-        elif game_mode == '1v2':
-            # In 1v2, set names for the two AIs from selected custom bots
-            if custom_bots_1v2 and len(custom_bots_1v2) > 0:
-                for i, custom_bot in enumerate(custom_bots_1v2[:2]):
-                    game.players[i + 1].name = custom_bot['name']
-            else:
-                # Fallback to default names if no custom bots
-                game.players[1].name = "EV AI"
-                game.players[2].name = "Random move AI"
-        else:
-            # In 1v3, give custom names to each AI from selected custom bots
-            if custom_bots_1v3 and len(custom_bots_1v3) > 0:
-                for i, custom_bot in enumerate(custom_bots_1v3[:3]):
-                    game.players[i + 1].name = custom_bot['name']
-            else:
-                # Fallback to default names if no custom bots
-                ai_names = [
-                    "Peter Parker",      # Easy (random)
-                    "Happy Gilmore",    # Medium (basic logic)
-                    "Tiger Woods",      # Hard (ev_ai)
-                    "Shooter McGavin"   # Advanced (advanced_ev)
-                ]
-                for i in range(1, num_players):
-                    game.players[i].name = ai_names[i-1]
-
-        # Set the AI player's name
-        if game_mode == '1v1':
-            if custom_bot_info:
-                # Use custom bot name for display, but store bot_id for chatbot lookup
-                game.players[1].name = custom_bot_info['name']
-                # Store the bot_id and name in the game session for chatbot lookup (will be added after games[game_id] is created)
-                bot_id = 'custom_' + custom_bot_info['name'].lower().replace(' ', '_').replace('-', '_')
-                custom_bot_data.append(('custom_bot_id', bot_id, 'custom_bot_name', custom_bot_info['name']))
-            else:
-                # Use built-in bot names
-                game.players[1].name = {
-                    'peter_parker': 'Peter Parker',
-                    'happy_gilmore': 'Happy Gilmore',
-                    'tiger_woods': 'Tiger Woods'
-                }.get(bot_name, 'AI Opponent')
-        elif game_mode == '1v2':
-            # No custom bot support for 1v2 yet, but could be added here
-            pass
-
-        # No need to run AI turns here; handled by /run_ai_turn
-        game_over = False
-
-        # Store game state, including cumulative scores and match info
-        games[game_id] = {
-            'game': game,
-            'mode': game_mode,
-            'game_over': game_over,
-            'player_name': player_name,
-            'num_games': num_games,
-            'current_game': 1,
-            'cumulative_scores': [0] * num_players,
-            'round_cumulative_scores': [0] * num_players,
-            'match_winner': None,
-            'cumulative_updated_for_game': False,  # NEW: Track if cumulative updated for this game
-            'conversation_history': [],  # Initialize conversation history for chatbot
-            'last_proactive_comment_time': time.time(),
-            'proactive_comment_cooldown': 10,
-            'pending_proactive_comments': [], # New: Store pending proactive comments
-        }
-
-        # Add custom bot data to the game session if any
-        for bot_id_key, bot_id, bot_name_key, bot_name in custom_bot_data:
-            games[game_id][bot_id_key] = bot_id
-            games[game_id][bot_name_key] = bot_name
-            print(f"🎯 Stored custom bot data: {bot_id_key}={bot_id}, {bot_name_key}={bot_name}")
-
-        print(f"🎯 Final game session custom bot data: {[(k, v) for k, v in games[game_id].items() if 'custom_bot' in k]}")
-
-        # Reset chatbot conversation history
-        chatbot.conversation_history = []
-        chatbot.reset_for_new_game()  # Reset bot state for new game
-
-        # Now call get_game_state(game_id) after games[game_id] is set
-        return jsonify({
-            'success': True,
-            'game_id': game_id,
-            'game_state': get_game_state(game_id)
-        })
-    except Exception as e:
-        print(f"ERROR in create_game: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+    return jsonify({
+        'success': True,
+        'game_id': game_id,
+        'game_state': get_game_state(game_id)
+    })
 
 @app.route('/game_state/<game_id>')
 def game_state(game_id):
@@ -566,7 +358,6 @@ def get_available_actions(game_id):
 
 @app.route('/next_game', methods=['POST'])
 def next_game():
-    """Start the next game in a multi-game match"""
     data = request.json
     game_id = data.get('game_id')
 
@@ -575,39 +366,38 @@ def next_game():
 
     game_session = games[game_id]
 
-    # Check if we're actually waiting for next game
-    if not game_session.get('waiting_for_next_game', False):
-        return jsonify({'error': 'Not waiting for next game'}), 400
-
     # Check if there are more games to play
     if game_session['current_game'] >= game_session['num_games']:
         return jsonify({'error': 'No more games in this match'}), 400
 
     try:
-        # Start next game
+        # Increment game number
         game_session['current_game'] += 1
-        if game_session['mode'] == '1v1':
-            agent_types = ["human", game_session['game'].players[1].agent_type]
-            num_players = 2
-        elif game_session['mode'] == '1v2':
-            agent_types = ["human", "ev_ai", "random"]
-            num_players = 3
-        else:
-            agent_types = ["human", "ev_ai", "advanced_ev", "random", "heuristic"]
-            num_players = 4
 
+        # Use stored agent_types and player_names from the session
+        agent_types = ['human']
+        player_names = [game_session['player_name']]
+        selected_bots = game_session.get('selected_bots', [])
+        difficulty_to_agent = {'easy': 'random', 'medium': 'heuristic', 'hard': 'ev_ai'}
+        for bot in selected_bots:
+            agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
+            player_names.append(bot.get('name', 'AI Opponent'))
+        num_players = len(agent_types)
+
+        # Re-create the game
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
-        for i, player in enumerate(new_game.players):
-            player.name = game_session['game'].players[i].name
+        for i, name in enumerate(player_names):
+            new_game.players[i].name = name
+
+        # Update session
         game_session['game'] = new_game
         game_session['game_over'] = False
         game_session['match_winner'] = None
         game_session['waiting_for_next_game'] = False
-        game_session['cumulative_updated_for_game'] = False  # NEW: Reset for new game
-
-        # Reset round cumulative scores for new game
+        game_session['cumulative_updated_for_game'] = False
         game_session['round_cumulative_scores'] = game_session['cumulative_scores'].copy()
-        print(f"DEBUG: next_game: Starting game {game_session['current_game']}, cumulative_scores={game_session['cumulative_scores']}")
+        game_session['conversation_history'] = []
+        game_session['pending_proactive_comments'] = []
 
         return jsonify({
             'success': True,
@@ -931,115 +721,28 @@ from flask import request, jsonify
 
 @app.route('/api/create_custom_bot', methods=['POST'])
 def create_custom_bot():
-    print("🔥 /api/create_custom_bot endpoint hit")
     data = request.get_json()
+    ai_bot_id = data.get('ai_bot_id')
     name = data.get('name')
     difficulty = data.get('difficulty')
     description = data.get('description')
-    if not name or not difficulty or not description:
+    if not ai_bot_id or not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
 
-    # Generate a unique AI bot ID
-    ai_bot_id = str(uuid.uuid4())
-    bot_data = {
-        'name': name,
-        'difficulty': difficulty,
-        'description': description
-    }
+    from bot_personalities import enhance_custom_bot, save_bot_to_supabase
 
-    # Add to memory
-    custom_bots[ai_bot_id] = bot_data
+    # 1. Enhance the bot with LLM
+    enhanced_bot = enhance_custom_bot(ai_bot_id, name, description, difficulty)
 
-    # Save to JSON file
-    if save_custom_bots_to_json(custom_bots):
-        print(f"✅ Custom bot '{name}' saved to JSON file")
-    else:
-        print(f"❌ Failed to save custom bot '{name}' to JSON file")
+    # 2. Save to Supabase
+    save_result = save_bot_to_supabase(enhanced_bot)
 
-    # Register the custom bot for use in the chatbot system
-    register_custom_bot(ai_bot_id, name, description, difficulty)
+    if not save_result['success']:
+        return jsonify({'success': False, 'error': save_result['error']}), 500
 
-    return jsonify({'success': True, 'bot_id': ai_bot_id, 'bot': bot_data})
+    return jsonify({'success': True, 'bot': save_result['bot']})
 
-@app.route('/save_custom_bots', methods=['POST'])
-def save_custom_bots():
-    """Save multiple custom bots from the modal"""
-    try:
-        print("🔥 /save_custom_bots endpoint hit")
-        print("🔥 Request method:", request.method)
-        print("🔥 Request headers:", dict(request.headers))
 
-        data = request.get_json()
-        print("🔥 Request data:", data)
-
-        bots = data.get('bots', [])
-        print("🔥 Bots to save:", bots)
-
-        if not bots:
-            print("❌ No bots provided")
-            return jsonify({'success': False, 'error': 'No bots provided'}), 400
-
-        saved_bots = []
-        for i, bot_data in enumerate(bots):
-            print(f"🔥 Processing bot {i + 1}:", bot_data)
-
-            name = bot_data.get('name', '').strip()
-            description = bot_data.get('description', '').strip()
-            difficulty = bot_data.get('difficulty', '').strip()
-
-            print(f"🔥 Bot {i + 1} parsed - Name: '{name}', Description: '{description}', Difficulty: '{difficulty}'")
-
-            if not name or not description or not difficulty:
-                print(f"❌ Missing fields for bot {i + 1}: name='{name}', description='{description}', difficulty='{difficulty}'")
-                return jsonify({'success': False, 'error': f'Missing fields for bot: {name}'}), 400
-
-            # Create unique bot ID
-            bot_id = 'custom_' + name.lower().replace(' ', '_').replace('-', '_')
-            print(f"🔥 Generated bot_id: {bot_id}")
-
-            # Store in memory
-            custom_bots[bot_id] = {
-                'name': name,
-                'difficulty': difficulty,
-                'description': description
-            }
-
-            # Register for chatbot system
-            try:
-                register_custom_bot(bot_id, name, description, difficulty)
-                print(f"✅ Successfully registered bot: {bot_id}")
-            except Exception as reg_error:
-                print(f"❌ Error registering bot {bot_id}: {reg_error}")
-                import traceback
-                traceback.print_exc()
-
-        # Save all bots to JSON file
-        if save_custom_bots_to_json(custom_bots):
-            print(f"✅ All {len(saved_bots)} custom bots saved to JSON file")
-        else:
-            print(f"❌ Failed to save custom bots to JSON file")
-
-            saved_bots.append({
-                'id': bot_id,
-                'name': name,
-                'difficulty': difficulty,
-                'description': description
-            })
-
-        print(f"✅ Successfully saved {len(saved_bots)} custom bots: {[bot['name'] for bot in saved_bots]}")
-        print(f"✅ Current custom_bots dict: {custom_bots}")
-
-        return jsonify({
-            'success': True,
-            'message': f'Successfully saved {len(saved_bots)} custom bot(s)',
-            'bots': saved_bots
-        })
-
-    except Exception as e:
-        print(f"❌ Error saving custom bots: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/get_custom_bots', methods=['GET'])
 def get_custom_bots():

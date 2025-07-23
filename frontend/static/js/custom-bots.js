@@ -1,52 +1,17 @@
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // ===== CUSTOM BOT MODAL FUNCTIONALITY =====
 
 let customBotCount = 1;
 let placeholderData = null;
 
-// Load placeholder data from JSON file
-// async function loadPlaceholderData() {
-//     try {
-//         const response = await fetch('/static/custom_bot.json');
-//         placeholderData = await response.json();
-//         // console.log('✅ Loaded placeholder bot data:', placeholderData);
-//     } catch (error) {
-//         console.log('❌ Could not load placeholder data:', error);
-//         // Fallback placeholder data
-//         placeholderData = {
-//             placeholder_bots: [
-//                 {
-//                     name: "Karen",
-//                     description: "Friendly player who loves to chat and make new friends on the course.",
-//                     difficulty: "easy"
-//                 },
-//                 {
-//                     name: "Bob",
-//                     description: "Strategic thinker who carefully considers every move.",
-//                     difficulty: "medium"
-//                 },
-//                 {
-//                     name: "Alice",
-//                     description: "Competitive player who takes the game seriously.",
-//                     difficulty: "hard"
-//                 }
-//             ]
-//         };
-//     }
-// }
 
-// Get random placeholder bot data
-function getRandomPlaceholderBot() {
-    if (!placeholderData || !placeholderData.placeholder_bots) {
-        return {
-            name: "Bot",
-            description: "A custom golf bot with unique personality.",
-            difficulty: "medium"
-        };
-    }
 
-    const randomIndex = Math.floor(Math.random() * placeholderData.placeholder_bots.length);
-    return placeholderData.placeholder_bots[randomIndex];
-}
 
 // Fallback initialization function
 function initializeCustomBots() {
@@ -54,47 +19,26 @@ function initializeCustomBots() {
 
     const createCustomBotBtn = document.getElementById('createCustomBotBtn');
     const customBotModal = document.getElementById('customBotModal');
-    const multipleBotsModal = document.getElementById('multipleBotsModal');
     const closeCustomBotBtn = document.getElementById('cancelCustomBotBtn');
-    const saveCustomBotBtn = document.getElementById('saveCustomBotBtn');
-    const addAnotherBotBtn = document.getElementById('addAnotherBotBtn');
-    const saveMultipleBotsBtn = document.getElementById('saveMultipleBotsBtn');
-    const cancelMultipleBotsBtn = document.getElementById('cancelMultipleBotsBtn');
-    const botSectionsContainer = document.getElementById('botSectionsContainer');
-    const gameModeSelect = document.getElementById('gameMode');
+    // const saveCustomBotBtn = document.getElementById('saveCustomBotBtn');
+    // const gameModeSelect = document.getElementById('gameMode');
 
     console.log('🔧 Custom bots.js: Elements found:', {
         createCustomBotBtn: !!createCustomBotBtn,
         customBotModal: !!customBotModal,
-        multipleBotsModal: !!multipleBotsModal,
-        gameModeSelect: !!gameModeSelect
+        // gameModeSelect: !!gameModeSelect
     });
 
-    // Show appropriate modal when Create Custom Bot button is clicked
+    // Show single bot modal when Create Custom Bot button is clicked
     if (createCustomBotBtn) {
         console.log('🔧 Custom bots.js: Adding click listener to createCustomBotBtn');
         createCustomBotBtn.addEventListener('click', function() {
             console.log('🔧 Custom bots.js: Create Custom Bot button clicked!');
-            // Check if we're in 1v3 mode
-            const is1v3Mode = gameModeSelect && gameModeSelect.value === '1v3';
-            console.log('🔧 Custom bots.js: Is 1v3 mode?', is1v3Mode);
-
-            if (is1v3Mode) {
-                // Show multiple bots modal for 1v3 mode
-                if (multipleBotsModal) {
-                    console.log('🔧 Custom bots.js: Showing multiple bots modal');
-                    multipleBotsModal.style.display = 'block';
-                    customBotCount = 1;
-                    updateMultipleBotsForm();
-                }
-            } else {
-                // Show single bot modal for 1v1 mode
                 if (customBotModal) {
                     console.log('🔧 Custom bots.js: Showing single bot modal');
                     customBotModal.style.display = 'block';
                     // Populate single bot modal with random placeholder
                     populateSingleBotForm();
-                }
             }
         });
     } else {
@@ -127,63 +71,16 @@ function initializeCustomBots() {
         });
     }
 
-    // Save single custom bot
+    // Debug: Print when Save Bot button is clicked
+    const saveCustomBotBtn = document.getElementById('saveCustomBotBtn');
     if (saveCustomBotBtn) {
-        saveCustomBotBtn.addEventListener('click', function() {
-            saveSingleCustomBot();
-        });
+      saveCustomBotBtn.addEventListener('click', function(e) {
+        console.log('Save Bot button clicked');
+        // Call the form submit handler directly
+        handleCreateBotFormSubmit(e);
+      });
     }
 
-    // Close multiple bots modal when Cancel button is clicked
-    if (cancelMultipleBotsBtn) {
-        cancelMultipleBotsBtn.addEventListener('click', function() {
-            if (multipleBotsModal) {
-                multipleBotsModal.style.display = 'none';
-                // Clear form
-                if (botSectionsContainer) {
-                    botSectionsContainer.innerHTML = '';
-                }
-                customBotCount = 1;
-            }
-        });
-    }
-
-    // Close multiple bots modal when clicking outside of it
-    if (multipleBotsModal) {
-        multipleBotsModal.addEventListener('click', function(e) {
-            if (e.target === multipleBotsModal) {
-                multipleBotsModal.style.display = 'none';
-                // Clear form
-                if (botSectionsContainer) {
-                    botSectionsContainer.innerHTML = '';
-                }
-                customBotCount = 1;
-            }
-        });
-    }
-
-    // Add another bot section (up to 3 total for 1v3 mode)
-    if (addAnotherBotBtn) {
-        addAnotherBotBtn.addEventListener('click', function() {
-            if (customBotCount < 3) {
-                customBotCount++;
-                updateMultipleBotsForm();
-            }
-        });
-    }
-
-    // Save multiple custom bots
-    if (saveMultipleBotsBtn) {
-        saveMultipleBotsBtn.addEventListener('click', function() {
-            saveMultipleCustomBots();
-        });
-    }
-
-    // Load existing custom bots when page loads
-    loadExistingCustomBots();
-
-    // Initialize game mode buttons
-    initializeGameModeButtons();
 
     // Initialize holes buttons
     initializeHolesButtons();
@@ -193,7 +90,7 @@ function initializeCustomBots() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔧 Custom bots.js: DOMContentLoaded event fired');
     // Initialize directly since we're loading from Supabase now
-    initializeCustomBots();
+        initializeCustomBots();
 });
 
 // Fallback: If DOMContentLoaded already fired, initialize immediately
@@ -201,192 +98,11 @@ if (document.readyState === 'loading') {
     console.log('🔧 Custom bots.js: DOM still loading, waiting for DOMContentLoaded');
 } else {
     console.log('🔧 Custom bots.js: DOM already loaded, initializing immediately');
-    initializeCustomBots();
+            initializeCustomBots();
 }
 
 
 
-
-function saveSingleCustomBot() {
-    const name = document.getElementById('customBotName').value.trim();
-    const description = document.getElementById('customBotDescription').value.trim();
-    const difficulty = document.getElementById('customBotDifficulty').value;
-
-    if (!name || !description || !difficulty) {
-        alert('Please fill in all fields');
-        return;
-    }
-
-    // Save single bot
-    fetch('/save_custom_bots', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            bots: [{
-                name: name,
-                description: description,
-                difficulty: difficulty
-            }]
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Close modal without showing success popup
-            document.getElementById('customBotModal').style.display = 'none';
-            // Clear form
-            document.getElementById('customBotName').value = '';
-            document.getElementById('customBotDifficulty').value = 'easy';
-            document.getElementById('customBotDescription').value = '';
-
-            // Refresh bot selection buttons to show the new bot
-            renderBotSelectRow();
-        } else {
-            alert('Error saving custom bot: ' + (data.error || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        console.error('Error saving custom bot:', error);
-        alert('Error saving custom bot. Please try again.');
-    });
-}
-
-function updateMultipleBotsForm() {
-    const container = document.getElementById('botSectionsContainer');
-    const addAnotherBtn = document.getElementById('addAnotherBotBtn');
-
-    if (!container) return;
-
-    // Clear existing bot sections
-    container.innerHTML = '';
-
-    // Create bot sections
-    for (let i = 0; i < customBotCount; i++) {
-        const botSection = document.createElement('div');
-        botSection.className = 'custom-bot-section';
-        botSection.innerHTML = `
-            <div class="bot-section-header">
-                <h4 class="bot-section-title">Custom Bot ${i + 1}</h4>
-                ${customBotCount > 1 ? `<button type="button" class="remove-bot-btn" onclick="removeBotSection(${i})">×</button>` : ''}
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="botName${i}" class="form-label">Bot Name:</label>
-                    <input type="text" id="botName${i}" placeholder="Enter bot name" required class="form-input" value="">
-                </div>
-                <div class="form-group">
-                    <label for="botDifficulty${i}" class="form-label">Difficulty:</label>
-                    <select id="botDifficulty${i}" required class="form-select">
-                        <option value="">Select difficulty</option>
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="botDescription${i}" class="form-label">Description:</label>
-                <textarea id="botDescription${i}" placeholder="Enter bot description" required class="form-textarea"></textarea>
-            </div>
-        `;
-        container.appendChild(botSection);
-    }
-
-    // Show/hide add button based on bot count (max 3 for 1v3 mode)
-    if (addAnotherBtn) {
-        if (customBotCount >= 3) {
-            addAnotherBtn.style.display = 'none';
-            addAnotherBtn.textContent = 'Maximum 3 bots reached';
-        } else {
-            addAnotherBtn.style.display = 'block';
-            addAnotherBtn.textContent = `Add Another Bot (${customBotCount}/3)`;
-        }
-    }
-}
-
-// Function to remove a bot section
-function removeBotSection(index) {
-    if (customBotCount > 1) {
-        customBotCount--;
-        updateMultipleBotsForm();
-    }
-}
-
-function saveMultipleCustomBots() {
-    const bots = [];
-    let isValid = true;
-
-    // Collect all bot data
-    for (let i = 0; i < customBotCount; i++) {
-        const name = document.getElementById(`botName${i}`).value.trim();
-        const description = document.getElementById(`botDescription${i}`).value.trim();
-        const difficulty = document.getElementById(`botDifficulty${i}`).value;
-
-        if (!name || !description || !difficulty) {
-            alert(`Please fill in all fields for Custom Bot ${i + 1}`);
-            isValid = false;
-            break;
-        }
-
-        bots.push({
-            name: name,
-            description: description,
-            difficulty: difficulty
-        });
-    }
-
-    if (!isValid) return;
-
-    // Save bots to backend
-    fetch('/save_custom_bots', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bots: bots })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Close modal without showing success popup
-            document.getElementById('multipleBotsModal').style.display = 'none';
-            // Clear form
-            const container = document.getElementById('botSectionsContainer');
-            if (container) {
-                container.innerHTML = '';
-            }
-            customBotCount = 1;
-
-            // Refresh bot selection buttons to show the new bots
-            renderBotSelectRow();
-        } else {
-            alert('Error saving custom bots: ' + (data.error || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        console.error('Error saving custom bots:', error);
-        alert('Error saving custom bots. Please try again.');
-    });
-}
-
-// Load existing custom bots when page loads
-function loadExistingCustomBots() {
-    // This function is now handled by renderBotSelectRow() which loads from Supabase
-console.log('✅ Custom bots are now loaded automatically from Supabase via renderBotSelectRow()');
-}
-
-function loadOpponents() {
-    // This function should be called to refresh the opponent dropdown
-    // after custom bots are saved
-    const opponentSelect = document.getElementById('botNameSelect');
-    if (opponentSelect) {
-        // Trigger a refresh of the opponent list
-        // This might need to be implemented based on how opponents are loaded
-        console.log('Opponents should be refreshed');
-    }
-}
 
 // Populate single bot form with random placeholder data
 function populateSingleBotForm() {
@@ -423,45 +139,6 @@ async function renderBotSelectRow() {
 
   // Load bots from custom_bot.json
   let allBots = [];
-
-  // TEMPORARILY DISABLED - JSON Loading
-  /*
-  try {
-    // Load custom bots from JSON
-    const response = await fetch('/static/custom_bot.json');
-    const data = await response.json();
-    console.log('📄 Loaded bots from JSON:', data); // Add this line to see what's loaded
-
-    // Add placeholder bots from JSON
-    if (data.placeholder_bots && data.placeholder_bots.length > 0) {
-      data.placeholder_bots.forEach(bot => {
-        allBots.push({
-          value: 'custom_' + bot.name.toLowerCase().replace(' ', '_').replace('-', '_'),
-          name: bot.name,
-          difficulty: bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1),
-          difficultyClass: bot.difficulty,
-          desc: bot.description || 'Custom bot with unique personality.'
-        });
-      });
-    }
-
-    // Add custom bots from JSON (user-created bots)
-    if (data.custom_bots && Object.keys(data.custom_bots).length > 0) {
-      Object.entries(data.custom_bots).forEach(([bot_id, bot_data]) => {
-        allBots.push({
-          value: bot_id, // e.g., "custom_fat_bastard"
-          name: bot_data.name,
-          difficulty: bot_data.difficulty.charAt(0).toUpperCase() + bot_data.difficulty.slice(1),
-          difficultyClass: bot_data.difficulty,
-          desc: bot_data.description || 'Custom bot with unique personality.'
-        });
-      });
-    }
-  } catch (error) {
-    console.log('Could not load custom bots from JSON:', error);
-  }
-  */
-
 
     // Load bots directly from Supabase (no backend needed)
   try {
@@ -533,8 +210,6 @@ async function renderBotSelectRow() {
     window.selectedBots = [allBots[randomIdx].value];
   }
 
-  // console.log('🎯 Selected bots after logic:', window.selectedBots);
-  // console.log('🎯 Available bot values:', allBots.map(bot => bot.value));
 
   // Render all bots
   row.innerHTML = '';
@@ -905,18 +580,42 @@ async function fetchBotsFromSupabase() {
 // Make function globally available
 window.fetchBotsFromSupabase = fetchBotsFromSupabase;
 
-async function createBot(botData) {
-  // Ensure the botData has the correct column name
-  const botDataWithCorrectId = {
-    ...botData,
-    ai_bot_id: botData.ai_bot_id || botData.id // Handle both old and new column names
-  };
 
-  const { data, error } = await supabase
-    .from('custom_bots')
-    .insert([botDataWithCorrectId]);
-  if (error) {
-    alert('Error creating bot: ' + error.message);
-  }
-  return data;
+
+//from create custom ai bot form
+function handleCreateBotFormSubmit(event) {
+  console.log('handleCreateBotFormSubmit called');
+  event.preventDefault();
+  const name = document.getElementById('customBotName').value.trim();
+  const description = document.getElementById('customBotDescription').value.trim();
+  const difficulty = document.getElementById('customBotDifficulty').value;
+
+  // Generate ai_bot_id
+  const ai_bot_id = uuidv4();
+
+  // Send to backend
+  fetch('/api/create_custom_bot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ai_bot_id, name, description, difficulty })
+  })
+
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert('Bot created!');
+      // Close modal and clear form
+      const customBotModal = document.getElementById('customBotModal');
+      if (customBotModal) customBotModal.style.display = 'none';
+      document.getElementById('customBotName').value = '';
+      document.getElementById('customBotDifficulty').value = 'easy';
+      document.getElementById('customBotDescription').value = '';
+      // Optionally update UI, fetch bots, etc.
+    } else {
+      alert('Error: ' + data.error);
+    }
+  });
 }
+// TODO: refresh the page to see the new bot  (from supabase)
+
+// TODO: when clicking

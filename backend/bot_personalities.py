@@ -786,52 +786,6 @@ Generate a complete behavioral configuration for this bot.
 
 
 
-# Global custom bots storage (keyed by ai_bot_id)
-custom_bots_storage = {}
-
-def register_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str):
-    """Register a custom bot for use in the chatbot system (keyed by ai_bot_id)"""
-    print(f"🔧 CUSTOM BOT: register_custom_bot() called with:")
-    print(f"🔧 CUSTOM BOT:   ai_bot_id = '{ai_bot_id}'")
-    print(f"🔧 CUSTOM BOT:   name = '{name}'")
-    print(f"🔧 CUSTOM BOT:   description = '{description}'")
-    print(f"🔧 CUSTOM BOT:   difficulty = '{difficulty}'")
-
-    custom_bots_storage[ai_bot_id] = {
-        "name": name,
-        "description": description,
-        "difficulty": difficulty
-    }
-
-    # Verify storage
-    stored_data = custom_bots_storage[ai_bot_id]
-    print(f"🔧 CUSTOM BOT: Stored data verification:")
-    print(f"🔧 CUSTOM BOT:   stored name = '{stored_data['name']}'")
-    print(f"🔧 CUSTOM BOT:   stored description = '{stored_data['description']}'")
-    print(f"🔧 CUSTOM BOT:   stored difficulty = '{stored_data['difficulty']}'")
-
-    print(f"🔧 CUSTOM BOT: Registered custom bot '{name}' with ai_bot_id '{ai_bot_id}'")
-    print(f"🔧 CUSTOM BOT: Description: {description}")
-    print(f"🔧 CUSTOM BOT: Difficulty: {difficulty}")
-
-def get_custom_bot(ai_bot_id: str):
-    """Get a custom bot by ai_bot_id (UUID from Supabase)"""
-    print(f"🔧 CUSTOM BOT: get_custom_bot() called with ai_bot_id = '{ai_bot_id}'")
-    result = custom_bots_storage.get(ai_bot_id)
-    if result:
-        print(f"🔧 CUSTOM BOT: Found custom bot data:")
-        print(f"🔧 CUSTOM BOT:   name = '{result['name']}'")
-        print(f"🔧 CUSTOM BOT:   description = '{result['description']}'")
-        print(f"🔧 CUSTOM BOT:   difficulty = '{result['difficulty']}'")
-    else:
-        print(f"🔧 CUSTOM BOT: No custom bot found for ai_bot_id '{ai_bot_id}'")
-        print(f"🔧 CUSTOM BOT: Available ai_bot_ids: {list(custom_bots_storage.keys())}")
-    return result
-
-def get_all_custom_bots():
-    """Get all registered custom bots (keyed by ai_bot_id)"""
-    return custom_bots_storage.copy()
-
 
 # Bot factory function
 def create_bot(bot_type: str) -> BaseBot:
@@ -847,19 +801,6 @@ def create_bot(bot_type: str) -> BaseBot:
         "opponent": GenericBot
     }
 
-    # Check if this is a custom bot ID
-    custom_bot_data = get_custom_bot(bot_type)
-    if custom_bot_data:
-        print(f"🔧 CUSTOM BOT: Creating custom bot '{custom_bot_data['name']}' from ID '{bot_type}'")
-        print(f"🔧 CUSTOM BOT: Description from storage: '{custom_bot_data['description']}'")
-        print(f"🔧 CUSTOM BOT: Difficulty from storage: '{custom_bot_data['difficulty']}'")
-        custom_bot = CustomBot(
-            name=custom_bot_data['name'],
-            description=custom_bot_data['description'],
-            difficulty=custom_bot_data['difficulty']
-        )
-        print(f"🔧 CUSTOM BOT: Created bot with name: '{custom_bot.name}', description: '{custom_bot.description}', custom_description: '{custom_bot.custom_description}'")
-        return custom_bot
 
     bot_class = bot_classes.get(bot_type)
     if bot_class:
@@ -870,4 +811,34 @@ def create_bot(bot_type: str) -> BaseBot:
         print(f"🔧 CUSTOM BOT: No bot found for '{bot_type}', using GenericBot")
         return GenericBot()
 
+# not in a class.
+def enhance_custom_bot(self, ai_bot_id: str, name: str, description: str, difficulty: str):
+    """Enhance a custom bot with updated characteristics added by LLM.
+    Returns a CustomBot instance with all attributes set."""
+    return CustomBot(name=name, description=description, difficulty=difficulty)
 
+def save_bot_to_supabase(self, bot):
+    """Unpacks the bot class and attributes and saves to Supabase."""
+    from supabase import create_client, Client
+    import os, json
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_LEGACY_SECRET")
+    supabase: Client = create_client(url, key)
+
+    bot_data = {
+        'ai_bot_id': bot.ai_bot_id,
+        'name': bot.name,
+        'difficulty': bot.difficulty,
+        'description': bot.description,
+        'emotional_state': json.dumps(bot.emotional_state),
+        'proactive_config': json.dumps(bot.proactive_config),
+        'response_config': json.dumps(bot.response_config),
+        'gif_config': json.dumps(bot.gif_config)
+    }
+    print(f"🔧 CUSTOM BOT: Saving bot to supabase: {bot_data}")
+
+    response = supabase.table('custom_bots').insert(bot_data).execute()
+    if response.error:
+        return {'success': False, 'error': str(response.error)}
+    return {'success': True, 'bot': bot_data}
