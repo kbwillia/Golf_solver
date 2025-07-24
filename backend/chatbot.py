@@ -7,6 +7,7 @@ from bot_personalities import create_bot, BaseBot
 from game_state import get_game_state
 import re
 import time
+from data_upset import upload_chatbot_message
 
 LAST_X_MESSAGES = 10
 
@@ -720,10 +721,21 @@ class ChatHandler:
         if not message:
             return {'error': 'Message cannot be empty'}, 400
 
+        # Log user message to Supabase
+        upload_chatbot_message(
+            game_id=game_id,
+            user_id=data.get('user_id', None),
+            bot_name=None,
+            message=message,
+            sender='user',
+            media=None,  # If user can send GIFs/media, add here
+            metadata={"personality_type": personality_type}
+        )
+
         # Get current game state if game_id is provided
         game_state = None
         if game_id and game_id in games:
-            game_state = get_game_state_func(game_id)
+            game_state = get_game_state_func(game_id, games)
             game_session = games[game_id]
         else:
             game_session = None
@@ -801,6 +813,16 @@ class ChatHandler:
                     game_state,      # game_state
                     bot_id_for_lookup  # personality (use ai_bot_id for lookup)
                 )
+                # Log bot message to Supabase
+                upload_chatbot_message(
+                    game_id=game_id,
+                    user_id=None,
+                    bot_name=bot_name,
+                    message=enhanced_response["message"],
+                    sender='bot',
+                    media={"type": "gif", "context": enhanced_response.get("gif_context", "")} if enhanced_response.get("should_send_gif", False) else None,
+                    metadata=enhanced_response.get("personality_info", {})
+                )
                 # Store bot message in conversation history with ai_bot_id
                 game_session['conversation_history'].append({
                     'sender': 'bot',
@@ -844,6 +866,16 @@ class ChatHandler:
         )
         # Calculate reading delay for this bot
         delay = self.calculate_bot_response_delay(personality_type)
+        # Log bot message to Supabase
+        upload_chatbot_message(
+            game_id=None,  # If you have game_id in scope, use it
+            user_id=None,
+            bot_name=enhanced_response["bot_name"],
+            message=enhanced_response["message"],
+            sender='bot',
+            media={"type": "gif", "context": enhanced_response.get("gif_context", "")} if enhanced_response.get("should_send_gif", False) else None,
+            metadata=enhanced_response.get("personality_info", {})
+        )
         return {
             'success': True,
             'responses': [{
@@ -927,7 +959,7 @@ class ChatHandler:
             return {'error': 'Game not found'}, 404
 
         try:
-            game_state = get_game_state_func(game_id)
+            game_state = get_game_state_func(game_id, games)
             game_session = games[game_id]
             selected_bots = game_session.get('selected_bots', [])
             # Determine allowed bots: all AI players except 'Golf Pro' and 'Golf Bro', unless overridden
