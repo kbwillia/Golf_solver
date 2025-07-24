@@ -506,6 +506,47 @@ function setPlayerInteractivity(isMyTurn) {
 document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('toggleProbabilitiesBtn');
     if (btn) btn.classList.add('shimmer');
+
+    // Initialize chart when page loads
+    setTimeout(() => {
+        initializeCumulativeScoreChart();
+
+        // Add double-click functionality to hide/show chart
+        // const chartContainer = document.querySelector('.chart-container');
+        // if (chartContainer) {
+        //     chartContainer.addEventListener('dblclick', function() {
+        //         this.classList.toggle('hidden');
+        //     });
+        // }
+
+        // Add double-click functionality to hide/show notification area
+        const notificationArea = document.querySelector('.notification-area');
+        if (notificationArea) {
+            // Add tooltip element
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = 'Double-click to hide/show notifications';
+            notificationArea.appendChild(tooltip);
+
+            // Add double-click functionality
+            notificationArea.addEventListener('dblclick', function() {
+                this.classList.toggle('hidden');
+            });
+
+            // Add delayed tooltip functionality
+            let tooltipTimeout;
+            notificationArea.addEventListener('mouseenter', function() {
+                tooltipTimeout = setTimeout(() => {
+                    tooltip.style.opacity = '1';
+                }, 2000); // 2 second delay
+            });
+
+            notificationArea.addEventListener('mouseleave', function() {
+                clearTimeout(tooltipTimeout);
+                tooltip.style.opacity = '0';
+            });
+        }
+    }, 100); // Small delay to ensure DOM is ready
 });
 
 function toggleProbabilitiesPanel() {

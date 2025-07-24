@@ -143,6 +143,35 @@ body, html {
     box-sizing: border-box;
     /* You can also add: */
     overflow-x: auto;   /* just in case */
+    cursor: pointer; /* Indicate it's clickable */
+    transition: opacity 0.3s ease; /* Smooth transition for opacity changes */
+    position: relative; /* For tooltip positioning */
+}
+
+.notification-area .tooltip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.notification-area.hidden {
+    opacity: 0;
+    /* Keep all dimensions the same */
+    max-width: 360px;
+    width: 100%;
+    min-width: 200px;
+    height: 100%;
 }
 
 /* Game Info Display in notification area */

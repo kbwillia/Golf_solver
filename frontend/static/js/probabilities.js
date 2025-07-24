@@ -560,8 +560,29 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add double-click functionality to hide/show chart
         const chartContainer = document.querySelector('.chart-container');
         if (chartContainer) {
+            // Add tooltip element with higher z-index
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = 'Double-click to hide/show chart';
+            tooltip.style.zIndex = '9999'; // Ensure it's above Chart.js tooltips
+            chartContainer.appendChild(tooltip);
+
+            // Add double-click functionality
             chartContainer.addEventListener('dblclick', function() {
                 this.classList.toggle('hidden');
+            });
+
+            // Add delayed tooltip functionality
+            let tooltipTimeout;
+            chartContainer.addEventListener('mouseenter', function() {
+                tooltipTimeout = setTimeout(() => {
+                    tooltip.style.opacity = '1';
+                }, 2000); // 2 second delay
+            });
+
+            chartContainer.addEventListener('mouseleave', function() {
+                clearTimeout(tooltipTimeout);
+                tooltip.style.opacity = '0';
             });
         }
     }, 100); // Small delay to ensure DOM is ready
