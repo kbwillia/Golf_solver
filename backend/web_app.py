@@ -293,6 +293,15 @@ def make_move():
         # This ensures scores are recorded for the current round before it advances
         update_round_cumulative_scores(game_session, game)
 
+        # Check for game over by all cards revealed
+        if game.all_players_done():
+            game_session['game_over'] = True
+        # Set waiting_for_next_game flag for multigame matches
+        if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+            game_session['waiting_for_next_game'] = True
+        else:
+            game_session['waiting_for_next_game'] = False
+
         # Return game state BEFORE advancing to next player
         response = jsonify({
             'success': True,
@@ -475,6 +484,15 @@ def run_ai_turn():
         # Update cumulative scores BEFORE advancing to next player
         update_round_cumulative_scores(game_session, game)
 
+        # Check for game over by all cards revealed
+        if game.all_players_done():
+            game_session['game_over'] = True
+        # Set waiting_for_next_game flag for multigame matches
+        if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+            game_session['waiting_for_next_game'] = True
+        else:
+            game_session['waiting_for_next_game'] = False
+
         # Return game state BEFORE advancing to next player
         response = jsonify({
             'success': True,
@@ -484,16 +502,16 @@ def run_ai_turn():
         # Move to next player (this may advance the round)
         game.next_player()
 
-        # Check for game over
-        if game.round > game.max_rounds:
-            for p in game.players:
-                p.reveal_all()
-            game_session['game_over'] = True
-            # If this is the last game, set match_winner
-            if game_session['current_game'] == game_session['num_games']:
-                min_score = min(game_session['cumulative_scores'])
-                winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
-                game_session['match_winner'] = winners
+        # Remove round-based game over logic
+        # if game.round > game.max_rounds:
+        #     for p in game.players:
+        #         p.reveal_all()
+        #     game_session['game_over'] = True
+        #     # If this is the last game, set match_winner
+        #     if game_session['current_game'] == game_session['num_games']:
+        #         min_score = min(game_session['cumulative_scores'])
+        #         winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
+        #         game_session['match_winner'] = winners
 
         game_session['ai_thinking'] = False
 

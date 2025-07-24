@@ -45,8 +45,8 @@ class Player:
             'cards_per_rank': {rank: 0 for rank in ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']}
         }
 
-    def reveal_all(self):
-        self.known = [True] * 4
+    # def reveal_all(self):
+    #     self.known = [True] * 4
 
     def __str__(self):
         def show(i):
