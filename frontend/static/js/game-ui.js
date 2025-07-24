@@ -48,11 +48,11 @@ function updateGameDisplay() {
         // Update discard pile
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
-            // Remove any problematic classes
-            discardCard.classList.remove('faded', 'disabled');
+            // Don't remove faded class - let the game logic control it
+            discardCard.classList.remove('disabled');
 
-            // Add fade if drawing from deck
-            if (isDrawingFromDeck) {
+            // Add fade if drawing from deck or if a card was drawn and needs to be resolved
+            if (isDrawingFromDeck || cardDrawnFromDeck) {
                 discardCard.classList.add('faded');
             }
 

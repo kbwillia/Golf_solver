@@ -22,6 +22,7 @@ let isMyTurn = false;
 let actionInProgress = false; // Prevents multiple simultaneous actions
 let pollingPaused = false; // Used to pause polling during actions
 let isDrawingFromDeck = false; // Track if deck is being drawn from for fade effect
+let cardDrawnFromDeck = false; // Track if a card was drawn from deck and needs to be resolved
 let previousGameState = null;
 let aiTurnInProgress = false; // Prevents multiple concurrent AI turn polling
 let humanDiscardPosition = null; // Track position for human discard animation

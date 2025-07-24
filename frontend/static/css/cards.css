@@ -27,10 +27,33 @@
     margin: 2px;
     cursor: pointer;
     position: relative;
-    transition: all 0.2s ease;
     overflow: hidden;
     opacity: 0.7; /* Default opacity for subtle appearance */
     border: none !important;
+    transform: scale(1); /* Explicit initial scale to prevent jumping */
+    /* Set animation offset to prevent restart on DOM updates */
+    --animation-offset: 0s;
+    animation-delay: calc(-1 * var(--animation-offset, 0s));
+}
+
+/* Card hover effect using persistent animation */
+.card:hover {
+    animation: card-hover-pulse 2s ease-in-out infinite;
+    animation-delay: calc(-1 * var(--animation-offset, 0s));
+}
+
+/* Persistent hover animation that doesn't restart on DOM updates */
+@keyframes card-hover-pulse {
+    0%, 100% {
+        box-shadow: 0 0 6px #007bff, 0 0 3px #764ba2;
+        opacity: 1.0;
+        transform: scale(1.01);
+    }
+    50% {
+        box-shadow: 0 0 8px #007bff, 0 0 5px #764ba2;
+        opacity: 1.0;
+        transform: scale(1.02);
+    }
 }
 
 /* Face-down card style - classic casino card back design */
@@ -145,6 +168,18 @@
     font-size: 20px;
     opacity: 1 !important; /* Force full opacity */
     visibility: visible !important; /* Force visibility */
+    transition: opacity 0.3s ease, filter 0.3s ease; /* Smooth fade transitions */
+    border: none !important; /* Remove border from discard pile */
+}
+
+/* Discard card faded (when not available) - more specific selector */
+#discardCard.faded,
+.card#discardCard.faded {
+    opacity: 0.17 !important; /* Use !important to prevent override */
+    filter: grayscale(80%) !important;
+    /* border-style: dashed !important; */
+    cursor: not-allowed !important;
+    pointer-events: none !important; /* Prevent interaction when faded */
 }
 
 /* Layered deck effect (middle layer) - creates depth behind the main card */
@@ -305,14 +340,6 @@
     pointer-events: auto;
 }
 
-/* Card hover effect - now more responsive */
-.card:hover {
-    box-shadow: 0 0 12px #007bff, 0 0 6px #764ba2;
-    opacity: 1.0 !important; /* Full opacity on hover */
-    cursor: pointer;
-    transform: scale(1.02); /* Slight scale on hover */
-}
-
 /* Disabled card style */
 .disabled, .card.disabled {
     pointer-events: none !important;
@@ -409,19 +436,10 @@
     cursor: pointer;
     border-color: #28a745 !important;
     box-shadow: 0 0 8px rgba(40, 167, 69, 0.3) !important;
-    transition: all 0.2s ease;
 }
 
 .card.flippable:hover {
     transform: scale(1.05);
     box-shadow: 0 0 12px rgba(40, 167, 69, 0.5) !important;
     border-color: #20c997 !important;
-}
-
-/* Discard card faded (when not available) */
-#discardCard.faded {
-    opacity: 0.17;
-    filter: grayscale(80%);
-    border-style: dashed;
-    cursor: not-allowed;
 }
