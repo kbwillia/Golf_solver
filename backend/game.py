@@ -179,29 +179,24 @@ class GolfGame:
         if trajectories is None:
             trajectories = [None] * self.num_players
 
-        # Each player must take exactly 4 turns, so game should last exactly 4 rounds
-        while self.round <= self.max_rounds:
-            player = self.players[self.turn]
-            if verbose:
-                print(f"\n-- {player.name}'s turn (Round {self.round}) --")
-                print(f"Agent: {player.agent_type}")
-                print(player)
-                print(f"Top of discard: {self.discard_pile[-1]}")
-
-            # Check if player has any moves available
-            available_positions = [i for i, known in enumerate(player.known) if not known]
-            if available_positions:
-                self.play_turn(player, trajectories[self.turn])
-            else:
-                # Player has no moves (all cards face-up), but still counts as a turn
+        for _ in range(self.max_rounds):
+            for _ in range(self.num_players):
+                player = self.players[self.turn]
                 if verbose:
-                    print(f"<strong>{player.name}</strong> has no moves available (all cards face-up)")
+                    print(f"\n-- {player.name}'s turn (Round {self.round}) --")
+                    print(f"Agent: {player.agent_type}")
+                    print(player)
+                    print(f"Top of discard: {self.discard_pile[-1]}")
+                available_positions = [i for i, known in enumerate(player.known) if not known]
+                if available_positions:
+                    self.play_turn(player, trajectories[self.turn])
+                else:
+                    if verbose:
+                        print(f"<strong>{player.name}</strong> has no moves available (all cards face-up)")
+                self.next_player()
+            self.round += 1
 
-            self.next_player()
-
-        # Reveal all cards
-        for p in self.players:
-            p.reveal_all()
+        # No reveal_all() here; all cards should be revealed naturally by player moves
         if verbose:
             print("\n=== FINAL GRIDS ===")
             for p in self.players:

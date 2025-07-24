@@ -668,13 +668,36 @@ input:checked + .toggle-slider:before {
     left: 0;
     top: 0;
     height: 100%;
-    width: 0%; /* Will be set inline via JS */
-    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-    opacity: 0.35;
+    width: 0%;
+    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 50%, #43e97b 100%);
+    background-size: 200% 100%;
+    background-position: left center;
+    opacity: 0.45;
     z-index: 1;
     pointer-events: none;
-    transition: width 0.1s linear;
+    transition: width 0.1s linear, background-position 0.3s linear;
     border-radius: 6px;
+}
+/* Shimmer effect overlay */
+.chat-input-fill-anim::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 6px;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.25) 40%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.25) 60%, transparent 100%);
+    opacity: 0.7;
+    animation: shimmer-move var(--shimmer-duration, 1.2s) linear forwards;
+    background-size: 200% 100%;
+    background-position: -100% 0;
+}
+@keyframes shimmer-move {
+    0% { background-position: -100% 0; }
+    100% { background-position: 100% 0; }
 }
 .chat-input-fill-anim input,
 .chat-input-fill-anim textarea {

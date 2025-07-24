@@ -135,25 +135,29 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
         function setFillAnim(percent) {
             if (chatInputContainer) {
                 chatInputContainer.classList.add('chat-input-fill-anim');
-                chatInputContainer.style.setProperty('--fill-width', percent + '%');
-                // For browsers that don't support CSS vars in ::before, set width directly
-                const before = chatInputContainer;
-                before.style.setProperty('--fill-width', percent + '%');
-                // Also set width on ::before via style if possible
-                const styleSheet = document.createElement('style');
-                styleSheet.innerHTML = `.chat-input-fill-anim::before { width: ${percent}%; }`;
                 // Remove any previous style tag
                 if (chatInputContainer._fillAnimStyle) {
                     chatInputContainer._fillAnimStyle.remove();
                 }
+                // Set width for both ::before and ::after
+                const styleSheet = document.createElement('style');
+                styleSheet.innerHTML = `
+                    .chat-input-fill-anim::before,
+                    .chat-input-fill-anim::after {
+                        width: ${percent}%;
+                    }
+                `;
                 document.head.appendChild(styleSheet);
                 chatInputContainer._fillAnimStyle = styleSheet;
+                // Set shimmer duration to match SEND_DELAY
+                chatInputContainer.style.setProperty('--shimmer-duration', (SEND_DELAY / 1000) + 's');
             }
         }
         function clearFillAnim() {
             if (chatInputContainer) {
                 chatInputContainer.classList.remove('chat-input-fill-anim');
                 chatInputContainer.style.removeProperty('--fill-width');
+                chatInputContainer.style.removeProperty('--shimmer-duration');
                 if (chatInputContainer._fillAnimStyle) {
                     chatInputContainer._fillAnimStyle.remove();
                     chatInputContainer._fillAnimStyle = null;
@@ -161,7 +165,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
             }
         }
         function startSendCountdown() {
-            let timeLeft = SEND_DELAY / 1000;
+            let timeLeft = SEND_DELAY / 2000;
             let elapsed = 0;
             chatInput.dataset.originalPlaceholder = chatInput.placeholder;
             chatInput.placeholder = `Sending in ${timeLeft.toFixed(1)}...`;
