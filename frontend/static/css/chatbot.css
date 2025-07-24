@@ -656,3 +656,29 @@ input:checked + .toggle-slider:before {
     20% { opacity: 1; }
     100% { opacity: 0.2; }
 }
+
+/* === Chat Input Fill Animation === */
+.chat-input-fill-anim {
+    position: relative;
+    overflow: hidden;
+}
+.chat-input-fill-anim::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%; /* Will be set inline via JS */
+    background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+    opacity: 0.35;
+    z-index: 1;
+    pointer-events: none;
+    transition: width 0.1s linear;
+    border-radius: 6px;
+}
+.chat-input-fill-anim input,
+.chat-input-fill-anim textarea {
+    position: relative;
+    z-index: 2;
+    background: transparent !important;
+}

@@ -125,6 +125,80 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
         });
         // Patch onresult to restore input value before inserting transcript
         const originalOnResult = recognition.onresult;
+        // --- Automated send logic ---
+        let sendTimer = null;
+        let animationInterval = null;
+        const SEND_DELAY = 3000; // ms
+        const ANIMATION_INTERVAL = 100; // ms
+        // Get the chat input container for animation
+        const chatInputContainer = chatInput.closest('.chat-input-container');
+        function setFillAnim(percent) {
+            if (chatInputContainer) {
+                chatInputContainer.classList.add('chat-input-fill-anim');
+                chatInputContainer.style.setProperty('--fill-width', percent + '%');
+                // For browsers that don't support CSS vars in ::before, set width directly
+                const before = chatInputContainer;
+                before.style.setProperty('--fill-width', percent + '%');
+                // Also set width on ::before via style if possible
+                const styleSheet = document.createElement('style');
+                styleSheet.innerHTML = `.chat-input-fill-anim::before { width: ${percent}%; }`;
+                // Remove any previous style tag
+                if (chatInputContainer._fillAnimStyle) {
+                    chatInputContainer._fillAnimStyle.remove();
+                }
+                document.head.appendChild(styleSheet);
+                chatInputContainer._fillAnimStyle = styleSheet;
+            }
+        }
+        function clearFillAnim() {
+            if (chatInputContainer) {
+                chatInputContainer.classList.remove('chat-input-fill-anim');
+                chatInputContainer.style.removeProperty('--fill-width');
+                if (chatInputContainer._fillAnimStyle) {
+                    chatInputContainer._fillAnimStyle.remove();
+                    chatInputContainer._fillAnimStyle = null;
+                }
+            }
+        }
+        function startSendCountdown() {
+            let timeLeft = SEND_DELAY / 1000;
+            let elapsed = 0;
+            chatInput.dataset.originalPlaceholder = chatInput.placeholder;
+            chatInput.placeholder = `Sending in ${timeLeft.toFixed(1)}...`;
+            setFillAnim(0);
+            animationInterval = setInterval(() => {
+                elapsed += ANIMATION_INTERVAL;
+                timeLeft = (SEND_DELAY - elapsed) / 1000;
+                if (timeLeft > 0) {
+                    chatInput.placeholder = `Sending in ${timeLeft.toFixed(1)}...`;
+                    setFillAnim((elapsed / SEND_DELAY) * 100);
+                }
+            }, ANIMATION_INTERVAL);
+            sendTimer = setTimeout(() => {
+                clearInterval(animationInterval);
+                chatInput.placeholder = chatInput.dataset.originalPlaceholder || '';
+                setFillAnim(100);
+                setTimeout(clearFillAnim, 200); // Let the bar fill for a moment
+                // Trigger send (simulate send button or call sendChatMessage)
+                if (typeof window.sendChatMessage === 'function') {
+                    window.sendChatMessage();
+                } else {
+                    // fallback: try to click send button
+                    const sendBtn = document.getElementById('sendChatBtn');
+                    if (sendBtn) sendBtn.click();
+                }
+            }, SEND_DELAY);
+        }
+        function cancelSendCountdown() {
+            clearTimeout(sendTimer);
+            clearInterval(animationInterval);
+            chatInput.placeholder = chatInput.dataset.originalPlaceholder || '';
+            clearFillAnim();
+        }
+        // Cancel countdown if user types or focuses input
+        chatInput.addEventListener('keydown', cancelSendCountdown);
+        chatInput.addEventListener('focus', cancelSendCountdown);
+        // --- End automated send logic ---
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript;
             if (chatInput) {
@@ -132,6 +206,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
                 chatInput.value = transcript;
                 chatInput.focus();
                 chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
+                startSendCountdown();
             }
             if (typeof originalOnResult === 'function') {
                 originalOnResult.apply(this, arguments);
