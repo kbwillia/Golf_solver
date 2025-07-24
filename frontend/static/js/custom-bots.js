@@ -601,3 +601,29 @@ function handleCreateBotFormSubmit(event) {
 // TODO: refresh the page to see the new bot  (from supabase)
 
 // TODO: when clicking
+
+//adding for uploading bot image
+document.addEventListener('DOMContentLoaded', function() {
+  // Upload button triggers file input
+  const uploadBtn = document.getElementById('uploadBotImageBtn');
+  const fileInput = document.getElementById('customBotImage');
+  const previewImg = document.getElementById('customBotImagePreview');
+
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener('click', function() {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImg.src = e.target.result;
+          previewImg.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+});

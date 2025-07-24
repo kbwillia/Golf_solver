@@ -94,6 +94,12 @@
                               <label for="customBotDescription" class="form-label">Personality/Description:</label>
                               <textarea id="customBotDescription" class="form-textarea" rows="3" placeholder="Describe this bot's personality..."></textarea>
                             </div>
+                            <div class="form-group">
+                                <label for="customBotImage" style="display:block; margin-top:10px;">Bot Image:</label>
+                                <input type="file" id="customBotImage" name="bot_image" accept="image/*" style="display:none;">
+                                <button type="button" id="uploadBotImageBtn">Upload Bot Image</button>
+                                <img id="customBotImagePreview" style="max-width: 150px; display: none; margin-top:10px;">
+                            </div>
                             <div class="modal-buttons">
                               <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary">Cancel</button>
                               <button type="submit" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>

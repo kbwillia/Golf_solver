@@ -188,6 +188,7 @@ def create_game():
     # 3. Create the game
     game_id = str(uuid.uuid4())
     game = GolfGame(num_players=num_players, agent_types=agent_types)
+    game.game_id = game_id  # Set the game_id attribute for internal use
     for i, name in enumerate(player_names):
         game.players[i].name = name
 
@@ -501,10 +502,10 @@ def run_ai_turn():
             game_session['waiting_for_next_game'] = False
 
         # --- Upload game state after every turn ---
-        upload_game_state(
-            game_id=game_id,
-            game_state=get_game_state(game_id, games)
-        )
+        # upload_game_state(
+        #     game_id=game_id,
+        #     game_state=get_game_state(game_id, games)
+        # )
 
         # Return game state BEFORE advancing to next player
         response = jsonify({
