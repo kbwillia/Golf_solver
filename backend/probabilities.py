@@ -385,9 +385,9 @@ def expected_value_draw_vs_discard(game, player=None):
     # --- Recommendation ---
     # If draw_advantage is negative, drawing is better; if positive, discard is better
     if draw_advantage < -0.5:
-        recommendation = "(Hint) Draw from deck"
+        recommendation = "(Hint) Draw from deck!"
     elif draw_advantage > 0.5:
-        recommendation = "(Hint) Take discard"
+        recommendation = "(Hint) Take discard!"
     else:
         # Dynamic: whichever EV is lower (more negative) is slightly preferred
         if draw_expected_value < discard_expected_value:

@@ -280,7 +280,7 @@ function restartGame() {
     // ===== NEW: Reset all setup fields to defaults =====
     window.selectedBots = [];
     setGameMode('1v1'); // Default game mode
-    document.getElementById('playerName').value = 'Human';
+    document.getElementById('playerName').value = 'Kyle';
     document.getElementById('cardVisibilityDuration').value = 1.5;
     setHoles(1); // Default to 1 hole
     // Update bot selection UI
