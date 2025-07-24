@@ -32,5 +32,11 @@ for bot in bots:
     if not all(field in bot and bot[field] for field in required):
         print(f"Skipping bot (missing required fields): {bot}")
         continue
-    response = requests.post(ENDPOINT, json=bot)
+    # Build payload, including img_path if present
+    payload = {k: bot[k] for k in required}
+
+    if 'img_path' in bot and bot['img_path']:
+        payload['image_path'] = bot['img_path']
+    payload['ai_bot_id'] = bot['ai_bot_id']
+    response = requests.post(ENDPOINT, json=payload)
     print(f"Bot: {bot.get('name', 'Unnamed')} | Status: {response.status_code} | Response: {response.text}")

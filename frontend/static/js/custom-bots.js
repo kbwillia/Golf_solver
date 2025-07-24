@@ -9,8 +9,7 @@ function uuidv4() {
 
 let customBotCount = 1;
 let placeholderData = null;
-
-
+let uploadedImagePath = null;
 
 
 // Fallback initialization function
@@ -91,6 +90,19 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('🔧 Custom bots.js: DOMContentLoaded event fired');
     // Initialize directly since we're loading from Supabase now
         initializeCustomBots();
+
+  // Populate voice dropdown
+  const voiceSelect = document.getElementById('customBotVoiceId');
+  if (voiceSelect) {
+    voiceSelect.innerHTML = ""; // Clear any existing options
+    availableVoices.forEach((voice, idx) => {
+      const option = document.createElement('option');
+      option.value = voice.id;
+      option.textContent = `${voice.name} (${voice.language})`;
+      if (idx === 0) option.selected = true; // Default to first voice
+      voiceSelect.appendChild(option);
+    });
+  }
 });
 
 // Fallback: If DOMContentLoaded already fired, initialize immediately
@@ -286,9 +298,14 @@ function updateAIBotImageContainer(allBots) {
   window.selectedBots.forEach(selectedBot => {
     const botObj = allBots.find(b => (b.ai_bot_id || b.id) === (selectedBot.ai_bot_id || selectedBot.id));
     if (!botObj) return;
-    // Try to match bot name to image filename
-    const imgName = botObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
-    const imgPath = `/static/AI_bot_images/${imgName}`;
+    let imgPath = '';
+    if (botObj.image_path) {
+      imgPath = `/static/${botObj.image_path}`;
+    } else {
+      // Fallback to old name-based mapping
+      const imgName = botObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+      imgPath = `/static/AI_bot_images/${imgName}`;
+    }
 
     // Create a row container for image + text
     const rowDiv = document.createElement('div');
@@ -567,18 +584,24 @@ function handleCreateBotFormSubmit(event) {
   const name = document.getElementById('customBotName').value.trim();
   const description = document.getElementById('customBotDescription').value.trim();
   const difficulty = document.getElementById('customBotDifficulty').value;
-  console.log('all d data', name, description, difficulty);
-
-  // Generate ai_bot_id
   const ai_bot_id = uuidv4();
+  const voice_id = document.getElementById('customBotVoiceId') ? document.getElementById('customBotVoiceId').value : '5cd9f375-3a96-11ee-9fd9-8cec4b691ee9';
 
-  // Send to backend
+  // Build payload
+  const payload = { ai_bot_id, name, description, difficulty };
+  if (uploadedImagePath) {
+    payload.image_path = uploadedImagePath;
+  }
+  // Always set a default if voice_id is falsy
+  payload.voice_id = voice_id || "5cd9f375-3a96-11ee-9fd9-8cec4b691ee9"; //morgan freeman
+
+
+
   fetch('/api/create_custom_bot', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ai_bot_id, name, description, difficulty })
+    body: JSON.stringify(payload)
   })
-
   .then(res => res.json())
   .then(data => {
     if (data.success) {
@@ -589,9 +612,17 @@ function handleCreateBotFormSubmit(event) {
       document.getElementById('customBotName').value = '';
       document.getElementById('customBotDifficulty').value = 'easy';
       document.getElementById('customBotDescription').value = '';
-      // Refresh the bot list so the new bot appears
+      if (document.getElementById('customBotVoiceId')) document.getElementById('customBotVoiceId').value = 'default';
+      uploadedImagePath = null;
+      // Automatically select the new bot and unselect others
+      if (data.bot) {
+        window.selectedBots = [data.bot];
+      }
       if (typeof renderBotSelectRow === 'function') {
         renderBotSelectRow();
+      }
+      if (typeof updateAIBotImageContainer === 'function' && window.allBotsData) {
+        updateAIBotImageContainer(window.allBotsData);
       }
     } else {
       alert('Error: ' + data.error);
@@ -614,16 +645,48 @@ document.addEventListener('DOMContentLoaded', function() {
       fileInput.click();
     });
 
-    fileInput.addEventListener('change', function(event) {
+    fileInput.addEventListener('change', async function(event) {
       const file = event.target.files[0];
       if (file) {
+        // Preview
         const reader = new FileReader();
         reader.onload = function(e) {
           previewImg.src = e.target.result;
           previewImg.style.display = 'block';
         };
         reader.readAsDataURL(file);
+
+        // Upload to backend
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+          const response = await fetch('/api/upload_bot_image', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+          if (data.success) {
+            uploadedImagePath = data.image_path;
+            console.log('Image uploaded, path:', uploadedImagePath);
+          } else {
+            uploadedImagePath = null;
+            alert('Image upload failed: ' + (data.error || 'Unknown error'));
+          }
+        } catch (err) {
+          uploadedImagePath = null;
+          alert('Image upload failed: ' + err.message);
+        }
       }
     });
   }
 });
+
+const availableVoices = [
+  { name: "Morgan Freeman", language: "English (US)", id: "5cd9f375-3a96-11ee-9fd9-8cec4b691ee9" },
+  // { name: "Firey", language: "English (US)", id: "8da96304-..." },
+  // { name: "Morpheus", language: "English (US)", id: "bf924282-..." },
+  // { name: "SUGA", language: "English (US)", id: "00156bfc-..." },
+  // { name: "Will Smith", language: "English (US)", id: "5cb4f88b-..." },
+  // { name: "Lionel Messi", language: "English (US)", id: "00157155-..." },
+  // { name: "Nayeon", language: "English (US)", id: "5ccf7354-..." }
+];

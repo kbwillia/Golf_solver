@@ -565,12 +565,14 @@ class GolfProBot(BaseBot):
 class CustomBot(BaseBot):
     """Custom bot with user-defined personality"""
 
-    def __init__(self, ai_bot_id: str, name: str, description: str, difficulty: str = "medium"):
+    def __init__(self, ai_bot_id: str, name: str, description: str, difficulty: str = "medium", image_path: str = None, voice_id: str = None):
         super().__init__(name, description)
         self.ai_bot_id = ai_bot_id
         self.name = name
         self.custom_description = description
         self.difficulty = difficulty
+        self.image_path = image_path
+        self.voice_id = voice_id
 
         # Generate dynamic configurations using LLM
         self._generate_llm_configurations()
@@ -822,10 +824,10 @@ def create_bot(bot_type: str) -> BaseBot:
         return GenericBot()
 
 # not in a class.
-def enhance_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str):
+def enhance_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str, image_path: str = None, voice_id: str = None):
     """Enhance a custom bot with updated characteristics added by LLM.
     Returns a CustomBot instance with all attributes set."""
-    return CustomBot(ai_bot_id=ai_bot_id, name=name, description=description, difficulty=difficulty)
+    return CustomBot(ai_bot_id=ai_bot_id, name=name, description=description, difficulty=difficulty, image_path=image_path, voice_id=voice_id)
 
 def save_bot_to_supabase(bot):
     """Unpacks the bot class and attributes and saves to Supabase."""
@@ -846,6 +848,10 @@ def save_bot_to_supabase(bot):
         'response_config': json.dumps(bot.response_config),
         'gif_config': json.dumps(bot.gif_config)
     }
+    if bot.image_path:
+        bot_data['image_path'] = bot.image_path
+    if bot.voice_id:
+        bot_data['voice_id'] = bot.voice_id
     print(f"🔧 CUSTOM BOT: Saving bot to supabase:")
 
     response = supabase.table('custom_bots').insert(bot_data).execute()

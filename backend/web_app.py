@@ -797,16 +797,27 @@ def create_custom_bot():
     name = data.get('name')
     difficulty = data.get('difficulty')
     description = data.get('description')
-    print(f' data is {data} and ai_bot_id is {ai_bot_id} and name is {name} and difficulty is {difficulty} and description is {description}')
+    image_path = data.get('image_path')
+    voice_id = data.get('voice_id')  # <-- Add this line
+    print(f' data is {data} and ai_bot_id is {ai_bot_id} and name is {name} and difficulty is {difficulty} and description is {description} and image_path is {image_path}')
     if not ai_bot_id or not name or not difficulty or not description:
         return jsonify({'success': False, 'error': 'Missing fields'}), 400
 
     from bot_personalities import enhance_custom_bot, save_bot_to_supabase
 
-    # 1. Enhance the bot with LLM
-    enhanced_bot = enhance_custom_bot(ai_bot_id, name, description, difficulty)
+    # Set default image_path if not provided
+    if not image_path:
+        default_images = {
+            'easy': 'AI_bot_images/gofer.png',
+            'medium': 'AI_bot_images/joey_tribbiani.png',
+            'hard': 'AI_bot_images/tiger_woods.png',
+        }
+        image_path = default_images.get(difficulty.lower(), 'AI_bot_images/gofer.png')
 
-    # 2. Save to Supabase
+    # 1. Enhance the bot with LLM, now passing image_path
+    enhanced_bot = enhance_custom_bot(ai_bot_id, name, description, difficulty, image_path=image_path, voice_id=voice_id)
+
+    # 2. Save to Supabase (bot.image_path will always be set)
     response = save_bot_to_supabase(enhanced_bot)
 
     # Check for success
@@ -819,53 +830,67 @@ def create_custom_bot():
 
 
 
-@app.route('/get_custom_bots', methods=['GET'])
-def get_custom_bots():
-    """Get all existing custom bots from Supabase database"""
-    try:
-        print("🔥 /get_custom_bots endpoint hit - loading from Supabase")
+# @app.route('/get_custom_bots', methods=['GET'])
+# def get_custom_bots():
+#     """Get all existing custom bots from Supabase database"""
+#     try:
+#         print("🔥 /get_custom_bots endpoint hit - loading from Supabase")
 
-        # Import Supabase client
-        from supabase import create_client, Client
-        import os
+#         # Import Supabase client
+#         from supabase import create_client, Client
+#         import os
 
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_LEGACY_SECRET")
+#         url = os.environ.get("SUPABASE_URL")
+#         key = os.environ.get("SUPABASE_LEGACY_SECRET")
 
-        if not url or not key:
-            print("❌ Supabase credentials not found in environment variables")
-            return jsonify({'success': False, 'error': 'Supabase credentials not configured'}), 500
+#         if not url or not key:
+#             print("❌ Supabase credentials not found in environment variables")
+#             return jsonify({'success': False, 'error': 'Supabase credentials not configured'}), 500
 
-        # Set up Supabase client
-        supabase: Client = create_client(url, key)
+#         # Set up Supabase client
+#         supabase: Client = create_client(url, key)
 
-        # Fetch all bots from Supabase
-        response = supabase.table('custom_bots').select('*').order('created_at', desc=True).execute()
+#         # Fetch all bots from Supabase
+#         response = supabase.table('custom_bots').select('*').order('created_at', desc=True).execute()
 
-        print(f"🔥 Supabase response: {response}")
+#         print(f"🔥 Supabase response: {response}")
 
-        bots_list = []
-        if response.data:
-            for bot in response.data:
-                bots_list.append({
-                    'id': bot['id'],
-                    'name': bot['name'],
-                    'difficulty': bot['difficulty'],
-                    'description': bot['description']
-                })
+#         bots_list = []
+#         if response.data:
+#             for bot in response.data:
+#                 bots_list.append(bot)
 
-        print(f"✅ Returning {len(bots_list)} custom bots from Supabase: {[bot['name'] for bot in bots_list]}")
+#         print(f"✅ Returning {len(bots_list)} custom bots from Supabase: {[bot['name'] for bot in bots_list]}")
 
-        return jsonify({
-            'success': True,
-            'bots': bots_list
-        })
+#         return jsonify({
+#             'success': True,
+#             'bots': bots_list
+#         })
 
-    except Exception as e:
-        print(f"❌ Error getting custom bots from Supabase: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+#     except Exception as e:
+#         print(f"❌ Error getting custom bots from Supabase: {e}")
+#         import traceback
+#         traceback.print_exc()
+#         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/upload_bot_image', methods=['POST'])
+def upload_bot_image():
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image part in the request'}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No selected file'}), 400
+    # Optionally, add allowed file type checks here
+    import os
+    from werkzeug.utils import secure_filename
+    static_folder = os.path.join(os.path.dirname(__file__), '../frontend/static/AI_bot_images')
+    os.makedirs(static_folder, exist_ok=True)
+    filename = secure_filename(file.filename)
+    save_path = os.path.join(static_folder, filename)
+    file.save(save_path)
+    # Return the relative path for frontend use
+    image_path = f'AI_bot_images/{filename}'
+    return jsonify({'success': True, 'image_path': image_path}), 200
 
 def proactive_comment_timer():
     import time

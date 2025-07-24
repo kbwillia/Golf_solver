@@ -5,7 +5,12 @@ def test_basic_llm():
     """Test basic LLM functionality without structured output"""
     print("Testing basic LLM functionality...")
 
-    test_prompt = "You are a helpful assistant. Please respond with a short greeting and tell me what you can help with."
+    # test_prompt = "You are a helpful assistant. Please respond with a short greeting and tell me what you can help with."
+
+    test_prompt = (
+        "explain the following gif and give me context of what the user is meaning to say and what its typically used for. Convert it into a short message that can be used in a chatbot as well. Also give an example response of what the person receiving the message would say in response to the gif."
+        "https://media3.giphy.com/media/O2kFK6fdz217a/giphy.gif"
+    )
 
     try:
         response = call_cerebras_llm(
@@ -87,19 +92,19 @@ if __name__ == "__main__":
 
     # Run tests
     basic_success = test_basic_llm()
-    streaming_success = test_streaming_llm()
-    golf_success = test_golf_chatbot_prompt()
+    # streaming_success = test_streaming_llm()
+    # golf_success = test_golf_chatbot_prompt()
 
     print("\n" + "=" * 50)
     print("📊 Test Results:")
     print(f"Basic LLM: {'✅ PASS' if basic_success else '❌ FAIL'}")
-    print(f"Streaming LLM: {'✅ PASS' if streaming_success else '❌ FAIL'}")
-    print(f"Golf Chatbot: {'✅ PASS' if golf_success else '❌ FAIL'}")
+    # print(f"Streaming LLM: {'✅ PASS' if streaming_success else '❌ FAIL'}")
+    # print(f"Golf Chatbot: {'✅ PASS' if golf_success else '❌ FAIL'}")
 
-    if basic_success and streaming_success and golf_success:
-        print("\n🎉 All tests passed! Your LLM integration is ready for the golf game chatbot.")
-    else:
-        print("\n⚠️  Some tests failed. Please check your API key and try again.")
+    # if basic_success and streaming_success and golf_success:
+    #     print("\n🎉 All tests passed! Your LLM integration is ready for the golf game chatbot.")
+    # else:
+    #     print("\n⚠️  Some tests failed. Please check your API key and try again.")
 
 
 #python test_llm_cerebras.py

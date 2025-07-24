@@ -3,6 +3,7 @@ import csv
 import json
 import os
 
+
 #use the env to get the api key
 from dotenv import load_dotenv
 load_dotenv()
@@ -15,10 +16,10 @@ api_key = os.getenv("TOP_MEDIA")
 voice_id = "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a"
 api_key = "6445fed100b649c59a84fc001042c6c5"
 
-
+# print(api_key, flush=True)
 
 url = "https://api.topmediai.com/v1/text2speech"
-text = "Hello"
+text = "Hello, Kyle is the best"
 
 speaker = "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a"
 emotion = "Friendly"
@@ -33,9 +34,13 @@ headers = {
     "Content-Type": "application/json"
 }
 
-response = requests.request("POST", url, json=payload, headers=headers)
-
-print(response.text)
+print("About to make POST request", flush=True)
+try:
+    response = requests.request("POST", url, json=payload, headers=headers, timeout=10)
+    print("POST request done", flush=True)
+    print(response.text, flush=True)
+except Exception as e:
+    print("POST request failed:", e, flush=True)
 
 
 import requests
@@ -44,9 +49,13 @@ url = "https://api.topmediai.com/v1/get_api_key_info"
 
 headers = {"x-api-key": "6445fed100b649c59a84fc001042c6c5"}
 
-response = requests.request("GET", url, headers=headers)
-
-print('get key info',response.text)
+print("About to make GET request for API key info", flush=True)
+try:
+    response = requests.request("GET", "https://api.topmediai.com/v1/get_api_key_info", headers=headers, timeout=10)
+    print("GET request done", flush=True)
+    print('get key info', response.text, flush=True)
+except Exception as e:
+    print("GET request failed:", e, flush=True)
 # # Parse the response and download the audio if successful
 # result = response.json()
 # if result.get("status") == 200 and "oss_url" in result.get("data", {}):
