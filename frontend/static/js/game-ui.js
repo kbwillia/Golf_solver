@@ -95,14 +95,21 @@ function updateGameDisplay() {
 
         // Check if game or match is over and show replay button
         if (currentGameState.game_over) {
-            // Check if human player won and show celebration
-            if (currentGameState.winner === 0) {
-                // console.log('🎉 Human player won! Showing celebration...');
+            // If it's the last game in a multi-game match, only show celebration if human is match winner
+            if (
+                currentGameState.num_games > 1 &&
+                currentGameState.current_game === currentGameState.num_games
+            ) {
+                if (Array.isArray(currentGameState.match_winner) && currentGameState.match_winner.includes(0)) {
+                    showCelebrationGif();
+                }
+            }
+            // For all other games (not last game of match), show celebration if human won that game
+            else if (currentGameState.winner === 0) {
                 showCelebrationGif();
             }
 
             if (currentGameState.num_games === 1 || currentGameState.current_game === currentGameState.num_games) {
-                // Single game or last game of match - show replay button
                 onGameOver();
             }
         }

@@ -306,15 +306,31 @@ function updateAIBotImageContainer(allBots) {
     const textDiv = document.createElement('div');
     textDiv.className = 'ai-bot-info';
 
+    // Name + difficulty row
+    const nameRow = document.createElement('div');
+    nameRow.style.display = 'flex';
+    nameRow.style.alignItems = 'center';
+    nameRow.style.marginBottom = '4px';
+
     const name = document.createElement('div');
     name.className = 'ai-bot-name';
     name.innerText = botObj.name;
+    name.style.marginBottom = '0';
+    name.style.marginRight = '8px';
+
+    // Difficulty badge
+    const diff = document.createElement('span');
+    diff.className = `bot-difficulty ${botObj.difficulty}`;
+    diff.innerText = botObj.difficulty.charAt(0).toUpperCase() + botObj.difficulty.slice(1);
+
+    nameRow.appendChild(name);
+    nameRow.appendChild(diff);
 
     const desc = document.createElement('div');
     desc.className = 'ai-bot-desc';
     desc.innerText = botObj.description || 'No description available.';
 
-    textDiv.appendChild(name);
+    textDiv.appendChild(nameRow);
     textDiv.appendChild(desc);
     rowDiv.appendChild(img);
     rowDiv.appendChild(textDiv);

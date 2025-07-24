@@ -1006,35 +1006,23 @@ const holeBackgrounds = [
 ];
 
 function setHoleBackground(holeIndex) {
-  const img = holeBackgrounds[holeIndex % holeBackgrounds.length];
-  console.log('setHoleBackground called with index:', holeIndex, 'using image:', img);
-  console.log('Available images in array:', holeBackgrounds.length, 'images');
-
-  // Use the correct image for each hole
-  // (Removed test override)
-
-  // 1. Clear and set on body
-  document.body.style.backgroundImage = '';
-  document.body.offsetHeight; // Force reflow
-  document.body.style.backgroundImage = `url('${img}')`;
-  document.body.style.backgroundSize = 'cover';
-  document.body.style.backgroundPosition = 'center';
-  document.body.style.backgroundRepeat = 'no-repeat';
-  document.body.style.backgroundAttachment = 'fixed';
-
-  // 2. Also try on html
-  document.documentElement.style.backgroundImage = `url('${img}')`;
-  document.documentElement.style.backgroundSize = 'cover';
-  document.documentElement.style.backgroundPosition = 'center';
-
-  // 3. Remove any backgrounds from containers that might cover it
-  const containers = document.querySelectorAll('.container, .setup-and-board, .header, .game-board, .main, .wrapper');
-  containers.forEach(el => {
-    el.style.background = 'none';
-    el.style.backgroundColor = 'transparent';
-  });
-
-  console.log('Background should now be set to:', img);
-  console.log('Check DevTools Elements tab for <body> background-image style');
+    const img = holeBackgrounds[holeIndex % holeBackgrounds.length];
+    const body = document.body;
+    const html = document.documentElement;
+    // Set background image directly, no transition
+    body.style.backgroundImage = `url('${img}')`;
+    body.style.backgroundSize = 'cover';
+    body.style.backgroundPosition = 'center';
+    body.style.backgroundRepeat = 'no-repeat';
+    body.style.backgroundAttachment = 'fixed';
+    html.style.backgroundImage = `url('${img}')`;
+    html.style.backgroundSize = 'cover';
+    html.style.backgroundPosition = 'center';
+    // Remove any backgrounds from containers that might cover it
+    document.querySelectorAll('.gameBoard, .gameplay-area, .main-content, .container, .content').forEach(el => {
+        el.style.background = 'none';
+        el.style.backgroundColor = 'transparent';
+    });
+    console.log('Background should now be set to:', img);
 }
 
