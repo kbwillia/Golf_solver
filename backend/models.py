@@ -31,6 +31,13 @@ class Card:
     def __hash__(self):
         return hash((self.rank, self.suit))
 
+    def to_dict(self):
+        return {
+            "rank": self.rank,
+            "suit": self.suit,
+            "public": getattr(self, "public", None),  # if you use this
+        }
+
 class Player:
     def __init__(self, name, agent_type="random"):
         self.name = name
@@ -98,3 +105,12 @@ class Player:
             card_score = Card(rank, '♠').score()
             expected += prob * card_score
         return expected
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "grid": [card.to_dict() if card else None for card in self.grid],
+            "known": self.known,
+            # Add any other relevant fields (score, privately_visible, etc.)
+        }

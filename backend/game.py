@@ -3,6 +3,7 @@ import random
 # Import from same directory
 from models import Player, Card
 from agents import RandomAgent, HeuristicAgent, QLearningAgent, HumanAgent, EVAgent, AdvancedEVAgent
+from data_upset import upload_game_state
 
 class GolfGame:
     RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -166,6 +167,24 @@ class GolfGame:
 
         # Display updated grids after the action
         # self.display_all_grids() # tst
+
+        # --- Upload game state after every action ---
+        # Ensure self.game_id exists (set externally when game is created)
+        game_state = {
+            "round": self.round,
+            "current_player": self.turn,
+            "players": [p.to_dict() for p in self.players],
+            "discard_pile": [c.to_dict() for c in self.discard_pile],
+            "deck_size": len(self.deck),
+            "action_history": self.action_history,
+            "scores": [self.calculate_score(p.grid) for p in self.players],
+            "winner": None,  # Set if game over
+            "game_over": self.all_players_done(),
+        }
+        upload_game_state(
+            game_id=getattr(self, 'game_id', None),  # Set this externally when creating the game
+            game_state=game_state
+        )
 
     def all_players_done(self):
         return all(all(p.known) for p in self.players)

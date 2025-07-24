@@ -19,6 +19,7 @@ import os
 from game_state import get_game_state
 from flask import send_file
 from google_chipr_api import chirp3_voice
+from data_upset import upload_game_state
 
 # Load environment variables from .env file
 load_dotenv()
@@ -302,6 +303,12 @@ def make_move():
         else:
             game_session['waiting_for_next_game'] = False
 
+        # --- Upload game state after every turn ---
+        upload_game_state(
+            game_id=game_id,
+            game_state=get_game_state(game_id, games)
+        )
+
         # Return game state BEFORE advancing to next player
         response = jsonify({
             'success': True,
@@ -492,6 +499,12 @@ def run_ai_turn():
             game_session['waiting_for_next_game'] = True
         else:
             game_session['waiting_for_next_game'] = False
+
+        # --- Upload game state after every turn ---
+        upload_game_state(
+            game_id=game_id,
+            game_state=get_game_state(game_id, games)
+        )
 
         # Return game state BEFORE advancing to next player
         response = jsonify({
