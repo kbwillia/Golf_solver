@@ -16,6 +16,8 @@ key = os.environ.get("SUPABASE_LEGACY_SECRET")
 test = os.environ.get("TEST")
 print("key:", key)
 
+NANTZ_COOLDOWN = 1200
+
 class BaseBot(ABC):
     """Base class for all bot personalities"""
 
@@ -434,7 +436,7 @@ class JimNantzBot(BaseBot):
                 "game_over": 1.0,  # Always comments on game over
                 "dramatic_moment": 0.9  # Loves dramatic moments
             },
-            "cooldown_seconds": 1200,  # Moderate cooldown
+            "cooldown_seconds": NANTZ_COOLDOWN,  # Moderate cooldown
             "max_comments_per_game": 12
         })
 

@@ -14,6 +14,8 @@ import time
 # chat_handler = ChatHandler(chatbot)
 
 LAST_X_MESSAGES = 10
+PROACTIVE_TIMER = 300 # 300 seconds = 5 minutes
+CHAT_HISTORY_CHANGE_INTERVAL = 5
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities
@@ -223,6 +225,8 @@ class GolfChatbot:
             # TODO call emotional state for the botto add to the context ( can adjust temperature)
             # TODO call understand_gif for the botto add to the context
 
+            # TODO check to see if its a dramatic event and add to the context.
+
             # Store in conversation history
             self.current_bot.conversation_history.append({"role": "user", "content": user_message})
             self.current_bot.conversation_history.append({"role": "assistant", "content": response})
@@ -241,6 +245,9 @@ class GolfChatbot:
 
             # Store bot response in conversation history
             self.add_message_to_history('bot', response, None)
+
+            # TODO upload to supabase (uuid, game_id, user_id, timestamp, bot_name, message, sender, media, metadata)
+
             return response, context
 
         except Exception as e:
@@ -248,7 +255,7 @@ class GolfChatbot:
             self.add_message_to_history('bot', error_msg, None)
             return error_msg
 
-    def generate_proactive_response(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
+    def generate_off_topic_proactive_response(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
         """Generate a proactive comment based on game events. if get proactive commment is true then then this function is called. This calls a function to see if the bot comments on/off topic."""
 
         context =+ self.base_prompt + "\n"
@@ -259,13 +266,12 @@ class GolfChatbot:
         # Use the bot's proactive behavior system to see if they are going to comment on game state or off topic message. TODO. might need to update proactive config for game state vs off topic.
 
         if not self.is_on_topic(game_state): # so if on topic, general response, if off topic, continue.
-            return self.generate_response(game_state)
+            return self.generate_response(game_state) # could put more speciifc gamestate response instead of general...
         # continue with rest of OFF topicfunction logic here
 
         context += self.off_topic_prompt + "\n"
         # so if we are here, then we are going to generate a proactive comment.
 
-        # TODO Create event-specific prompts from gamestate changes over time. turn start, card drawn, card played, score update, game over, general.
 
         # context
 
@@ -506,17 +512,9 @@ class GolfChatbot:
         """Extract @mentions from a message and map to bot names."""
         mention_regex = r'@(\w+)'
         matches = re.findall(mention_regex, message)
-        bot_name_map = {
-            'golfbro': 'Golf Bro',
-            'golfpro': 'Golf Pro',
-            'golf_bro': 'Golf Bro',
-            'golf_pro': 'Golf Pro',
-        }
+
         mentions = []
-        for m in matches:
-            key = m.lower()
-            if key in bot_name_map:
-                mentions.append(bot_name_map[key])
+        # TODO implement this.
         return mentions
 
 class ChatHandler:
@@ -529,7 +527,32 @@ class ChatHandler:
         self._last_check_time = 0  # Track the last time the function returned True
         self._last_message_timestamp = 0  # Track the timestamp of the last message seen
 
-    def has_conversation_history_changed(self, game_id: str = None, interval: int = 5) -> bool:
+    def proactive_comment_timer(self, game_id, time_interval=PROACTIVE_TIMER):
+        """
+        Waits for inactivity (no conversation history change) for time_interval seconds,
+        then triggers proactive comment logic.
+        Resets timer every time conversation history changes.
+        """
+        while True:
+            start_time = time.time()
+            while True:
+                time.sleep(1)  # Check every second for responsiveness
+                if self.has_conversation_history_changed(game_id):
+                    # Activity detected, reset timer
+                    print(f"[Proactive Timer] Activity detected in game {game_id}, resetting timer.")
+                    start_time = time.time()
+                elif time.time() - start_time >= time_interval:
+                    # No activity for the interval, trigger proactive comment
+                    print(f"[Proactive Timer] No activity in game {game_id} for {time_interval}s. Triggering proactive comment.")
+                    # Example: trigger proactive comment logic here
+                    # game_state = ... (fetch from your games dict or similar)
+                    # comment = self.chatbot.check_for_proactive_comment(game_state, ...)
+                    # if comment:
+                    #     print(f"Proactive comment for {game_id}: {comment}")
+                    start_time = time.time()  # Reset timer after triggering
+
+
+    def has_conversation_history_changed(self, game_id: str = None, interval: int = CHAT_HISTORY_CHANGE_INTERVAL) -> bool:
         """
         Return True if the last message in conversation history is new (content or timestamp differs)
         AND at least `interval` seconds have passed since the last True.
@@ -551,6 +574,8 @@ class ChatHandler:
         ):
             self._last_msg_signature = last_msg_signature
             self._last_check_time = current_time
+            #call
+
             return True
         return False
 
@@ -597,32 +622,21 @@ class ChatHandler:
 
 
 
-    def handle_user_message(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
-        """Handle send message requests from user."""
+    def handle_user_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle send message requests from user. from front end api call."""
         print("DEBUG: Received data:", data)
-        game_id = data.get('game_id')
+        game_id = data.get('game_id')  # Always get game_id from the incoming data
         message = data.get('message')
         # personality_type = data.get('personality_type', 'Jim Nantz') # ?? what is this?
 
         if not message:
             return {'error': 'Message cannot be empty'}, 400
 
-        # Get current game state if game_id is provided
-        game_state = None
-        if game_id and game_id in games:
-            game_state = get_game_state_func(game_id, games)
-            game_session = games[game_id]
-        else:
-            game_session = None
-
-        # Parse mentions from the message
-        # mentioned_bots = parse_mentions(message)
-        # print(f"DEBUG: Mentioned bots: {mentioned_bots}")
-
         # Add user message to conversation history
         self.chatbot.add_message_to_history('user', message, game_id)
 
         # TODO: Trigger bots to respond if needed (already done in the conversation history change check)
+        # TODO: get the parse_mention
 
         # Log user message to Supabase
         upload_chatbot_message(
@@ -635,18 +649,16 @@ class ChatHandler:
             # metadata={"personality_type": personality_type}
         )
 
-        # TODO: Add tagging of bots here (parse mentions)
         return {
             'success': True,
             'message': 'User message received and logged.',
-            'game_id': game_id,
-            # 'mentioned_bots': mentioned_bots
+            'game_id': game_id
         }
 
 
 
     def _handle_bot_message(self, message: str, game_state: Dict[str, Any], personality_type: str, mentioned_bots: List[str]) -> Dict[str, Any]:
-        """Handle chat with single personality"""
+        """Handle """
         # Enhanced response generation
         enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
             message,          # user_message

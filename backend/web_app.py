@@ -818,58 +818,7 @@ def upload_bot_image():
     image_path = f'AI_bot_images/{filename}'
     return jsonify({'success': True, 'image_path': image_path}), 200
 
-def proactive_comment_timer():
-    import time
-    while True:
-        time.sleep(5)  # Check every 5 seconds
-        for game_id, game_session in games.items():
-            game = game_session['game']
-            # Build allowed bots: all AI except Golf Pro and Golf Bro, plus Jim Nantz
-            allowed_bots = []
-            for idx, player in enumerate(game.players[1:]):
-                # Try to get ai_bot_id from selected_bots
-                selected_bots = game_session.get('selected_bots', [])
-                if idx < len(selected_bots):
-                    bot_id = selected_bots[idx].get('ai_bot_id')
-                    allowed_bots.append(bot_id)
-            # Optionally add Jim Nantz by id if needed
-            # if "Jim Nantz" not in [b.get('name') for b in selected_bots]:
-            #     allowed_bots.append('Jim Nantz')
-            for bot_id in allowed_bots:
-                # Debug: Show custom bot mappings in game session
-                print(f"[DEBUG] Custom bot mappings in session:", flush=True)
-                for k, v in game_session.items():
-                    if 'custom_bot' in k:
-                        print(f"[DEBUG]   {k}: {v}", flush=True)
-                # Look up the full bot object
-                bot_obj = next((b for b in game_session.get('selected_bots', []) if b.get('ai_bot_id') == bot_id), None)
-                if not bot_obj:
-                    continue
-                bot_name = bot_obj.get('name', 'Unknown Bot')
-                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {bot_id}", flush=True)
-                # Use bot_obj attributes for proactive comment logic
-                # If you need to instantiate a bot class for advanced logic, pass bot_obj as needed
-                # For now, just use the name and attributes directly
-                last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
-                cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
-                # Use chatbot to generate comment (you may want to pass bot_obj if needed)
-                comment = None
-                if hasattr(chat_handler.chatbot, 'check_for_proactive_comment'):
-                    comment = chat_handler.chatbot.check_for_proactive_comment(
-                        game_state=get_game_state(game_id, games),
-                        conversation_history=game_session['conversation_history'],
-                        last_proactive_comment_time=last_time,
-                        cooldown_seconds=cooldown
-                    )
-                if comment:
-                    if 'pending_proactive_comments' not in game_session:
-                        game_session['pending_proactive_comments'] = []
-                    game_session['pending_proactive_comments'].append({
-                        'bot_name': bot_name,
-                        **comment
-                    })
-                    game_session[f'last_proactive_comment_time_{bot_name}'] = time.time()
-                    print(f"[Timer] Proactive comment generated for {bot_name}: {comment}", flush=True)
+
 
 # Start the timer in a background thread (add this near your app startup)
 threading.Thread(target=proactive_comment_timer, daemon=True).start()
