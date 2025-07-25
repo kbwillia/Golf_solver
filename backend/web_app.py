@@ -41,7 +41,7 @@ print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static
 
 
 chatbot = GolfChatbot()
-chat_handler = ChatHandler(chatbot)
+chat_handler = ChatHandler(chatbot, games, get_game_state)
 # Add error handling for imports
 try:
     print("✅ All imports successful")
@@ -216,6 +216,9 @@ def create_game():
     print("Final player order:")
     for i, name in enumerate(player_names):
         print(f"  Index {i}: {name}")
+
+    # Update ChatHandler with the new game
+    chat_handler.update_games_reference(games, get_game_state)
 
     return jsonify({
         'success': True,

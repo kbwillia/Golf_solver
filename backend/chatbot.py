@@ -518,15 +518,39 @@ class GolfChatbot:
 class ChatHandler:
     """Handler for all chat-related functionality.
     Handles the orchestration, timing, and triggering of chat events in the context of your web app/game.
-    Acts as the “glue” between the web server/game state and the GolfChatbot."""
+    Acts as the "glue" between the web server/game state and the GolfChatbot."""
 
-    def __init__(self, chatbot_instance: GolfChatbot):
+    def __init__(self, chatbot_instance: GolfChatbot, games_dict: Dict = None, get_game_state_func=None):
         self.chatbot = chatbot_instance
-        self._last_check_time = 0  # Track the last time the function returned True
-        self._last_message_timestamp = 0  # Track the timestamp of the last message seen
+        self.games = games_dict or {}  # Reference to global games dictionary
+        self.get_game_state_func = get_game_state_func  # Function to get game state
+        # Track conversation history changes per game
+        self._game_tracking = {}  # {game_id: {'last_msg_signature': tuple, 'last_check_time': float}}
+
+        # Start the periodic conversation check in a background thread
+        threading.Thread(
+            target=self.periodic_conversation_check,
+            daemon=True
+        ).start()
+
+    def update_games_reference(self, games_dict: Dict, get_game_state_func=None):
+        """Update the reference to the games dictionary (useful for dependency injection)."""
+        self.games = games_dict
+        if get_game_state_func:
+            self.get_game_state_func = get_game_state_func
+        print(f"ChatHandler updated with {len(games_dict)} games")
+
+    def _get_or_create_game_tracking(self, game_id: str) -> dict:
+        """Get or create tracking data for a specific game."""
+        if game_id not in self._game_tracking:
+            self._game_tracking[game_id] = {
+                'last_msg_signature': None,
+                'last_check_time': 0
+            }
+        return self._game_tracking[game_id]
 
     def proactive_comment_timer(self, game_id, time_interval=PROACTIVE_TIMER):
-        print(f"GolfChatbot.proactive_comment_timer called for game_id={game_id}")
+        print(f"ChatHandler.proactive_comment_timer called for game_id={game_id}")
         """
         Waits for inactivity (no conversation history change) for time_interval seconds,
         then triggers proactive comment logic.
@@ -550,53 +574,137 @@ class ChatHandler:
                     #     print(f"Proactive comment for {game_id}: {comment}")
                     start_time = time.time()  # Reset timer after triggering
 
-
-
-    def periodic_conversation_check(chat_handler, game_id=None, interval=CHAT_HISTORY_CHANGE_INTERVAL):
+    def periodic_conversation_check(self, interval=CHAT_HISTORY_CHANGE_INTERVAL):
         """
         Periodically check if the conversation history has changed every `interval` seconds.
         If changed, trigger your logic (e.g., proactive bot, notify frontend, etc.).
         """
+        print('periodic_conversation_check called')
         while True:
-            if chat_handler.has_conversation_history_changed(game_id):
-                print("Conversation history changed!")
-                # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
+            # Check ALL active games (not just ones with conversation history)
+            all_game_ids = set(self.games.keys()) | set(self.chatbot.conversation_history.keys())
+
+            for game_id in all_game_ids:
+                if self.has_conversation_history_changed(game_id):
+                    print(f"Conversation history changed for game_id={game_id}!")
+                    # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
+
+                    # Check for proactive comments
+                    self.check_for_proactive_comment(game_id)
+
             time.sleep(interval)
 
+    def check_for_proactive_comment(self, game_id: str):
+        """Check if a proactive comment should be generated for this game."""
+        print(f"ChatHandler.check_for_proactive_comment called for game_id={game_id}")
+
+        if game_id not in self.games:
+            print(f"Game {game_id} not found in games dictionary")
+            return
+
+        game_session = self.games[game_id]
+
+        # Check if enough time has passed since last proactive comment
+        last_comment_time = game_session.get('last_proactive_comment_time', 0)
+        cooldown = game_session.get('proactive_comment_cooldown', 10)
+
+        if time.time() - last_comment_time < cooldown:
+            print(f"Proactive comment cooldown active for game {game_id}")
+            return
+
+        # Get game state
+        if self.get_game_state_func:
+            game_state = self.get_game_state_func(game_id, self.games)
+        else:
+            print("No get_game_state_func available")
+            return
+
+        # Check if this is a good time for a proactive comment
+        # (e.g., dramatic event, game state change, etc.)
+        if self.should_generate_proactive_comment(game_state, game_session):
+            print(f"Generating proactive comment for game {game_id}")
+            # TODO: Implement proactive comment generation
+            # self.generate_proactive_comment(game_id, game_state, game_session)
+
+            # Update last comment time
+            game_session['last_proactive_comment_time'] = time.time()
+
+    def should_generate_proactive_comment(self, game_state: Dict, game_session: Dict) -> bool:
+        """Determine if a proactive comment should be generated."""
+        # Check for dramatic events
+        if self.chatbot.is_dramatic_event(game_state):
+            return True
+
+        # Check for game state changes that warrant commentary
+        # (e.g., new round, score changes, etc.)
+
+        # Check for inactivity (this is handled by proactive_comment_timer)
+
+        return False
+
     def has_conversation_history_changed(self, game_id: str = None, interval: int = CHAT_HISTORY_CHANGE_INTERVAL) -> bool:
-        print(f"GolfChatbot.has_conversation_history_changed called for game_id={game_id}")
+        print(f"ChatHandler.has_conversation_history_changed called for game_id={game_id}")
         """
         Return True if the last message in conversation history is new (content or timestamp differs)
         AND at least `interval` seconds have passed since the last True.
         """
         import time
         current_time = time.time()
+
         # Use per-game or global conversation history
         if game_id:
             history = self.chatbot.conversation_history.get(game_id, [])
         else:
             history = self.chatbot.conversation_history.get('global', [])
+
         if not history:
             return False
+
         last_msg = history[-1]
         last_msg_signature = (last_msg.get('content', ''), last_msg.get('timestamp', 0))
-        if (
-            getattr(self, '_last_msg_signature', None) != last_msg_signature and
-            (current_time - self._last_check_time) >= interval
-        ):
-            self._last_msg_signature = last_msg_signature
-            self._last_check_time = current_time
-            #call
 
+        # Get per-game tracking data
+        tracking = self._get_or_create_game_tracking(game_id or 'global')
+
+        if (
+            tracking['last_msg_signature'] != last_msg_signature and
+            (current_time - tracking['last_check_time']) >= interval
+        ):
+            tracking['last_msg_signature'] = last_msg_signature
+            tracking['last_check_time'] = current_time
             return True
         return False
 
+    def get_game_id_from_memory(self, user_id: str = None) -> Optional[str]:
+        """Get the most recent game_id from memory for a user."""
+        print(f"ChatHandler.get_game_id_from_memory called for user_id={user_id}")
 
+        # If we have access to the games dict, we could find the most recent game
+        # For now, this is a placeholder for future implementation
+        # You could implement logic like:
+        # - Find the most recent game for this user
+        # - Find the game with the most recent activity
+        # - Find the game with unread messages
+
+        # For now, return None to force explicit game_id
+        return None
 
     def handle_user_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle send message requests from user. from front end api call."""
         print("DEBUG:handle_user_message Received data:", data)
-        game_id = data.get('game_id')  # Always get game_id from the incoming data
+
+        # Try to get game_id from request first
+        game_id = data.get('game_id')
+
+        # Fallback to memory if not provided
+        # if not game_id:
+        #     user_id = data.get('user_id')
+        #     game_id = self.get_game_id_from_memory(user_id)
+        #     if game_id:
+        #         print(f"DEBUG: Using game_id from memory: {game_id}")
+        #     else:
+        #         return {'error': 'game_id is required'}, 400
+
         message = data.get('message')
         # personality_type = data.get('personality_type', 'Jim Nantz') # ?? what is this?
 
