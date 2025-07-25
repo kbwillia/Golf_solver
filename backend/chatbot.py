@@ -14,8 +14,8 @@ import time
 # chat_handler = ChatHandler(chatbot)
 
 LAST_X_MESSAGES = 10
-PROACTIVE_TIMER = 300 # 300 seconds = 5 minutes
-CHAT_HISTORY_CHANGE_INTERVAL = 5
+PROACTIVE_TIMER = 3 # (seconds)300 seconds = 5 minutes
+CHAT_HISTORY_CHANGE_INTERVAL = 3
 
 class GolfChatbot:
     """Chatbot for the Golf card game with different personalities
@@ -160,7 +160,7 @@ class GolfChatbot:
         print("GolfChatbot.is_dramatic_event called")
         """Check if the game state is a dramatic event."""
         # TODO add dramatic event logic here.
-        return False # will need to update this function.
+        return True # will need to update this function.
 
     def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, bot_info: Optional[Dict[str, Any]] = None) -> str:
         print(f"GolfChatbot.generate_response called with user_message={user_message}")
@@ -265,7 +265,7 @@ class GolfChatbot:
         print(f"GolfChatbot.generate_off_topic_proactive_response called with event_type={event_type}")
         """Generate a proactive comment based on game events. if get proactive commment is true then then this function is called. This calls a function to see if the bot comments on/off topic."""
 
-        context =+ self.base_prompt + "\n"
+        context = self.base_prompt + "\n"
 
         print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
         print(f"DEBUG: Current bot_type: {self.bot_type}")
@@ -527,9 +527,10 @@ class ChatHandler:
         # Track conversation history changes per game
         self._game_tracking = {}  # {game_id: {'last_msg_signature': tuple, 'last_check_time': float}}
 
-        # Start the periodic conversation check in a background thread
+        # Start the proactive comment timer in a background thread
         threading.Thread(
-            target=self.periodic_conversation_check,
+            target=self.proactive_comment_timer,
+            args=('global', PROACTIVE_TIMER),  # Monitor all games for inactivity
             daemon=True
         ).start()
 
@@ -549,85 +550,63 @@ class ChatHandler:
             }
         return self._game_tracking[game_id]
 
-    def proactive_comment_timer(self, game_id, time_interval=PROACTIVE_TIMER):
-        print(f"ChatHandler.proactive_comment_timer called for game_id={game_id}")
+    def proactive_comment_timer(self, game_id='global', time_interval=PROACTIVE_TIMER):
         """
         Waits for inactivity (no conversation history change) for time_interval seconds,
         then triggers proactive comment logic.
         Resets timer every time conversation history changes.
+
+        Args:
+            game_id: 'global' to monitor all games, or specific game_id for single game
+            time_interval: Seconds to wait for inactivity before triggering proactive comment
         """
+        print(f"ChatHandler.proactive_comment_timer started for {game_id}")
+
         while True:
-            start_time = time.time()
-            while True:
-                time.sleep(1)  # Check every second for responsiveness
-                if self.has_conversation_history_changed(game_id):
-                    # Activity detected, reset timer
-                    print(f"[Proactive Timer] Activity detected in game {game_id}, resetting timer.")
-                    start_time = time.time()
-                elif time.time() - start_time >= time_interval:
-                    # No activity for the interval, trigger proactive comment
-                    print(f"[Proactive Timer] No activity in game {game_id} for {time_interval}s. Triggering proactive comment.")
-                    # Example: trigger proactive comment logic here
-                    # game_state = ... (fetch from your games dict or similar)
-                    # comment = self.chatbot.check_for_proactive_comment(game_state, ...)
-                    # if comment:
-                    #     print(f"Proactive comment for {game_id}: {comment}")
-                    start_time = time.time()  # Reset timer after triggering
+            if game_id == 'global':
+                # Monitor all active games
+                for active_game_id in list(self.games.keys()):
+                    self._check_single_game_inactivity(active_game_id, time_interval)
+            else:
+                # Monitor specific game
+                self._check_single_game_inactivity(game_id, time_interval)
 
-    def periodic_conversation_check(self, interval=CHAT_HISTORY_CHANGE_INTERVAL):
-        """
-        Periodically check if the conversation history has changed every `interval` seconds.
-        If changed, trigger your logic (e.g., proactive bot, notify frontend, etc.).
-        """
-        print('periodic_conversation_check called')
-        while True:
-            # Check ALL active games (not just ones with conversation history)
-            all_game_ids = set(self.games.keys()) | set(self.chatbot.conversation_history.keys())
+            time.sleep(1)  # Check every second
 
-            for game_id in all_game_ids:
-                if self.has_conversation_history_changed(game_id):
-                    print(f"Conversation history changed for game_id={game_id}!")
-                    # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
-
-                    # Check for proactive comments
-                    self.check_for_proactive_comment(game_id)
-
-            time.sleep(interval)
-
-    def check_for_proactive_comment(self, game_id: str):
-        """Check if a proactive comment should be generated for this game."""
-        print(f"ChatHandler.check_for_proactive_comment called for game_id={game_id}")
-
-        if game_id not in self.games:
-            print(f"Game {game_id} not found in games dictionary")
+    def _check_single_game_inactivity(self, game_id: str, time_interval: int):
+        """Check inactivity for a single game and trigger proactive comment if needed."""
+        # Check if conversation history has changed recently
+        if self.has_conversation_history_changed(game_id):
+            # Activity detected, reset timer
+            print(f"[Proactive Timer] Activity detected in game {game_id}, resetting timer.")
             return
 
-        game_session = self.games[game_id]
+        # Check if enough time has passed since last conversation activity
+        if game_id in self.games:
+            # Get the last message timestamp from conversation history
+            last_message_time = 0
+            if game_id in self.chatbot.conversation_history and self.chatbot.conversation_history[game_id]:
+                last_message = self.chatbot.conversation_history[game_id][-1]
+                last_message_time = last_message.get('timestamp', 0)
 
-        # Check if enough time has passed since last proactive comment
-        last_comment_time = game_session.get('last_proactive_comment_time', 0)
-        cooldown = game_session.get('proactive_comment_cooldown', 10)
+            # Check if enough time has passed since last message
+            if time.time() - last_message_time >= time_interval:
+                # No conversation activity for the interval, check if we should generate proactive comment
+                print(f"[Proactive Timer] No conversation activity in game {game_id} for {time_interval}s. Checking for proactive comment.")
 
-        if time.time() - last_comment_time < cooldown:
-            print(f"Proactive comment cooldown active for game {game_id}")
-            return
+                # Get game state and check if proactive comment should be generated
+                if self.get_game_state_func:
+                    game_state = self.get_game_state_func(game_id, self.games)
+                    game_session = self.games[game_id]
 
-        # Get game state
-        if self.get_game_state_func:
-            game_state = self.get_game_state_func(game_id, self.games)
-        else:
-            print("No get_game_state_func available")
-            return
-
-        # Check if this is a good time for a proactive comment
-        # (e.g., dramatic event, game state change, etc.)
-        if self.should_generate_proactive_comment(game_state, game_session):
-            print(f"Generating proactive comment for game {game_id}")
-            # TODO: Implement proactive comment generation
-            # self.generate_proactive_comment(game_id, game_state, game_session)
-
-            # Update last comment time
-            game_session['last_proactive_comment_time'] = time.time()
+                    if self.should_generate_proactive_comment(game_state, game_session):
+                        print(f"[Proactive Timer] Generating proactive comment for game {game_id}")
+                        # TODO: Implement proactive comment generation
+                        # self.generate_proactive_comment(game_id, game_state, game_session)
+                    else:
+                        print(f"[Proactive Timer] No proactive comment needed for game {game_id}")
+                else:
+                    print("No get_game_state_func available")
 
     def should_generate_proactive_comment(self, game_state: Dict, game_session: Dict) -> bool:
         """Determine if a proactive comment should be generated."""

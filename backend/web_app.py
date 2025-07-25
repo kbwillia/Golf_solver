@@ -39,6 +39,8 @@ print(f"Static folder: {os.path.join(frontend_dir, 'static')}")
 print(f"Template folder exists: {os.path.exists(os.path.join(frontend_dir, 'templates'))}")
 print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static'))}")
 
+# Store active games
+games = {}
 
 chatbot = GolfChatbot()
 chat_handler = ChatHandler(chatbot, games, get_game_state)
@@ -54,9 +56,6 @@ app = Flask(__name__,
            template_folder=os.path.join(frontend_dir, 'templates'),
            static_folder=os.path.join(frontend_dir, 'static'))
 app.secret_key = 'your-secret-key-here'  # Change this in production
-
-# Store active games
-games = {}
 
 AI_TURN_DELAY = 0.50  # seconds
 
@@ -206,8 +205,6 @@ def create_game():
         'match_winner': None,
         'cumulative_updated_for_game': False,
         'conversation_history': [],
-        'last_proactive_comment_time': time.time(),
-        'proactive_comment_cooldown': 10,
         'pending_proactive_comments': [],
         'selected_bots': selected_bots, # Store selected_bots in session
         'whos_first': 0,  # Human starts first. Kinda like dealer, but want the human to start.
