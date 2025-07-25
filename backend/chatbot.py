@@ -130,29 +130,52 @@ class GolfChatbot:
         except Exception as e:
             return f"Error formatting game state: {str(e)}"
 
-    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None, proactive: bool = False, return_prompt: bool = False) -> str:
+    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None, proactive: bool = False, return_prompt: bool = False, bot_info: Optional[Dict[str, Any]] = None) -> str:
         """Generate a chatbot response based on user input and game state"""
 
-        if personality is None:
-            personality = self.bot_type  # fallback to default
+        # Use provided bot_info if available (from game session memory)
+        if bot_info:
+            bot_name = bot_info.get('name', 'AI Bot')
+            bot_description = bot_info.get('description', '')
 
-        # Update the current bot if personality changed
-        if personality != self.bot_type:
-            self.current_bot = create_bot(personality)
-            self.bot_type = personality
+            # Create system prompt using bot description
+            system_prompt = f"You are {bot_name}. "
+            if bot_description:
+                system_prompt += f"Your personality: {bot_description}. "
 
-        bot_info = self.get_bot_info()
-        system_prompt = bot_info["system_prompt"]
+            # Add difficulty-based characteristics
+            difficulty = bot_info.get('difficulty', 'medium')
+            if difficulty == "easy":
+                system_prompt += "You are friendly and encouraging. "
+            elif difficulty == "medium":
+                system_prompt += "You are balanced and strategic. "
+            elif difficulty == "hard":
+                system_prompt += "You are competitive and analytical. "
 
-        # Print the system prompt for investigation
-        print(f"🔧 SYSTEM PROMPT for {bot_info['name']}:")
-        print(f"🔧 {system_prompt}")
-        print(f"🔧 Bot type: {self.bot_type}")
-        print(f"🔧 Bot description: {self.current_bot.description}")
+            system_prompt += "Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
 
-        # Update emotional state based on current game performance (enhanced version)
-        if game_state:
-            self.current_bot.update_emotional_state_advanced(game_state)
+            print(f"🔧 SYSTEM PROMPT for {bot_name} (from memory):")
+            print(f"🔧 {system_prompt}")
+
+        else:
+            # Fallback to old method for built-in bots
+            if personality is None:
+                personality = self.bot_type  # fallback to default
+
+            # Update the current bot if personality changed
+            if personality != self.bot_type:
+                self.current_bot = create_bot(personality)
+                self.bot_type = personality
+
+            bot_info_obj = self.get_bot_info()
+            system_prompt = bot_info_obj["system_prompt"]
+
+        # Print the system prompt for investigation (only for fallback method)
+        if not bot_info:
+            print(f"🔧 SYSTEM PROMPT for {bot_info_obj['name']} (built-in):")
+            print(f"🔧 {system_prompt}")
+            print(f"🔧 Bot type: {self.bot_type}")
+            print(f"🔧 Bot description: {self.current_bot.description}")
 
         # Always add system prompt and rules ONCE at the top
         context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
@@ -160,27 +183,33 @@ class GolfChatbot:
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
-        # Add dynamic emotional and personality context
-        dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
-        context += dynamic_context + "\n\n"
+        # For built-in bots, add advanced personality features
+        if not bot_info and hasattr(self, 'current_bot'):
+            # Update emotional state based on current game performance (enhanced version)
+            if game_state:
+                self.current_bot.update_emotional_state_advanced(game_state)
 
-        # Add enhanced response style context
-        style_context = self.current_bot.get_response_style_context()
-        context += style_context + "\n\n"
+            # Add dynamic emotional and personality context
+            dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
+            context += dynamic_context + "\n\n"
 
-        # Add personality-specific prompt additions
-        if game_state:
-            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
-        else:
-            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("general")
+            # Add enhanced response style context
+            style_context = self.current_bot.get_response_style_context()
+            context += style_context + "\n\n"
 
-        if personality_additions:
-            context += personality_additions + "\n\n"
+            # Add personality-specific prompt additions
+            if game_state:
+                personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
+            else:
+                personality_additions = self.current_bot.generate_personality_specific_prompt_additions("general")
 
-        # Add situational context
-        situational_context = self.current_bot.get_situational_context(game_state)
-        if situational_context:
-            context += situational_context + "\n\n"
+            if personality_additions:
+                context += personality_additions + "\n\n"
+
+            # Add situational context
+            situational_context = self.current_bot.get_situational_context(game_state)
+            if situational_context:
+                context += situational_context + "\n\n"
 
         # Always add the base prompt
         context += self.base_prompt + "\n"

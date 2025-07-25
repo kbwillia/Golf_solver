@@ -212,6 +212,10 @@ def create_game():
         'whos_first': 0,  # Human starts first. Kinda like dealer, but want the human to start.
     }
 
+    print("Final player order:")
+    for i, name in enumerate(player_names):
+        print(f"  Index {i}: {name}")
+
     return jsonify({
         'success': True,
         'game_id': game_id,
@@ -485,48 +489,17 @@ def run_ai_turn():
     if game.turn != 0 and not game_session['game_over']:
         game_session['ai_thinking'] = True
         player = game.players[game.turn]
-        # Always add delay for all AI turns (not just after human)
         time.sleep(AI_TURN_DELAY)
-        game.play_turn(player)
-
-        # Update cumulative scores BEFORE advancing to next player
-        update_round_cumulative_scores(game_session, game)
-
-        # Check for game over by all cards revealed
-        if game.all_players_done():
-            game_session['game_over'] = True
-        # Set waiting_for_next_game flag for multigame matches
-        if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-            game_session['waiting_for_next_game'] = True
-        else:
-            game_session['waiting_for_next_game'] = False
-
-        # --- Upload game state after every turn ---
-        # upload_game_state(
-        #     game_id=game_id,
-        #     game_state=get_game_state(game_id, games)
-        # )
-
-        # Return game state BEFORE advancing to next player
-        response = jsonify({
-            'success': True,
-            'game_state': get_game_state(game_id, games)
-        })
-
-        # Move to next player (this may advance the round)
-        game.next_player()
-
-        # Remove round-based game over logic
-        # if game.round > game.max_rounds:
-        #     for p in game.players:
-        #         p.reveal_all()
-        #     game_session['game_over'] = True
-        #     # If this is the last game, set match_winner
-        #     if game_session['current_game'] == game_session['num_games']:
-        #         min_score = min(game_session['cumulative_scores'])
-        #         winners = [i for i, s in enumerate(game_session['cumulative_scores']) if s == min_score]
-        #         game_session['match_winner'] = winners
-
+        try:
+            move_success = game.play_turn(player)
+            update_round_cumulative_scores(game_session, game)
+            if game.all_players_done():
+                game_session['game_over'] = True
+            game.next_player()  # Always advance the turn after a bot move
+            print(f"After next_player: turn={game.turn}, player={game.players[game.turn].name}")
+        except Exception as e:
+            print(f"AI move failed: {e}")
+            # Optionally, do not advance the turn
         game_session['ai_thinking'] = False
 
         # Mark waiting for next game if more games remain (don't auto-start)
@@ -545,7 +518,10 @@ def run_ai_turn():
         else:
             game_session['waiting_for_next_game'] = False
 
-        return response
+        return jsonify({
+            'success': True,
+            'game_state': get_game_state(game_id, games)
+        })
 
     # Mark waiting for next game if more games remain (don't auto-start)
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:

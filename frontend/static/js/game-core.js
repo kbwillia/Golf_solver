@@ -161,7 +161,7 @@ async function startGame() {
 
             // Check if it's an AI's turn right after game creation
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                pollAITurns();
+                pollAITurnsRobust();
             }
         } else {
             console.error('Game start error:', data);
@@ -224,7 +224,7 @@ async function refreshGameState() {
             // Check if it's an AI's turn and start polling if needed
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                 console.log('🔄 refreshGameState: AI turn detected, calling pollAITurns');
-                pollAITurns();
+                pollAITurnsRobust();
             }
 
             if (data.game_over) {
@@ -427,7 +427,7 @@ async function nextGame() {
 
             // Check if it's an AI's turn right after new game creation
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                pollAITurns();
+                pollAITurnsRobust();
             }
         } else {
             console.error('Next game error:', data.error);
@@ -627,7 +627,7 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                 setTimeout(() => {
                     if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                        pollAITurns();
+                        pollAITurnsRobust();
                     }
                 }, 500); // Add 500ms delay for first AI turn
             }
@@ -639,53 +639,73 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
     }
 }
 
-async function pollAITurns() {
-    // console.log('🤖 pollAITurns called - current_turn:', currentGameState?.current_turn, 'game_over:', currentGameState?.game_over, 'aiTurnInProgress:', aiTurnInProgress);
+// Global flag to prevent multiple concurrent AI polling
+let aiPollingInProgress = false;
 
-    // Prevent multiple concurrent AI turn polling
-    if (aiTurnInProgress) {
-        // console.log('🤖 AI turn already in progress, skipping...');
-        return;
+async function pollAITurnsRobust(maxRetries = 5, retryDelay = 500) {
+  // Prevent multiple concurrent polling instances
+  if (aiPollingInProgress) {
+    console.log('🤖 AI polling already in progress, skipping...');
+    return;
+  }
+
+  aiPollingInProgress = true;
+  let retries = 0;
+
+  try {
+    while (
+      currentGameState &&
+      currentGameState.current_turn !== 0 &&
+      !currentGameState.game_over &&
+      retries < maxRetries
+    ) {
+    const currentBotIndex = currentGameState.current_turn;
+    const currentBotName = currentGameState.players && currentGameState.players[currentBotIndex] ? currentGameState.players[currentBotIndex].name : 'Unknown';
+    console.log(`[AI Poll] Before /run_ai_turn: currentBotIndex=${currentBotIndex}, name=${currentBotName}, retries=${retries}`);
+
+    // Call /run_ai_turn for the current bot
+    const response = await fetch('/run_ai_turn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game_id: gameId }),
+    });
+    const data = await response.json();
+    const newGameState = data.game_state;
+
+    const newTurnIndex = newGameState.current_turn;
+    const newTurnName = newGameState.players && newGameState.players[newTurnIndex] ? newGameState.players[newTurnIndex].name : 'Unknown';
+    console.log(`[AI Poll] After /run_ai_turn: newTurnIndex=${newTurnIndex}, name=${newTurnName}, game_over=${newGameState.game_over}`);
+
+    // Always update the global state and UI after each call
+    currentGameState = newGameState;
+    updateGameDisplay();
+
+    // Check if the new current_turn is a bot
+    if (
+      newGameState.current_turn !== 0 &&
+      !newGameState.game_over
+    ) {
+      // If the turn did not advance (still same bot), retry after a delay
+      if (newGameState.current_turn === currentBotIndex) {
+        retries++;
+        console.log('[AI Poll] Still same bot, retrying...');
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      } else {
+        // Turn advanced to another bot, continue loop (reset retries)
+        console.log('[AI Poll] Turn advanced to another bot, continuing...');
+        retries = 0;
+      }
+      // Loop continues for the next bot
+    } else {
+      // It's now a human's turn or game over, stop
+      console.log('[AI Poll] Human turn or game over, stopping.');
+      break;
     }
-
-    // FIXED: Only run ONE AI turn at a time, not all AI turns in a loop
-    // This allows humans to see each AI move before the next one happens
-    if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-        aiTurnInProgress = true; // Set flag to prevent concurrent calls
-        console.log('🤖 Making AI turn request for player', currentGameState.current_turn);
-
-        try {
-            const response = await fetch('/run_ai_turn', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game_id: gameId })
-            });
-            const data = await response.json();
-            if (data.success) {
-                // console.log('🤖 AI turn successful, updating game state');
-                currentGameState = data.game_state;
-                updateGameDisplay();
-
-                // If there's another AI turn needed, schedule it after a delay
-                if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                    // console.log('🤖 Scheduling next AI turn after delay...');
-                    setTimeout(() => {
-                        aiTurnInProgress = false; // Reset flag before next call
-                        pollAITurns(); // Recursive call for next AI turn
-                    }, 1500); // 1.5 second delay between AI turns for visibility
-                } else {
-                    aiTurnInProgress = false; // Reset flag when done
-                }
-            } else {
-                console.log('🤖 AI turn failed or game over:', data.error);
-                aiTurnInProgress = false; // Reset flag on error
-            }
-        } catch (error) {
-            console.error('🤖 Error in pollAITurns:', error);
-            aiTurnInProgress = false; // Reset flag on error
-        }
-    }
-    // console.log('🤖 pollAITurns finished - current_turn:', currentGameState?.current_turn, 'aiTurnInProgress:', aiTurnInProgress);
+  }
+  } finally {
+    // Always reset the flag when polling completes
+    aiPollingInProgress = false;
+  }
 }
 
 // Helper function to use a random bot for 1v1 mode

@@ -255,6 +255,11 @@ function updatePlayerGrids() {
             document.querySelectorAll('.player-grid.current-turn').forEach(el => el.classList.remove('turn-animate'));
         }
 
+        console.log('Rendering player grids:');
+        currentGameState.players.forEach((player, idx) => {
+            console.log(`  Index ${idx}: ${player.name}, grid:`, player.grid);
+        });
+
         currentGameState.players.forEach((player, index) => {
             const playerDiv = document.createElement('div');
             playerDiv.className = 'player-grid';
@@ -675,7 +680,7 @@ async function executeAction(position, actionType = null) {
                         // Continue with AI turn logic
                         if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                             // console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
-                            pollAITurns();
+                            pollAITurnsRobust();
                         }
                     });
 
@@ -710,7 +715,7 @@ async function executeAction(position, actionType = null) {
                         // Continue with AI turn logic
                         if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                             console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
-                            pollAITurns();
+                            pollAITurnsRobust();
                         }
                     });
 
@@ -740,7 +745,7 @@ async function executeAction(position, actionType = null) {
             // If it's now an AI's turn, start polling for AI turns
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
                 console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
-                pollAITurns();
+                pollAITurnsRobust();
             }
         } else {
             console.error('Action failed:', data.error);

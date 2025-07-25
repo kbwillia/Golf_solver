@@ -806,7 +806,6 @@ def create_bot(bot_type: str) -> BaseBot:
     print(f"🔧 CUSTOM BOT: create_bot() called with bot_type = '{bot_type}'")
 
     bot_classes = {
-
         "Jim Nantz": JimNantzBot,
         "Golf Bro": GolfBroBot,
         "Golf Pro": GolfProBot,
