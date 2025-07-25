@@ -681,7 +681,7 @@ function clearChatUI() {
     if (chatMessages) {
         chatMessages.innerHTML = '';
         // Add the original helpful message about using @ symbols
-        addMessageToChat('bot', "Hi! Chat with your opponents, or type @golfbro or @golfpro to ask specific bots questions!");
+        addMessageToChat('bot', "Hi! Chat with your opponents"); //might remove??
     }
     updateChatInputState();
 }

@@ -484,6 +484,7 @@ class GolfChatbot:
     def add_message_to_history(self, sender: str, content: str, game_id: str = None):
         print(f"GolfChatbot.add_message_to_history called with sender={sender}, game_id={game_id}")
         """Add a message to the conversation history with a timestamp."""
+
         import time
         message = {
             'sender': sender,
@@ -499,6 +500,8 @@ class GolfChatbot:
             if 'global' not in self.conversation_history:
                 self.conversation_history['global'] = []
             self.conversation_history['global'].append(message)
+
+        print(f' chat history: {self.conversation_history}')
 
 
 
