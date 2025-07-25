@@ -255,10 +255,8 @@ function updatePlayerGrids() {
             document.querySelectorAll('.player-grid.current-turn').forEach(el => el.classList.remove('turn-animate'));
         }
 
-        console.log('Rendering player grids:');
-        currentGameState.players.forEach((player, idx) => {
-            console.log(`  Index ${idx}: ${player.name}, grid:`, player.grid);
-        });
+
+
 
         currentGameState.players.forEach((player, index) => {
             const playerDiv = document.createElement('div');

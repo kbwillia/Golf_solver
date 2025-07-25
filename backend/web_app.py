@@ -12,7 +12,7 @@ import threading
 # Import from same directory
 from game import GolfGame
 from probabilities import get_probabilities, get_deck_counts, expected_value_draw_vs_discard
-from chatbot import chatbot, chat_handler
+from chatbot import GolfChatbot, ChatHandler
 from bot_personalities import enhance_custom_bot, save_bot_to_supabase
 import json
 import os
@@ -39,6 +39,9 @@ print(f"Static folder: {os.path.join(frontend_dir, 'static')}")
 print(f"Template folder exists: {os.path.exists(os.path.join(frontend_dir, 'templates'))}")
 print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static'))}")
 
+
+chatbot = GolfChatbot()
+chat_handler = ChatHandler(chatbot)
 # Add error handling for imports
 try:
     print("✅ All imports successful")
@@ -132,9 +135,7 @@ def debug_static():
         'static_dir_contents': os.listdir(os.path.join(frontend_dir, 'static')) if os.path.exists(os.path.join(frontend_dir, 'static')) else 'Directory not found'
     })
 
-@app.route('/test_chatbot_simple.html')
-def test_chatbot():
-    return send_from_directory('../frontend', 'test_chatbot_simple.html')
+
 
 @app.route('/create_game', methods=['POST'])
 def create_game():
@@ -145,11 +146,11 @@ def create_game():
     selected_bots = data.get('selected_bots', [])  # Always an array of bot objects
 
     # Ensure Jim Nantz, Golf Pro, and Golf Bro are present exactly once using a loop
-    from bot_personalities import JimNantzBot, GolfProBot, GolfBroBot
+    from bot_personalities import JimNantzBot # deciding to only keep players in the chat with announcers
     core_bots = [
         {"name": "Jim Nantz", "ai_bot_id": "jim_nantz", "class": JimNantzBot, "difficulty": "announcer"},
-        {"name": "Golf Pro", "ai_bot_id": "golf_pro", "class": GolfProBot, "difficulty": "nonplayer"},
-        {"name": "Golf Bro", "ai_bot_id": "golf_bro", "class": GolfBroBot, "difficulty": "nonplayer"}
+        # {"name": "Golf Pro", "ai_bot_id": "golf_pro", "class": GolfProBot, "difficulty": "nonplayer"},
+        # {"name": "Golf Bro", "ai_bot_id": "golf_bro", "class": GolfBroBot, "difficulty": "nonplayer"}
     ]
     for core in core_bots:
         if not any(bot.get('name') == core["name"] for bot in selected_bots):
@@ -564,11 +565,15 @@ def update_round_cumulative_scores(game_session, game):
 
     # print(f"DEBUG: Updated cumulative scores for round {current_round}: {game_session['round_cumulative_scores']}")
 
+@app.route('/test_chatbot_simple.html')
+def test_chatbot():
+    return send_from_directory('../frontend', 'test_chatbot_simple.html')
+
 # Chatbot Routes
 @app.route('/chatbot/send_message', methods=['POST'])
 def send_chatbot_message():
     data = request.json
-    result = chat_handler.handle_send_message(data, get_game_state, games)
+    result = chat_handler.handle_user_message(data, get_game_state, games)
 
     if isinstance(result, tuple):
         response_data, status_code = result
@@ -588,9 +593,6 @@ def get_bot_response():
     else:
         return jsonify(result)
 
-
-#         return jsonify(result)
-
 @app.route('/chatbot/proactive_comment', methods=['GET'])
 def get_proactive_comment_get():
     game_id = request.args.get('game_id')
@@ -602,16 +604,7 @@ def get_proactive_comment_get():
     print(f"Returning proactive comments for {game_id}: {comments}")
     return jsonify({'comments': comments})
 
-@app.route('/chatbot/personalities', methods=['GET'])
-def get_chatbot_personalities():
-    """Get available chatbot personalities"""
-    result = chat_handler.handle_get_personalities()
 
-    if isinstance(result, tuple):
-        response_data, status_code = result
-        return jsonify(response_data), status_code
-    else:
-        return jsonify(result)
 
 @app.route('/chatbot/get_giphy_gif', methods=['POST'])
 def get_giphy_gif():
@@ -805,49 +798,6 @@ def create_custom_bot():
         return jsonify({'success': False, 'error': 'Failed to save bot', 'details': details}), 500
 
 
-
-# @app.route('/get_custom_bots', methods=['GET'])
-# def get_custom_bots():
-#     """Get all existing custom bots from Supabase database"""
-#     try:
-#         print("🔥 /get_custom_bots endpoint hit - loading from Supabase")
-
-#         # Import Supabase client
-#         from supabase import create_client, Client
-#         import os
-
-#         url = os.environ.get("SUPABASE_URL")
-#         key = os.environ.get("SUPABASE_LEGACY_SECRET")
-
-#         if not url or not key:
-#             print("❌ Supabase credentials not found in environment variables")
-#             return jsonify({'success': False, 'error': 'Supabase credentials not configured'}), 500
-
-#         # Set up Supabase client
-#         supabase: Client = create_client(url, key)
-
-#         # Fetch all bots from Supabase
-#         response = supabase.table('custom_bots').select('*').order('created_at', desc=True).execute()
-
-#         print(f"🔥 Supabase response: {response}")
-
-#         bots_list = []
-#         if response.data:
-#             for bot in response.data:
-#                 bots_list.append(bot)
-
-#         print(f"✅ Returning {len(bots_list)} custom bots from Supabase: {[bot['name'] for bot in bots_list]}")
-
-#         return jsonify({
-#             'success': True,
-#             'bots': bots_list
-#         })
-
-#     except Exception as e:
-#         print(f"❌ Error getting custom bots from Supabase: {e}")
-#         import traceback
-#         traceback.print_exc()
-#         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/api/upload_bot_image', methods=['POST'])
 def upload_bot_image():

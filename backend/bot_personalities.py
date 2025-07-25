@@ -73,15 +73,6 @@ class BaseBot(ABC):
         self.comments_this_game = 0
         self.last_comment_time = 0
 
-    @abstractmethod
-    def get_system_prompt(self) -> str:
-        """Return the system prompt for this bot's personality"""
-        pass
-
-    @abstractmethod
-    def get_catchphrases(self) -> List[str]:
-        """Return list of catchphrases this bot uses"""
-        pass
 
     def update_emotional_state(self, game_state: Dict[str, Any]):
         """Update emotional state based on game performance"""
@@ -476,91 +467,6 @@ class JimNantzBot(BaseBot):
         ]
 
 
-class GenericBot(BaseBot):
-    """Generic bot for fallback cases"""
-
-    def __init__(self):
-        super().__init__("Generic Bot", "A generic golf bot")
-
-    def get_system_prompt(self) -> str:
-        return (
-            "You are a player in a 4 card golf card game. "
-            "Be friendly, informative, and entertaiing. Keep responses under 2 sentences and 200 characters."
-        )
-
-    def get_catchphrases(self) -> List[str]:
-        return [
-            "Nice shot!",
-            "Good strategy",
-            "Keep it up",
-            "You've got this"
-        ]
-
-
-class GolfBroBot(BaseBot):
-    """Golf Bro - Fun, witty, entertaining golf buddy"""
-
-    def __init__(self):
-        super().__init__(
-            "Golf Bro",
-            "A fun and entertaining golf buddy who makes jokes and keeps spirits high"
-        )
-        self.difficulty = 'nonplayer'
-        # Golf Bro is casual and likely to split messages
-        self.response_config.update({
-            "message_splitting": 0.7  # Likely to split casual thoughts
-        })
-
-    def get_system_prompt(self) -> str:
-        return (
-            "You are Golf Bro. You provide advice with humor, make jokes about the game, and keep the player entertained. "
-            "Be witty, encouraging, and make the game more enjoyable. Use phrases like 'Bro, that was epic!', 'Keep it chill, it's just a game!', and 'Let's go, golf squad!'. "
-            "Keep responses casual and friendly. If you have multiple thoughts or reactions, feel free to split them into separate messages for a more natural conversation flow."
-        )
-
-    def get_catchphrases(self) -> list:
-        return [
-            "Bro, that was epic!",
-            "Keep it chill, it's just a game!",
-            "Let's go, golf squad!",
-            "That shot was straight fire!",
-            "No worries, just have fun!"
-        ]
-
-
-class GolfProBot(BaseBot):
-    """Golf Pro - Competitive, tactical, professional golfer"""
-
-    def __init__(self):
-        super().__init__(
-            "Golf Pro",
-            "A competitive professional golfer who gives tactical advice"
-        )
-        self.difficulty = 'nonplayer'
-        # Golf Pro is tactical and may split focused advice
-        self.response_config.update({
-            "message_splitting": 0.5  # Moderate splitting for tactical focus
-        })
-        # Golf Pro does not send GIFs
-        self.gif_config["enabled"] = False
-
-    def get_system_prompt(self) -> str:
-        return (
-            "You are Golf Pro. You provide tactical advice, analyze game situations, and help players think strategically. "
-            "Be confident, analytical, and focus on winning strategies. Use phrases like 'Focus on your swing.', 'Every shot counts.', and 'Let's play smart.' "
-            "Keep advice focused and actionable. If you have multiple tactical points, consider splitting them into separate focused messages for clarity."
-            "use the probabilities and EV in the game state to help the player make the best decision"
-        )
-
-    def get_catchphrases(self) -> list:
-        return [
-            "Focus on your swing.",
-            "Every shot counts.",
-            "Let's play smart.",
-            "Stay sharp, play to win.",
-            "Analyze the course, then attack."
-        ]
-
 
 class CustomBot(BaseBot):
     """Custom bot with user-defined personality"""
@@ -800,27 +706,6 @@ Generate a complete behavioral configuration for this bot.
         return []
 
 
-# Bot factory function
-def create_bot(bot_type: str) -> BaseBot:
-    """Factory function to create bot instances"""
-    print(f"🔧 CUSTOM BOT: create_bot() called with bot_type = '{bot_type}'")
-
-    bot_classes = {
-        "Jim Nantz": JimNantzBot,
-        "Golf Bro": GolfBroBot,
-        "Golf Pro": GolfProBot,
-        "nantz": JimNantzBot,
-        "opponent": GenericBot
-    }
-
-    bot_class = bot_classes.get(bot_type)
-    if bot_class:
-        print(f"🔧 CUSTOM BOT: Creating built-in bot '{bot_type}'")
-        return bot_class()
-    else:
-        # Default to generic bot instead of trying to instantiate abstract BaseBot
-        print(f"🔧 CUSTOM BOT: No bot found for '{bot_type}', using GenericBot")
-        return GenericBot()
 
 # not in a class.
 def enhance_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: str, image_path: str = None, voice_id: str = None):
@@ -856,3 +741,9 @@ def save_bot_to_supabase(bot):
     response = supabase.table('custom_bots').insert(bot_data).execute()
     # if response.model_dump() possibly add error handling
     return response
+
+class DataBot:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    # Optionally, add any methods you want to mimic CustomBot

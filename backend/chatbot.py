@@ -1,25 +1,37 @@
-import json
 from typing import Dict, List, Optional, Any
 from llm_cerebras import call_cerebras_llm
 import random
 import os
-from bot_personalities import create_bot, BaseBot
+from bot_personalities import DataBot
 from game_state import get_game_state
 import re
 import time
 from data_upset import upload_chatbot_message
+import threading
+import time
+# Create global instances. # TODO, not sue why???
+# chatbot = GolfChatbot()
+# chat_handler = ChatHandler(chatbot)
 
 LAST_X_MESSAGES = 10
 
 class GolfChatbot:
-    """Chatbot for the Golf card game with different personalities"""
+    """Chatbot for the Golf card game with different personalities
+    Handles the content and logic of the bot’s responses.
+    Knows about bot personalities, how to format game state, how to generate a message, and how to decide if/when a bot should respond (based on game state, personality, etc)."""
 
-    def __init__(self, bot_type: str = "Jim Nantz"):
-        self.bot_type = bot_type
-        self.current_bot = create_bot(bot_type)  # Create bot instance
-        self.base_prompt = (
-            "CRITICAL: Keep your response to 2 sentences maximum and under 150 characters total.Be extremely concise. This is a chat environment, not an essay. ."
-        )
+    def __init__(self, selected_bots: Optional[List[dict]] = None):
+        self.base_prompt = ( "keep responses short and concise. Two sentences max and roughly 150 characters max")
+        self.off_topic_prompt = ( "You are in a conversation with a group playing cards, but dn't want to talk about the game. Create a response that is not about the game and about a topic that is related to the the bots personality or another interesting topic.")
+        self.bots = {}  # Will hold bot objects keyed by ai_bot_id
+        self.conversation_history = {} # converation history with timestamp.
+
+        if selected_bots:
+            from bot_personalities import DataBot
+            for bot_dict in selected_bots:
+                # Choose the right class based on bot_dict['name'] or another key. Nantz is from front
+                bot_obj = DataBot(**bot_dict)
+                self.bots[bot_dict['ai_bot_id']] = bot_obj
 
         # Load rules once
         rules_path = os.path.join(os.path.dirname(__file__), 'game_rules.txt')
@@ -29,12 +41,13 @@ class GolfChatbot:
         except Exception as e:
             self.game_rules = "(Game rules unavailable)"
 
-    def get_bot_info(self) -> Dict[str, str]:
+    def get_bot_info(self) -> Dict[str, str]: # TODO still unsure about this.....
         """Get information about the current bot"""
         return {
+            "ai_bot_id": self.current_bot.ai_bot_id,
             "name": self.current_bot.name,
             "description": self.current_bot.description,
-            "system_prompt": self.current_bot.get_system_prompt()
+            "emotional_state": self.current_bot.emotional_state
         }
 
     def format_game_state_for_prompt(self, game_state: Dict[str, Any]) -> str:
@@ -53,6 +66,7 @@ class GolfChatbot:
             action_history = game_state.get('action_history', [])
             num_actions = len(action_history)
             last_action_str = ""
+            dramatic_event = is_dramatic_event(game_state)
             if action_history:
                 last_action = action_history[-1]
                 if isinstance(last_action, dict):
@@ -130,52 +144,49 @@ class GolfChatbot:
         except Exception as e:
             return f"Error formatting game state: {str(e)}"
 
-    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None, proactive: bool = False, return_prompt: bool = False, bot_info: Optional[Dict[str, Any]] = None) -> str:
+    def will_bot_respond(self, game_state: Dict[str, Any]) -> bool:
+        """Check if bot will respond to the user message."""
+        # TODO add respnose config here to bot might not respons.
+        #if they don't respond then update config to increase chance of responding next time.
+        return True # will need to update this function.
+
+    def is_dramatic_event(self, game_state: Dict[str, Any]) -> bool:
+        """Check if the game state is a dramatic event."""
+        # TODO add dramatic event logic here.
+        return False # will need to update this function.
+
+    def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, bot_info: Optional[Dict[str, Any]] = None) -> str:
         """Generate a chatbot response based on user input and game state"""
 
         # Use provided bot_info if available (from game session memory)
-        if bot_info:
-            bot_name = bot_info.get('name', 'AI Bot')
-            bot_description = bot_info.get('description', '')
+        ai_bot_id = bot_info.get('ai_bot_id', 'AI Bot')
+        bot_name = bot_info.get('name', 'AI Bot')
+        bot_description = bot_info.get('description', '')
 
-            # Create system prompt using bot description
-            system_prompt = f"You are {bot_name}. "
-            if bot_description:
-                system_prompt += f"Your personality: {bot_description}. "
+        # Check if the bot will respond
+        if not self.will_bot_respond(game_state):
+            self.add_message_to_history('user', user_message, None)
+            self.add_message_to_history('bot', "The bot chooses not to respond at this time.", None)
+            return "The bot chooses not to respond at this time."
 
-            # Add difficulty-based characteristics
-            difficulty = bot_info.get('difficulty', 'medium')
-            if difficulty == "easy":
-                system_prompt += "You are friendly and encouraging. "
-            elif difficulty == "medium":
-                system_prompt += "You are balanced and strategic. "
-            elif difficulty == "hard":
-                system_prompt += "You are competitive and analytical. "
+        # Create system prompt using bot description
+        system_prompt = f"You are {bot_name}. "
+        if bot_description:
+            system_prompt += f"Your personality: {bot_description}. "
 
-            system_prompt += "Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
+        # Add difficulty-based characteristics
+        difficulty = bot_info.get('difficulty', 'medium')
+        if difficulty == "easy":
+            system_prompt += "You are friendly and encouraging. "
+        elif difficulty == "medium":
+            system_prompt += "You are balanced and strategic. "
+        elif difficulty == "hard":
+            system_prompt += "You are competitive and analytical. "
 
-            print(f"🔧 SYSTEM PROMPT for {bot_name} (from memory):")
-            print(f"🔧 {system_prompt}")
+        system_prompt += "Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
 
-        else:
-            # Fallback to old method for built-in bots
-            if personality is None:
-                personality = self.bot_type  # fallback to default
-
-            # Update the current bot if personality changed
-            if personality != self.bot_type:
-                self.current_bot = create_bot(personality)
-                self.bot_type = personality
-
-            bot_info_obj = self.get_bot_info()
-            system_prompt = bot_info_obj["system_prompt"]
-
-        # Print the system prompt for investigation (only for fallback method)
-        if not bot_info:
-            print(f"🔧 SYSTEM PROMPT for {bot_info_obj['name']} (built-in):")
-            print(f"🔧 {system_prompt}")
-            print(f"🔧 Bot type: {self.bot_type}")
-            print(f"🔧 Bot description: {self.current_bot.description}")
+        print(f"🔧 SYSTEM PROMPT for {bot_name} (from memory):")
+        print(f"🔧 {system_prompt}")
 
         # Always add system prompt and rules ONCE at the top
         context = system_prompt + "\n\n" + "Game Rules:\n" + self.game_rules + "\n\n"
@@ -183,50 +194,22 @@ class GolfChatbot:
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
-        # For built-in bots, add advanced personality features
-        if not bot_info and hasattr(self, 'current_bot'):
-            # Update emotional state based on current game performance (enhanced version)
-            if game_state:
-                self.current_bot.update_emotional_state_advanced(game_state)
-
-            # Add dynamic emotional and personality context
-            dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
-            context += dynamic_context + "\n\n"
-
-            # Add enhanced response style context
-            style_context = self.current_bot.get_response_style_context()
-            context += style_context + "\n\n"
-
-            # Add personality-specific prompt additions
-            if game_state:
-                personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
-            else:
-                personality_additions = self.current_bot.generate_personality_specific_prompt_additions("general")
-
-            if personality_additions:
-                context += personality_additions + "\n\n"
-
-            # Add situational context
-            situational_context = self.current_bot.get_situational_context(game_state)
-            if situational_context:
-                context += situational_context + "\n\n"
-
         # Always add the base prompt
         context += self.base_prompt + "\n"
 
-        if proactive:
-            # For proactive responses, we don't have a user message
-            context += "Provide a brief, relevant comment about the current game situation."
-        else:
-            # Add conversation history for context (but never the rules again)
-            if self.current_bot.conversation_history:
-                context += "Recent conversation:\n"
-                for msg in self.current_bot.conversation_history[-LAST_X_MESSAGES:]:  # Last 3 messages
-                    context += f"{msg['role']}: {msg['content']}\n"
-                context += "\n"
+        # Add conversation history for context (but never the rules again) -
+        if not bot_info and self.current_bot.conversation_history:
+            context += "Recent conversation:\n"
+            for msg in self.current_bot.conversation_history[-LAST_X_MESSAGES:]:  # Last 3 messages
+                context += f"{msg['role']}: {msg['content']}\n"
+            context += "\n"
 
-            context += f"User: {user_message}\n"
-            context += f"{bot_info['name']}:"
+        context += f"User: {user_message}\n"
+
+        # Use bot name from bot_info if available, otherwise from bot_info_obj
+        bot_name = bot_info.get('name', 'AI Bot')
+
+        context += f"{bot_name}:"
 
         try:
             # Print the full prompt being sent to the LLM
@@ -235,111 +218,60 @@ class GolfChatbot:
             print(f"🤖 {context}")
             print(f"🤖 {'='*80}")
 
-            # Adjust temperature based on personality
-            personality_modifiers = self.current_bot.get_personality_modifiers()
-            base_temperature = 0.7
+            # TODO create response config for the botto add to the context (verbosity, humor, confidence, excitement, frustration)
+            # TODO call gif config for the botto add to the context
+            # TODO call emotional state for the botto add to the context ( can adjust temperature)
+            # TODO call understand_gif for the botto add to the context
 
-            # More confident bots use lower temperature (more consistent)
-            # More excited/humorous bots use higher temperature (more creative)
-            temp_adjustment = (personality_modifiers["excitement_modifier"] +
-                             personality_modifiers["humor_modifier"] -
-                             personality_modifiers["confidence_modifier"]) * 0.2
+            # Store in conversation history
+            self.current_bot.conversation_history.append({"role": "user", "content": user_message})
+            self.current_bot.conversation_history.append({"role": "assistant", "content": response})
 
-            adjusted_temperature = max(0.3, min(1.0, base_temperature + temp_adjustment))
+            # Keep only last 10 messages to prevent context from getting too long
+            if len(self.current_bot.conversation_history) > 10:
+                self.current_bot.conversation_history = self.current_bot.conversation_history[-10:]
 
-            # Call the LLM with personality-adjusted temperature
             response = call_cerebras_llm(
                 prompt=context,
                 model="llama3.1-8b",
                 structured=False,
-                stream=True,
-                temperature=adjusted_temperature
+                stream=False,
+                temperature=0.8
             )
 
-            # Clean up the response
-            if response.startswith(f"{bot_info['name']}:"):
-                response = response[len(f"{bot_info['name']}:"):].strip()
-
-            # Apply personality-based response length limits
-            verbosity = self.current_bot.response_config.get("verbosity", 0.5)
-            if verbosity < 0.3:
-                max_length = 100
-            elif verbosity > 0.7:
-                max_length = 250
-            else:
-                max_length = 150
-
-            # Enforce character limit based on verbosity
-            if len(response) > max_length:
-                response = response[:max_length-3] + "..."
-
-            # Ensure response ends with proper punctuation
-            if response and not response[-1] in '.!?:':
-                response += "."
-
-            # Store in conversation history
-            if not proactive:
-                self.current_bot.conversation_history.append({"role": "user", "content": user_message})
-                self.current_bot.conversation_history.append({"role": "assistant", "content": response})
-
-                # Keep only last 10 messages to prevent context from getting too long
-                if len(self.current_bot.conversation_history) > 10:
-                    self.current_bot.conversation_history = self.current_bot.conversation_history[-10:]
-
-            if return_prompt:
-                return response, context
-            else:
-                return response
+            # Store bot response in conversation history
+            self.add_message_to_history('bot', response, None)
+            return response, context
 
         except Exception as e:
-            if return_prompt:
-                return f"Sorry, I'm having trouble responding right now. Error: {str(e)}", context
-            else:
-                return f"Sorry, I'm having trouble responding right now. Error: {str(e)}"
+            error_msg = f"Sorry, I'm having trouble responding right now. Error: {str(e)}"
+            self.add_message_to_history('bot', error_msg, None)
+            return error_msg
 
-    def generate_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general", return_prompt: bool = False) -> Optional[str]:
-        """Generate a proactive comment based on game events"""
+    def generate_proactive_response(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
+        """Generate a proactive comment based on game events. if get proactive commment is true then then this function is called. This calls a function to see if the bot comments on/off topic."""
+
+        context =+ self.base_prompt + "\n"
 
         print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
         print(f"DEBUG: Current bot_type: {self.bot_type}")
 
-        # Use the bot's proactive behavior system
-        import time
-        current_time = time.time()
+        # Use the bot's proactive behavior system to see if they are going to comment on game state or off topic message. TODO. might need to update proactive config for game state vs off topic.
 
-        if not self.current_bot.should_make_proactive_comment(event_type, game_state, current_time):
-            print("DEBUG: Bot decided not to make a proactive comment")
-            return None
+        if not self.is_on_topic(game_state): # so if on topic, general response, if off topic, continue.
+            return self.generate_response(game_state)
+        # continue with rest of OFF topicfunction logic here
 
-        print("DEBUG: Bot decided to make a proactive comment")
+        context += self.off_topic_prompt + "\n"
+        # so if we are here, then we are going to generate a proactive comment.
 
-        # Record the comment
-        self.current_bot.record_proactive_comment(current_time)
+        # TODO Create event-specific prompts from gamestate changes over time. turn start, card drawn, card played, score update, game over, general.
 
-        bot_info = self.get_bot_info()
-
-        # Create event-specific prompts
-        event_prompts = {
-            "turn_start": f"Comment briefly on the start of {bot_info['name']}'s turn. Be encouraging or strategic.",
-            "card_drawn": "Comment briefly on the card that was just drawn. Give a quick strategic insight.",
-            "card_played": "Comment briefly on the card that was just played. Note if it was a good or risky move.",
-            "score_update": "Comment briefly on the score change. Be encouraging or analytical.",
-            "game_over": (
-                "The game has ended. Summarize the game, announce the winner by name, "
-                "and provide a brief, memorable closing comment in the style of a Masters broadcast."
-            ),
-            "general": "Provide a brief, relevant comment about the current game situation. Focus more on the current and latest moves"
-        }
-
-        prompt = event_prompts.get(event_type, event_prompts["general"])
+        # context
 
         try:
             # Print the system prompt for investigation
-            print(f"🔧 PROACTIVE SYSTEM PROMPT for {bot_info['name']}:")
-            print(f"🔧 {bot_info['system_prompt']}")
-            print(f"🔧 Event type: {event_type}")
 
-            context = f"{bot_info['system_prompt']}\n\n"
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
             # Add emotional and situational context
@@ -350,14 +282,7 @@ class GolfChatbot:
             if situational_context:
                 context += situational_context + "\n\n"
 
-            # Add response style context
-            style_context = self.current_bot.get_response_style_context()
-            context += style_context + "\n\n"
-
-            context += prompt
-
             # Always add the base prompt
-            context += self.base_prompt + "\n"
 
             # Print the full prompt being sent to the LLM
             print(f"🤖 LLM PROMPT (model: llama3.1-8b, structured: False, stream: False, temp: 0.8):")
@@ -374,78 +299,46 @@ class GolfChatbot:
             )
 
             print(f"DEBUG: Generated proactive comment: {response.strip()}")
-            if return_prompt:
+            if response:
                 return response.strip(), context
             else:
                 return response.strip()
 
         except Exception as e:
             print(f"DEBUG: Error generating proactive comment: {e}")
-            if return_prompt:
+            if response:
                 return None, ""
             else:
                 return None
 
-    def reset_for_new_game(self):
-        """Reset bot state for a new game"""
-        self.current_bot.reset_for_new_game()
+    def bot_memory_update_for_new_game(self):
+        """Reset bot state for a new game. maybe not reset, but have a variance and mean that it pulls to. Eh, I think I like bot memory better."""
+        # TODO add bot memory to the bot object in the bot_personalities.py file.
+        pass
 
-    # def get_available_personalities(self) -> List[Dict[str, str]]:
-    #     """Get list of available personalities"""
-    #     from bot_personalities import get_all_custom_bots
+    def should_send_gif(self):
+        """Check if bot should send a GIF. might be a function in the chat handler tho."""
+        return False
 
-    #     # Define the allowed personalities
-    #     allowed_bots = ["Jim Nantz"]
-    #     personalities = [
-    #         {
-    #             "type": bot_name,
-    #             "name": bot_name,
-    #             "description": create_bot(bot_name).description
-    #         }
-    #         for bot_name in allowed_bots
-    #     ]
+    def is_on_topic(self, game_state: Optional[Dict[str, Any]]) -> bool:
+        """Check if the user message is on or off topic between game state"""
+        # TODO if dramatic event, then return true.
+        return True # will need to update this function.
 
-    #     # Add custom bots
-    #     custom_bots = get_all_custom_bots()
-    #     for bot_id, bot_data in custom_bots.items():
-    #         personalities.append({
-    #             "type": bot_id,  # Use bot_id as the type
-    #             "name": bot_data["name"],
-    #             "description": bot_data["description"]
-    #         })
-
-    #     return personalities
-
-    def generate_enhanced_response_with_gif(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None) -> Dict[str, Any]:
+    def generate_response_with_gif(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None) -> Dict[str, Any]:
         """Generate an enhanced response that may include GIF suggestions"""
 
         # Generate the normal response
         response = self.generate_response(user_message, game_state, personality)
 
         # Check if bot should send a GIF
-        should_gif = self.current_bot.should_send_gif()
-
-        result = {
-            "message": response,
-            "bot_name": self.current_bot.name,
-            "should_send_gif": should_gif,
-            "personality_info": {
-                "confidence": self.current_bot.emotional_state.get("confidence", 0.5),
-                "excitement": self.current_bot.emotional_state.get("excitement", 0.5),
-                "frustration": self.current_bot.emotional_state.get("frustration", 0.0),
-                "verbosity": self.current_bot.response_config.get("verbosity", 0.5),
-                "humor_level": self.current_bot.response_config.get("humor_level", 0.3),
-                "formality": self.current_bot.response_config.get("formality", 0.5)
-            }
-        }
-
-        # Add GIF context if one should be sent
-        if should_gif:
+        if self.should_send_gif():
             gif_context = self._get_gif_context(user_message, game_state)
-            result["gif_context"] = gif_context
+
 
         return result
 
+    # TODO will update this for an advanced gif system by calling llm.
     def _get_gif_context(self, message: str, game_state: Dict[str, Any] = None) -> str:
         """Generate context for what type of GIF would be appropriate"""
 
@@ -468,110 +361,6 @@ class GolfChatbot:
         else:
             return "reaction"
 
-    def generate_contextual_proactive_comment(self, game_state: Dict[str, Any], event_type: str = "general", specific_context: str = "") -> Optional[Dict[str, Any]]:
-        """Generate enhanced proactive comments with personality-driven context"""
-
-        bot_info = self.get_bot_info()
-
-        # Check if bot should make a proactive comment
-        import time
-        current_time = time.time()
-
-        if not self.current_bot.should_make_proactive_comment(event_type, game_state, current_time):
-            return None
-
-        # Generate event-specific prompts based on personality
-        event_prompts = {
-            "turn_start": self._get_turn_start_prompt(game_state),
-            "card_drawn": self._get_card_drawn_prompt(game_state),
-            "card_played": self._get_card_played_prompt(game_state),
-            "score_update": self._get_score_update_prompt(game_state),
-            "game_over": self._get_game_over_prompt(game_state),
-            "dramatic_moment": self._get_dramatic_moment_prompt(game_state),
-            "general": "Comment on the current game situation."
-        }
-
-        base_prompt = event_prompts.get(event_type, "Comment on the current game situation.")
-
-        # Add specific context if provided
-        if specific_context:
-            base_prompt += f" Context: {specific_context}"
-
-        try:
-            context = f"{bot_info['system_prompt']}\n\n"
-            context += self.format_game_state_for_prompt(game_state) + "\n\n"
-
-            # Add enhanced personality context for proactive comments
-            dynamic_context = self.current_bot.get_dynamic_response_context(game_state)
-            context += dynamic_context + "\n\n"
-
-            style_context = self.current_bot.get_response_style_context()
-            context += style_context + "\n\n"
-
-            personality_additions = self.current_bot.generate_personality_specific_prompt_additions("gameplay")
-            if personality_additions:
-                context += personality_additions + "\n\n"
-
-            context += base_prompt + "\n\n"
-            context += self.base_prompt + "\n"
-
-            # Use personality-adjusted temperature
-            personality_modifiers = self.current_bot.get_personality_modifiers()
-            base_temperature = 0.8  # Slightly higher for proactive comments
-
-            temp_adjustment = (personality_modifiers["excitement_modifier"] +
-                             personality_modifiers["humor_modifier"] -
-                             personality_modifiers["confidence_modifier"]) * 0.2
-
-            adjusted_temperature = max(0.4, min(1.0, base_temperature + temp_adjustment))
-
-            response = call_cerebras_llm(
-                prompt=context,
-                model="llama3.1-8b",
-                structured=False,
-                stream=False,
-                temperature=adjusted_temperature
-            )
-
-            # Update comment tracking
-            self.current_bot.last_comment_time = current_time
-            self.current_bot.comments_this_game += 1
-
-            # Apply personality-based response length
-            verbosity = self.current_bot.response_config.get("verbosity", 0.5)
-            if verbosity < 0.3:
-                max_length = 100
-            elif verbosity > 0.7:
-                max_length = 200
-            else:
-                max_length = 150
-
-            if len(response) > max_length:
-                response = response[:max_length-3] + "..."
-
-            # Check for GIF
-            should_gif = self.current_bot.should_send_gif()
-
-            result = {
-                "message": response.strip(),
-                "bot_name": self.current_bot.name,
-                "event_type": event_type,
-                "should_send_gif": should_gif,
-                "personality_info": {
-                    "confidence": self.current_bot.emotional_state.get("confidence", 0.5),
-                    "excitement": self.current_bot.emotional_state.get("excitement", 0.5),
-                    "frustration": self.current_bot.emotional_state.get("frustration", 0.0)
-                }
-            }
-
-            if should_gif:
-                result["gif_context"] = self._get_gif_context("", game_state)
-
-            return result
-
-        except Exception as e:
-            print(f"DEBUG: Error generating contextual proactive comment: {e}")
-            return None
 
     def check_for_proactive_comment(
         self,
@@ -581,9 +370,7 @@ class GolfChatbot:
         cooldown_seconds: int = 300 # 30 was default
     ) -> Optional[dict]:
         """
-        Decide if a proactive comment should be generated, and return it if so.
-        - Checks for dramatic events, silence, or other triggers.
-        - Returns a proactive comment dict (same format as generate_contextual_proactive_comment), or None.
+        I"m currently confused if this should be in the handler or the chatbot. how to seperate the two??
         """
         import time
         now = time.time()
@@ -635,7 +422,7 @@ class GolfChatbot:
         advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
 
         if advice_freq > 0.6:
-            return "A card was played. Analyze the move and offer strategic commentary."
+            return "A card was played. Analyze the move and offer strategic commentary related to the EV."
         else:
             return "A card was played. React to the move briefly."
 
@@ -661,39 +448,123 @@ class GolfChatbot:
         else:
             return "This is a tense moment in the game. Comment on the drama unfolding."
 
-# Create a global chatbot instance
-chatbot = GolfChatbot("Jim Nantz")
+    def _generate_gif_search_terms(self, bot_name: str, message: str) -> str:
+        """Generate GIF search terms based on bot's description, prompt, and message."""
+        # Try to get the bot instance (use your bot registry/factory)
+        bot = None
+        try:
+            bot = self.chatbot.create_bot(bot_name)
+        except Exception:
+            pass
 
-def parse_mentions(message: str) -> list:
-    """Extract @mentions from a message and map to bot names."""
-    mention_regex = r'@(\w+)'
-    matches = re.findall(mention_regex, message)
-    bot_name_map = {
-        'golfbro': 'Golf Bro',
-        'golfpro': 'Golf Pro',
-        'golf_bro': 'Golf Bro',
-        'golf_pro': 'Golf Pro',
-    }
-    mentions = []
-    for m in matches:
-        key = m.lower()
-        if key in bot_name_map:
-            mentions.append(bot_name_map[key])
-    return mentions
+        terms = []
+        # Add bot's description keywords
+        if bot and bot.get('description'):
+            terms.extend([w for w in bot['description'].lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Add bot's prompt keywords
+        if bot and 'get_system_prompt' in bot:
+            prompt = bot['get_system_prompt']()
+            terms.extend([w for w in prompt.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Add message keywords
+        if message:
+            terms.extend([w for w in message.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
+        # Remove duplicates, keep order
+        seen = set()
+        filtered_terms = []
+        for t in terms:
+            if t not in seen:
+                seen.add(t)
+                filtered_terms.append(t)
+        # Fallback if nothing found
+        if not filtered_terms:
+            filtered_terms = ['golf', 'celebration']
+        # Use up to 3 terms for Giphy
+        return ' '.join(filtered_terms[:3])
+
+    def add_message_to_history(self, sender: str, content: str, game_id: str = None):
+        """Add a message to the conversation history with a timestamp."""
+        import time
+        message = {
+            'sender': sender,
+            'content': content,
+            'timestamp': time.time()
+        }
+        if game_id:
+            if game_id not in self.conversation_history:
+                self.conversation_history[game_id] = []
+            self.conversation_history[game_id].append(message)
+        else:
+            # If not using game_id, store in a global list
+            if 'global' not in self.conversation_history:
+                self.conversation_history['global'] = []
+            self.conversation_history['global'].append(message)
+
+
+
+
+    def parse_mentions(message: str) -> list:
+        """Extract @mentions from a message and map to bot names."""
+        mention_regex = r'@(\w+)'
+        matches = re.findall(mention_regex, message)
+        bot_name_map = {
+            'golfbro': 'Golf Bro',
+            'golfpro': 'Golf Pro',
+            'golf_bro': 'Golf Bro',
+            'golf_pro': 'Golf Pro',
+        }
+        mentions = []
+        for m in matches:
+            key = m.lower()
+            if key in bot_name_map:
+                mentions.append(bot_name_map[key])
+        return mentions
 
 class ChatHandler:
-    """Handler for all chat-related functionality"""
+    """Handler for all chat-related functionality.
+    Handles the orchestration, timing, and triggering of chat events in the context of your web app/game.
+    Acts as the “glue” between the web server/game state and the GolfChatbot."""
 
     def __init__(self, chatbot_instance: GolfChatbot):
         self.chatbot = chatbot_instance
+        self._last_check_time = 0  # Track the last time the function returned True
+        self._last_message_timestamp = 0  # Track the timestamp of the last message seen
 
-    def calculate_bot_response_delay(self, bot_name: str) -> float:
-        """Calculate response delay based on bot personality"""
+    def has_conversation_history_changed(self, game_id: str = None, interval: int = 5) -> bool:
+        """
+        Return True if the last message in conversation history is new (content or timestamp differs)
+        AND at least `interval` seconds have passed since the last True.
+        """
+        import time
+        current_time = time.time()
+        # Use per-game or global conversation history
+        if game_id:
+            history = self.chatbot.conversation_history.get(game_id, [])
+        else:
+            history = self.chatbot.conversation_history.get('global', [])
+        if not history:
+            return False
+        last_msg = history[-1]
+        last_msg_signature = (last_msg.get('content', ''), last_msg.get('timestamp', 0))
+        if (
+            getattr(self, '_last_msg_signature', None) != last_msg_signature and
+            (current_time - self._last_check_time) >= interval
+        ):
+            self._last_msg_signature = last_msg_signature
+            self._last_check_time = current_time
+            return True
+        return False
+
+    def get_bot_reaction_speed(self, ai_bot_id: str) -> float:
+        """Get the reaction speed for a bot by ai_bot_id from its response_config."""
+        bot = self.bots.get(ai_bot_id)
+        if bot and hasattr(bot, 'response_config'):
+            return bot.response_config.get('reaction_speed', 0.5)
+        return 0.5  # default if not found
+
+    def calculate_bot_response_delay(self, ai_bot_id: str) -> float:
+        """Calculate response delay based on bot's reaction speed (from response_config) using ai_bot_id."""
         try:
-            # Create bot instance to get its configuration
-            from bot_personalities import create_bot
-            bot = create_bot(bot_name)
-            reaction_speed = bot.response_config.get('reaction_speed', 0.5)
+            reaction_speed = self.get_bot_reaction_speed(ai_bot_id)
 
             # Clamp reaction_speed to [0.0, 1.0]
             try:
@@ -715,51 +586,26 @@ class ChatHandler:
             # Ensure delay is never negative
             final_delay = max(min_delay, final_delay)
 
-            print(f"DEBUG: Bot {bot_name} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
+            print(f"DEBUG: Bot {ai_bot_id} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
 
             return final_delay
 
         except Exception as e:
-            print(f"DEBUG: Error calculating delay for {bot_name}: {e}")
+            print(f"DEBUG: Error calculating delay for {ai_bot_id}: {e}")
             # Default delay if there's an error
             return 1.5
 
-    def get_bot_id_from_display_name(self, game_session, display_name):
-        """Convert display name to bot_id for custom bot lookup"""
-        if not game_session:
-            return display_name
 
-        # Check if this is a custom bot
-        for key, value in game_session.items():
-            if key.startswith('custom_bot_name') and value == display_name:
-                # Find corresponding bot_id
-                bot_id_key = key.replace('custom_bot_name', 'custom_bot_id')
-                if bot_id_key in game_session:
-                    return game_session[bot_id_key]
 
-        # If not a custom bot, return the display name
-        return display_name
-
-    def handle_send_message(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
-        """Handle send message requests"""
+    def handle_user_message(self, data: Dict[str, Any], get_game_state_func, games: Dict) -> Dict[str, Any]:
+        """Handle send message requests from user."""
         print("DEBUG: Received data:", data)
         game_id = data.get('game_id')
         message = data.get('message')
-        personality_type = data.get('personality_type', 'Jim Nantz')
+        # personality_type = data.get('personality_type', 'Jim Nantz') # ?? what is this?
 
         if not message:
             return {'error': 'Message cannot be empty'}, 400
-
-        # Log user message to Supabase
-        upload_chatbot_message(
-            game_id=game_id,
-            user_id=data.get('user_id', None),
-            bot_name=None,
-            message=message,
-            sender='user',
-            media=None,  # If user can send GIFs/media, add here
-            metadata={"personality_type": personality_type}
-        )
 
         # Get current game state if game_id is provided
         game_state = None
@@ -770,122 +616,36 @@ class ChatHandler:
             game_session = None
 
         # Parse mentions from the message
-        mentioned_bots = parse_mentions(message)
-        print(f"DEBUG: Mentioned bots: {mentioned_bots}")
+        # mentioned_bots = parse_mentions(message)
+        # print(f"DEBUG: Mentioned bots: {mentioned_bots}")
 
-        # Generate main bot responses (existing logic)
-        if personality_type == 'opponent':
-            main_result = self._handle_opponent_chat(game_id, message, game_state, games, mentioned_bots)
-        else:
-            main_result = self._handle_single_personality_chat(message, game_state, personality_type, mentioned_bots)
+        # Add user message to conversation history
+        self.chatbot.add_message_to_history('user', message, game_id)
 
-        # After updating conversation history, check for proactive comments for each bot
-        proactive_comments = []
-        if game_session and 'conversation_history' in game_session:
-            # Use allowed bots from the main_result if available, else default to all AI players
-            allowed_bots = [resp['bot_name'] for resp in main_result.get('responses', [])]
-            for bot_name in allowed_bots:
-                # Use each bot's own cooldown/attributes if needed
-                last_time = game_session.get(f'last_proactive_comment_time_{bot_name}', 0)
-                cooldown = game_session.get(f'proactive_comment_cooldown_{bot_name}', 10)
-                print(f"[Timer] allowed_bots: {allowed_bots}", flush=True)
-                print(f"[Timer] Proactive comment - Bot name: {bot_name}, Bot ID: {self.get_bot_id_from_display_name(game_session, bot_name)}", flush=True)
-                comment = self.chatbot.check_for_proactive_comment(
-                    game_state=game_state,
-                    conversation_history=game_session['conversation_history'],
-                    last_proactive_comment_time=last_time,
-                    cooldown_seconds=cooldown
-                )
-                if comment:
-                    proactive_comments.append({
-                        'bot_name': bot_name,
-                        **comment
-                    })
-                    game_session[f'last_proactive_comment_time_{bot_name}'] = time.time()
-        # Return both main responses and proactive comments
+        # TODO: Trigger bots to respond if needed (already done in the conversation history change check)
+
+        # Log user message to Supabase
+        upload_chatbot_message(
+            game_id=game_id,
+            user_id=data.get('user_id', None),
+            bot_name=None,
+            message=message,
+            sender='user',
+            media=None,  # If user can send GIFs/media, add here
+            # metadata={"personality_type": personality_type}
+        )
+
+        # TODO: Add tagging of bots here (parse mentions)
         return {
             'success': True,
-            'responses': main_result.get('responses', []),
-            'proactive_comments': proactive_comments
+            'message': 'User message received and logged.',
+            'game_id': game_id,
+            # 'mentioned_bots': mentioned_bots
         }
 
-    def _handle_opponent_chat(self, game_id: str, message: str, game_state: Dict[str, Any], games: Dict, mentioned_bots: List[str]) -> Dict[str, Any]:
-        """Handle chat with all opponent bots"""
-        print("DEBUG: Handling opponent chat message")
-        game_session = games[game_id]
-        game = game_session['game']
 
-        # Get responses from all AI players in the game ONLY (no chat-only bots)
-        all_bots = list(game.players[1:])  # All AI players from the game
 
-        responses = []
-        selected_bots = game_session.get('selected_bots', [])
-        for idx, player in enumerate(all_bots):
-            # Try to get ai_bot_id from selected_bots
-            bot_id_for_lookup = None
-            if idx < len(selected_bots):
-                bot_id_for_lookup = selected_bots[idx].get('ai_bot_id')
-            print(f"DEBUG: Bot personality (after ID lookup): {bot_id_for_lookup}")
-
-            # Look up the full bot object
-            bot_obj = next((b for b in selected_bots if b.get('ai_bot_id') == bot_id_for_lookup), None)
-            if not bot_obj:
-                continue
-            bot_name = bot_obj.get('name', 'Unknown Bot _handle_opponent_chat')
-
-            try:
-                # Use bot_obj attributes directly for chat response logic
-                # If you need to instantiate a bot class for advanced logic, do so here (optional)
-                # For now, just use the name and attributes directly
-                enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
-                    message,         # user_message
-                    game_state,      # game_state
-                    bot_id_for_lookup  # personality (use ai_bot_id for lookup)
-                )
-                # Log bot message to Supabase
-                upload_chatbot_message(
-                    game_id=game_id,
-                    user_id=None,
-                    bot_name=bot_name,
-                    message=enhanced_response["message"],
-                    sender='bot',
-                    media={"type": "gif", "context": enhanced_response.get("gif_context", "")} if enhanced_response.get("should_send_gif", False) else None,
-                    metadata=enhanced_response.get("personality_info", {})
-                )
-                # Store bot message in conversation history with ai_bot_id
-                game_session['conversation_history'].append({
-                    'sender': 'bot',
-                    'ai_bot_id': bot_id_for_lookup,
-                    'bot_name': bot_name,
-                    'message': enhanced_response["message"],
-                    'timestamp': time.time()
-                })
-                responses.append({
-                    'bot_name': bot_name,  # Use correct name from bot_obj
-                    'ai_bot_id': bot_id_for_lookup,
-                    'message': enhanced_response["message"],
-                    'should_send_gif': enhanced_response.get("should_send_gif", False),
-                    'gif_context': enhanced_response.get("gif_context", ""),
-                    'personality_info': enhanced_response.get("personality_info", {})
-                })
-            except Exception as e:
-                print("\n" + "="*40 + " CHATBOT ERROR " + "="*40)
-                print(f"ERROR: Failed to generate response for {bot_name}: {e}")
-                import traceback
-                traceback.print_exc()
-                print("="*80 + "\n")
-                responses.append({
-                    'bot_name': bot_name,
-                    'ai_bot_id': bot_id_for_lookup,
-                    'message': f"Error: {e}",
-                    'should_send_gif': False,
-                    'gif_context': "",
-                    'personality_info': {}
-                })
-
-        return {'success': True, 'responses': responses}
-
-    def _handle_single_personality_chat(self, message: str, game_state: Dict[str, Any], personality_type: str, mentioned_bots: List[str]) -> Dict[str, Any]:
+    def _handle_bot_message(self, message: str, game_state: Dict[str, Any], personality_type: str, mentioned_bots: List[str]) -> Dict[str, Any]:
         """Handle chat with single personality"""
         # Enhanced response generation
         enhanced_response = self.chatbot.generate_enhanced_response_with_gif(
@@ -935,44 +695,76 @@ class ChatHandler:
             game_session = games[game_id]
 
         try:
-            # Convert display name to bot_id if it's a custom bot
-            bot_id_for_lookup = self.get_bot_id_from_display_name(game_session, bot_name)
+            # bot_name should already be the ai_bot_id from the frontend
+            ai_bot_id = bot_name
+            print(f"DEBUG: Looking up bot with ai_bot_id: '{ai_bot_id}'")
 
-            # Calculate delay for this bot
-            delay = self.calculate_bot_response_delay(bot_name)
-            print(f"DEBUG: Calculated {delay:.2f}s delay for {bot_name}")
+            # Get bot information directly from game session memory using ai_bot_id
+            selected_bots = game_session.get('selected_bots', [])
+            print(f"DEBUG: Available bots in memory: {[(b.get('ai_bot_id'), b.get('name')) for b in selected_bots]}")
+
+            # Find bot by ai_bot_id
+            bot_obj = next((b for b in selected_bots if b.get('ai_bot_id') == ai_bot_id), None)
+
+            if bot_obj:
+                bot_display_name = bot_obj.get('name', 'Unknown Bot')
+                print(f"DEBUG: Found bot: ai_bot_id='{ai_bot_id}', name='{bot_display_name}'")
+            else:
+                print(f"DEBUG: Bot not found with ai_bot_id: '{ai_bot_id}'")
+
+            # Calculate delay for this bot (use display name for delay calculation)
+            delay_name = bot_obj.get('name', bot_name) if bot_obj else bot_name
+            delay = self.calculate_bot_response_delay(delay_name)
+            print(f"DEBUG: Calculated {delay:.2f}s delay for {delay_name}")
             # Do NOT sleep here; let frontend handle the delay for typing indicator
 
-            # Create bot instance and add conversation context
-            from bot_personalities import create_bot
-            bot = create_bot(bot_id_for_lookup)
+            if bot_obj:
+                print(f"DEBUG: Found bot in memory: {bot_obj.get('name')} with description: {bot_obj.get('description', '')[:100]}...")
 
-            # Add the conversation context to the bots history
-            for ctx in conversation_context:
-                bot.conversation_history.append(ctx)
+                # Generate response with bot info from memory
+                response = self.chatbot.generate_response(
+                    message,     # user_message
+                    game_state,  # game_state
+                    None,        # personality (not needed when using bot_info)
+                    False,       # proactive
+                    False,       # return_prompt
+                    bot_obj      # bot_info from memory
+                )
+            else:
+                print(f"DEBUG: Bot not found in memory, using fallback for {ai_bot_id}")
+                # Fallback to old method for built-in bots
+                response = self.chatbot.generate_response(
+                    message,     # user_message
+                    game_state,  # game_state
+                    ai_bot_id    # personality (use ai_bot_id for lookup)
+                )
 
-            # Generate response with the enriched context
-            response = self.chatbot.generate_response(
-                message,     # user_message
-                game_state,  # game_state
-                bot_id_for_lookup  # personality (use bot_id for lookup)
-            )
+            # Use bot display name for return, or ai_bot_id as fallback
+            return_bot_name = bot_obj.get('name', ai_bot_id) if bot_obj else ai_bot_id
 
-            print(f"Returning bot response: bot_name={bot_name}, reading_delay={delay}, message={response[:60]}")
+            print(f"Returning bot response: bot_name={return_bot_name}, reading_delay={delay}, message={response[:60]}")
             return {
                 'success': True,
-                'bot_name': bot_name,  # Return the original display name
+                'bot_name': return_bot_name,  # Return the display name for frontend
                 'message': response,
                 'reading_delay': delay  # Renamed for clarity
             }
 
         except Exception as e:
-            print(f"ERROR: Failed to generate response for {bot_name}: {e}")
+            # Try to get display name for error, fallback to ai_bot_id
+            error_bot_name = ai_bot_id
+            try:
+                if 'bot_obj' in locals() and bot_obj:
+                    error_bot_name = bot_obj.get('name', ai_bot_id)
+            except:
+                pass
+
+            print(f"ERROR: Failed to generate response for {error_bot_name}: {e}")
             import traceback
             traceback.print_exc()
             return {
                 'success': False,
-                'bot_name': bot_name,
+                'bot_name': error_bot_name,
                 'message': f"Error: {e}"
             }
 
@@ -1031,39 +823,6 @@ class ChatHandler:
 
 
 
-    def _generate_gif_search_terms(self, bot_name: str, message: str) -> str:
-        """Generate GIF search terms based on bot's description, prompt, and message."""
-        # Try to get the bot instance (use your bot registry/factory)
-        bot = None
-        try:
-            bot = self.chatbot.create_bot(bot_name)
-        except Exception:
-            pass
-
-        terms = []
-        # Add bot's description keywords
-        if bot and hasattr(bot, 'description') and bot.description:
-            terms.extend([w for w in bot.description.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
-        # Add bot's prompt keywords
-        if bot and hasattr(bot, 'get_system_prompt'):
-            prompt = bot.get_system_prompt()
-            terms.extend([w for w in prompt.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
-        # Add message keywords
-        if message:
-            terms.extend([w for w in message.lower().replace('.', '').replace(',', '').split() if len(w) > 3])
-        # Remove duplicates, keep order
-        seen = set()
-        filtered_terms = []
-        for t in terms:
-            if t not in seen:
-                seen.add(t)
-                filtered_terms.append(t)
-        # Fallback if nothing found
-        if not filtered_terms:
-            filtered_terms = ['golf', 'celebration']
-        # Use up to 3 terms for Giphy
-        return ' '.join(filtered_terms[:3])
-
     def handle_get_giphy_gif(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Get a relevant GIF from Giphy API based on message content and bot name"""
         try:
@@ -1087,7 +846,7 @@ class ChatHandler:
             params = {
                 'api_key': api_key,
                 'q': search_query,
-                'limit': 15,
+                'limit': 20,
                 'rating': 'g'
             }
 
@@ -1121,5 +880,19 @@ class ChatHandler:
     def get_conversation_history_for_bot(self, game_session, ai_bot_id):
         return [msg for msg in game_session.get('conversation_history', []) if msg.get('ai_bot_id') == ai_bot_id]
 
-# Create global chat handler instance
-chat_handler = ChatHandler(chatbot)
+
+def periodic_conversation_check(chat_handler, game_id=None, interval=2):
+    """
+    Periodically check if the conversation history has changed every `interval` seconds.
+    If changed, trigger your logic (e.g., proactive bot, notify frontend, etc.).
+    """
+    while True:
+        if chat_handler.has_conversation_history_changed(game_id):
+            print("Conversation history changed!")
+            # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
+        time.sleep(interval)
+
+# Example usage:
+# chat_handler = ChatHandler(chatbot)
+# threading.Thread(target=periodic_conversation_check, args=(chat_handler, 'your_game_id', 5), daemon=True).start()
+
