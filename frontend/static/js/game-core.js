@@ -105,9 +105,9 @@ async function startGame() {
     };
 
     // Debug: Log all attributes of selected_bots being sent to backend
-    console.log('🚀 Sending selected_bots to backend:', JSON.stringify(gameData.selected_bots, null, 2));
+    // console.log('🚀 Sending selected_bots to backend:', JSON.stringify(gameData.selected_bots, null, 2));
 
-    console.log('🎯 Frontend: Final gameData being sent to backend:', gameData);
+    // console.log('🎯 Frontend: Final gameData being sent to backend:', gameData); //bots are objects
 
     try {
         const response = await fetch('/create_game', {

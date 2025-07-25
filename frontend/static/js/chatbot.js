@@ -204,7 +204,7 @@ function initializeChatbot() {
     console.log('🔧 Initializing chatbot...');
 
     const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendChatBtn');
+    const sendBtn = document.getElementById('sendBtn');
     const micBtn = document.getElementById('micChatBtn');
     // const personalitySelect = document.getElementById('personalitySelect'); // REMOVED
 
@@ -528,7 +528,7 @@ async function sendChatMessage() {
     console.log('🔍 Checking elements in sendChatMessage...');
 
     const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendChatBtn');
+    const sendBtn = document.getElementById('sendBtn');
 
     console.log('📋 Elements in sendChatMessage:', {
         chatInput: chatInput,
@@ -543,12 +543,11 @@ async function sendChatMessage() {
     }
 
     const message = chatInput.value.trim();
-
     console.log('Message:', message);
 
     if (!message) {
         console.log('❌ No message to send');
-        return;
+        return; // <-- Add this line to prevent sending the request!
     }
 
     if (!gameId) {
@@ -578,12 +577,10 @@ async function sendChatMessage() {
 
     try {
         console.log(' Making API request to /chatbot/send_message');
-        let personalityType = 'opponent';
         let mentionedBotNames = [];
         console.log('Sending to backend:', {
             game_id: gameId,
             message: message,
-            personality_type: personalityType,
             mentioned_bots: mentionedBotNames
         });
         console.log('🔄 Awaiting response...');
@@ -593,7 +590,6 @@ async function sendChatMessage() {
             body: JSON.stringify({
                 game_id: gameId,
                 message: message,
-                personality_type: personalityType,
                 mentioned_bots: mentionedBotNames
             })
         });
@@ -675,27 +671,7 @@ function getBotNameFromId(botId) {
 window.setupAutocomplete = setupAutocomplete;
 window.initializeChatbot = initializeChatbot;
 window.addMessageToChat = addMessageToChat;
-// Remove the changePersonality function and all references to it, including any personalitySelect event listeners
-// If personalitySelect is not used elsewhere, remove its related code as well
 
-function getAllowedBotsForProactive() {
-    console.log('[getAllowedBotsForProactive] function called');
-    // Only include Jim Nantz and current game opponents for proactive comments
-    const allowed = ['Jim Nantz'];
-
-    // Add all AI players from the current game
-    if (currentGameState && currentGameState.players) {
-        for (let i = 1; i < currentGameState.players.length; i++) {
-            console.log('Adding player:', currentGameState.players[i]);
-            allowed.push(currentGameState.players[i].name);
-        }
-    } else {
-        console.log('No currentGameState or players found!');
-    }
-
-    console.log('Final allowed_bots for proactive:', allowed);
-    return allowed;
-}
 
 
 
@@ -715,12 +691,12 @@ function setJimNantzDefault() {
     // So we don't need to set him as default in the dropdown
     // Just ensure chat is enabled by default
     const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendChatBtn');
+    const sendBtn = document.getElementById('sendBtn');
 
     if (chatInput) {
         chatInput.disabled = false;
         chatInput.classList.remove('chat-disabled');
-        chatInput.placeholder = 'Chat with opponents, Golf Pro/Bro...';
+        chatInput.placeholder = 'Chat with opponents';
         chatInput.title = "";
     }
     if (sendBtn) {
@@ -735,7 +711,7 @@ function setJimNantzDefault() {
 function updateChatInputState() {
     console.log('updateChatInputState called. currentPersonality:', 'opponent'); // REMOVED
     const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendChatBtn');
+    const sendBtn = document.getElementById('sendBtn');
 
     // All chat options are now interactive, no need to disable
     if (chatInput) {
@@ -752,27 +728,6 @@ function updateChatInputState() {
 }
 
 
-// Request proactive comment from backend (simple display only)
-async function requestProactiveComment() {
-    if (!gameId) return;
-    const url = `/chatbot/proactive_comment?game_id=${gameId}`;
-    console.log('[Proactive] Polling for proactive comments at:', url);
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        console.log('[Proactive] Response from backend:', data);
-        if (data.comments && data.comments.length > 0) {
-            for (const comment of data.comments) {
-                // Show typing indicator, then display the message
-                await handleSingleBotResponse(comment);
-            }
-        } else {
-            console.log('[Proactive] No proactive comments received.');
-        }
-    } catch (error) {
-        console.error('[Proactive] Error fetching proactive comments:', error);
-    }
-}
 
 // Update chat participants header
 function updateChatParticipantsHeader() {
@@ -788,20 +743,10 @@ function updateChatParticipantsHeader() {
         }
     }
 
-    // Add @Golf Bro and @Golf Pro only if not already present
-    if (!participants.includes('Golf Bro') && !participants.includes('@Golf Bro')) {
-        participants.push('@Golf Bro');
-    }
-    if (!participants.includes('Golf Pro') && !participants.includes('@Golf Pro')) {
-        participants.push('@Golf Pro');
-    }
-
     // Create the display text - show actual opponent names instead of static "Opponents"
     let displayText = '';
     if (participants.length > 0) {
         displayText += participants.join(', ');
-    } else {
-        displayText += '@Golf Bro, @Golf Pro';
     }
 
     chatParticipants.textContent = displayText;
@@ -824,7 +769,7 @@ function showBotTypingIndicator(botName) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Remove the typing indicator for a bot
+// Remove the typing indicator for a bot. TODO: make a function to imitate 'thinking'
 function removeBotTypingIndicator(botName) {
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) return;
@@ -836,15 +781,6 @@ function removeBotTypingIndicator(botName) {
     });
 }
 
-// Check if a specific bot should send a GIF based on their personality
-function shouldBotSendGif(botName) {
-    // Prevent Jim Nantz and Golf Pro from sending GIFs
-    if (botName === 'Jim Nantz' || botName === 'jim_nantz' || botName === 'Golf Pro') {
-        return false;
-    }
-    // For other bots, use random chance (can be adjusted per bot later)
-    return Math.random() < 0.25;
-}
 
 // Send user GIF to chat
 function sendUserGifToChat(gifUrl) {
@@ -859,7 +795,7 @@ function sendUserGifToChat(gifUrl) {
 window.sendChatMessage = sendChatMessage;
 // Remove the changePersonality function and all references to it, including any personalitySelect event listeners
 // If personalitySelect is not used elsewhere, remove its related code as well
-window.getAllowedBotsForProactive = getAllowedBotsForProactive;
+// window.getAllowedBotsForProactive = getAllowedBotsForProactive;
 window.requestProactiveComment = requestProactiveComment;
 window.clearChatUI = clearChatUI;
 window.setJimNantzDefault = setJimNantzDefault;
@@ -871,7 +807,6 @@ window.requestProactiveComment = requestProactiveComment;
 window.updateChatParticipantsHeader = updateChatParticipantsHeader;
 window.showBotTypingIndicator = showBotTypingIndicator;
 window.removeBotTypingIndicator = removeBotTypingIndicator;
-window.shouldBotSendGif = shouldBotSendGif;
 window.sendUserGifToChat = sendUserGifToChat;
 
 // Initialize chatbot when DOM is ready
@@ -881,7 +816,7 @@ function initChatbotWhenReady() {
     // console.log('🔍 Looking for chat elements...');
 
     const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendChatBtn');
+    const sendBtn = document.getElementById('sendBtn');
 
     console.log('📋 Chat elements found:', {
         chatInput: chatInput,
@@ -906,3 +841,5 @@ if (document.readyState === 'loading') {
 } else {
     initChatbotWhenReady();
 }
+
+document.addEventListener('DOMContentLoaded', initChatbotWhenReady);

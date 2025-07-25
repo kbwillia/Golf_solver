@@ -23,12 +23,13 @@ class GolfChatbot:
     Knows about bot personalities, how to format game state, how to generate a message, and how to decide if/when a bot should respond (based on game state, personality, etc)."""
 
     def __init__(self, selected_bots: Optional[List[dict]] = None):
+        print("GolfChatbot.__init__ called")
         self.base_prompt = ( "keep responses short and concise. Two sentences max and roughly 150 characters max")
         self.off_topic_prompt = ( "You are in a conversation with a group playing cards, but dn't want to talk about the game. Create a response that is not about the game and about a topic that is related to the the bots personality or another interesting topic.")
         self.bots = {}  # Will hold bot objects keyed by ai_bot_id
         self.conversation_history = {} # converation history with timestamp.
 
-        if selected_bots:
+        if selected_bots: #making them a bot object.
             from bot_personalities import DataBot
             for bot_dict in selected_bots:
                 # Choose the right class based on bot_dict['name'] or another key. Nantz is from front
@@ -44,6 +45,7 @@ class GolfChatbot:
             self.game_rules = "(Game rules unavailable)"
 
     def get_bot_info(self) -> Dict[str, str]: # TODO still unsure about this.....
+        print("GolfChatbot.get_bot_info called")
         """Get information about the current bot"""
         return {
             "ai_bot_id": self.current_bot.ai_bot_id,
@@ -53,6 +55,7 @@ class GolfChatbot:
         }
 
     def format_game_state_for_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot.format_game_state_for_prompt called")
         """Format the current game state into a readable prompt for the LLM"""
         try:
             # Extract key information from game state
@@ -147,17 +150,20 @@ class GolfChatbot:
             return f"Error formatting game state: {str(e)}"
 
     def will_bot_respond(self, game_state: Dict[str, Any]) -> bool:
+        print("GolfChatbot.will_bot_respond called")
         """Check if bot will respond to the user message."""
         # TODO add respnose config here to bot might not respons.
         #if they don't respond then update config to increase chance of responding next time.
         return True # will need to update this function.
 
     def is_dramatic_event(self, game_state: Dict[str, Any]) -> bool:
+        print("GolfChatbot.is_dramatic_event called")
         """Check if the game state is a dramatic event."""
         # TODO add dramatic event logic here.
         return False # will need to update this function.
 
     def generate_response(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, bot_info: Optional[Dict[str, Any]] = None) -> str:
+        print(f"GolfChatbot.generate_response called with user_message={user_message}")
         """Generate a chatbot response based on user input and game state"""
 
         # Use provided bot_info if available (from game session memory)
@@ -256,6 +262,7 @@ class GolfChatbot:
             return error_msg
 
     def generate_off_topic_proactive_response(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
+        print(f"GolfChatbot.generate_off_topic_proactive_response called with event_type={event_type}")
         """Generate a proactive comment based on game events. if get proactive commment is true then then this function is called. This calls a function to see if the bot comments on/off topic."""
 
         context =+ self.base_prompt + "\n"
@@ -317,21 +324,35 @@ class GolfChatbot:
             else:
                 return None
 
+    def bot_personality_prompt_builder(self) -> str:
+        print("GolfChatbot.bot_personality_prompt_builder called")
+        """Build the personality prompt for the bot."""
+        # TODO build the personality prompt for the bot.
+                    # Add emotional and situational context
+        emotional_context = self.current_bot.get_emotional_context()
+        context += emotional_context + "\n\n"
+        return ""
+
     def bot_memory_update_for_new_game(self):
+        print("GolfChatbot.bot_memory_update_for_new_game called")
         """Reset bot state for a new game. maybe not reset, but have a variance and mean that it pulls to. Eh, I think I like bot memory better."""
         # TODO add bot memory to the bot object in the bot_personalities.py file.
         pass
 
     def should_send_gif(self):
+        print("GolfChatbot.should_send_gif called")
         """Check if bot should send a GIF. might be a function in the chat handler tho."""
         return False
 
     def is_on_topic(self, game_state: Optional[Dict[str, Any]]) -> bool:
+        print("GolfChatbot.is_on_topic called")
         """Check if the user message is on or off topic between game state"""
         # TODO if dramatic event, then return true.
+        # TODO if user is talking about the game then return true..
         return True # will need to update this function.
 
     def generate_response_with_gif(self, user_message: str, game_state: Optional[Dict[str, Any]] = None, personality: str = None) -> Dict[str, Any]:
+        print(f"GolfChatbot.generate_response_with_gif called with user_message={user_message}")
         """Generate an enhanced response that may include GIF suggestions"""
 
         # Generate the normal response
@@ -342,10 +363,11 @@ class GolfChatbot:
             gif_context = self._get_gif_context(user_message, game_state)
 
 
-        return result
+        return response
 
     # TODO will update this for an advanced gif system by calling llm.
     def _get_gif_context(self, message: str, game_state: Dict[str, Any] = None) -> str:
+        print("GolfChatbot._get_gif_context called")
         """Generate context for what type of GIF would be appropriate"""
 
         excitement = self.current_bot.emotional_state.get("excitement", 0.5)
@@ -368,44 +390,10 @@ class GolfChatbot:
             return "reaction"
 
 
-    def check_for_proactive_comment(
-        self,
-        game_state: dict,
-        conversation_history: list,
-        last_proactive_comment_time: float,
-        cooldown_seconds: int = 300 # 30 was default
-    ) -> Optional[dict]:
-        """
-        I"m currently confused if this should be in the handler or the chatbot. how to seperate the two??
-        """
-        import time
-        now = time.time()
-        time_since_last = now - last_proactive_comment_time
 
-        # Dramatic event trigger
-        dramatic_event = False
-        if game_state and game_state.get('last_action') and 'dramatic' in str(game_state['last_action']).lower():
-            dramatic_event = True
-
-        # Silence trigger (no user chat for X seconds)
-        last_chat_time = 0
-        if conversation_history:
-            last_chat_time = max(
-                msg.get('timestamp', 0)
-                for msg in conversation_history if msg.get('role') == 'user'
-            ) if any(msg.get('role') == 'user' for msg in conversation_history) else 0
-        time_since_chat = now - last_chat_time if last_chat_time else float('inf')
-        silence_trigger = time_since_chat > cooldown_seconds
-
-        # Decide if we should generate a comment
-        if dramatic_event or time_since_last > cooldown_seconds or silence_trigger:
-            event_type = 'dramatic_moment' if dramatic_event else 'general'
-            comment = self.generate_contextual_proactive_comment(game_state=game_state, event_type=event_type)
-            if comment:
-                return comment
-        return None
 
     def _get_turn_start_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_turn_start_prompt called")
         """Generate turn start specific prompts based on personality"""
         advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
 
@@ -415,6 +403,7 @@ class GolfChatbot:
             return "A new turn is starting. Make a brief encouraging comment."
 
     def _get_card_drawn_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_card_drawn_prompt called")
         """Generate card drawn specific prompts"""
         humor_level = self.current_bot.response_config.get("humor_level", 0.3)
 
@@ -424,6 +413,7 @@ class GolfChatbot:
             return "A card was drawn. Comment on the player's luck or strategy."
 
     def _get_card_played_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_card_played_prompt called")
         """Generate card played specific prompts"""
         advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
 
@@ -433,6 +423,7 @@ class GolfChatbot:
             return "A card was played. React to the move briefly."
 
     def _get_score_update_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_score_update_prompt called")
         """Generate score update specific prompts"""
         excitement = self.current_bot.emotional_state.get("excitement", 0.5)
 
@@ -442,10 +433,12 @@ class GolfChatbot:
             return "Scores have been updated. Comment on the current standings."
 
     def _get_game_over_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_game_over_prompt called")
         """Generate game over specific prompts"""
         return "The game has ended. React to the final results and congratulate or commiserate as appropriate."
 
     def _get_dramatic_moment_prompt(self, game_state: Dict[str, Any]) -> str:
+        print("GolfChatbot._get_dramatic_moment_prompt called")
         """Generate dramatic moment specific prompts"""
         excitement = self.current_bot.emotional_state.get("excitement", 0.5)
 
@@ -455,6 +448,7 @@ class GolfChatbot:
             return "This is a tense moment in the game. Comment on the drama unfolding."
 
     def _generate_gif_search_terms(self, bot_name: str, message: str) -> str:
+        print("GolfChatbot._generate_gif_search_terms called")
         """Generate GIF search terms based on bot's description, prompt, and message."""
         # Try to get the bot instance (use your bot registry/factory)
         bot = None
@@ -488,6 +482,7 @@ class GolfChatbot:
         return ' '.join(filtered_terms[:3])
 
     def add_message_to_history(self, sender: str, content: str, game_id: str = None):
+        print(f"GolfChatbot.add_message_to_history called with sender={sender}, game_id={game_id}")
         """Add a message to the conversation history with a timestamp."""
         import time
         message = {
@@ -528,6 +523,7 @@ class ChatHandler:
         self._last_message_timestamp = 0  # Track the timestamp of the last message seen
 
     def proactive_comment_timer(self, game_id, time_interval=PROACTIVE_TIMER):
+        print(f"GolfChatbot.proactive_comment_timer called for game_id={game_id}")
         """
         Waits for inactivity (no conversation history change) for time_interval seconds,
         then triggers proactive comment logic.
@@ -552,7 +548,20 @@ class ChatHandler:
                     start_time = time.time()  # Reset timer after triggering
 
 
+
+    def periodic_conversation_check(chat_handler, game_id=None, interval=CHAT_HISTORY_CHANGE_INTERVAL):
+        """
+        Periodically check if the conversation history has changed every `interval` seconds.
+        If changed, trigger your logic (e.g., proactive bot, notify frontend, etc.).
+        """
+        while True:
+            if chat_handler.has_conversation_history_changed(game_id):
+                print("Conversation history changed!")
+                # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
+            time.sleep(interval)
+
     def has_conversation_history_changed(self, game_id: str = None, interval: int = CHAT_HISTORY_CHANGE_INTERVAL) -> bool:
+        print(f"GolfChatbot.has_conversation_history_changed called for game_id={game_id}")
         """
         Return True if the last message in conversation history is new (content or timestamp differs)
         AND at least `interval` seconds have passed since the last True.
@@ -579,52 +588,11 @@ class ChatHandler:
             return True
         return False
 
-    def get_bot_reaction_speed(self, ai_bot_id: str) -> float:
-        """Get the reaction speed for a bot by ai_bot_id from its response_config."""
-        bot = self.bots.get(ai_bot_id)
-        if bot and hasattr(bot, 'response_config'):
-            return bot.response_config.get('reaction_speed', 0.5)
-        return 0.5  # default if not found
-
-    def calculate_bot_response_delay(self, ai_bot_id: str) -> float:
-        """Calculate response delay based on bot's reaction speed (from response_config) using ai_bot_id."""
-        try:
-            reaction_speed = self.get_bot_reaction_speed(ai_bot_id)
-
-            # Clamp reaction_speed to [0.0, 1.0]
-            try:
-                reaction_speed = float(reaction_speed)
-            except Exception:
-                reaction_speed = 0.5
-            reaction_speed = max(0.0, min(1.0, reaction_speed))
-
-            # Base delay range: 0.5-3.0 seconds
-            min_delay = 0.5
-            max_delay = 3.0
-            # Invert the reaction_speed so that higher values = faster responses
-            delay = min_delay + (1.0 - reaction_speed) * (max_delay - min_delay)
-
-            # Add some randomness (±20%)
-            variation = random.uniform(0.8, 1.2)
-            final_delay = delay * variation
-
-            # Ensure delay is never negative
-            final_delay = max(min_delay, final_delay)
-
-            print(f"DEBUG: Bot {ai_bot_id} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
-
-            return final_delay
-
-        except Exception as e:
-            print(f"DEBUG: Error calculating delay for {ai_bot_id}: {e}")
-            # Default delay if there's an error
-            return 1.5
-
 
 
     def handle_user_message(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle send message requests from user. from front end api call."""
-        print("DEBUG: Received data:", data)
+        print("DEBUG:handle_user_message Received data:", data)
         game_id = data.get('game_id')  # Always get game_id from the incoming data
         message = data.get('message')
         # personality_type = data.get('personality_type', 'Jim Nantz') # ?? what is this?
@@ -833,6 +801,49 @@ class ChatHandler:
             traceback.print_exc()
             return {'error': str(e)}, 500
 
+    def get_bot_reaction_speed(self, ai_bot_id: str) -> float:
+        print(f"GolfChatbot.get_bot_reaction_speed called for ai_bot_id={ai_bot_id}")
+        """Get the reaction speed for a bot by ai_bot_id from its response_config."""
+        bot = self.bots.get(ai_bot_id)
+        if bot and hasattr(bot, 'response_config'):
+            return bot.response_config.get('reaction_speed', 0.5)
+        return 0.5  # default if not found
+
+    def calculate_bot_response_delay(self, ai_bot_id: str) -> float:
+        print(f"GolfChatbot.calculate_bot_response_delay called for ai_bot_id={ai_bot_id}")
+        """Calculate response delay based on bot's reaction speed (from response_config) using ai_bot_id."""
+        try:
+            reaction_speed = self.get_bot_reaction_speed(ai_bot_id)
+
+            # Clamp reaction_speed to [0.0, 1.0]
+            try:
+                reaction_speed = float(reaction_speed)
+            except Exception:
+                reaction_speed = 0.5
+            reaction_speed = max(0.0, min(1.0, reaction_speed))
+
+            # Base delay range: 0.5-3.0 seconds
+            min_delay = 0.5
+            max_delay = 3.0
+            # Invert the reaction_speed so that higher values = faster responses
+            delay = min_delay + (1.0 - reaction_speed) * (max_delay - min_delay)
+
+            # Add some randomness (±20%)
+            variation = random.uniform(0.8, 1.2)
+            final_delay = delay * variation
+
+            # Ensure delay is never negative
+            final_delay = max(min_delay, final_delay)
+
+            print(f"DEBUG: Bot {ai_bot_id} - reaction_speed: {reaction_speed:.2f}, calculated delay: {final_delay:.2f}s")
+
+            return final_delay
+
+        except Exception as e:
+            print(f"DEBUG: Error calculating delay for {ai_bot_id}: {e}")
+            # Default delay if there's an error
+            return 1.5
+
 
 
     def handle_get_giphy_gif(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -893,16 +904,7 @@ class ChatHandler:
         return [msg for msg in game_session.get('conversation_history', []) if msg.get('ai_bot_id') == ai_bot_id]
 
 
-def periodic_conversation_check(chat_handler, game_id=None, interval=2):
-    """
-    Periodically check if the conversation history has changed every `interval` seconds.
-    If changed, trigger your logic (e.g., proactive bot, notify frontend, etc.).
-    """
-    while True:
-        if chat_handler.has_conversation_history_changed(game_id):
-            print("Conversation history changed!")
-            # Place your logic here (e.g., trigger proactive bot, notify frontend, etc.)
-        time.sleep(interval)
+
 
 # Example usage:
 # chat_handler = ChatHandler(chatbot)

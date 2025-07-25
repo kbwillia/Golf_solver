@@ -170,7 +170,7 @@ def create_game():
     for bot in selected_bots:
         if 'ai_bot_id' in bot:
             custom_bot_cache[bot['ai_bot_id']] = bot
-            print(f"DEBUG: Cached bot {bot['ai_bot_id']}: {bot}")
+            # print(f"DEBUG: Cached bot {bot['ai_bot_id']}: {bot}") # this works. both bot and nantz.
 
     # 2. Set up agent types and player names
     # Only add user-selected bots as players
@@ -573,13 +573,11 @@ def test_chatbot():
 @app.route('/chatbot/send_message', methods=['POST'])
 def send_chatbot_message():
     data = request.json
-    result = chat_handler.handle_user_message(data, get_game_state, games)
+    result = chat_handler.handle_user_message(data)
 
     if isinstance(result, tuple):
-        response_data, status_code = result
-        return jsonify(response_data), status_code
-    else:
-        return jsonify(result)
+        return jsonify(result[0]), result[1]
+    return jsonify(result)
 
 @app.route('/chatbot/get_bot_response', methods=['POST'])
 def get_bot_response():
@@ -819,9 +817,6 @@ def upload_bot_image():
     return jsonify({'success': True, 'image_path': image_path}), 200
 
 
-
-# Start the timer in a background thread (add this near your app startup)
-threading.Thread(target=proactive_comment_timer, daemon=True).start()
 
 if __name__ == '__main__':
     # Get port from environment variable (for deployment) or use 5000 for local development
