@@ -293,75 +293,37 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
     const imageMatch = message.match(imageRegex);
 
     if (imageMatch && gifOnly) {
-        // GIF-only message - no bubble styling
-        const imageUrl = imageMatch[1];
-
-        const imgElement = document.createElement('img');
-        imgElement.src = imageUrl;
-        imgElement.alt = 'Chat GIF';
-        imgElement.className = 'chat-image';
-        imgElement.style.maxWidth = '200px';
-        imgElement.style.maxHeight = '150px';
-        imgElement.style.borderRadius = '8px';
-        imgElement.style.marginTop = '4px';
-        imgElement.style.marginBottom = '4px';
-        contentDiv.appendChild(imgElement);
-
-        // Remove bubble styling for GIF-only messages
-        contentDiv.style.background = 'transparent';
-        contentDiv.style.border = 'none';
-        contentDiv.style.padding = '0';
-        contentDiv.style.boxShadow = 'none';
-
-        // Remove the bubble pointer by hiding the ::after pseudo-element
-        contentDiv.style.position = 'relative';
+        // GIF-only message
+        const img = document.createElement('img');
+        img.src = imageMatch[1];
+        img.alt = 'GIF';
+        img.style.maxWidth = '200px';
+        img.style.maxHeight = '150px';
+        img.style.borderRadius = '8px';
+        img.style.margin = '4px 0';
+        contentDiv.appendChild(img);
         contentDiv.style.setProperty('--hide-pointer', 'true');
-
-        // Add onload handler to scroll after GIF loads
-        imgElement.onload = function() {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        };
     } else if (imageMatch) {
-        // Mixed text and image message (legacy case)
-        const imageUrl = imageMatch[1];
-        const textBefore = message.substring(0, imageMatch.index).trim();
-        const textAfter = message.substring(imageMatch.index + imageUrl.length).trim();
-
-        // Create separate containers for text and image
-        if (textBefore) {
-            const textDiv = document.createElement('div');
-            textDiv.textContent = textBefore;
-            textDiv.style.marginBottom = '8px';
-            contentDiv.appendChild(textDiv);
-        }
-
-        // Add image with proper styling
-        const imgElement = document.createElement('img');
-        imgElement.src = imageUrl;
-        imgElement.alt = 'Chat image';
-        imgElement.className = 'chat-image';
-        imgElement.style.maxWidth = '200px';
-        imgElement.style.maxHeight = '150px';
-        imgElement.style.borderRadius = '8px';
-        imgElement.style.marginTop = '8px';
-        imgElement.style.marginBottom = '8px';
-        // Add onload handler to scroll after image loads
-        imgElement.onload = function() {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        };
-        contentDiv.appendChild(imgElement);
-
-        if (textAfter) {
-            const textDiv = document.createElement('div');
-            textDiv.textContent = textAfter;
-            textDiv.style.marginTop = '8px';
-            contentDiv.appendChild(textDiv);
-        }
-
-        // Don't override the CSS bubble styling - let it work naturally
-        // The CSS will handle the bubble background, border-radius, and pointer
+        // Message with embedded image
+        const textParts = message.split(imageRegex);
+        textParts.forEach((part, index) => {
+            if (part.match(imageRegex)) {
+                const img = document.createElement('img');
+                img.src = part;
+                img.alt = 'Image';
+                img.style.maxWidth = '150px';
+                img.style.maxHeight = '100px';
+                img.style.borderRadius = '4px';
+                img.style.margin = '4px 0';
+                contentDiv.appendChild(img);
+            } else if (part.trim()) {
+                const textSpan = document.createElement('span');
+                textSpan.textContent = part;
+                contentDiv.appendChild(textSpan);
+            }
+        });
     } else {
-        // Regular text message
+        // Text-only message
         contentDiv.textContent = message;
     }
 
@@ -386,6 +348,9 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    // Check if we need to minimize the header
+    checkAndMinimizeHeader();
+
     // Always keep focus on chat input unless GIF modal/search is open/focused
     setTimeout(() => {
         const gifModal = document.getElementById('gifModal');
@@ -398,6 +363,45 @@ function addMessageToChat(sender, message, botName = null, gifOnly = false) {
             if (chatInput) chatInput.focus();
         }
     }, 10);
+}
+
+// Function to check if header should be minimized
+function checkAndMinimizeHeader() {
+    const chatMessages = document.getElementById('chatMessages');
+    const chatHeader = document.querySelector('.chatbot-header');
+
+    if (!chatMessages || !chatHeader) return;
+
+    // Check if chat messages are overflowing (need to scroll)
+    const isOverflowing = chatMessages.scrollHeight > chatMessages.clientHeight;
+    const hasScrollbar = chatMessages.scrollTop > 0;
+
+    if (isOverflowing || hasScrollbar) {
+        chatHeader.classList.add('minimized');
+    } else {
+        chatHeader.classList.remove('minimized');
+    }
+}
+
+// Function to restore header when scrolling to top
+function handleChatScroll() {
+    const chatMessages = document.getElementById('chatMessages');
+    const chatHeader = document.querySelector('.chatbot-header');
+
+    if (!chatMessages || !chatHeader) return;
+
+    // If scrolled to top, restore header
+    if (chatMessages.scrollTop === 0) {
+        chatHeader.classList.remove('minimized');
+    }
+}
+
+// Add scroll event listener to chat messages
+function initializeChatScrollHandler() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.addEventListener('scroll', handleChatScroll);
+    }
 }
 
 // Helper to handle all bot responses (main and proactive)
@@ -872,10 +876,9 @@ function initChatbotWhenReady() {
     });
 
     if (chatInput && sendBtn) {
-        console.log('✅ Chat elements found, initializing...');
+        console.log('✅ Chat elements found, initializing chatbot...');
         initializeChatbot();
-        // Poll for proactive comments every 10 seconds
-        setInterval(requestProactiveComment, 50000);
+        initializeChatScrollHandler(); // Initialize scroll handler
     } else {
         console.log('⏳ Chat elements not found yet, retrying in 100ms...');
         setTimeout(initChatbotWhenReady, 100);
