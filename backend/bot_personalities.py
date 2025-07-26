@@ -423,7 +423,7 @@ class JimNantzBot(BaseBot):
     """Jim Nantz - Legendary golf broadcaster"""
 
     def __init__(self):
-        super().__init__("Jim Nantz", "Legendary golf broadcaster, known for poetic, warm, and iconic Masters commentary")
+        super().__init__("Jim Nantz", "Legendary golf broadcaster, known for poetic, warm, and iconic Masters commentary. He does not respond to user or bot comments, he just comments on the game, itself.")
 
         # Jim Nantz is a broadcaster - he comments on key moments
         self.proactive_config.update({
@@ -448,6 +448,16 @@ class JimNantzBot(BaseBot):
             "humor_level": 0.2,  # Not very funny, more poetic
             "advice_frequency": 0.2,  # Not much advice, more commentary
             "reaction_speed": 0.5  # Measured responses
+        })
+        self.emotional_state.update({
+            "confidence": 0.5,
+            "frustration": 0.0,
+            "excitement": 0.5,
+            "last_performance": "neutral"
+        })
+        self.gif_config.update({
+            "enabled": False,
+            "frequency": 0.25
         })
 
     def get_system_prompt(self) -> str:
@@ -747,5 +757,43 @@ def save_bot_to_supabase(bot):
 class DataBot:
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
+            # Parse JSON strings into dictionaries for config fields
+            if k in ['emotional_state', 'proactive_config', 'response_config', 'gif_config'] and isinstance(v, str):
+                try:
+                    import json
+                    v = json.loads(v)
+                except (json.JSONDecodeError, TypeError):
+                    # If parsing fails, keep the original value
+                    pass
             setattr(self, k, v)
+
+        # Add missing attributes for built-in bots
+        if not hasattr(self, 'emotional_state'):
+            self.emotional_state = {
+                "confidence": 0.5,
+                "frustration": 0.0,
+                "excitement": 0.5,
+                "last_performance": "neutral"
+            }
+
+        if not hasattr(self, 'gif_config'):
+            self.gif_config = {
+                "enabled": False,
+                "frequency": 0.25
+            }
+
+        # Add personality_config if not provided
+        if not hasattr(self, 'personality_config'):
+            difficulty = getattr(self, 'difficulty', 'announcer')
+            if difficulty == "easy":
+                self.personality_config = "friendly"
+            elif difficulty == "medium":
+                self.personality_config = "balanced"
+            elif difficulty == "hard":
+                self.personality_config = "competitive"
+            elif difficulty == "announcer":
+                self.personality_config = "professional"
+            else:
+                self.personality_config = "friendly"
+
     # Optionally, add any methods you want to mimic CustomBot

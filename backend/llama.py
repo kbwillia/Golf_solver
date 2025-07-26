@@ -16,6 +16,11 @@ def call_llama(
     If stream=False, returns the message string.
     If stream=True, returns the full text response.
     """
+    print(f"🔍 CALL_LLAMA DEBUG: Starting call_llama function")
+    print(f"🔍 CALL_LLAMA DEBUG: Model: {model}")
+    print(f"🔍 CALL_LLAMA DEBUG: Prompt length: {len(prompt)}")
+    print(f"🔍 CALL_LLAMA DEBUG: Temperature: {temperature}")
+
     messages = [{"role": "user", "content": prompt}]
 
     # Prepare options
@@ -52,6 +57,7 @@ def call_llama(
             return full_text
         else:
             # Handle non-streaming response
+            print(f'🔍 LLM DEBUG: About to call ollama.chat...')
             response = ollama.chat(
                 model=model,
                 messages=messages,
@@ -59,6 +65,7 @@ def call_llama(
             )
 
             message = response['message']['content']
+            print(f'🔍 LLM DEBUG: ollama.chat returned: {message[:100] if message else "None"}')
             return message
 
     except Exception as e:

@@ -64,6 +64,16 @@ class GolfChatbot:
                 self.bots[bot_dict['ai_bot_id']] = bot_obj
                 print(f"Added bot: {bot_dict['ai_bot_id']} -> {bot_obj.name}")
 
+                # DEBUG: Print all attributes of the DataBot object
+                print(f"🔍 DEBUG: DataBot attributes for {bot_obj.name}:")
+                for attr in dir(bot_obj):
+                    if not attr.startswith('_'):  # Skip private attributes
+                        try:
+                            value = getattr(bot_obj, attr)
+                            print(f"  - {attr}: {value}")
+                        except Exception as e:
+                            print(f"  - {attr}: ERROR - {e}")
+
         print(f"Total bots in self.bots: {list(self.bots.keys())}")
 
     # def get_bot_info(self) -> Dict[str, str]: # TODO still unsure about this.....this is for dicts.
@@ -171,14 +181,20 @@ class GolfChatbot:
         except Exception as e:
             return f"Error formatting game state: {str(e)}"
 
-    def will_bot_respond(self, game_state: Dict[str, Any]) -> bool:
+    def will_bot_respond(self, game_state: Dict[str, Any], ai_bot_id: str) -> bool:
         print("GolfChatbot.will_bot_respond called")
         """Check if bot will respond to the user message based on the bot's response config."""
 
-        # Get probabilities from config, with sensible defaults
-        response_probability = self.response_config.get("response_probability", 1.0)
-        dramatic_event_comment_prob = self.response_config.get("dramatic_event_comment_prob", 1.0)
-        # TODO add correct configs. a
+        # TODO add the response config to the bot object.
+        try:
+            response_probability = self.response_config.get("response_probability", 1.0)
+            dramatic_event_comment_prob = self.response_config.get("dramatic_event_comment_prob", 1.0)
+        except AttributeError:
+            # If response_config doesn't exist, use defaults
+            response_probability = 1.0
+            dramatic_event_comment_prob = 1.0
+            print("WARNING: response_config not found, using default probabilities")
+
         # Check if this is a dramatic event
         is_dramatic = self.is_dramatic_event(game_state)
 
@@ -241,10 +257,28 @@ class GolfChatbot:
         return prompt
 
     def emotional_state_prompt_builder(self, ai_bot_id: str) -> str:
-        print("emotional_state_prompt_builder called")
         """Build the emotional state prompt for the bot."""
         # Get bot emotional state, default to 'neutral'
-        emotional_state = self.bots[ai_bot_id].emotional_state
+        print(f"🔍 EMOTIONAL_STATE DEBUG: Processing bot with ai_bot_id: {ai_bot_id}")
+
+        # Check if bot exists
+        if ai_bot_id not in self.bots:
+            print(f"🔍 EMOTIONAL_STATE DEBUG: ERROR - Bot {ai_bot_id} not found in self.bots!")
+            print(f"🔍 EMOTIONAL_STATE DEBUG: Available bots: {list(self.bots.keys())}")
+            return "You are neutral. "
+
+        bot = self.bots[ai_bot_id]
+        print(f"🔍 EMOTIONAL_STATE DEBUG: Bot name: {bot.name}")
+        print(f"🔍 EMOTIONAL_STATE DEBUG: Bot attributes: {[attr for attr in dir(bot) if not attr.startswith('_')]}")
+        print(f"🔍 EMOTIONAL_STATE DEBUG: Bot has emotional_state: {hasattr(bot, 'emotional_state')}")
+
+        if not hasattr(bot, 'emotional_state'):
+            print(f"🔍 EMOTIONAL_STATE DEBUG: ERROR - Bot {bot.name} missing emotional_state attribute!")
+            return "You are neutral. "
+
+        emotional_state = bot.emotional_state
+        print(f'🔍 EMOTIONAL_STATE DEBUG: emotional_state: {emotional_state}', 'type: ', type(emotional_state))
+
         prompt = ""
         if emotional_state == "confident":
             prompt += "You are confident and assertive. "
@@ -276,7 +310,8 @@ class GolfChatbot:
                           game_state: Optional[Dict[str, Any]] = None,
                           ai_bot_id: str = None) -> str:
 
-        print(f"GolfChatbot.generate_response called with ai_bot_id={ai_bot_id}")
+        print(f"🔍 GENERATE_RESPONSE DEBUG: Called with ai_bot_id={ai_bot_id}")
+        print(f"🔍 GENERATE_RESPONSE DEBUG: ai_bot_id in self.bots: {ai_bot_id in self.bots}")
         """Generate a chatbot response based on conversation history and game state"""
 
         game_id = game_state["game_id"]
@@ -323,6 +358,12 @@ class GolfChatbot:
         context += f"{bot_name}:"
 
         try:
+            print(f"🔍 GENERATE_RESPONSE DEBUG: About to call prompt builders for ai_bot_id: {ai_bot_id}")
+            print(f"🔍 GENERATE_RESPONSE DEBUG: Bot exists in self.bots: {ai_bot_id in self.bots}")
+            if ai_bot_id in self.bots:
+                print(f"🔍 GENERATE_RESPONSE DEBUG: Bot name: {self.bots[ai_bot_id].name}")
+                print(f"🔍 GENERATE_RESPONSE DEBUG: Bot has emotional_state: {hasattr(self.bots[ai_bot_id], 'emotional_state')}")
+
             context += self.dramatic_event_prompt_builder(game_state) + "\n\n"
             context += self.difficulty_prompt_builder(ai_bot_id) + "\n\n"
             context += self.personality_prompt_builder(ai_bot_id) + "\n\n"
@@ -339,25 +380,38 @@ class GolfChatbot:
             # TODO call gif config for the botto add to the context
             # TODO  can adjust temperature for emotional state
 
-            # response, usage = call_cerebras_llm(
-            #     prompt=context,
-            #     model="llama3.1-8b",
-            #     structured=False,
-            #     stream=False,
-            #     temperature=0.8
-            # )
+            print(f' ---------------callling the llm ---------------')
+            print(f'🔍 LLM DEBUG: Context length: {len(context)} characters')
+            print(f'🔍 LLM DEBUG: About to call call_llama...')
 
-            response = call_llama(
+            response, usage = call_cerebras_llm(
                 prompt=context,
-                model="llama3.1",
+                model="llama3.1-8b",
                 structured=False,
                 stream=False,
                 temperature=0.8
             )
 
-            print(f"🤖 {bot_name}: {response}")
-            # if usage:
-            #     print(f"🤖 Token usage: {usage}")
+            # try:
+            #     response = call_llama(
+            #         prompt=context,
+            #         model="llama3.1",
+            #         structured=False,
+            #         stream=False,
+            #         temperature=0.8
+            #     )
+            #     print(f'🔍 LLM DEBUG: call_llama returned successfully')
+            #     print(f'🔍 LLM DEBUG: Response length: {len(response) if response else 0}')
+            #     print(f'🔍 LLM DEBUG: Response preview: {response[:100] if response else "None"}')
+            # except Exception as e:
+            #     print(f'🔍 LLM DEBUG: Error calling call_llama: {e}')
+            #     import traceback
+            #     traceback.print_exc()
+            #     response = f"Sorry, I'm having trouble responding right now. LLM Error: {str(e)}"
+
+            print(f"🤖 {bot_name}: 'response from LLM': {response}")
+            if usage:
+                print(f"🤖 Token usage: {usage}")
 
             #add to conversation history
             self.add_message_to_history(bot_name, response, game_id)
@@ -378,7 +432,6 @@ class GolfChatbot:
         context = self.base_prompt + "\n"
 
         print(f"DEBUG: generate_proactive_comment called with event_type: {event_type}")
-        print(f"DEBUG: Current bot_type: {self.bot_type}")
 
         # Use the bot's proactive behavior system to see if they are going to comment on game state or off topic message. TODO. might need to update proactive config for game state vs off topic.
 
@@ -395,10 +448,8 @@ class GolfChatbot:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
 
             # Add emotional and situational context
-            emotional_context = self.current_bot.get_emotional_context()
             context += emotional_context + "\n\n"
 
-            situational_context = self.current_bot.get_situational_context(game_state)
             if situational_context:
                 context += situational_context + "\n\n"
 
@@ -422,7 +473,6 @@ class GolfChatbot:
         """Build the personality prompt for the bot."""
         # TODO build the personality prompt for the bot.
                     # Add emotional and situational context
-        emotional_context = self.current_bot.get_emotional_context()
         context += emotional_context + "\n\n"
         return ""
 
@@ -463,9 +513,7 @@ class GolfChatbot:
         print("GolfChatbot._get_gif_context called")
         """Generate context for what type of GIF would be appropriate"""
 
-        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
-        confidence = self.current_bot.emotional_state.get("confidence", 0.5)
-        humor_level = self.current_bot.response_config.get("humor_level", 0.3)
+
 
         # Determine GIF type based on context and personality
         if game_state and game_state.get('game_over', False):
@@ -488,7 +536,6 @@ class GolfChatbot:
     def _get_turn_start_prompt(self, game_state: Dict[str, Any]) -> str:
         print("GolfChatbot._get_turn_start_prompt called")
         """Generate turn start specific prompts based on personality"""
-        advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
 
         if advice_freq > 0.6:
             return "A new turn is starting. Offer strategic advice or commentary on the player's position."
@@ -498,7 +545,6 @@ class GolfChatbot:
     def _get_card_drawn_prompt(self, game_state: Dict[str, Any]) -> str:
         print("GolfChatbot._get_card_drawn_prompt called")
         """Generate card drawn specific prompts"""
-        humor_level = self.current_bot.response_config.get("humor_level", 0.3)
 
         if humor_level > 0.6:
             return "A card was just drawn. Make a witty or humorous comment about the draw."
@@ -508,7 +554,6 @@ class GolfChatbot:
     def _get_card_played_prompt(self, game_state: Dict[str, Any]) -> str:
         print("GolfChatbot._get_card_played_prompt called")
         """Generate card played specific prompts"""
-        advice_freq = self.current_bot.response_config.get("advice_frequency", 0.4)
 
         if advice_freq > 0.6:
             return "A card was played. Analyze the move and offer strategic commentary related to the EV."
@@ -518,7 +563,6 @@ class GolfChatbot:
     def _get_score_update_prompt(self, game_state: Dict[str, Any]) -> str:
         print("GolfChatbot._get_score_update_prompt called")
         """Generate score update specific prompts"""
-        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
 
         if excitement > 0.7:
             return "Scores have been updated! React with enthusiasm to the score changes."
@@ -533,7 +577,6 @@ class GolfChatbot:
     def _get_dramatic_moment_prompt(self, game_state: Dict[str, Any]) -> str:
         print("GolfChatbot._get_dramatic_moment_prompt called")
         """Generate dramatic moment specific prompts"""
-        excitement = self.current_bot.emotional_state.get("excitement", 0.5)
 
         if excitement > 0.7:
             return "This is a dramatic moment in the game! React with high energy and excitement."
@@ -682,42 +725,63 @@ class ChatHandler:
                 game_session = self.games[active_game_id]
                 # Skip if conversation history changed recently (activity detected)
                 if self.has_conversation_history_changed(active_game_id):
-                    print(f"[Proactive Timer] converstiaon history has changed. {active_game_id}, resetting timer.")
+                    print(f"[Proactive Timer 720] converstiaon history has changed. {active_game_id}, resetting timer.")
                     continue
 
                 # Check if enough time has passed since last conversation activity
                 # last_message_time = 0
                 if active_game_id is not None and active_game_id in self.chatbot.conversation_history:
                     last_message = self.chatbot.conversation_history[active_game_id][-1]
-                    print(f"[Proactive Timer] last message: {last_message}")
+                    print(f"[Proactive Timer 717] last message: {last_message}")
                     last_message_time = last_message.get('timestamp', 0)
-                    print(f"[Proactive Timer] last message time: {last_message_time}")
+                    print(f"[Proactive Timer 720] last message time: {last_message_time}")
 
                 # If enough time passed, call should_generate_proactive_comment () which checks dramatic events and variability for each bot timing.
                     if time.time() - last_message_time >= time_interval:
-                        print(f"[Proactive Timer] No conversation activity in game {active_game_id} for {time_interval}s. Generating proactive comment.")
+                        print(f"[Proactive Timer 723] No conversation activity in game {active_game_id} for {time_interval}s. Generating proactive comment.")
                         if self.should_generate_proactive_comment(game_state, game_session):
                             # Get bot info and generate proactive response directly
                             selected_bots = game_session.get('selected_bots', [])
                             if selected_bots:
                                 # Only 1-2 bots respond per user message
-                                max_responses = min(2, len(selected_bots))
+                                max_responses = min(1, len(selected_bots))
                                 responding_bots = random.sample(selected_bots, max_responses)
 
                                 for bot_dict in responding_bots:
                                     # Generate a proactive response using generate_response with ai_bot_id
                                     ai_bot_id = bot_dict.get('ai_bot_id')
-                                    conversation_history = self.chatbot.conversation_history.get(active_game_id, [])
-                                    self.chatbot.generate_response(conversation_history, game_state, ai_bot_id)
+                                    bot_name = bot_dict.get('name', 'Unknown')
+                                    print(f"🔍 PROACTIVE DEBUG: Trying to generate response for bot: {bot_name} (ai_bot_id: {ai_bot_id})")
+                                    print(f"🔍 PROACTIVE DEBUG: Available bots in chatbot: {list(self.chatbot.bots.keys())}")
+                                    print(f"🔍 PROACTIVE DEBUG 738: Bot exists in chatbot.bots: {ai_bot_id in self.chatbot.bots}")
+
+                                    # Only generate response if bot exists in chatbot.bots
+                                    if ai_bot_id in self.chatbot.bots:
+                                        conversation_history = self.chatbot.conversation_history.get(active_game_id, [])
+                                        print(f' Proactive comment timer calling generate_response 740')
+                                        self.chatbot.generate_response(conversation_history, game_state, ai_bot_id)
+                                    else:
+                                        print(f"🔍 PROACTIVE DEBUG: Skipping bot {bot_name} (ai_bot_id: {ai_bot_id}) - not found in chatbot.bots")
 
 
             time.sleep(4)  # Check every second
 
     def should_generate_proactive_comment(self, game_state: Dict, game_session: Dict) -> bool:
         """Determine if a proactive comment should be generated."""
-        # Check for dramatic events and if the bot will respond is true.
-        if self.chatbot.is_dramatic_event(game_state) and self.chatbot.will_bot_respond(game_state):
-            return True
+        # Check for dramatic events
+        print(f' [DEBUG] should_generate_proactive_comment called.')
+        print(f' [DEBUG] Available bots in chatbot: {list(self.chatbot.bots.keys())}')
+        if self.chatbot.is_dramatic_event(game_state):
+            print(f' [DEBUG] Dramatic event detected, checking if any bot wants to respond')
+            # Check if any bot wants to respond to dramatic events
+            for ai_bot_id, bot in self.chatbot.bots.items():
+                print(f' [DEBUG] Checking bot: {bot.name} (ai_bot_id: {ai_bot_id})')
+                print(f' [DEBUG] Bot has emotional_state: {hasattr(bot, "emotional_state")}')
+                if self.chatbot.will_bot_respond(game_state, ai_bot_id):
+                    print(f' [DEBUG] Bot {bot.name} wants to respond to dramatic event')
+                    return True
+            print(f' [DEBUG] No bots want to respond to dramatic event')
+            return False
 
         # Check for inactivity (this is handled by proactive_comment_timer)
         if self.has_conversation_history_changed(game_id):
@@ -735,7 +799,7 @@ class ChatHandler:
         return True
 
     def has_conversation_history_changed(self, game_id: str = None, interval: int = CHAT_HISTORY_CHANGE_INTERVAL) -> bool:
-        print(f"ChatHandler.has_conversation_history_changed called for game_id={game_id}")
+        print(f" [DEBUG] conversation_history_changed called.")
         """
         Return True if the last message in conversation history is new (content or timestamp differs)
         AND at least `interval` seconds have passed since the last True.
