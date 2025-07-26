@@ -29,6 +29,11 @@ def call_cerebras_llm(
     temperature: float = 0.5,
     stream_delay: float = 0.025
 ) -> str:
+    """
+    Call the Cerebras LLM and return the response message and token usage.
+    If stream=False, returns (message, usage_dict) where usage_dict contains 'prompt_tokens', 'completion_tokens', 'total_tokens'.
+    If stream=True, returns just the full text response.
+    """
     messages = [{"role": "user", "content": prompt}]
     kwargs = {"model": model, "messages": messages, "temperature": temperature}
 
@@ -60,24 +65,37 @@ def call_cerebras_llm(
                     time.sleep(stream_delay)
             return full_text
         else:
-            return response.choices[0].message.content
+            message = response.choices[0].message.content # for just getting the response message.
+            message_dict = response.choices[0].message.to_dict() # for getting the response message and the usage.
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                usage_dict = {
+                    "prompt_tokens": getattr(usage, "prompt_tokens", None),
+                    "completion_tokens": getattr(usage, "completion_tokens", None),
+                    "total_tokens": getattr(usage, "total_tokens", None),
+                }
+            else:
+                usage_dict = None
+            return message, usage_dict
 
     except Exception as e:
-        return f"[Cerebras LLM error: {str(e)}]"
+        return f"[Cerebras LLM error: {str(e)}]", None
 
 if __name__ == "__main__":
-    from rag.models.schemas import job_schema
-    test_prompt = "You are a helpful assistant. Suggest a job in the UK and make it a 5000 word job description"
+    # from rag.models.schemas import job_schema
+    test_prompt = "You are a helpful assistant. Suggest a job in the UK and make it a 50 word job description"
 
     try:
-        answer = call_cerebras_llm(
+        answer, usage = call_cerebras_llm(
             prompt=test_prompt,
             model="llama-4-scout-17b-16e-instruct",
-            structured=True,
-            json_schema=job_schema,
+            structured=False,
+            # json_schema=job_schema,
             stream=False
         )
         print("\n\nFull response:\n", answer)
+        if usage:
+            print(f"Token usage: {usage}")
         try:
             print(json.dumps(json.loads(answer), indent=2))
         except Exception:

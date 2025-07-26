@@ -17,3 +17,4 @@ google-cloud-texttospeech
 # playsound # used for testing audo.
 supabase
 pinecone-client
+ollama

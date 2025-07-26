@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Any
 from llm_cerebras import call_cerebras_llm
+from llama import call_llama
 import random
 import os
 from bot_personalities import DataBot
@@ -172,10 +173,26 @@ class GolfChatbot:
 
     def will_bot_respond(self, game_state: Dict[str, Any]) -> bool:
         print("GolfChatbot.will_bot_respond called")
-        """Check if bot will respond to the user message."""
-        # TODO add respnose config here to bot might not respons.
-        #if they don't respond then update config to increase chance of responding next time.
-        return True # will need to update this function.
+        """Check if bot will respond to the user message based on the bot's response config."""
+
+        # Get probabilities from config, with sensible defaults
+        response_probability = self.response_config.get("response_probability", 1.0)
+        dramatic_event_comment_prob = self.response_config.get("dramatic_event_comment_prob", 1.0)
+        # TODO add correct configs. a
+        # Check if this is a dramatic event
+        is_dramatic = self.is_dramatic_event(game_state)
+
+        # Use the appropriate probability
+        prob = dramatic_event_comment_prob if is_dramatic else response_probability
+
+        roll = random.random()
+        print(f"Using probability: {prob} (dramatic: {is_dramatic}), roll: {roll}")
+        if roll < prob:
+            print("Bot will respond.")
+            return True
+        else:
+            print("Bot will not respond.")
+            return False
 
     def is_dramatic_event(self, game_state: Dict[str, Any]) -> bool:
         print("GolfChatbot.is_dramatic_event called")
@@ -183,42 +200,107 @@ class GolfChatbot:
         # TODO add dramatic event logic here.
         return True # will need to update this function.
 
-    def generate_response(self, conversation_history: List[Dict[str, Any]], game_state: Optional[Dict[str, Any]] = None, ai_bot_id: str = None) -> str:
+    def dramatic_event_prompt_builder(self, game_state: Dict[str, Any]) -> str:
+        print("dramatic_event_prompt_builder called")
+        """Build the dramatic event prompt for the bot."""
+        # TODO add dramatic event logic here.
+        return ""
+
+    def difficulty_prompt_builder(self, ai_bot_id: str) -> str:
+        print("difficulty_prompt_builder called")
+        """Build the difficulty prompt for the bot."""
+        # Get bot difficulty, default to 'medium'
+        difficulty = self.bots[ai_bot_id].difficulty
+        prompt = ""
+        if difficulty == "easy":
+            prompt += "You are friendly and encouraging. "
+        elif difficulty == "medium":
+            prompt += "You are balanced and strategic. "
+        elif difficulty == "hard":
+            prompt += "You are competitive and analytical. "
+        else:
+            prompt += "You are a thoughtful and interesting player. "
+        return prompt
+
+    def personality_prompt_builder(self, ai_bot_id: str) -> str:
+        print("personality_prompt_builder called")
+        """Build the personality prompt for the bot."""
+        # Get bot personality, default to 'friendly'
+        #TODO update personality config for bots
+        # personality = self.bots[ai_bot_id].personality_config
+        personality = "friendly"
+        prompt = ""
+        if personality == "friendly":
+            prompt += "You are friendly and encouraging. "
+        elif personality == "strategic":
+            prompt += "You are balanced and strategic. "
+        elif personality == "competitive":
+            prompt += "You are competitive and analytical. "
+        else:
+            prompt += "You are a thoughtful and interesting player. "
+        return prompt
+
+    def emotional_state_prompt_builder(self, ai_bot_id: str) -> str:
+        print("emotional_state_prompt_builder called")
+        """Build the emotional state prompt for the bot."""
+        # Get bot emotional state, default to 'neutral'
+        emotional_state = self.bots[ai_bot_id].emotional_state
+        prompt = ""
+        if emotional_state == "confident":
+            prompt += "You are confident and assertive. "
+        elif emotional_state == "frustrated":
+            prompt += "You are frstrated"
+        elif emotional_state == "excitedt":
+            prompt += "You are excited"
+        elif emotional_state == "neutral":
+            prompt += "You are neutral"
+        else:
+            prompt += "You are a thoughtful and interesting player. "
+        return prompt
+
+    def lucky_event(self, game_state: Dict[str, Any]) -> bool:
+        print("GolfChatbot.lucky_unlucky_event called")
+        """Check if the game state is a lucky or unlucky event."""
+        # Example logic: check for a key in game_state
+        # Replace with your actual game logic!
+        if not game_state:
+            return False
+        # Example: if the last card drawn is an Ace or a 2 (lucky/unlucky)
+        last_card = game_state.get("last_card_drawn")
+        if last_card in ["A", "2"]:
+            return True
+        # Add more conditions as needed
+        return False
+
+    def generate_response(self, conversation_history: List[Dict[str, Any]],
+                          game_state: Optional[Dict[str, Any]] = None,
+                          ai_bot_id: str = None) -> str:
+
         print(f"GolfChatbot.generate_response called with ai_bot_id={ai_bot_id}")
         """Generate a chatbot response based on conversation history and game state"""
+
+        game_id = game_state["game_id"]
 
         # Get bot from self.bots using ai_bot_id
         if ai_bot_id and ai_bot_id in self.bots:
             bot_obj = self.bots[ai_bot_id]
-            bot_name = bot_obj.name
+            bot_name = bot_obj.name # do i need the bot
             bot_description = bot_obj.description
             difficulty = bot_obj.difficulty
+
         else:
             # Fallback if bot not found
             bot_name = 'AI Bot'
             bot_description = 'A helpful AI assistant'
             difficulty = 'medium'
 
-        # Check if the bot will respond
-        if not self.will_bot_respond(game_state):
-            self.add_message_to_history('bot', "The bot chooses not to respond at this time.", None)
-            return "The bot chooses not to respond at this time."
-
         # Create system prompt using bot description
         system_prompt = f"You are {bot_name}. "
         if bot_description:
             system_prompt += f"Your personality: {bot_description}. "
 
-        # Add difficulty-based characteristics (already extracted from bot_obj above)
 
-        if difficulty == "easy":
-            system_prompt += "You are friendly and encouraging. "
-        elif difficulty == "medium":
-            system_prompt += "You are balanced and strategic. "
-        elif difficulty == "hard":
-            system_prompt += "You are competitive and analytical. "
-
-        system_prompt += "Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
+        system_prompt += "This is a chat conversation while playing a card game.Keep responses under 2 sentences and 200 characters. Stay in character and respond naturally to the game situation."
 
         print(f"🤖 Bot: {bot_name}")
         print(f"🤖 Description: {bot_description}")
@@ -229,9 +311,6 @@ class GolfChatbot:
 
         if game_state:
             context += self.format_game_state_for_prompt(game_state) + "\n\n"
-
-        # Always add the base prompt
-        context += self.base_prompt + "\n"
 
         # Add conversation history for context
         if conversation_history:
@@ -244,28 +323,46 @@ class GolfChatbot:
         context += f"{bot_name}:"
 
         try:
+            context += self.dramatic_event_prompt_builder(game_state) + "\n\n"
+            context += self.difficulty_prompt_builder(ai_bot_id) + "\n\n"
+            context += self.personality_prompt_builder(ai_bot_id) + "\n\n"
+            context += self.emotional_state_prompt_builder(ai_bot_id) + "\n\n"
 
-            # TODO create response config for the botto add to the context (verbosity, humor, confidence, excitement, frustration)
-            # TODO call gif config for the botto add to the context
-            # TODO call emotional state for the botto add to the context ( can adjust temperature)
+            # Add conversation history for context
+            if conversation_history:
+                context += "Recent conversation:\n"
+                for msg in conversation_history[-LAST_X_MESSAGES:]:  # Last 10 messages
+                    context += f"{msg['sender']}: {msg['content']}\n"
+                context += "\n"
+
             # TODO call understand_gif for the botto add to the context
+            # TODO call gif config for the botto add to the context
+            # TODO  can adjust temperature for emotional state
 
-            # TODO check to see if its a dramatic event and add to the context.
+            # response, usage = call_cerebras_llm(
+            #     prompt=context,
+            #     model="llama3.1-8b",
+            #     structured=False,
+            #     stream=False,
+            #     temperature=0.8
+            # )
 
-            # Note: Conversation history is now handled by add_message_to_history method
-            # which stores messages per game_id, not per bot
-
-            response = call_cerebras_llm(
+            response = call_llama(
                 prompt=context,
-                model="llama3.1-8b",
+                model="llama3.1",
                 structured=False,
                 stream=False,
                 temperature=0.8
             )
 
             print(f"🤖 {bot_name}: {response}")
+            # if usage:
+            #     print(f"🤖 Token usage: {usage}")
 
-            # TODO upload to supabase (uuid, game_id, user_id, timestamp, bot_name, message, sender, media, metadata)
+            #add to conversation history
+            self.add_message_to_history(bot_name, response, game_id)
+
+            upload_chatbot_message(game_id, ai_bot_id, game_state,bot_name, response, "bot", media=None, metadata=None)
 
             return response
 
@@ -274,9 +371,9 @@ class GolfChatbot:
             self.add_message_to_history('bot', error_msg, None)
             return error_msg
 
-    def generate_off_topic_proactive_response(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
-        print(f"GolfChatbot.generate_off_topic_proactive_response called with event_type={event_type}")
-        """Generate a proactive comment based on game events. if get proactive commment is true then then this function is called. This calls a function to see if the bot comments on/off topic."""
+    def generate_off_topic_proactive_context(self, game_state: Dict[str, Any], event_type: str = "general") -> Optional[str]:
+        print(f"GolfChatbot.generate_off_topic_proactive_context called with event_type={event_type}")
+        """Generate a proactive comment context based on game events. Returns the context that would be sent to the LLM."""
 
         context = self.base_prompt + "\n"
 
@@ -291,9 +388,6 @@ class GolfChatbot:
 
         context += self.off_topic_prompt + "\n"
         # so if we are here, then we are going to generate a proactive comment.
-
-
-        # context
 
         try:
             # Print the system prompt for investigation
@@ -310,32 +404,18 @@ class GolfChatbot:
 
             # Always add the base prompt
 
-            # Print the full prompt being sent to the LLM
-            print(f"🤖 LLM PROMPT (model: llama3.1-8b, structured: False, stream: False, temp: 0.8):")
+            # Print the full prompt that would be sent to the LLM
+            print(f"🤖 CONTEXT (would be sent to llama3.1-8b, structured: False, stream: False, temp: 0.8):")
             print(f"🤖 {'='*80}")
-            print(f"🤖 {context}")
+            print(f"🤖 {context[-200:]}")
             print(f"🤖 {'='*80}")
 
-            response = call_cerebras_llm(
-                prompt=context,
-                model="llama3.1-8b",
-                structured=False,
-                stream=False,
-                temperature=0.8
-            )
-
-            print(f"DEBUG: Generated proactive comment: {response.strip()}")
-            if response:
-                return response.strip(), context
-            else:
-                return response.strip()
+            # Return just the last 200 characters of the context instead of calling the LLM
+            return context
 
         except Exception as e:
-            print(f"DEBUG: Error generating proactive comment: {e}")
-            if response:
-                return None, ""
-            else:
-                return None
+            print(f"DEBUG: Error generating proactive context: {e}")
+            return None
 
     def bot_personality_prompt_builder(self) -> str:
         print("GolfChatbot.bot_personality_prompt_builder called")
@@ -635,9 +715,17 @@ class ChatHandler:
 
     def should_generate_proactive_comment(self, game_state: Dict, game_session: Dict) -> bool:
         """Determine if a proactive comment should be generated."""
-        # Check for dramatic events
-        if self.chatbot.is_dramatic_event(game_state): # AND
+        # Check for dramatic events and if the bot will respond is true.
+        if self.chatbot.is_dramatic_event(game_state) and self.chatbot.will_bot_respond(game_state):
             return True
+
+        # Check for inactivity (this is handled by proactive_comment_timer)
+        if self.has_conversation_history_changed(game_id):
+            return True
+
+        return False
+
+
 
         # TODO
         # (e.g., new round, score changes, etc.)
