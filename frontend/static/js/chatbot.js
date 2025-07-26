@@ -739,17 +739,63 @@ function updateChatParticipantsHeader() {
     // Add current game opponents only
     if (currentGameState && currentGameState.players) {
         for (let i = 1; i < currentGameState.players.length; i++) {
-            participants.push(currentGameState.players[i].name);
+            participants.push(currentGameState.players[i]);
         }
     }
 
-    // Create the display text - show actual opponent names instead of static "Opponents"
-    let displayText = '';
-    if (participants.length > 0) {
-        displayText += participants.join(', ');
-    }
+    // Clear the container
+    chatParticipants.innerHTML = '';
 
-    chatParticipants.textContent = displayText;
+    // Create bot participant elements with images
+    if (participants.length > 0) {
+        participants.forEach(participant => {
+            const botParticipant = document.createElement('div');
+            botParticipant.className = 'bot-participant';
+
+            // Create bot image
+            const botImage = document.createElement('img');
+            botImage.className = 'bot-image';
+
+            // Get bot image path
+            let imgPath = '';
+            if (window.allBotsData) {
+                const botObj = window.allBotsData.find(b => b.name === participant.name);
+                if (botObj && botObj.image_path) {
+                    imgPath = `/static/${botObj.image_path}`;
+                } else {
+                    // Fallback to name-based mapping
+                    const imgName = participant.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+                    imgPath = `/static/AI_bot_images/${imgName}`;
+                }
+            } else {
+                // Fallback to name-based mapping
+                const imgName = participant.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+                imgPath = `/static/AI_bot_images/${imgName}`;
+            }
+
+            botImage.src = imgPath;
+            botImage.alt = participant.name;
+            botImage.onerror = function() {
+                // Hide image if it fails to load
+                this.style.display = 'none';
+            };
+
+            // Create bot name
+            const botName = document.createElement('div');
+            botName.className = 'bot-name';
+            botName.textContent = participant.name;
+
+            // Add image and name to participant container
+            botParticipant.appendChild(botImage);
+            botParticipant.appendChild(botName);
+
+            // Add to chat participants container
+            chatParticipants.appendChild(botParticipant);
+        });
+    } else {
+        // Show default message if no participants
+        chatParticipants.textContent = 'Select AI opponents to start a game';
+    }
 }
 
 // Add a typing indicator for a bot

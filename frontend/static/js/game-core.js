@@ -280,6 +280,7 @@ function restartGame() {
 
     // ===== NEW: Reset all setup fields to defaults =====
     window.selectedBots = [];
+    window.selectedBotsInitialized = undefined; // Reset initialization flag
     setGameMode('1v1'); // Default game mode
     document.getElementById('playerName').value = 'Kyle';
     document.getElementById('cardVisibilityDuration').value = 1.5;

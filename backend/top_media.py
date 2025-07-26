@@ -19,9 +19,19 @@ api_key = "6445fed100b649c59a84fc001042c6c5"
 # print(api_key, flush=True)
 
 url = "https://api.topmediai.com/v1/text2speech"
-text = "Hello, Kyle is the best"
+text = "Hello Friends, Great Shot!"
+text = " Kyle has taken the lead with a card pairing in the last round! We're looking at next-level brilliance of the golf card game!"
 
-speaker = "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a"
+speaker = "9a88ff6b-8788-11ee-a48b-e86f38d7ec1a" # jim nantz
+# speaker = "5cd9f375-3a96-11ee-9fd9-8cec4b691ee9" #morgan freeman
+# speaker = "bf924282-401c-11ef-8a7d-00163e0629d4" #morpheus
+# speaker = "001565ad-3826-11ee-a861-00163e2ac61b" #snoop dog
+# speaker = "5ccd51e7-3a96-11ee-bcfa-8cec4b691ee9" #Jennifer aniston
+speaker = "5cc5dcee-3a96-11ee-96a1-8cec4b691ee9" # Eric Cartman
+speaker = "f987d790-7cad-11ef-98bc-00163e0694db" #mike tyson
+
+
+
 emotion = "Friendly"
 
 payload = {
@@ -34,11 +44,25 @@ headers = {
     "Content-Type": "application/json"
 }
 
-print("About to make POST request", flush=True)
+'''some voice have emotion: Angry, Cheerful, Sad, Excited, Friendly, Terrified, Shouting, Unfriendly, Whispering, Hopeful, Soulful, Pleasant, Complaining, Surprised, Uneasy, Fearful, Disgust'''
+
+print("About to make POST request")
 try:
-    response = requests.request("POST", url, json=payload, headers=headers, timeout=10)
-    print("POST request done", flush=True)
-    print(response.text, flush=True)
+    response = requests.post(url, json=payload, headers=headers)
+    print("POST request done")
+    print(response.json())
+
+    # Parse the response and download the audio if successful
+    result = response.json()
+    if result.get("status") == 200 and "oss_url" in result.get("data", {}):
+        audio_url = result["data"]["oss_url"]
+        audio_response = requests.get(audio_url)
+        with open("output.wav", "wb") as f:
+            f.write(audio_response.content)
+        print("Audio saved as output.wav. Play it to hear the result!")
+    else:
+        print("No audio URL found in response.")
+
 except Exception as e:
     print("POST request failed:", e, flush=True)
 
@@ -56,52 +80,3 @@ try:
     print('get key info', response.text, flush=True)
 except Exception as e:
     print("GET request failed:", e, flush=True)
-# # Parse the response and download the audio if successful
-# result = response.json()
-# if result.get("status") == 200 and "oss_url" in result.get("data", {}):
-#     audio_url = result["data"]["oss_url"]
-#     audio_response = requests.get(audio_url)
-#     with open("output.wav", "wb") as f:
-#         f.write(audio_response.content)
-#     print("Audio saved as output.wav. Play it to hear the result!")
-# else:
-#     print("No audio URL found in response.")
-
-
-
-
-
-# # Parse the JSON response
-# voices_data = response.json()
-
-# # Determine the list of voices (adjust key if needed)
-# voices_list = voices_data.get("voices") or voices_data.get("data") or voices_data
-
-# # If the voices_list is a dict, convert to list
-# if isinstance(voices_list, dict):
-#     voices_list = list(voices_list.values())
-
-# # Flatten voices_list if it contains sublists
-# flat_voices = []
-# if isinstance(voices_list, list):
-#     for v in voices_list:
-#         if isinstance(v, list):
-#             flat_voices.extend(v)
-#         else:
-#             flat_voices.append(v)
-# else:
-#     flat_voices = voices_list
-
-# # Save to CSV
-# if flat_voices and isinstance(flat_voices, list) and isinstance(flat_voices[0], dict):
-#     keys = set()
-#     for v in flat_voices:
-#         keys.update(v.keys())
-#     keys = list(keys)
-#     with open("voices_list.csv", "w", newline='', encoding="utf-8") as f:
-#         writer = csv.DictWriter(f, fieldnames=keys)
-#         writer.writeheader()
-#         writer.writerows(flat_voices)
-#     print("Voice list saved to voices_list.csv")
-# else:
-#     print("No voice data found or unexpected format.")

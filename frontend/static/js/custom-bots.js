@@ -205,16 +205,17 @@ async function renderBotSelectRow() {
     window.selectedBots = window.selectedBots
       .map(sel => typeof sel === 'object' ? sel : allBots.find(bot => (bot.ai_bot_id || bot.id) === sel))
       .filter(bot => bot && availableBotIds.includes(bot.ai_bot_id || bot.id));
-    if (window.selectedBots.length === 0) {
-      // Pick a random bot if none of the previous selection is available
+    // Allow 0 bots to be selected - don't auto-select a random bot
+  } else {
+    // Only pick a random bot for initial selection if this is the first time loading
+    // Check if this is the initial load by seeing if selectedBots was never set before
+    if (typeof window.selectedBotsInitialized === 'undefined') {
       const randomIdx = Math.floor(Math.random() * allBots.length);
       window.selectedBots = [allBots[randomIdx]];
+      window.selectedBotsInitialized = true;
     }
-} else {
-    // Pick a random bot for initial selection
-    const randomIdx = Math.floor(Math.random() * allBots.length);
-    window.selectedBots = [allBots[randomIdx]];
-}
+    // If selectedBotsInitialized is true, allow 0 bots to be selected
+  }
 
 
   // Render all bots
