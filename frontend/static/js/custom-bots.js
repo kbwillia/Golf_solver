@@ -311,6 +311,7 @@ function updateAIBotImageContainer(allBots) {
     // Create a row container for image + text
     const rowDiv = document.createElement('div');
     rowDiv.className = 'ai-bot-row';
+    rowDiv.style.cursor = 'pointer'; // Add pointer cursor to indicate clickable
 
     const img = document.createElement('img');
     img.src = imgPath;
@@ -352,6 +353,31 @@ function updateAIBotImageContainer(allBots) {
     textDiv.appendChild(desc);
     rowDiv.appendChild(img);
     rowDiv.appendChild(textDiv);
+
+    // Add click handler to deselect the bot in the ai-image-container
+    rowDiv.onclick = function() {
+      // Remove the bot from selectedBots
+      const index = window.selectedBots.findIndex(sel => (sel.ai_bot_id || sel.id) === (botObj.ai_bot_id || botObj.id));
+      if (index > -1) {
+        window.selectedBots.splice(index, 1);
+        // Update the UI
+        renderBotSelectRow();
+        updateStartGameButtonState();
+        updateAIBotImageContainer(window.allBotsData);
+      }
+    };
+
+    // Add hover effect
+    rowDiv.onmouseenter = function() {
+      this.style.opacity = '0.8';
+      this.style.transform = 'scale(1.02)';
+    };
+
+    rowDiv.onmouseleave = function() {
+      this.style.opacity = '1';
+      this.style.transform = 'scale(1)';
+    };
+
     imageContainer.appendChild(rowDiv);
   });
 }

@@ -53,6 +53,13 @@
   margin: 12px 0 12px 0;
   gap: 18px;
   min-height: 170px; /* Add this line (adjust value as needed) */
+  transition: all 0.2s ease; /* Add smooth transition for hover effects */
+  border-radius: 8px; /* Add rounded corners */
+  padding: 4px; /* Add some padding for hover effect */
+}
+
+.ai-bot-row:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle background on hover */
 }
 
 .ai-bot-img {
