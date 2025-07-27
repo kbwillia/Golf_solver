@@ -526,31 +526,63 @@ document.addEventListener('DOMContentLoaded', function() {
         //     });
         // }
 
-        // Add double-click functionality to hide/show notification area
-        const notificationArea = document.querySelector('.notification-area');
-        if (notificationArea) {
-            // Add tooltip element
-            const tooltip = document.createElement('div');
-            tooltip.className = 'tooltip';
-            tooltip.textContent = 'Double-click to hide/show notifications';
-            notificationArea.appendChild(tooltip);
+        // Add double-click functionality to hide/show chatbot panel independently
+        const chatbotPanel = document.querySelector('.chatbot-panel');
+        if (chatbotPanel) {
+            // Add tooltip element for chatbot
+            const chatbotTooltip = document.createElement('div');
+            chatbotTooltip.className = 'tooltip';
+            chatbotTooltip.textContent = 'Double-click to hide/show chat';
+            chatbotPanel.appendChild(chatbotTooltip);
 
-            // Add double-click functionality
-            notificationArea.addEventListener('dblclick', function() {
+            // Add double-click functionality for chatbot
+            chatbotPanel.addEventListener('dblclick', function(e) {
+                e.stopPropagation(); // Prevent event bubbling
                 this.classList.toggle('hidden');
             });
 
-            // Add delayed tooltip functionality
-            let tooltipTimeout;
-            notificationArea.addEventListener('mouseenter', function() {
-                tooltipTimeout = setTimeout(() => {
-                    tooltip.style.opacity = '1';
+            // Add delayed tooltip functionality for chatbot - show after 2 seconds of hover
+            let chatbotTooltipTimeout;
+            chatbotPanel.addEventListener('mouseenter', function() {
+                chatbotTooltipTimeout = setTimeout(() => {
+                    chatbotTooltip.style.opacity = '1';
                 }, 2000); // 2 second delay
             });
 
-            notificationArea.addEventListener('mouseleave', function() {
-                clearTimeout(tooltipTimeout);
-                tooltip.style.opacity = '0';
+            // Hide tooltip when mouse leaves
+            chatbotPanel.addEventListener('mouseleave', function() {
+                clearTimeout(chatbotTooltipTimeout);
+                chatbotTooltip.style.opacity = '0';
+            });
+        }
+
+        // Add double-click functionality to hide/show last action panel independently
+        const lastActionPanel = document.getElementById('LastActionPanel');
+        if (lastActionPanel) {
+            // Add tooltip element for last action
+            const lastActionTooltip = document.createElement('div');
+            lastActionTooltip.className = 'tooltip';
+            lastActionTooltip.textContent = 'Double-click to hide/show last action';
+            lastActionPanel.appendChild(lastActionTooltip);
+
+            // Add double-click functionality for last action
+            lastActionPanel.addEventListener('dblclick', function(e) {
+                e.stopPropagation(); // Prevent event bubbling
+                this.classList.toggle('hidden');
+            });
+
+            // Add delayed tooltip functionality for last action - show after 2 seconds of hover
+            let lastActionTooltipTimeout;
+            lastActionPanel.addEventListener('mouseenter', function() {
+                lastActionTooltipTimeout = setTimeout(() => {
+                    lastActionTooltip.style.opacity = '1';
+                }, 2000); // 2 second delay
+            });
+
+            // Hide tooltip when mouse leaves
+            lastActionPanel.addEventListener('mouseleave', function() {
+                clearTimeout(lastActionTooltipTimeout);
+                lastActionTooltip.style.opacity = '0';
             });
         }
     }, 100); // Small delay to ensure DOM is ready
