@@ -18,3 +18,4 @@ google-cloud-texttospeech
 supabase
 pinecone-client
 ollama
+google-genai
