@@ -39,10 +39,58 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  max-height: 600px; /* Add max height to prevent overflow */
+  overflow-y: auto; /* Enable vertical scrolling */
+  /* Custom scrollbar styling - make it invisible and thin */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
+#setupRightColumn::-webkit-scrollbar {
+  width: 2px; /* Very thin width */
+  height: 2px; /* Very thin height for horizontal scrollbar */
+}
+
+#setupRightColumn::-webkit-scrollbar-track {
+  background: transparent; /* Invisible track */
+}
+
+#setupRightColumn::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1); /* Almost invisible thumb */
+  border-radius: 1px;
+}
+
+#setupRightColumn::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2); /* Slightly more visible on hover */
 }
 
 #aiBotImageContainer {
   width: 100%;
+  max-height: 100%; /* Ensure it doesn't exceed parent height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  /* Custom scrollbar styling - make it invisible and thin */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge) */
+#aiBotImageContainer::-webkit-scrollbar {
+  width: 2px; /* Very thin width */
+  height: 2px; /* Very thin height for horizontal scrollbar */
+}
+
+#aiBotImageContainer::-webkit-scrollbar-track {
+  background: transparent; /* Invisible track */
+}
+
+#aiBotImageContainer::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1); /* Almost invisible thumb */
+  border-radius: 1px;
+}
+
+#aiBotImageContainer::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2); /* Slightly more visible on hover */
 }
 
 /* AI Bot Image + Description Row */
