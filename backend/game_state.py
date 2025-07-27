@@ -92,7 +92,7 @@ def get_game_state(game_id, games):
     private_scores = [get_private_score(p, game) for p in game.players]
     winner = None
     if game_session['game_over']:
-        winner = scores.index(min(scores))
+        winner = public_scores.index(min(public_scores))  # Use public scores for winner determination
 
     # Probabilities/statistics from probabilities.py
     probabilities = get_probabilities(game)
@@ -134,7 +134,7 @@ def get_game_state(game_id, games):
         'discard_top': discard_top,
         'deck_size': len(game.deck),
         'game_over': game_session['game_over'],
-        'scores': scores,
+        'scores': public_scores,  # Use public scores instead of full scores
         'public_scores': public_scores,
         'private_scores': private_scores,
         'winner': winner,
@@ -156,14 +156,12 @@ def get_game_state(game_id, games):
     }
         # Set winner for current game if over
     if game_session['game_over']:
-        scores = [game.calculate_score(p.grid) for p in game.players]
-        winner_index = scores.index(min(scores))
+        winner_index = public_scores.index(min(public_scores))  # Use public scores for winner
         state['winner'] = winner_index
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
         # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
         if not game_session.get('cumulative_updated_for_game', False):
-            scores = [game.calculate_score(p.grid) for p in game.players]
-            for i, s in enumerate(scores):
+            for i, s in enumerate(public_scores):  # Use public scores for cumulative
                 game_session['cumulative_scores'][i] += s
             game_session['cumulative_updated_for_game'] = True
             # print(f"DEBUG: get_game_state: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")

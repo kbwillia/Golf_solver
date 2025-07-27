@@ -507,8 +507,8 @@ def run_ai_turn():
         if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
             # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
             if not game_session.get('cumulative_updated_for_game', False):
-                scores = [game.calculate_score(p.grid) for p in game.players]
-                for i, s in enumerate(scores):
+                public_scores = [get_public_score(p, game) for p in game.players]
+                for i, s in enumerate(public_scores):
                     game_session['cumulative_scores'][i] += s
                 game_session['cumulative_updated_for_game'] = True
                 print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
@@ -528,8 +528,8 @@ def run_ai_turn():
     if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
         # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
         if not game_session.get('cumulative_updated_for_game', False):
-            scores = [game.calculate_score(p.grid) for p in game.players]
-            for i, s in enumerate(scores):
+            public_scores = [get_public_score(p, game) for p in game.players]
+            for i, s in enumerate(public_scores):
                 game_session['cumulative_scores'][i] += s
             game_session['cumulative_updated_for_game'] = True
             print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
