@@ -16,7 +16,7 @@
 
 /* Single Bot Modal */
 .custom-bot-modal {
-    background: #fff;
+    background: rgba(230, 249, 230, 0.95);
     padding: 20px 24px;
     border-radius: 8px;
     max-width: 350px;
@@ -33,7 +33,7 @@
 
 /* Multiple Bots Modal */
 .multiple-bots-modal {
-    background: #fff;
+    background: rgba(230, 249, 230, 0.95);
     padding: 20px 24px;
     border-radius: 8px;
     max-width: 700px;

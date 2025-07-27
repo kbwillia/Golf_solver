@@ -11,8 +11,9 @@ const faqs = [
                 <li>On your turn, draw from deck or take the discard</li>
                 <li>Replace one of your cards or flip a face-down card</li>
                 <li>Goal: Get the lowest total score</li>
-                <li>Face cards (J,Q,K) = 10, Aces = 1, Number cards = face value</li>
-                <li>Game ends when someone knocks or all cards are face up</li>
+                <li>Face cards (Q,K) = 10, Aces = 1 Jack = 0. Number cards = face value</li>
+                <li><strong>Pairs cancel out:</strong> If you have two cards of the same rank in your grid, they cancel each other out (count as 0)</li>
+                <li>Game ends when all cards are face up</li>
             </ul>
         `
     },

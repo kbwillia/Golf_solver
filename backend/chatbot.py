@@ -7,7 +7,7 @@ from bot_personalities import DataBot
 from game_state import get_game_state
 import re
 import time
-from data_upset import upload_chatbot_message
+from data_upset import upload_chatbot_message, upload_llm_call_info
 import threading
 import time
 # Create global instances. # TODO, not sue why???

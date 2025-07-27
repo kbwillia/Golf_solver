@@ -3,6 +3,7 @@ import random
 from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 from llm_cerebras import call_cerebras_llm
+from data_upset import save_bot_to_supabase, upload_llm_call_info
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -725,34 +726,7 @@ def enhance_custom_bot(ai_bot_id: str, name: str, description: str, difficulty: 
     Returns a CustomBot instance with all attributes set."""
     return CustomBot(ai_bot_id=ai_bot_id, name=name, description=description, difficulty=difficulty, image_path=image_path, voice_id=voice_id)
 
-def save_bot_to_supabase(bot):
-    """Unpacks the bot class and attributes and saves to Supabase."""
-    from supabase import create_client, Client
-    import os, json
-
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_LEGACY_SECRET")
-    supabase: Client = create_client(url, key)
-
-    bot_data = {
-        'ai_bot_id': bot.ai_bot_id,
-        'name': bot.name,
-        'difficulty': bot.difficulty,
-        'description': bot.description,
-        'emotional_state': json.dumps(bot.emotional_state),
-        'proactive_config': json.dumps(bot.proactive_config),
-        'response_config': json.dumps(bot.response_config),
-        'gif_config': json.dumps(bot.gif_config)
-    }
-    if bot.image_path:
-        bot_data['image_path'] = bot.image_path
-    if bot.voice_id:
-        bot_data['voice_id'] = bot.voice_id
-    print(f"🔧 CUSTOM BOT: Saving bot to supabase:")
-
-    response = supabase.table('custom_bots').insert(bot_data).execute()
-    # if response.model_dump() possibly add error handling
-    return response
+from data_upset import save_bot_to_supabase
 
 class DataBot:
     def __init__(self, **kwargs):
