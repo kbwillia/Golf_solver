@@ -199,11 +199,12 @@
     content: '';
     position: absolute;
     bottom: 0;
-    right: -8px;
+    right: -8px;                    /* ← Points RIGHT (user side) */
     width: 0;
     height: 0;
-    border: 8px solid transparent;
-    border-left-color: #0b501b;
+    border: 10px solid transparent; /* ← Pointer height */
+    border-left-color: #0b501b;     /* ← User bubble color */
+    border-left-width: 18px;        /* ← Pointer width */
     border-right: 0;
     border-bottom: 0;
     margin-bottom: 0;
@@ -225,20 +226,24 @@
     display: inline-block;
     max-width: 70%;
     word-break: break-word;
+    position: relative;
+    overflow: visible;
 }
 
 .bot-message .message-content::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: -8px;
+    left: -8px; /* Changed from -8px to match border width */
     width: 0;
     height: 0;
-    border: 8px solid transparent;
+    border: 12px solid transparent; /* ← Pointer height DO NOT CHANGE THIS*/
     border-right-color: #d4edda;
     border-left: 0;
     border-bottom: 0;
     margin-bottom: 0;
+    display: block;
+    z-index: 2;
 }
 
 /* Hide bubble pointer for GIF-only messages */
@@ -641,45 +646,44 @@ input:checked + .toggle-slider:before {
     transform: translateX(26px);
 }
 
-/* Typing indicator bubble for bots */
+/* Typing indicator bubble containerfor bots */
 .typing-indicator {
     display: flex;
     align-items: flex-start;
     margin-bottom: 8px;
     flex-direction: column;
     overflow: visible;
-    margin-left: 6px; /* Add space for pointer */
+    margin-left: 0px; /* Remove extra margin to align with bot messages */
 }
 
-/* ===== Typing Indicator Fixes ===== */
+/* ===== Typing Indicator Fixes ===== This is the bubble. DO NOT CHANGE THIS*/
 .typing-indicator .message-content {
-    background: #e6f4ea;
+    background: #d4edda;
     color: #155724;
-    border-radius: 18px;
-    padding: 8px 16px;
+    border-bottom-left-radius: 4px; /* Changed from border-radius: 16px to match bot messages */
+    margin-left: 8px;
+    display: inline-block;
+    max-width: 70%;
+    word-break: break-word;
+    position: relative;
+    overflow: visible;
+    padding: 4px 8px;
+    border-radius: 16px 16px 16px 4px; /* Keep top and right rounded, flat left edge */
     font-size: 0.75em;
     font-style: italic;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    margin-left: 8px;
-    margin-right: 8px;
-    min-width: 80px;
-    max-width: 95%;
-    position: relative;
     opacity: 0.95;
-    overflow: visible;
-    word-break: break-word;
 }
 
-/* Add bubble pointer for typing indicator */
+/* Add bubble pointer for typing indicator DO NOT CHANGE THIS*/
 .typing-indicator .message-content::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: -8px;
+    left: -8px;                     /* ← Points LEFT (bot side) */
     width: 0;
     height: 0;
-    border: 8px solid transparent;
-    border-right-color: #e6f4ea;
+    border-right-width: 10px solid transparent; /* ← Pointer width */
+    border-right-color: #d4edda;     /* ← Bot bubble color */
     border-left: 0;
     border-bottom: 0;
     margin-bottom: 0;
