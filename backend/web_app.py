@@ -57,7 +57,7 @@ app = Flask(__name__,
            static_folder=os.path.join(frontend_dir, 'static'))
 app.secret_key = 'your-secret-key-here'  # Change this in production
 
-AI_TURN_DELAY = 0.50  # seconds
+AI_TURN_DELAY = 01.50  # seconds
 
 # Custom bot storage functions
 def get_custom_bots_file_path():
