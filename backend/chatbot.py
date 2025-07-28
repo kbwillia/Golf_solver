@@ -416,7 +416,7 @@ class GolfChatbot:
             #add to conversation history
             self.add_message_to_history(bot_name, response, game_id)
 
-            upload_chatbot_message(game_id, ai_bot_id, game_state,bot_name, response, "bot", media=None, metadata=None)
+            upload_chatbot_message(game_id, ai_bot_id, bot_name, response, "bot", media=None, metadata=None)
 
             return response
 

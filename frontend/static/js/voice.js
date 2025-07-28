@@ -3,8 +3,8 @@
 
 // ===== VOICE VARIABLES =====
 let voiceEnabled = false; // Track if voice is enabled - DEFAULT TO OFF
-let voiceType = 'browser'; // Fixed to browser-only since out of API credits
-// let voiceType = 'Top_Media';
+// let voiceType = 'browser'; // Fixed to browser-only since out of API credits
+let voiceType = 'Top_Media';
 // let voiceType = 'Google';
 let browserVoices = []; // Available browser voices
 
