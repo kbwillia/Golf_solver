@@ -1,137 +1,224 @@
-# Golf Game Simulation Suite with Q-Learning
+# Golf Card Game
 
-A comprehensive simulation framework for the 4-card Golf card game, featuring multiple AI agents including reinforcement learning.
+A full-stack web application for playing the Golf card game with AI opponents and interactive chatbot commentary featuring Jim Nantz-style voice commentary.
 
 ## Project Structure
 
-The codebase is organized into modular components for better maintainability:
+```
+Golf/
+├── frontend/                    # Frontend files (HTML, CSS, JS)
+│   ├── static/                 # Static assets
+│   │   ├── css/               # Stylesheets
+│   │   │   ├── layout.css     # Main layout styles
+│   │   │   ├── cards.css      # Card display styles
+│   │   │   ├── players.css    # Player grid styles
+│   │   │   ├── game-controls.css # Game control styles
+│   │   │   ├── notification.css # Notification styles
+│   │   │   ├── probabilities.css # Probability panel styles
+│   │   │   └── chatbot.css    # Chat interface styles
+│   │   ├── js/                # Modularized JavaScript files
+│   │   │   ├── game-core.js   # Core game logic and state management
+│   │   │   ├── game-ui.js     # UI updates and display functions
+│   │   │   ├── chatbot.js     # Chatbot functionality and bot interactions
+│   │   │   ├── voice.js       # Voice system and TTS integration
+│   │   │   ├── probabilities.js # Probability calculations and charts
+│   │   │   ├── golf.js        # Game actions and card interactions
+│   │   │   └── golf-organized.js # Legacy organized file (not loaded)
+│   │   ├── sounds/            # Audio files
+│   │   ├── cards/             # Card images
+│   │   ├── edited_cards/      # Custom card images
+│   │   └── masters_images/    # Tournament images
+│   ├── templates/             # HTML templates
+│   │   └── index.html         # Main game interface
+│   └── test_chatbot_simple.html # Test file
+├── backend/                    # Backend files (Python Flask)
+│   ├── web_app.py             # Main Flask application
+│   ├── game.py                # Game logic and rules
+│   ├── chatbot.py             # Chatbot functionality
+│   ├── agents.py              # AI agent implementations
+│   ├── requirements.txt       # Python dependencies
+│   └── run_app.py             # Script to run the application
+│   └── RL/                    # Reinforcement Learning components
+│       ├── RL_analytics.py
+│       ├── train.py
+│       ├── RL_viz.py
+│       └── ...
+├── create/                    # Additional creation tools
+├── venv/                      # Python virtual environment
+├── .gitignore                 # Git ignore rules
+├── game_rules.txt             # Game rules documentation
+├── rules_gameplay.txt         # Detailed gameplay rules
+├── celebration_gifs.json      # Celebration GIF data
+├── voices_list.csv            # Available voice options
+└── README.md                  # This file
+```
 
-### Core Files
+## Quick Start
 
-- **`models.py`** - Core data structures
-  - `Card` class: Represents playing cards with scoring logic
-  - `Player` class: Manages player state, grid, and memory tracking
+### Local Development
+```bash
+cd backend
+pip install -r requirements.txt
+python web_app.py
+```
+Visit `http://localhost:5000` to play!
 
-- **`agents.py`** - AI agent implementations
-  - `RandomAgent`: Makes random legal moves
-  - `HeuristicAgent`: Uses probability-based strategy from original solver
-  - `QLearningAgent`: Reinforcement learning agent that learns from experience
+### Deploy Online (Free for Students!)
+See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step instructions to host your app online and share with friends!
 
-- **`game.py`** - Game logic and simulation
-  - `GolfGame` class: Manages game state, turns, and scoring
-  - Handles deck creation, dealing, and turn execution
-
-- **`simulation.py`** - Simulation and statistics
-  - `run_simulations_with_training()`: Runs games with Q-learning training
-  - `run_simulations()`: Runs games without training
-  - `print_simulation_results()`: Displays formatted results
-  - `plot_learning_curves()`: Visualizes learning progress
-
-- **`main.py`** - Main entry point
-  - Demonstrates all features with examples
-  - Single game example, training simulations, and comparisons
+**Recommended platforms:**
+- **Render** (Easiest) - 750 free hours/month
+- **Railway** - $5 free credit/month
+- **Heroku** - Free credits with GitHub Student Pack
 
 ## Features
 
-### Multiple Agent Types
+1. **Choose Game Mode**: 1v1 or 1v3 against AI
+2. **Select Opponent**: Pick from various AI personalities
+3. **Play Cards**: Draw, discard, and swap cards to get the lowest score
+4. **Chat**: Interact with the golf-themed chatbot
+5. **Win**: Get the lowest score to win the round!
 
-1. **Random Agent**: Makes random legal moves
-2. **Heuristic Agent**: Uses sophisticated probability calculations and memory tracking
-3. **Q-Learning Agent**: Learns optimal strategies through reinforcement learning
+### Interactive Features
+- **Jim Nantz Commentary**: Professional golf commentary with voice synthesis
+- **Interactive Chatbot**: Chat with Golf Bro, Golf Pro, and other bots
+- **GIF Integration**: Send and receive GIFs in chat
+- **Voice System**: Text-to-speech for bot responses and commentary
+- **Proactive Comments**: Bots provide commentary during gameplay
 
-### Q-Learning Implementation
+### UI/UX Features
+- **Modern Responsive Design**: Works on desktop and mobile
+- **Drag & Drop Interface**: Intuitive card manipulation
+- **Probability Panel**: Real-time card probability calculations
+- **Action History**: Track game moves and decisions
+- **Celebration Animations**: Visual feedback for wins and achievements
 
-- **State Representation**: Simplified, position-agnostic states for better generalization
-- **Reward System**: Strong signals (+10 for winning, -5 to +2 based on score)
-- **Training**: Persistent Q-tables with epsilon-greedy exploration
-- **Learning Curves**: Track performance improvements over time
+## JavaScript Architecture
 
-### Advanced Statistics
+The frontend uses a modular JavaScript architecture with clear separation of concerns:
 
-- Win rates and average scores by agent type
-- Learning progress tracking with intervals
-- Q-table size monitoring
-- Perfect game counts and score distributions
-- Optional matplotlib visualization
+### Core Modules
+- **`game-core.js`**: Game state management, API calls, and core game functions
+- **`game-ui.js`**: UI updates, display functions, and visual feedback
+- **`chatbot.js`**: Chat functionality, bot interactions, and message handling
+- **`voice.js`**: Voice system integration and TTS functionality
+- **`probabilities.js`**: Probability calculations and chart management
+- **`golf.js`**: Game actions, card interactions, and event handling
 
-## Usage
+### Key Features
+- **Modular Design**: Each module has a specific responsibility
+- **Global Exports**: Functions are exported to `window` for cross-module access
+- **Error Handling**: Comprehensive error handling and debugging
+- **Event-Driven**: Responsive event handling for user interactions
 
-### Basic Usage
+## API Endpoints
 
-```python
-from game import GolfGame
-from simulation import run_simulations_with_training
+### Game Management
+- `GET /` - Main game interface
+- `POST /create_game` - Create a new game
+- `GET /game_state/{game_id}` - Get current game state
+- `POST /make_move` - Make a game move
 
-# Single game example
-game = GolfGame(num_players=4, agent_types=["heuristic", "random", "qlearning", "random"])
-scores = game.play_game(verbose=True)
+### Chatbot & AI
+- `POST /chatbot/send_message` - Send chat message to bots
+- `POST /chatbot/get_bot_response` - Get individual bot response
+- `POST /chatbot/proactive_comment` - Get proactive bot comments
 
-# Run training simulations
-stats = run_simulations_with_training(num_games=1000, agent_types=["heuristic", "random", "qlearning", "random"])
-```
+### Voice & Media
+- `POST /gif/search` - Search for GIFs
+- Voice system integration with browser TTS and ElevenLabs
 
-### Command Line
+## Development
 
-```bash
-# Run main demonstration
-python main.py
+### Backend Development
+- **Main Application**: `backend/web_app.py`
+- **Game Logic**: `backend/game.py`
+- **AI Agents**: `backend/agents.py`
+- **Chatbot**: `backend/chatbot.py`
+- **Run**: `cd backend && python run_app.py`
 
-# Run specific test
-python test_rewards.py
-```
+### Frontend Development
+- **Main Template**: `frontend/templates/index.html`
+- **JavaScript Modules**: `frontend/static/js/`
+- **Styles**: `frontend/static/css/`
+- **Assets**: `frontend/static/` (images, sounds, etc.)
 
-## Game Rules
+### Recent Improvements
+- **Modularized JavaScript**: Separated concerns into focused modules
+- **Fixed Variable Conflicts**: Resolved duplicate variable declarations
+- **Enhanced Error Handling**: Added comprehensive debugging and error recovery
+- **Improved Chat System**: Better event handling and message processing
+- **GIF Integration**: Robust GIF search and display functionality
 
-4-Card Golf is a card game where:
-- Each player has a 2x2 grid of cards
-- Bottom two cards are face-up initially
-- Players take turns drawing from deck or taking from discard pile
-- Goal: Minimize total score (pairs cancel each other out)
-- A=1, J=0, Q/K=10, number cards = face value
-- Game lasts exactly 4 rounds
+## Troubleshooting
 
-## Key Improvements
+### Common Issues
+1. **JavaScript Errors**: Check browser console for module loading issues
+2. **Chat Not Working**: Ensure chatbot.js is properly initialized
+3. **Voice Issues**: Check browser TTS permissions and voice availability
+4. **Game State**: Verify backend is running and accessible
 
-### Reward System
-- **Original**: Weak rewards (+1 win, -0.25 to -1.0 for losing)
-- **Improved**: Strong signals (+10 win, -5 to +2 based on score)
+### Debug Mode
+The application includes comprehensive console logging for debugging:
+- Game state changes
+- Chat interactions
+- Voice system events
+- Error handling
 
-### State Representation
-- **Original**: Complex, position-specific states with suits
-- **Improved**: Simplified, position-agnostic states (ranks only)
+## Contributing
 
-### Learning Progress
-- Detailed tracking of Q-table growth
-- Interval-based average score monitoring
-- Learning curve visualization
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly (check console for errors)
+5. Submit a pull request
 
-## Results
+# START
 
-The improved Q-learning agent shows:
-- **Learning**: Consistent improvement over time (+0.22 to +0.70 points)
-- **Performance**: Competitive with random agents (18-19 average score)
-- **Win Rate**: ~20% in 4-player games
-- **Memory**: Efficient state representation (1500+ states learned)
+#backend
+python run_app.py
 
-## Dependencies
+- **Backend**: Python Flask
+- **Frontend**: HTML, CSS, JavaScript
+- **AI**: Custom Q-learning algorithms
+- **APIs**: Giphy (GIFs), ElevenLabs (Voice), TopMedia (TTS)
+- **Styling**: Custom CSS with golf theme
 
-- Python 3.6+
-- numpy
-- matplotlib (optional, for plotting)
-- collections (built-in)
-- itertools (built-in)
-- random (built-in)
 
-## Installation
+----------ngrok------------------
+<!-- ngrok http 3000 #frontend
+ngrok http 5000 #backend -->
 
-```bash
-pip install numpy matplotlib
-```
+# do ngrok first, then do front end. maybe npm install. force resets didn't work. then backend in new terminal. killing the terminal reset the env variables.
 
-## Future Enhancements
+As a student, you can:
+- Host this app for free on multiple platforms
+- Get free credits through GitHub Student Developer Pack
+- Use this as a portfolio project
+- Share with friends and family easily
 
-- Deep Q-Learning with neural networks
-- Multi-agent competitive training
-- Tournament-style evaluations
-- Strategy analysis tools
-- Web interface for game visualization
+#npm install -g ngrok      #once per machine
+#get new auth token from https://dashboard.ngrok.com/get-started/setup/windows
+#put in in .yml file. #shouldn't need too
+#ngrok config add-authtoken 2ySIDUKryskLSVTViUiuR0MhB89_7kU1Syg6W5nPQT2E3iVWe
+
+# in third terminal start
+ngrok start --all
+
+#then update the new env variables in BOTH env files front and backend addresses
+
+#run front end
+#start front end terminal
+cd frontend
+
+npm install medical-terms
+# or
+npm install umls-terminology
+# or
+npm install icd-10-cm
+npm install #
+set HOST=0.0.0.0&& set DANGEROUSLY_DISABLE_HOST_CHECK=true&& npm start
+
+#run backend in new teminal
+rmdir /s /q __pycache__
+python -m rag.run

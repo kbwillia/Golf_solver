@@ -1,0 +1,290 @@
+<!-- Main HTML for Golf Card Game UI --> <!-- Entry point for the Golf Card Game web app -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Card Game</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/cards.css">
+    <link rel="stylesheet" href="/static/css/players.css">
+    <link rel="stylesheet" href="/static/css/game-controls.css">
+    <link rel="stylesheet" href="/static/css/notification.css">
+    <link rel="stylesheet" href="/static/css/probabilities.css">
+    <link rel="stylesheet" href="/static/css/chatbot.css">
+    <link rel="stylesheet" href="/static/css/custom-bots.css">
+    <link rel="stylesheet" href="/static/css/setup.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+</head>
+<body>
+    <!-- Main container for the entire app --> <!-- App root -->
+    <div class="container">
+        <!-- Header Section (Title) --> <!-- Game title -->
+        <div class="header">
+            <div class="header-content">
+                <h1>🏌️ Golf Card Game</h1>
+                <div id="GameAndRoundInfo" class="header-game-info"></div>
+            </div>
+            <div class="header-buttons" id="headerButtons" style="display: flex; flex-direction: row; align-items: center;">
+                <button onclick="restartGame()" class="btn btn-secondary game-control-btn new-game-btn">New Game</button>
+                <!-- <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button> -->
+            </div>
+        </div>
+        <!-- Setup and Game Board Wrapper -->
+        <div class="setup-and-board">
+            <!-- 3-column layout for setup screen -->
+            <div id="setupColumns">
+                <!-- Left column: placeholder for chatbot/rules -->
+                <div id="setupLeftColumn">
+                    <!-- FAQ will be loaded here -->
+                    <div style="color: white; padding: 10px; text-align: center;">
+                        <h3>FAQ Loading...</h3>
+                        <p>If you see this, the FAQ should appear here.</p>
+                    </div>
+                </div>
+                <!-- Center column: game setup -->
+                <div id="setupCenterColumn">
+                    <div class="game-setup" id="gameSetup">
+                        <h2></h2>
+                        <!-- Player Name Input -->
+                        <p>
+                            <label for="playerName">Your Name:</label>
+                            <input type="text" id="playerName" placeholder="Enter your name" value="Kyle" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" /> <!-- Name input -->
+                        </p>
+                        <!-- Game Mode Display -->
+                        <div style="display: flex; justify-content: center; margin: 10px 0;">
+                            <div id="gameModeDisplay" class="game-mode-display">
+                                <h3 id="opponentDisplay" style="margin: 0; padding: 10px 20px; color: #fff; font-weight: bold; background: none; border: none;">
+                                    Select your AI opponents below
+                                </h3>
+                            </div>
+                        </div>
+                        <!-- Bot selection buttons row -->
+                        <div id="botSelectRow" class="bot-select-row">
+                            <!-- Buttons will be rendered by JS -->
+                        </div>
+                        <!-- Create Custom AI Bot Button (always visible) -->
+                        <p>
+                            <button type="button" id="createCustomBotBtn" class="btn btn-secondary">Create Custom Bot</button>
+                            <span id="customBotCount" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span>
+                        </p>
+                        <!-- Voice   Toggle -->
+                        <p>
+                            <button type="button" id="voiceToggleBtn" class="btn btn-secondary voice-btn" onclick="toggleVoiceSystem()">
+                                <span id="voiceStatus">Jim Nantz: 🔇</span>
+                            </button>
+                        </p>
+                        <!-- Custom Bot Modal -->
+                        <div id="customBotModal" class="custom-bot-modal-overlay" style="display:none;">
+                          <div class="custom-bot-modal">
+                            <h3>Create Custom AI Bot</h3>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label for="customBotName" class="form-label">Name:</label>
+                                <input type="text" id="customBotName" class="form-input" placeholder="Bot Name" />
+                              </div>
+                              <div class="form-group">
+                                <label for="customBotDifficulty" class="form-label">Difficulty:</label>
+                                <select id="customBotDifficulty" class="form-select">
+                                  <option value="easy">Easy</option>
+                                  <option value="medium">Medium</option>
+                                  <option value="hard">Hard</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label for="customBotDescription" class="form-label">Personality/Description:</label>
+                              <textarea id="customBotDescription" class="form-textarea" rows="3" placeholder="Describe this bot's personality..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="customBotImage" style="display:block; margin-top:10px;">Bot Image:</label>
+                                <input type="file" id="customBotImage" name="bot_image" accept="image/*" style="display:none;">
+                                <button type="button" id="uploadBotImageBtn">Upload Bot Image</button>
+                                <img id="customBotImagePreview" style="max-width: 150px; display: none; margin-top:10px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="customBotVoiceId" class="form-label">Voice:</label>
+                                <select id="customBotVoiceId" name="customBotVoiceId" style="margin-right: 8px;"></select>
+                            </div>
+                            <div class="modal-buttons">
+                              <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary">Cancel</button>
+                              <button type="submit" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>
+                            </div>
+                          </div>
+                        </div>
+
+
+                <!-- Number of Holes Buttons -->
+                <div style="display: flex; justify-content: center; margin: 10px 0;">
+                    <div class="holes-buttons">
+                        <button type="button" id="holes1" class="btn btn-secondary holes-btn active" data-holes="1">1 Hole</button>
+                        <button type="button" id="holes3" class="btn btn-secondary holes-btn" data-holes="3">3 Holes</button>
+                        <button type="button" id="holes9" class="btn btn-secondary holes-btn" data-holes="9">9 Holes</button>
+                        <button type="button" id="holes18" class="btn btn-secondary holes-btn" data-holes="18">18 Holes</button>
+                    </div>
+                </div>
+                <!-- Bottom Cards Visibility Duration -->
+                <p>
+                    <label for="cardVisibilityDuration">Bottom two cards visible for:</label>
+                    <input type="number" id="cardVisibilityDuration" min="0.5" max="10" step="0.1" value="1.5" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em; width:60px;" />
+                    <span style="margin-left:4px;">seconds</span> <!-- Card visibility duration -->
+                </p>
+                <!-- Start/Restart Buttons -->
+                <button onclick="startGame()" class="btn btn-primary">Start Game!</button>
+                <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
+                <!-- Setup View Timer (shows countdown during game) -->
+                <!-- <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div> -->
+                    </div>
+                </div>
+                <!-- Right column: AI bot image container -->
+                <div id="setupRightColumn">
+                    <div id="aiBotImageContainer"></div>
+                </div>
+            </div>
+            <!-- REDESIGNED: Modern responsive game board layout -->
+            <div class="game-board" id="gameBoard">
+                <!-- MODERN LAYOUT: CSS Grid for perfect positioning and no overlap -->
+                <div class="game-grid-container">
+                    <!-- TOP: Game Info Bar (spans full width) -->
+                    <div class="game-info-bar">
+                        <div class="game-info" id="gameInfo"></div>
+                    </div>
+
+                    <!-- Notification Area (left): badge, gifs, chat -->
+                    <div class="notification-area">
+                        <!-- celebrationGif moved to right panel -->
+
+                        <!-- Last Action Panel -->
+                        <div id="LastActionPanel"></div>
+
+                        <!-- Chatbot Panel -->
+                        <div class="chatbot-panel">
+                            <div class="chatbot-header">
+                                <div id="chatParticipants"></div>
+                            </div>
+                            <div class="chat-messages" id="chatMessages">
+                                <div class="message bot-message">
+                                    <div class="message-content" id="defaultChatMessage">
+                                        Hi! Chat with your game opponents, or type @golfbro or @golfpro to ask specific bots questions!
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-input-container">
+                                <input type="text" id="chatInput" placeholder="Type @golfbro or @golfpro to ask specific bots..." class="chat-input">
+                                <button id="sendBtn" class="chat-send-btn">Send</button>
+                                <button id="sendGifBtn" class="chat-send-btn">GIF</button>
+                                <button id="micChatBtn" class="chat-send-btn" title="Speak"><span style="font-size:1.2em;">🎙️</span></button>
+                            </div>
+                            <!-- GIF Search Modal moved here -->
+                            <div id="gifModal" style="display:none;">
+                              <div id="gifResults"></div>
+                              <div class="gif-modal-row">
+                                <input id="gifSearchInput" type="text" placeholder="Search GIFs...">
+                                <button id="closeGifModal" class="chat-send-btn">Close</button>
+                              </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gameplay Area (center): player grids, deck/discard, drawn card -->
+                    <div class="gameplay-area">
+                        <div class="gameplay-row">
+                            <div id="playerGrids">
+                                <div class="player-grid current-turn">
+                                    <div class="rotating-background"></div>
+                                    <!-- Your actual content, e.g. player name, cards, etc. -->
+                                    <div class="cards-container">
+                                        <!-- cards here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="deck-discard-wrapper">
+                                <div class="deck-discard-container">
+                                    <div class="deck-area">
+                                        <h4>Deck</h4>
+                                        <div class="card face-down" id="deckCard" title="(Hint) Draw from Deck" onclick="drawFromDeck()"></div>
+                                        <div id="deckSize"></div>
+                                        <!-- Drawn card area moved here, right below deck -->
+                                        <div id="drawnCardArea">
+                                            <div id="drawnCardDisplay" draggable="true"></div>
+                                        </div>
+                                    </div>
+                                    <div class="discard-area">
+                                        <h4>Discard</h4>
+                                        <div class="card face-up" id="discardCard" title="(Hint)Take Discard" onclick="takeDiscard()" draggable="true"></div>
+                                        <div id="drawnCardInstructions">
+                                            Drag to replace or click your card to flip
+                                        </div>
+                                        <!-- Peek Button -->
+                                        <div class="peek-button-container" id="peekButtonContainer" style="display: none;">
+                                            <button id="peekButton" class="peek-btn" onclick="peekAtCards()" title="Peek at your hidden cards">
+                                                 <span class="peek-text">👀 Peek</span>
+                                            </button>
+                                            <div id="peekCooldown" class="peek-cooldown" style="display: none;">
+                                                <span id="peekCooldownTime">30s</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Next Hole button for multi-game matches -->
+                                <div class="next-hole-container" id="nextHoleContainer" style="display: none;">
+                                    <div class="button-column">
+                                        <button onclick="nextGame()" class="btn btn-success next-hole-btn">Continue to Next Hole</button>
+                                    </div>
+                                </div>
+
+                                <!-- Place this outside of nextHoleContainer, after or below your main game area -->
+                                <div class="replay-container" id="replayContainer" style="display: none; text-align: center; margin-top: 20px;">
+                                    <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Probabilities Panel -->
+                    <div class="probabilities-area">
+                        <button id="toggleProbabilitiesBtn" onclick="toggleProbabilitiesPanel()" class="btn btn-secondary probabilities-toggle-btn shimmer" style="margin-bottom: 4px; margin-left: 0; display: block; text-align: left;">Ask Hint</button>
+                        <!-- Two-column layout for probabilities content -->
+                        <div class="probabilities-content hidden">
+                            <div class="unknown-cards-column" id="unknownCardsPanel"></div>
+                            <div class="other-probabilities-column" id="otherProbabilitiesPanel"></div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="cumulativeScoreChart"></canvas>
+                            <div id="customLegend"></div>
+                        </div>
+                    </div>
+                    <div id="celebrationGif"></div>
+                    <!-- <button id="tts-btn">Speak</button> -->
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REMOVED: External probabilities panel - now integrated into grid layout -->
+
+    <!-- Position modal removed - now using drag-and-drop instead -->
+
+    <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
+    <script src="/static/js/game-core.js"></script>
+    <script src="/static/js/game-ui.js"></script>
+    <script src="/static/js/voice.js"></script>
+    <script src="/static/js/probabilities.js"></script>
+    <script src="/static/js/custom-bots.js"></script>
+    <script type="module" src="/static/js/chatbot.js"></script>
+    <script src="/static/js/crowd-audio.js"></script>
+    <script src="/static/js/faq.js"></script>
+    <script src="/static/js/golf.js"></script>
+
+    <audio id="golfClapAudio" src="/static/sounds/golf_clap.mp3" preload="auto"></audio>
+    <audio id="cardShuffleAudio" src="/static/sounds/card-shuffle.mp3" preload="auto"></audio>
+    <audio id="cardFlipAudio" src="/static/sounds/card-sounds-flip.mp3" preload="auto"></audio>
+    <audio id="cardFlipAudio2" src="/static/sounds/flipcard2.mp3" preload="auto"></audio>
+
+
+</body>
+</html>

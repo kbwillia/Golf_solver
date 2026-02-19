@@ -1,0 +1,26 @@
+# Images
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.webp filter=lfs diff=lfs merge=lfs -text
+*.svg filter=lfs diff=lfs merge=lfs -text
+# Audio files
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+# Video files
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.webm filter=lfs diff=lfs merge=lfs -text
+# Large data files
+*.json filter=lfs diff=lfs merge=lfs -text
+*.csv filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.png filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.gif filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.webp filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
+frontend/static/**/*.wav filter=lfs diff=lfs merge=lfs -text
+frontend/static/sounds/*.mp3 filter=lfs diff=lfs merge=lfs -text
+frontend/static/golf_celebration_gifs.json filter=lfs diff=lfs merge=lfs -text

@@ -1,2 +1,23 @@
+# Ignore all CSV and JSON files (but not in frontend/static)
+*.csv
+*.json
+*.png
+*.mp3
+# Don't ignore static files
+!frontend/static/**/*.json
+!frontend/static/**/*.mp3
+!frontend/static/**/*.png
 #ignore .env file
 .env
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+env/
+ENV/

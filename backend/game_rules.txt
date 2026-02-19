@@ -1,0 +1,61 @@
+
+## 4-Card Golf: Complete Rules
+
+-----
+
+**Objective**
+
+The goal of 4-Card Golf is to have the lowest total score after each player has taken exactly four turns. You can reduce your score by creating matching pairs within your 2x2 grid, as these pairs will cancel out points.
+
+**Setup**
+
+To set up the game, you'll need a standard 52-card deck (without jokers). Deal each player four cards face-down, arranged in a 2x2 grid. Before the game begins, each player can secretly look at their two bottom cards (bottom-left and bottom-right), but they must not show anyone or flip them over. The remaining cards form the draw pile in the center, and the top card is turned face-up to start the discard pile.
+
+**Gameplay**
+
+Play proceeds clockwise, with each player taking exactly four full turns in a round. On your turn, you have two options:
+
+1.  **Draw from the draw pile:** Look at the card you drew. You can either swap it with one of your face-down cards (flipping the new card face-up and placing the replaced card face-up on the discard pile), or you can discard it directly if you don't want it.
+2.  **Pick up the top card from the discard pile:** If you choose this option, you *must* swap it with a face-down card from your grid. The new card is placed face-up, and the replaced card is discarded face-up.
+
+Once a card in your grid is face-up, it cannot be changed again. Remember, you may never look at your face-down cards unless you are in the process of swapping them.
+
+**End of Game**
+
+The game concludes immediately after every player has completed their four turns. At this point, all players reveal their remaining face-down cards, and you proceed to scoring.
+
+**Scoring**
+
+Card values are as follows:
+
+  * **Ace (A):** 1 point
+  * **2–10:** Face value
+  * **Jack (J):** 0 points
+  * **Queen (Q):** 10 points
+  * **King (K):** 10 points
+
+**Matching Pair Cancel Rule:** Any two cards in your 2x2 grid that are of the same rank will cancel each other out, scoring 0 points for those cards. Canceled pairs can be in rows (horizontal), columns (vertical), or diagonals (e.g., top-left and bottom-right). It's important to note that only two matching cards cancel; if you have three-of-a-kind or four-of-a-kind, only one pair will cancel.
+
+**Example Grids:**
+
+  * **Example 1:**
+
+    ```
+    [ 6♠  Q♠ ]
+    [ J♣  6♦ ]
+    ```
+
+    Here, the 6♠ and 6♦ form a pair and cancel to 0 points. The Q scores 10 points, and the J scores 0 points. The final score for this grid is 10.
+
+  * **Example 2:**
+
+    ```
+    [ 7♦  5♠ ]
+    [ 5♥  7♣ ]
+    ```
+
+    In this example, the 7♦ and 7♣ form a pair and cancel to 0, and the 5♠ and 5♥ also form a pair and cancel to 0. The final score for this grid is 0.
+
+**Strategy Tips**
+
+Use your memory to your advantage, as only two cards are known at the start. Aim to create pairs across your entire grid, remembering that diagonals also count. Try to avoid face cards unless you are certain they can be part of a pair. Since turns are limited to only four per player, don't hesitate to make your moves.

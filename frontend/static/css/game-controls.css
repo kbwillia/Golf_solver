@@ -1,0 +1,667 @@
+/* ===== GAME CONTROLS CSS COMPONENT ===== */
+
+/* Action buttons container */
+.actions {
+    text-align: center;
+    margin: 20px 0;
+}
+
+/* Button base style */
+.btn {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* Modern Animated Start Game Button */
+.btn-primary {
+    background: linear-gradient(45deg, #ff0000, #00ff00, #0000ff, #ffff00, #ff00ff, #00ffff, #ff0000);
+    background-size: 500% 500%;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    font-weight: 700;
+    border-radius: 12px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation:
+        /* gradientPulse 1.5s ease-in-out infinite; */
+        glowPulse 2s ease-in-out infinite alternate;
+        /* float 4s ease-in-out infinite; */
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 15px 0;
+    z-index: 10;
+}
+
+/* Gradient animation */
+/*
+@keyframes gradientPulse {
+    0% {
+        background-position: 0% 50%;
+    }
+    20% {
+        background-position: 100% 50%;
+    }
+    40% {
+        background-position: 100% 100%;
+    }
+    60% {
+        background-position: 0% 100%;
+    }
+    80% {
+        background-position: 0% 0%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+*/
+
+/* Glow pulse animation */
+@keyframes glowPulse {
+    0% {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(255, 0, 0, 0.6), 0 0 50px rgba(255, 0, 0, 0.3);
+        text-shadow: 0 0 0px rgba(255, 255, 255, 0);
+    }
+    100% {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 50px rgba(0, 255, 0, 1), 0 0 80px rgba(0, 255, 0, 0.5);
+        text-shadow:
+            0 0 5px rgba(255, 255, 255, 1),
+            0 0 10px rgba(255, 255, 255, 0.8),
+            0 0 15px rgba(255, 255, 255, 0.6),
+            0 0 20px rgba(255, 255, 255, 0.4);
+    }
+}
+
+/* Shimmer effect */
+/*
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    transition: left 0.6s;
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+*/
+
+/* Floating animation */
+/*
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+*/
+
+/* Hover effects */
+.btn-primary:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 50px rgba(255, 0, 0, 0.8);
+    /* Keep the glow animation running on hover */
+    animation: glowPulse 1s ease-in-out infinite alternate;
+}
+
+/* Active/click effect */
+.btn-primary:active {
+    transform: translateY(-1px) scale(1.02);
+    /* animation: clickPulse 0.3s ease-out; */
+}
+
+/*
+@keyframes clickPulse {
+    0% {
+        transform: translateY(-1px) scale(1.02);
+    }
+    50% {
+        transform: translateY(-3px) scale(1.08);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 60px rgba(78, 205, 196, 1);
+    }
+    100% {
+        transform: translateY(-1px) scale(1.02);
+    }
+}
+*/
+
+/* Particle effect */
+/*
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:hover::after {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+    transition: width 0.6s, height 0.6s, opacity 0.6s;
+}
+*/
+
+/* Gaming-style text shadow with rainbow effect */
+.btn-primary {
+    /* Text shadow now animated with glowPulse */
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+    .btn-primary {
+        padding: 10px 20px;
+        font-size: 1em;
+    }
+}
+
+/* Secondary button style */
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+/* Button hover effect */
+.btn:hover {
+    opacity: 0.8;
+}
+
+/* Disabled button style */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 2x2 grid for position selection buttons in modal */
+.position-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+    justify-items: center;
+    align-items: center;
+}
+
+/* Next Hole button container below deck-discard area */
+.next-hole-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.next-hole-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.next-hole-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+/* Game Over Buttons */
+.game-over-buttons .btn, .game-over-buttons button {
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    text-shadow:
+        -1px -1px 0 black,
+         1px -1px 0 black,
+        -1px  1px 0 black,
+         1px  1px 0 black; /* Black outline in all directions */
+    border: 2px solid #000;
+    border-radius: 6px;
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 0 8px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.game-over-buttons .btn:hover, .game-over-buttons button:hover {
+    background: rgba(230, 249, 230, 0.35) !important;
+    color: #fff;
+}
+
+/* Game Control Buttons */
+.game-control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0px;
+    align-items: center;
+}
+
+/* Row for the first two buttons */
+.button-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.game-control-btn {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+/* Next Game button - full width and prominent styling */
+.game-control-btn.next-game-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 16px;
+    font-size: 1.1em;
+    font-weight: bold;
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.game-control-btn.next-game-btn:hover {
+    background: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Replay button - make it bigger and more prominent */
+.game-control-btn.replay-btn {
+    padding: 9px 18px;     /* Slightly smaller padding */
+    font-size: 1.05em;     /* Slightly smaller font */
+    min-width: 110px;      /* Slightly narrower */
+    border-radius: 8px;
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+}
+
+.game-control-btn.replay-btn:hover {
+    background: #0056b3;    /* Darker blue on hover */
+    border-color: #004085;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+}
+
+/* Game Mode Container */
+.game-mode-buttons {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Game Mode Buttons */
+.game-mode-btn {
+    flex: none;
+    padding: 4px 10px;
+    /* border: 1px solid #28a745; */
+    background-color: #f8fff9;
+    color: #28a745;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 400;
+    font-size: 0.8em;
+    min-width: 60px;
+    max-width: 80px;
+    width: auto;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+    pointer-events: auto;
+    z-index: 10;
+}
+
+.game-mode-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.game-mode-btn:hover::before {
+    left: 100%;
+}
+
+.game-mode-btn:hover {
+    background-color: #e8f5e8;
+    border-color: #1e7e34;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    transform: translateY(-1px);
+}
+
+.game-mode-btn.active {
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    animation: buttonPulse 2s infinite;
+}
+
+.game-mode-btn.active:hover {
+    background-color: #1e7e34;
+    border-color: #155724;
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-3px) scale(1.08);
+}
+
+@keyframes buttonPulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    50% {
+        box-shadow: 0 6px 16px rgba(40, 167, 69, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Holes Buttons Container */
+.holes-buttons {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Holes Buttons */
+.holes-btn {
+    flex: none;
+    padding: 4px 8px;
+    /* border: 1px solid #28a745; */
+    background-color: #f8fff9;
+    color: #28a745;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 400;
+    font-size: 0.8em;
+    min-width: 50px;
+    max-width: 70px;
+    width: auto;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.holes-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.holes-btn:hover::before {
+    left: 100%;
+}
+
+.holes-btn:hover {
+    background-color: #e8f5e8;
+    border-color: #1e7e34;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    transform: translateY(-1px);
+}
+
+.holes-btn.active {
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    animation: buttonPulse 2s infinite;
+}
+
+.holes-btn.active:hover {
+    background-color: #1e7e34;
+    border-color: #155724;
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-3px) scale(1.08);
+}
+
+/* Voice Button */
+.voice-btn {
+    padding: 4px 8px;
+    border: 1px solid #6c757d;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 400;
+    font-size: 0.8em;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.voice-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.voice-btn:hover::before {
+    left: 100%;
+}
+
+.voice-btn:hover {
+    background-color: #e9ecef;
+    border-color: #5a6268;
+    box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+    transform: translateY(-1px);
+}
+
+.voice-btn.active {
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    animation: buttonPulse 2s infinite;
+}
+
+.voice-btn.active:hover {
+    background-color: #1e7e34;
+    border-color: #155724;
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-3px) scale(1.08);
+}
+
+/* ===== PEEK BUTTON STYLING ===== */
+
+.peek-button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 8px;
+    gap: 4px;
+}
+
+.peek-btn {
+    background: rgba(40, 167, 69, 0.00); /* Light green with opacity */
+    color: #218838;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    /* box-shadow: 0 2px 8px rgba(40, 167, 69, 0.10); */
+    position: relative;
+    overflow: hidden;
+    text-shadow: none;
+    letter-spacing: 0.5px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.peek-btn .peek-text {
+    color: white;
+    margin-left: 8px;
+    opacity: 0 !important;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    font-size: 0.7em;
+    font-weight: 600;
+    letter-spacing: 1px;
+    user-select: none;
+    display: inline-block;
+}
+
+.peek-btn:hover .peek-text {
+    opacity: 1 !important;
+}
+
+.peek-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.003), transparent);
+    transition: left 0.5s;
+}
+
+.peek-btn:hover::before {
+    left: 100%;
+}
+
+.peek-btn:hover {
+    background: rgba(40, 167, 69, 0.42);
+    color: #155724;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.18);
+    transform: scale(1.08);
+}
+
+.peek-btn:active {
+    background: rgba(40, 167, 69, 0.00);
+    color: #155724;
+    /* box-shadow: 0 1px 3px rgba(40, 167, 69, 0.10); */
+    transform: scale(0.98);
+}
+
+.peek-btn:disabled {
+    /* background: #cccccc; */
+    /* color: #666666; */
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.peek-btn:disabled::before {
+    display: none;
+}
+
+/* Peek Cooldown Display */
+.peek-cooldown {
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-align: center;
+    min-width: 30px;
+}
+
+.peek-cooldown span {
+    font-family: 'Courier New', monospace;
+}
+
+/* Peeking state - cards temporarily visible */
+.card.peeking {
+    border: 3px solid #ff6b6b !important;
+    box-shadow: 0 0 12px #ff6b6b, 0 2px 4px rgba(0,0,0,0.2) !important;
+    animation: peekPulse 0.5s ease-in-out;
+}
+
+@keyframes peekPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+#opponentDisplay {
+    color: #fff !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 1.18em;
+    font-weight: bold;
+    text-shadow: 1px 1px 4px #333, 0 0 2px #000;
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+    display: inline-block;
+}

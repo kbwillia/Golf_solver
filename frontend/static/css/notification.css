@@ -1,0 +1,193 @@
+
+
+
+
+#notificationBanner {
+    min-height: 32px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    /* background: #007bff; Blue for default/your turn */
+    background: rgba(230, 249, 230, 0.75);
+    border-radius: 8px;
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 12px;
+    transition: background 0.3s;
+}
+#notificationBanner.game-over {
+    background: rgba(230, 249, 230, 0.75);
+}
+
+
+
+/* Example for a specific class */
+/*
+ * .celebration-gif: Wrapper div for the celebration GIF image.
+ * Adds rounded corners and clips overflow to fit the rounded shape.
+ */
+.celebration-gif {
+    border-radius: 16px; /* Adjust the px value for more/less rounding */
+    overflow: hidden;    /* Ensures the corners are clipped */
+}
+
+/*
+ * #celebrationGif img: Targets any <img> inside the #celebrationGif container.
+ * Rounds the image corners, hides overflow, and ensures the image is displayed as a block.
+ */
+#celebrationGif img {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    display: block !important;
+}
+
+/*
+ * .celebration-gif-img: Targets the GIF image itself (by class).
+ * Rounds the image, hides overflow, sets max size, centers it, and ensures the image fits within its box without distortion.
+ */
+.celebration-gif-img {
+    border-radius: 18px;
+    overflow: hidden;
+    display: block;
+    max-width: 320px;
+    max-height: 320px;
+    margin: 0 auto;
+    object-fit: contain;
+    background: transparent;
+}
+
+/*
+ * .celebration-gif-container: Wrapper around the GIF and possibly a caption.
+ * Centers text inside the container and adds spacing above and to the right.
+ */
+.celebration-gif-container {
+    text-align: center;
+    margin-top: 6px;
+    margin-right: 6px;
+    margin-left: 200px; /* Move GIF further right as requested */
+    /* margin-bottom: 12px; */
+}
+
+/*
+ * #celebrationGif: Main container for the celebration GIF.
+ * Places the container in the right grid column, positions it, makes it fill the column, aligns its content to the right, and adds a border for debugging.
+ */
+#celebrationGif {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  width: 100%;           /* Fill the grid column */
+  margin: 50px 0 0 10;    /* Move down from the top, right, bottom, left*/
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end; /* Push content to the right */
+  align-items: flex-start;
+  pointer-events: none;
+  /* border: 2px solid red !important; */
+  border-radius: 18px !important;
+  overflow: hidden; /* Ensures child image corners are clipped */
+}
+
+/*
+ * #celebrationGif img, .celebration-gif-img: Targets the GIF image for consistent sizing.
+ * Sets the width of the GIF image to 300px, but allows it to shrink if the container is smaller.
+ */
+#celebrationGif img, .celebration-gif-img {
+  width: 100%;
+  max-width: 276px;
+  max-height: 280px;
+  border-radius: 18px !important;
+  display: block;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.action-history-panel {
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    /* box-shadow: 0 2px 4px rgba(0,0,0,0.08); */
+    max-width: 100%;
+}
+.action-history-list {
+    max-height: 100px;
+    overflow-y: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    overflow-y: auto;
+
+    /* Custom scrollbar styling - grey and subtle */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.01) transparent;
+}
+
+/* Webkit scrollbar styling for action history (Chrome, Safari, Edge) */
+.action-history-list::-webkit-scrollbar {
+    width: 3px;
+}
+
+.action-history-list::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 2px;
+}
+
+.action-history-list::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.1);
+    border-radius: 2px;
+}
+
+.action-history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.2);
+}
+.action-history-item {
+    font-size: 0.7em;
+    color: #333;
+    /* background: rgba(230, 249, 230, 0.25); */
+    border-radius: 4px;
+    padding: 4px 4px;
+    word-break: break-word;
+    line-height: 0.9;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
