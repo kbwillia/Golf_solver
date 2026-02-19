@@ -216,9 +216,10 @@ def save_bot_to_supabase(bot):
 
 
 def upload_game_state(game_id, game_state, timestamp=None, metadata=None):
-    current_player = game_state.get("current_player")
+    # get_game_state returns 'current_turn', not 'current_player'
+    current_player = game_state.get("current_turn") or game_state.get("current_player")
     if current_player is None:
-        print("Skipping upload: current_player is None")
+        print("Skipping upload: current_turn/current_player is None")
         return None
 
     players = game_state.get("players", [])
@@ -230,7 +231,8 @@ def upload_game_state(game_id, game_state, timestamp=None, metadata=None):
             flattened[f"player{idx+1}_name"] = p.get("name")
             flattened[f"player{idx+1}_agent_type"] = p.get("agent_type")
             flattened[f"player{idx+1}_grid"] = p.get("grid")
-            flattened[f"player{idx+1}_known"] = p.get("known")
+            # 'known' field may not be in player_data from get_game_state, so use None if missing
+            flattened[f"player{idx+1}_known"] = p.get("known", None)
         else:
             flattened[f"player{idx+1}_name"] = None
             flattened[f"player{idx+1}_agent_type"] = None
