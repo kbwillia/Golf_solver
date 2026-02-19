@@ -1,3 +1,23 @@
+// CRITICAL TEST - If you don't see this, the script isn't loading
+console.log('=== CUSTOM-BOTS.JS STARTING TO LOAD ===');
+console.log('=== CUSTOM-BOTS.JS LOADED ===');
+console.log('Timestamp:', new Date().toISOString());
+window.customBotsLoaded = true;
+console.log('File should be executing now');
+
+// Supabase client setup (using CDN) - MOVED TO TOP
+// Updated Supabase credentials - must match .env file
+const supabaseUrl = 'https://guhweuzngmccjbttcmgx.supabase.co';
+const supabaseKey = 'sb_publishable_RZ4sknNdlE7KLOihq3u4iw_vHuKULvL';
+
+// Wrap in try-catch to catch any immediate errors
+try {
+  console.log('📦 custom-bots.js script loaded at', new Date().toISOString());
+} catch (e) {
+  console.error('Error in custom-bots.js initial log:', e);
+  throw e; // Re-throw to see the error
+}
+
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -145,9 +165,15 @@ const announcerBots = [
 window.selectedBots = []; // Will be populated when bots are loaded
 
 async function renderBotSelectRow() {
+  console.log('🎨 renderBotSelectRow() called');
   const row = document.getElementById('botSelectRow');
   const imageContainer = document.getElementById('aiBotImageContainer');
-  if (!row) return;
+  console.log('🎨 botSelectRow element:', row ? 'found' : 'NOT FOUND');
+  console.log('🎨 aiBotImageContainer element:', imageContainer ? 'found' : 'NOT FOUND');
+  if (!row) {
+    console.error('❌ botSelectRow element not found in DOM!');
+    return;
+  }
 
   // Load bots from custom_bot.json
   let allBots = [];
@@ -159,19 +185,50 @@ async function renderBotSelectRow() {
     // Check if Supabase client is available
     if (!supabase) {
       console.error('❌ Supabase client not initialized');
-      return;
+      console.error('Supabase URL:', typeof supabaseUrl !== 'undefined' ? supabaseUrl : 'undefined');
+      console.error('Supabase Key:', typeof supabaseKey !== 'undefined' ? supabaseKey?.substring(0, 20) + '...' : 'undefined');
+      // Try to initialize Supabase if not already done
+      if (typeof window.supabase !== 'undefined' && typeof supabaseUrl !== 'undefined' && typeof supabaseKey !== 'undefined') {
+        console.log('Attempting to initialize Supabase client...');
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        console.log('Supabase client initialized:', !!supabase);
+      } else {
+        return;
+      }
     }
 
     // Use the Supabase client we set up earlier
-    const { data, error } = await supabase
-      .from('custom_bots')
+    // Try custom_bots_view first (the actual table), fall back to custom_bots
+    console.log('🗄️ CALLING DATABASE FOR CUSTOM BOTS...');
+    console.log('🗄️ Querying custom_bots_view table from Supabase...');
+    let { data, error } = await supabase
+      .from('custom_bots_view')
       .select('*')
       .order('created_at', { ascending: false });
+    console.log('🗄️ Database query completed. Data:', data ? `${data.length} records` : 'null', 'Error:', error ? 'Yes' : 'No');
+    
+    // If view doesn't work, try the base table
+    if (error && error.message && error.message.includes('could not find the table')) {
+      console.log('Trying custom_bots table instead...');
+      const result = await supabase
+        .from('custom_bots')
+        .select('*')
+        .order('created_at', { ascending: false });
+      data = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error('❌ Supabase error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
     } else {
       console.log(`📊 Found ${data.length} bots from Supabase:`, data);
+      // Log image paths for debugging
+      data.forEach(bot => {
+        const imagePath = bot.image_path || bot.image_url;
+        const fallbackName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+        console.log(`Bot "${bot.name}": image_path=${imagePath}, fallback=${fallbackName}`);
+      });
 
       // Store all fields for each bot
       data.forEach(bot => {
@@ -185,14 +242,18 @@ async function renderBotSelectRow() {
       allBots.push(...shuffledBots); // Add back in random order
     }
   } catch (error) {
-    console.log('Could not load bots from Supabase:', error);
+    console.error('Could not load bots from Supabase:', error);
+    // Don't return here - try to continue with empty array or fallback
   }
 
-  // If no bots found, show a message
+  // If no bots found, show a helpful message
   if (allBots.length === 0) {
-    row.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">No bots found. Create some custom bots to get started!</p>';
+    console.warn('No bots loaded from Supabase. Showing message to user.');
+    row.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; margin: 10px;"><p style="font-weight: bold; margin-bottom: 8px;">No bots found</p><p style="font-style: italic; font-size: 0.9em;">Check console for errors. Make sure Supabase is connected.</p></div>';
     return;
   }
+  
+  console.log(`✅ Successfully loaded ${allBots.length} bots, rendering cards...`);
 
   // Initialize selectedBots if not already set
   if (!window.selectedBots) {
@@ -219,7 +280,9 @@ async function renderBotSelectRow() {
 
 
   // Render all bots
+  console.log(`🎨 Rendering ${allBots.length} bot cards...`);
   row.innerHTML = '';
+  let cardsRendered = 0;
   allBots.forEach((bot, idx) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -232,8 +295,26 @@ async function renderBotSelectRow() {
     btn.className = 'bot-select-btn' + (isSelected ? ' multi-selected' : '');
     btn.setAttribute('data-bot', bot.ai_bot_id || bot.id);
 
-    // Only use name, difficulty, description for display
+    // Get image path for the button
+    let imgPath = '';
+    const imagePath = bot.image_path || bot.image_url;
+    if (imagePath) {
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        imgPath = imagePath;
+      } else {
+        imgPath = `/static/${imagePath}`;
+      }
+    } else {
+      // Fallback to name-based mapping
+      const imgName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+      imgPath = `/static/AI_bot_images/${imgName}`;
+    }
+    
+    // Use name, difficulty, description, and image for display
     btn.innerHTML = `
+      <div class="bot-image-wrapper">
+        <img src="${imgPath}" alt="${bot.name}" class="bot-select-img" onerror="this.style.display='none';" />
+      </div>
       <div class="bot-header">
         <span class="bot-name">${bot.name}</span>
         <span class="bot-difficulty ${bot.difficulty}">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)}</span>
@@ -242,7 +323,10 @@ async function renderBotSelectRow() {
     `;
     btn.onclick = () => selectBotButton(bot.ai_bot_id || bot.id);
     row.appendChild(btn);
+    cardsRendered++;
   });
+  
+  console.log(`✅ Successfully rendered ${cardsRendered} bot selection cards`);
 
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
@@ -258,6 +342,7 @@ async function renderBotSelectRow() {
   }
 
   // Show selected bot images and descriptions
+  console.log(`Updating AI bot image container with ${allBots.length} bots, ${window.selectedBots.length} selected`);
   updateAIBotImageContainer(allBots);
 
   // Update start game button state
@@ -300,8 +385,15 @@ function updateAIBotImageContainer(allBots) {
     const botObj = allBots.find(b => (b.ai_bot_id || b.id) === (selectedBot.ai_bot_id || selectedBot.id));
     if (!botObj) return;
     let imgPath = '';
-    if (botObj.image_path) {
-      imgPath = `/static/${botObj.image_path}`;
+    // Check both image_path and image_url fields (database uses image_url)
+    const imagePath = botObj.image_path || botObj.image_url;
+    if (imagePath) {
+      // If it's a full URL, use it directly; otherwise treat as relative path
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        imgPath = imagePath;
+      } else {
+        imgPath = `/static/${imagePath}`;
+      }
     } else {
       // Fallback to old name-based mapping
       const imgName = botObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
@@ -317,8 +409,26 @@ function updateAIBotImageContainer(allBots) {
     img.src = imgPath;
     img.alt = botObj.name;
     img.className = 'ai-bot-img';
+    let hasTriedFallback = false; // Flag to prevent infinite loops
     img.onerror = function() {
-      this.style.display = 'none';
+      if (hasTriedFallback) {
+        // Already tried fallback, just hide the image
+        console.warn(`Failed to load image for ${botObj.name} after fallback attempt. Hiding image.`);
+        this.style.display = 'none';
+        this.onerror = null; // Remove error handler to prevent further calls
+        return;
+      }
+      
+      console.warn(`Failed to load image for ${botObj.name}: ${imgPath}`);
+      // Try fallback path only once
+      hasTriedFallback = true;
+      const fallbackName = botObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+      const fallbackPath = `/static/AI_bot_images/${fallbackName}`;
+      console.log(`Trying fallback path: ${fallbackPath}`);
+      this.src = fallbackPath;
+    };
+    img.onload = function() {
+      console.log(`Successfully loaded image for ${botObj.name}: ${imgPath}`);
     };
 
     // Text container
@@ -524,15 +634,71 @@ function handle1v3Mode() {
   renderBotSelectRow();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderBotSelectRow();
-  initializeGameModeButtons();
+// Simplified initialization - no IIFE wrapper
+function initBotSelection() {
+  try {
+    console.log('📦 custom-bots.js: DOMContentLoaded event fired');
+    console.log('📦 Checking Supabase initialization...');
+    console.log('📦 typeof supabase:', typeof supabase);
+    console.log('📦 typeof window.supabase:', typeof window.supabase);
+    
+    // Wait a bit for Supabase to initialize
+    setTimeout(() => {
+      try {
+        console.log('📦 After timeout, checking Supabase again...');
+        console.log('📦 typeof supabase:', typeof supabase);
+        
+        if (typeof supabase !== 'undefined' && supabase) {
+          console.log('✅ Supabase client ready, rendering bots...');
+          renderBotSelectRow();
+        } else {
+          console.warn('⚠️ Supabase client not ready, checking if we can initialize...');
+          // Try to initialize Supabase if window.supabase is available
+          if (typeof window.supabase !== 'undefined' && typeof supabaseUrl !== 'undefined' && typeof supabaseKey !== 'undefined') {
+            console.log('🔄 Attempting to initialize Supabase client...');
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            console.log('✅ Supabase initialized:', !!supabase);
+            renderBotSelectRow();
+          } else {
+            console.error('❌ Cannot initialize Supabase - missing dependencies');
+            console.error('window.supabase:', typeof window.supabase);
+            console.error('supabaseUrl:', typeof supabaseUrl !== 'undefined' ? supabaseUrl : 'undefined');
+            console.error('supabaseKey:', typeof supabaseKey !== 'undefined' ? supabaseKey.substring(0, 20) + '...' : 'undefined');
+            // Still try to render - it will show error message
+            console.log('🔄 Attempting to render bots anyway...');
+            renderBotSelectRow();
+          }
+        }
+      } catch (e) {
+        console.error('❌ Error in bot selection timeout:', e);
+        // Still try to render
+        try {
+          renderBotSelectRow();
+        } catch (e2) {
+          console.error('❌ Error rendering bots:', e2);
+        }
+      }
+    }, 1000); // Increased delay to 1000ms to give Supabase CDN more time
+    
+    initializeGameModeButtons();
 
-  // Initialize the opponent display
-  updateOpponentDisplay();
+    // Initialize the opponent display
+    updateOpponentDisplay();
 
-  console.log('🎯 Bot selection and opponent display initialized');
-});
+    console.log('🎯 Bot selection initialization complete');
+  } catch (e) {
+    console.error('❌ Error in initBotSelection:', e);
+  }
+}
+
+// Set up DOMContentLoaded listener
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initBotSelection);
+} else {
+  // DOM already loaded
+  console.log('📦 DOM already loaded, initializing immediately...');
+  initBotSelection();
+}
 
 // Update opponent display based on selected bots
 function updateOpponentDisplay() {
@@ -574,24 +740,61 @@ function updateOpponentDisplay() {
 }
 
 // Supabase client setup (using CDN)
-// Your actual Supabase credentials
-const supabaseUrl = 'https://itnacachbrkpyfgmsziq.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmFjYWNoYnJrcHlmZ21zemlxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjgxMTQ0MywiZXhwIjoyMDYyMzg3NDQzfQ.anx2ToTI7f3LV1vw7scNki_FToqJnntryriOMTQcMos';
+// Updated Supabase credentials for new project
+// Initialize Supabase client - try multiple times if CDN hasn't loaded yet
+// Use var (not let/const) to avoid redeclaration errors if script loads multiple times
+var supabase;
 
-// Initialize Supabase client when the script loads
-let supabase;
-if (typeof window.supabase !== 'undefined') {
-  supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-  console.log('✅ Supabase client initialized successfully');
-} else {
-  console.error('❌ Supabase client not available - CDN may not have loaded');
+function initializeSupabaseClient() {
+  console.log('🔄 Attempting to initialize Supabase client...');
+  console.log('window.supabase type:', typeof window.supabase);
+  
+  if (typeof window.supabase !== 'undefined' && window.supabase && window.supabase.createClient) {
+      try {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        console.log('✅ Supabase client initialized successfully');
+        return true;
+    } catch (error) {
+      console.error('❌ Error creating Supabase client:', error);
+      return false;
+    }
+  } else {
+    console.warn('⚠️ window.supabase not available yet - CDN may still be loading');
+    return false;
+  }
+}
+
+// Try to initialize immediately
+if (!initializeSupabaseClient()) {
+  // If it fails, try again after a delay
+  setTimeout(() => {
+    if (!initializeSupabaseClient()) {
+      // Try one more time after another delay
+      setTimeout(() => {
+        initializeSupabaseClient();
+      }, 1000);
+    }
+  }, 500);
 }
 
 async function fetchBotsFromSupabase() {
-  const { data, error } = await supabase
-    .from('custom_bots')
+  // Try custom_bots_view first (the actual table), fall back to custom_bots
+  let { data, error } = await supabase
+    .from('custom_bots_view')
     .select('*')
     .order('created_at', { ascending: false });
+  
+  // If view doesn't work, try the base table
+  if (error && error.message && error.message.includes('could not find the table')) {
+    console.log('Trying custom_bots table instead...');
+    const result = await supabase
+      .from('custom_bots')
+      .select('*')
+      .order('created_at', { ascending: false });
+    data = result.data;
+    error = result.error;
+  }
+  
   if (error) {
     console.error('Error fetching bots:', error);
     return [];
@@ -601,6 +804,51 @@ async function fetchBotsFromSupabase() {
 
 // Make function globally available
 window.fetchBotsFromSupabase = fetchBotsFromSupabase;
+
+// TEST FUNCTION - Call this from browser console to test database connection
+window.testSupabaseConnection = async function() {
+  console.log('🧪 Testing Supabase connection...');
+  console.log('supabaseUrl:', supabaseUrl);
+  console.log('supabaseKey:', supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'undefined');
+  console.log('typeof window.supabase:', typeof window.supabase);
+  console.log('supabase client:', supabase);
+  
+  if (!supabase) {
+    console.error('❌ Supabase client not initialized!');
+    console.log('Attempting to initialize...');
+    if (typeof window.supabase !== 'undefined' && window.supabase && window.supabase.createClient) {
+      try {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        console.log('✅ Supabase client created:', !!supabase);
+      } catch (e) {
+        console.error('❌ Failed to create client:', e);
+        return;
+      }
+    } else {
+      console.error('❌ window.supabase not available!');
+      return;
+    }
+  }
+  
+  console.log('🔍 Querying custom_bots_view table...');
+  try {
+    const { data, error } = await supabase
+      .from('custom_bots_view')
+      .select('*')
+      .limit(5);
+    
+    if (error) {
+      console.error('❌ Database query error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+    } else {
+      console.log('✅ Database query successful!');
+      console.log(`📊 Found ${data.length} bots:`, data);
+      return data;
+    }
+  } catch (e) {
+    console.error('❌ Exception during query:', e);
+  }
+};
 
 
 

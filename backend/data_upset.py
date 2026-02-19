@@ -8,9 +8,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
-key = os.environ.get("SUPABASE_LEGACY_SECRET")
 url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_LEGACY_SECRET")
+# Try legacy secret first, fall back to public key
+key = os.getenv("SUPABASE_LEGACY_SECRET") or os.getenv("SUPABASE_PUBLIC") or os.getenv("SUPBAASE_PUBLIC")
+if not key:
+    raise ValueError("No Supabase API key found. Please set SUPABASE_LEGACY_SECRET or SUPABASE_PUBLIC in .env")
+if not url:
+    raise ValueError("No Supabase URL found. Please set SUPABASE_URL in .env")
 supabase: Client = create_client(url, key)
 # print(f'url: {url}')
 # print(f'key: {key}')

@@ -84,9 +84,11 @@ const faqs = [
 
 class FAQ {
     constructor(containerId) {
-        console.log('FAQ constructor called with containerId:', containerId);
         this.container = document.getElementById(containerId);
-        console.log('Container found:', this.container);
+        if (!this.container) {
+            console.error('FAQ container not found:', containerId);
+            return;
+        }
         this.isMinimized = true; // Start minimized
         this.openItems = new Set();
         this.init();
@@ -94,18 +96,15 @@ class FAQ {
 
     init() {
         if (!this.container) {
-            console.error('FAQ container not found:', containerId);
+            console.error('FAQ container not found');
             return;
         }
 
-        console.log('Initializing FAQ, rendering...');
         this.render();
         this.setupEventListeners();
-        console.log('FAQ initialization complete');
     }
 
     render() {
-        console.log('Rendering FAQ...');
         const faqHTML = `
             <div class="faq-container ${this.isMinimized ? 'minimized' : ''}">
                 <div class="faq-header" style="cursor: pointer;">
@@ -128,9 +127,7 @@ class FAQ {
                 ` : ''}
             </div>
         `;
-        console.log('FAQ HTML:', faqHTML);
         this.container.innerHTML = faqHTML;
-        console.log('FAQ rendered successfully');
     }
 
     setupEventListeners() {
@@ -161,33 +158,50 @@ class FAQ {
     }
 }
 
+// Flag to prevent multiple initializations
+let faqInitialized = false;
+
+function initializeFAQ() {
+    // Prevent multiple initializations
+    if (faqInitialized) {
+        return;
+    }
+    
+    const container = document.getElementById('setupLeftColumn');
+    if (!container) {
+        return; // Container not ready yet
+    }
+    
+    // Check if FAQ already exists
+    if (container.querySelector('.faq-container')) {
+        faqInitialized = true;
+        return; // Already initialized
+    }
+    
+    try {
+        new FAQ('setupLeftColumn');
+        faqInitialized = true;
+        console.log('FAQ initialized successfully');
+    } catch (error) {
+        console.error('Error initializing FAQ:', error);
+    }
+}
+
 // Initialize FAQ when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing FAQ...');
-    // Initialize FAQ in the setupLeftColumn
-    new FAQ('setupLeftColumn');
+    initializeFAQ();
 });
 
 // Also try initializing after a short delay in case DOM is not ready
 setTimeout(() => {
-    console.log('Timeout initialization of FAQ...');
-    const container = document.getElementById('setupLeftColumn');
-    if (container && !container.querySelector('.faq-container')) {
-        console.log('Container found, initializing FAQ...');
-        new FAQ('setupLeftColumn');
-    } else {
-        console.log('Container not found or FAQ already exists');
+    if (!faqInitialized) {
+        initializeFAQ();
     }
 }, 1000);
 
 // Try initializing after window load to ensure all scripts are loaded
 window.addEventListener('load', () => {
-    console.log('Window loaded, checking FAQ...');
-    const container = document.getElementById('setupLeftColumn');
-    if (container && !container.querySelector('.faq-container')) {
-        console.log('Container found on window load, initializing FAQ...');
-        new FAQ('setupLeftColumn');
-    } else {
-        console.log('Container not found or FAQ already exists on window load');
+    if (!faqInitialized) {
+        initializeFAQ();
     }
 });

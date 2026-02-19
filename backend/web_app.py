@@ -77,7 +77,10 @@ def get_or_fetch_custom_bot(ai_bot_id):
     from supabase import create_client, Client
     import os, json
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_LEGACY_SECRET")
+    # Try legacy secret first, fall back to public key
+    key = os.environ.get("SUPABASE_LEGACY_SECRET") or os.environ.get("SUPABASE_PUBLIC") or os.environ.get("SUPBAASE_PUBLIC")
+    if not key or not url:
+        raise ValueError("Missing Supabase credentials. Check SUPABASE_URL and SUPABASE_LEGACY_SECRET/SUPABASE_PUBLIC in .env")
     supabase: Client = create_client(url, key)
     response = supabase.table('custom_bots').select('*').eq('ai_bot_id', ai_bot_id).single().execute()
     if response.error or not response.data:

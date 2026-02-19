@@ -12,10 +12,13 @@ import os
 from supabase import create_client, Client
 
 url = os.environ.get("SUPABASE_URL")
-# print("url:", url)
-key = os.environ.get("SUPABASE_LEGACY_SECRET")
+# Try legacy secret first, fall back to public key
+key = os.environ.get("SUPABASE_LEGACY_SECRET") or os.environ.get("SUPABASE_PUBLIC") or os.environ.get("SUPBAASE_PUBLIC")
 test = os.environ.get("TEST")
-print("key:", key)
+if not key:
+    print("WARNING: No Supabase API key found!")
+else:
+    print(f"key found: {key[:20]}...")
 
 NANTZ_COOLDOWN = 1200
 

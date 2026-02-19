@@ -764,8 +764,21 @@ function updateChatParticipantsHeader() {
             let imgPath = '';
             if (window.allBotsData) {
                 const botObj = window.allBotsData.find(b => b.name === participant.name);
-                if (botObj && botObj.image_path) {
-                    imgPath = `/static/${botObj.image_path}`;
+                if (botObj) {
+                    // Check both image_path and image_url fields (database uses image_url)
+                    const imagePath = botObj.image_path || botObj.image_url;
+                    if (imagePath) {
+                        // If it's a full URL, use it directly; otherwise treat as relative path
+                        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                            imgPath = imagePath;
+                        } else {
+                            imgPath = `/static/${imagePath}`;
+                        }
+                    } else {
+                        // Fallback to name-based mapping
+                        const imgName = participant.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
+                        imgPath = `/static/AI_bot_images/${imgName}`;
+                    }
                 } else {
                     // Fallback to name-based mapping
                     const imgName = participant.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
