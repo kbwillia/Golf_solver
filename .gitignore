@@ -9,3 +9,15 @@
 !frontend/static/**/*.png
 #ignore .env file
 .env
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+env/
+ENV/
