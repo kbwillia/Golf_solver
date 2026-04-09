@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golf Card Game</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/layout.css?v=4">
     <link rel="stylesheet" href="/static/css/cards.css">
     <link rel="stylesheet" href="/static/css/players.css">
     <link rel="stylesheet" href="/static/css/game-controls.css">
@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
     <link rel="stylesheet" href="/static/css/custom-bots.css">
-    <link rel="stylesheet" href="/static/css/setup.css">
+    <link rel="stylesheet" href="/static/css/setup.css?v=4">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
 </head>
 <body>
@@ -25,69 +25,110 @@
         <!-- Header Section (Title) --> <!-- Game title -->
         <div class="header">
             <div class="header-content">
-                <h1>🏌️ Golf Card Game</h1>
+                <h1 class="app-title">Golf Card Game</h1>
                 <div id="GameAndRoundInfo" class="header-game-info"></div>
             </div>
-            <div class="header-buttons" id="headerButtons" style="display: flex; flex-direction: row; align-items: center;">
+            <div class="header-buttons" id="headerButtons">
                 <button onclick="restartGame()" class="btn btn-secondary game-control-btn new-game-btn">New Game</button>
                 <!-- <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button> -->
             </div>
         </div>
         <!-- Setup and Game Board Wrapper -->
         <div class="setup-and-board">
-            <!-- 3-column layout for setup screen -->
-            <div id="setupColumns">
-                <!-- Left column: placeholder for chatbot/rules -->
-                <div id="setupLeftColumn">
-                    <!-- FAQ will be loaded here -->
-                    <div style="color: white; padding: 10px; text-align: center;">
-                        <h3>FAQ Loading...</h3>
-                        <p>If you see this, the FAQ should appear here.</p>
-                    </div>
-                </div>
-                <!-- Center column: game setup -->
+            <div id="setupColumns" class="setup-columns-wrap">
+                <div id="setupLeftColumn" class="setup-left-column" aria-label="Help and rules" style="display:none;"></div>
                 <div id="setupCenterColumn">
-                    <div class="game-setup" id="gameSetup">
-                        <h2></h2>
-                        <!-- Player Name Input -->
-                        <p>
-                            <label for="playerName">Your Name:</label>
-                            <input type="text" id="playerName" placeholder="Enter your name" value="Kyle" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em;" /> <!-- Name input -->
-                        </p>
-                        <!-- Game Mode Display -->
-                        <div style="display: flex; justify-content: center; margin: 10px 0;">
-                            <div id="gameModeDisplay" class="game-mode-display">
-                                <h3 id="opponentDisplay" style="margin: 0; padding: 10px 20px; color: #fff; font-weight: bold; background: none; border: none;">
-                                    Select your AI opponents below
-                                </h3>
+                    <div class="game-setup setup-shell" id="gameSetup">
+                        <header class="setup-hero">
+                            <h2 class="setup-title">Get ready to play</h2>
+                            <p class="setup-lead">Work through both steps: pick who you are playing with, then set the match.</p>
+                        </header>
+
+                        <nav class="setup-stepbar" aria-label="Setup steps">
+                            <div class="setup-stepbar-inner">
+                                <div class="setup-stepbar-row setup-stepbar-row--circles">
+                                    <span class="setup-stepbar-num setup-stepbar-num--active" onclick="goToSetupStep(1)">1</span>
+                                    <span class="setup-stepbar-track" aria-hidden="true"><span class="setup-stepbar-line"></span></span>
+                                    <span class="setup-stepbar-num" onclick="goToSetupStep(2)">2</span>
+                                </div>
+                                <div class="setup-stepbar-row setup-stepbar-row--labels">
+                                    <span class="setup-stepbar-text setup-stepbar-text--active" id="setup-step-label-1">You and opponents</span>
+                                    <span class="setup-stepbar-text" id="setup-step-label-2">Match and peek</span>
+                                </div>
                             </div>
+                        </nav>
+
+                        <div class="setup-step-panels">
+                            <section class="setup-panel setup-panel--active" id="setupStep1" aria-labelledby="setup-step-label-1" style="display:block;">
+                                <div class="setup-panel-block">
+                                    <h3 class="setup-subheading" id="lbl-player">Your name</h3>
+                                    <div class="setup-field-row">
+                                        <label for="playerName" class="setup-label">Display name</label>
+                                        <input type="text" id="playerName" class="setup-input" placeholder="Enter your name" autocomplete="nickname" maxlength="40" />
+                                    </div>
+                                </div>
+                                <div class="setup-panel-block">
+                                    <h3 class="setup-subheading" id="lbl-opponents">AI opponents</h3>
+                                    <p class="setup-hint" id="opponentDisplay">Select your AI opponents below</p>
+                                    <div id="botSelectRow" class="bot-select-row" role="listbox" aria-label="Choose AI opponents">
+                                    </div>
+                                    <div class="setup-inline-actions">
+                                        <button type="button" id="createCustomBotBtn" class="btn btn-secondary setup-secondary-btn">Create custom bot</button>
+                                        <span id="customBotCount" class="setup-meta"></span>
+                                    </div>
+                                    <div class="setup-voice-row">
+                                        <button type="button" id="voiceToggleBtn" class="btn btn-secondary voice-btn setup-secondary-btn" onclick="toggleVoiceSystem()">
+                                            <span id="voiceStatus">Commentary: Off</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="setup-step-nav">
+                                    <span></span>
+                                    <button type="button" class="btn btn-primary setup-next-btn" onclick="goToSetupStep(2)">Next</button>
+                                </div>
+                            </section>
+
+                            <section class="setup-panel" id="setupStep2" aria-labelledby="setup-step-label-2" style="display:none;">
+                                <div class="setup-panel-block">
+                                    <h3 class="setup-subheading" id="lbl-match">Match length</h3>
+                                    <p class="setup-microcopy">How many rounds in this match.</p>
+                                    <div class="holes-buttons" role="group" aria-label="Number of holes">
+                                        <button type="button" id="holes1" class="btn btn-secondary holes-btn active" data-holes="1">1 hole</button>
+                                        <button type="button" id="holes3" class="btn btn-secondary holes-btn" data-holes="3">3 holes</button>
+                                        <button type="button" id="holes9" class="btn btn-secondary holes-btn" data-holes="9">9 holes</button>
+                                        <button type="button" id="holes18" class="btn btn-secondary holes-btn" data-holes="18">18 holes</button>
+                                    </div>
+                                </div>
+                                <div class="setup-panel-block setup-panel-block--tight">
+                                    <h3 class="setup-subheading" id="lbl-peek">Setup peek</h3>
+                                    <p class="setup-microcopy">How long your bottom two cards stay visible at the start of each hole.</p>
+                                    <div class="setup-field-row setup-field-row--inline">
+                                        <label for="cardVisibilityDuration" class="setup-label setup-label--inline">Visible for</label>
+                                        <input type="number" id="cardVisibilityDuration" class="setup-input setup-input--narrow" min="0.5" max="10" step="0.1" value="1.5" />
+                                        <span class="setup-suffix">seconds</span>
+                                    </div>
+                                </div>
+                                <div class="setup-step-nav">
+                                    <button type="button" class="btn btn-secondary setup-back-btn" onclick="goToSetupStep(1)">Back</button>
+                                    <button type="button" onclick="startGame()" class="btn btn-primary setup-start-btn">Start game</button>
+                                </div>
+                            </section>
                         </div>
-                        <!-- Bot selection buttons row -->
-                        <div id="botSelectRow" class="bot-select-row">
-                            <!-- Buttons will be rendered by JS -->
+
+                        <div class="setup-cta" style="display:none;">
+                            <button type="button" onclick="restartGame()" class="btn btn-secondary setup-restart-btn" id="restartBtn" style="display:none;">Restart game</button>
                         </div>
-                        <!-- Create Custom AI Bot Button (always visible) -->
-                        <p>
-                            <button type="button" id="createCustomBotBtn" class="btn btn-secondary">Create Custom Bot</button>
-                            <span id="customBotCount" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span>
-                        </p>
-                        <!-- Voice   Toggle -->
-                        <p>
-                            <button type="button" id="voiceToggleBtn" class="btn btn-secondary voice-btn" onclick="toggleVoiceSystem()">
-                                <span id="voiceStatus">Jim Nantz: 🔇</span>
-                            </button>
-                        </p>
-                        <!-- Custom Bot Modal -->
-                        <div id="customBotModal" class="custom-bot-modal-overlay" style="display:none;">
-                          <div class="custom-bot-modal">
-                            <h3>Create Custom AI Bot</h3>
+
+                        <div id="customBotModal" class="custom-bot-modal-overlay" style="display:none;" aria-hidden="true">
+                          <div class="custom-bot-modal" role="dialog" aria-labelledby="customBotModalTitle">
+                            <h3 id="customBotModalTitle">Create custom AI bot</h3>
                             <div class="form-row">
                               <div class="form-group">
-                                <label for="customBotName" class="form-label">Name:</label>
-                                <input type="text" id="customBotName" class="form-input" placeholder="Bot Name" />
+                                <label for="customBotName" class="form-label">Name</label>
+                                <input type="text" id="customBotName" class="form-input" placeholder="Bot name" />
                               </div>
                               <div class="form-group">
-                                <label for="customBotDifficulty" class="form-label">Difficulty:</label>
+                                <label for="customBotDifficulty" class="form-label">Difficulty</label>
                                 <select id="customBotDifficulty" class="form-select">
                                   <option value="easy">Easy</option>
                                   <option value="medium">Medium</option>
@@ -96,51 +137,32 @@
                               </div>
                             </div>
                             <div class="form-group">
-                              <label for="customBotDescription" class="form-label">Personality/Description:</label>
+                              <label for="customBotDescription" class="form-label">Personality / description</label>
                               <textarea id="customBotDescription" class="form-textarea" rows="3" placeholder="Describe this bot's personality..."></textarea>
                             </div>
                             <div class="form-group">
-                                <label for="customBotImage" style="display:block; margin-top:10px;">Bot Image:</label>
+                                <label for="customBotImage" style="display:block; margin-top:10px;">Bot image</label>
                                 <input type="file" id="customBotImage" name="bot_image" accept="image/*" style="display:none;">
-                                <button type="button" id="uploadBotImageBtn">Upload Bot Image</button>
-                                <img id="customBotImagePreview" style="max-width: 150px; display: none; margin-top:10px;">
+                                <button type="button" id="uploadBotImageBtn">Upload image</button>
+                                <img id="customBotImagePreview" style="max-width: 150px; display: none; margin-top:10px;" alt="">
                             </div>
                             <div class="form-group">
-                                <label for="customBotVoiceId" class="form-label">Voice:</label>
+                                <label for="customBotVoiceId" class="form-label">Voice</label>
                                 <select id="customBotVoiceId" name="customBotVoiceId" style="margin-right: 8px;"></select>
                             </div>
                             <div class="modal-buttons">
                               <button type="button" id="cancelCustomBotBtn" class="btn btn-secondary">Cancel</button>
-                              <button type="submit" id="saveCustomBotBtn" class="btn btn-primary">Save Bot</button>
+                              <button type="submit" id="saveCustomBotBtn" class="btn btn-primary">Save bot</button>
                             </div>
                           </div>
                         </div>
-
-
-                <!-- Number of Holes Buttons -->
-                <div style="display: flex; justify-content: center; margin: 10px 0;">
-                    <div class="holes-buttons">
-                        <button type="button" id="holes1" class="btn btn-secondary holes-btn active" data-holes="1">1 Hole</button>
-                        <button type="button" id="holes3" class="btn btn-secondary holes-btn" data-holes="3">3 Holes</button>
-                        <button type="button" id="holes9" class="btn btn-secondary holes-btn" data-holes="9">9 Holes</button>
-                        <button type="button" id="holes18" class="btn btn-secondary holes-btn" data-holes="18">18 Holes</button>
+                        <details class="setup-faq-toggle" id="setupFaqDetails">
+                            <summary class="setup-faq-summary">How to play / FAQ</summary>
+                            <div id="setupFaqInline"></div>
+                        </details>
                     </div>
                 </div>
-                <!-- Bottom Cards Visibility Duration -->
-                <p>
-                    <label for="cardVisibilityDuration">Bottom two cards visible for:</label>
-                    <input type="number" id="cardVisibilityDuration" min="0.5" max="10" step="0.1" value="1.5" style="margin-left:8px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; font-size:1em; width:60px;" />
-                    <span style="margin-left:4px;">seconds</span> <!-- Card visibility duration -->
-                </p>
-                <!-- Start/Restart Buttons -->
-                <button onclick="startGame()" class="btn btn-primary">Start Game!</button>
-                <button onclick="restartGame()" class="btn btn-secondary" id="restartBtn" style="display:none;">Restart Game</button>
-                <!-- Setup View Timer (shows countdown during game) -->
-                <!-- <div id="setupViewTimer" style="margin-top:16px;font-size:1.1em;color:#007bff;font-weight:bold;"></div> -->
-                    </div>
-                </div>
-                <!-- Right column: AI bot image container -->
-                <div id="setupRightColumn">
+                <div id="setupRightColumn" style="display:none;">
                     <div id="aiBotImageContainer"></div>
                 </div>
             </div>
@@ -160,8 +182,8 @@
                         <!-- Last Action Panel -->
                         <div id="LastActionPanel"></div>
 
-                        <!-- Chatbot Panel -->
-                        <div class="chatbot-panel">
+                        <!-- Chatbot Panel (hidden by default; double-click to show) -->
+                        <div class="chatbot-panel hidden">
                             <div class="chatbot-header">
                                 <div id="chatParticipants"></div>
                             </div>
@@ -270,11 +292,11 @@
     <!-- Position modal removed - now using drag-and-drop instead -->
 
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
-    <script src="/static/js/game-core.js"></script>
+    <script src="/static/js/game-core.js?v=3"></script>
     <script src="/static/js/game-ui.js"></script>
     <script src="/static/js/voice.js"></script>
     <script src="/static/js/probabilities.js"></script>
-    <script src="/static/js/custom-bots.js"></script>
+    <script src="/static/js/custom-bots.js?v=8"></script>
     <script type="module" src="/static/js/chatbot.js"></script>
     <script src="/static/js/crowd-audio.js"></script>
     <script src="/static/js/faq.js"></script>

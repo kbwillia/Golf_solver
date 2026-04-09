@@ -89,7 +89,7 @@ class FAQ {
             console.error('FAQ container not found:', containerId);
             return;
         }
-        this.isMinimized = true; // Start minimized
+        this.isMinimized = false; // Start expanded (now inside collapsible details)
         this.openItems = new Set();
         this.init();
     }
@@ -167,19 +167,20 @@ function initializeFAQ() {
         return;
     }
     
-    const container = document.getElementById('setupLeftColumn');
+    // Prefer inline container inside the setup card, fall back to old left column
+    const container = document.getElementById('setupFaqInline')
+        || document.getElementById('setupLeftColumn');
     if (!container) {
-        return; // Container not ready yet
+        return;
     }
     
-    // Check if FAQ already exists
     if (container.querySelector('.faq-container')) {
         faqInitialized = true;
-        return; // Already initialized
+        return;
     }
     
     try {
-        new FAQ('setupLeftColumn');
+        new FAQ(container.id);
         faqInitialized = true;
         console.log('FAQ initialized successfully');
     } catch (error) {

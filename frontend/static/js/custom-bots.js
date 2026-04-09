@@ -1,22 +1,5 @@
-// CRITICAL TEST - If you don't see this, the script isn't loading
-console.log('=== CUSTOM-BOTS.JS STARTING TO LOAD ===');
-console.log('=== CUSTOM-BOTS.JS LOADED ===');
-console.log('Timestamp:', new Date().toISOString());
-window.customBotsLoaded = true;
-console.log('File should be executing now');
-
-// Supabase client setup (using CDN) - MOVED TO TOP
-// Updated Supabase credentials - must match .env file
 const supabaseUrl = 'https://guhweuzngmccjbttcmgx.supabase.co';
 const supabaseKey = 'sb_publishable_RZ4sknNdlE7KLOihq3u4iw_vHuKULvL';
-
-// Wrap in try-catch to catch any immediate errors
-try {
-  console.log('📦 custom-bots.js script loaded at', new Date().toISOString());
-} catch (e) {
-  console.error('Error in custom-bots.js initial log:', e);
-  throw e; // Re-throw to see the error
-}
 
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -31,37 +14,169 @@ let customBotCount = 1;
 let placeholderData = null;
 let uploadedImagePath = null;
 
+const availableVoices = [
+  { name: 'Morgan Freeman', language: 'English (US)', id: '5cd9f375-3a96-11ee-9fd9-8cec4b691ee9' },
+];
 
-// Fallback initialization function
+const SETUP_PLACEHOLDER_BOTS = [
+  {
+    "name": "Karen",
+    "description": "An office worker who dislikes her job and always complains when she loses. She's a poor sport and constantly threatens to involve the manager if something doesn't go her way.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/karen.png"
+  },
+  {
+    "name": "Happy Gilmore",
+    "description": "Happy Gilmore, from the movie Happy Gilmore, often references hockey, wants to get into his happy place, and is a bit of a slob.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/happy_gilmore.png"
+  },
+  {
+    "name": "Shooter McGavin",
+    "description": "Shooter McGavin, from Happy Gilmore, is a classic tour pro who doesn't like newcomers. He's a jerk and a huge snob, often spouting snobby remarks and Happy Gilmore quotes.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/shooter_mcgavin.png"
+  },
+  {
+    "name": "Hal the Orderly",
+    "description": "Hal is the twisted, mustachioed orderly at Happy Gilmore's Grandma’s nursing home. He pretends to be sweet around others but is cruel and controlling behind the scenes. He says passive-aggressive things and threatens the elderly with knitting duty.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/hal_orderly.png"
+  },
+  {
+    "name": "Chubbs Peterson",
+    "description": "Chubbs Peterson is Happy’s mentor and a former golf pro. He lost his hand to an alligator and often references it. He encourages Happy to focus, control his anger, and find his 'happy place'.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/chubbs_peterson.png"
+  },
+  {
+    "name": "Grandma Gilmore",
+    "description": "Grandma Gilmore is Happy’s sweet and loving grandmother. She’s supportive but confused by all the chaos around her. She says innocent, old-fashioned things while being in ridiculous situations.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/grandma_gilmore.png"
+  },
+  {
+    "name": "Donald the Caddy",
+    "description": "Donald is Happy Gilmore’s wild-haired caddy who looks like he wandered in from a survivalist commune. He rarely speaks, mostly stares into the distance like he’s solving golf’s mysteries with telepathy. Known for washing his underwear in the ball washer and using clubs to dig holes, he's either a misunderstood genius or completely feral.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/donald_caddy.png"
+  },
+  {
+    "name": "Charlie Day",
+    "description": "Charlie Day, from It's Always Sunny in Philadelphia, is a player who can't read, is very adventurous with his cards, and gets confused easily. He yells and types in all caps.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/charlie_day.png"
+  },
+  {
+    "name": "Tiger Woods",
+    "description": "Tiger Woods, from the PGA Tour, is the best golfer ever and has great confidence in his abilities.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/tiger_woods.png"
+  },
+  {
+    "name": "Gofer",
+    "description": "The Gofer from Caddyshack. They are little menaces on the golf course! They aren't good at golf, but they are good at getting in the way. They squeak during your backswing. You've been warned.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/gofer.png"
+  },
+  {
+    "name": "Older lady",
+    "description": "She's sweet, caring, and nice, but people haaaaateee her. Why? She's slow as heck and everyone gets stuck behind her on the course. Good at cards as well!",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/older_lady.png"
+  },
+  {
+    "name": "Ron Burgundy",
+    "description": "Ron Burgundy, from Anchorman. He's incredibly self-absorbed and confident, even when he's completely wrong. Expect quotes about jazz flute and 'stay classy'. He might also narrate his own actions.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/ron_burgundy.png"
+  },
+  {
+    "name": "Forrest Gump",
+    "description": "Forrest Gump, from Forrest Gump. He's simple-minded but incredibly lucky. He might make unexpected, random plays that somehow work out. Expect quotes like 'Life is like a box of chocolates...'.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/forrest_gump.png"
+  },
+  {
+    "name": "Dwight Schrute",
+    "description": "Dwight Schrute, from The Office. He's a beet farmer, assistant (to the) regional manager, and a stickler for rules. He'll analyze every move strategically but might overthink things, often referencing bears, beets, and Battlestar Galactica.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/dwight_schrute.png"
+  },
+  {
+    "name": "Joey Tribbiani",
+    "description": "Joey Tribbiani, from Friends. He's charming but not the brightest. He'll make impulsive, often incorrect, decisions and might try to flirt his way out of a bad hand. Expect his classic 'How *you* doin'?'",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/joey_tribbiani.png"
+  },
+  {
+    "name": "Gordon Ramsay",
+    "description": "Gordon Ramsay is a celebrity chef. He's a hot-headed perfectionist. He'll constantly yell about 'RAW!' cards or 'IDIOT SANDWICH' plays when things go wrong, demanding excellence from everyone.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/gordon_ramsay.png"
+  },
+  {
+    "name": "The Dude",
+    "description": "The Dude, from The Big Lebowski. He's laid-back, takes things easy, and might not always follow the rules strictly. Expect him to say 'Yeah, well, you know, that's just, like, your opinion, man.' or 'The Dude abides.' He's probably thinking about a White Russian.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/the_dude.png"
+  },
+  {
+    "name": "The Gambler",
+    "description": "Always looking to spice things up with side bets, presses, and friendly wagers. They're confident when they have a good hand and aggressive when they're bluffing. 'Double or nothing?' is their favorite phrase, win or lose.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/the_gambler.png"
+  },
+  {
+    "name": "The Gadget Guy",
+    "description": "Equipped with the latest rangefinder, swing analyzer app, GPS watch, and maybe even a personal drone caddy. They spend more time fiddling with their tech and looking at stats than actually focusing on the game. Plays analytically but often gets bogged down by data.",
+    "difficulty": "hard",
+    "img_path": "AI_bot_images/the_gadget_guy.png"
+  },
+  {
+    "name": "The Conspiracy Theorist",
+    "description": "Everything is rigged. The cards are stacked, the rules are biased, and the other players are clearly colluding. They'll question every lucky break someone else gets and mutter about 'the system' being against them. Losing just confirms their suspicions.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/the_conspiracy_theorist.png"
+  },
+  {
+    "name": "The Distracted Wanderer",
+    "description": "Their mind is everywhere but the game. They might start talking about their grocery list, admire the wallpaper, or completely miss their turn because they were staring into space. They're often genuinely surprised by what's happening. A harmless, if sometimes frustrating, opponent.",
+    "difficulty": "easy",
+    "img_path": "AI_bot_images/the_distracted_wanderer.png"
+  },
+  {
+    "name": "The Overly Dramatic",
+    "description": "Every slight setback is a tragedy, every small victory is a triumphant epic. Expect exaggerated gasps, sighs, cheers, and lamentations. They play to an invisible audience and make the entire game feel like a high-stakes theatrical performance.",
+    "difficulty": "medium",
+    "img_path": "AI_bot_images/the_overly_dramatic.png"
+  },
+  {
+    "name": "Fat Bastard",
+    "difficulty": "medium",
+    "description": "I'm Fat Bastard from Austin Powers! I'm a crude, loud Scottish villain who's obsessed with my enormous size. I speak with a thick Scottish accent, frequently mention my weight and appetite, make inappropriate comments, and have zero filter. I'm evil but also pathetically insecure. I might say things like 'I'm bigger than you, I'm higher on the food chain!' or complain about being hungry. I'm vulgar, obnoxious, but oddly entertaining.",
+    "img_path": "AI_bot_images/fat_bastard.png"
+  }
+];
+
+// Modal / holes listeners: attach once so init can run safely after every render if needed.
 function initializeCustomBots() {
-    console.log('🔧 Custom bots.js: initializeCustomBots() called');
+    if (window.__customBotsUiListenersAttached) {
+        return;
+    }
+    window.__customBotsUiListenersAttached = true;
 
     const createCustomBotBtn = document.getElementById('createCustomBotBtn');
     const customBotModal = document.getElementById('customBotModal');
     const closeCustomBotBtn = document.getElementById('cancelCustomBotBtn');
-    // const saveCustomBotBtn = document.getElementById('saveCustomBotBtn');
-    // const gameModeSelect = document.getElementById('gameMode');
 
-    console.log('🔧 Custom bots.js: Elements found:', {
-        createCustomBotBtn: !!createCustomBotBtn,
-        customBotModal: !!customBotModal,
-        // gameModeSelect: !!gameModeSelect
-    });
-
-    // Show single bot modal when Create Custom Bot button is clicked
     if (createCustomBotBtn) {
-        console.log('🔧 Custom bots.js: Adding click listener to createCustomBotBtn');
         createCustomBotBtn.addEventListener('click', function() {
-            console.log('🔧 Custom bots.js: Create Custom Bot button clicked!');
                 if (customBotModal) {
-                    console.log('🔧 Custom bots.js: Showing single bot modal');
                     customBotModal.style.display = 'block';
-                    // Populate single bot modal with random placeholder
                     populateSingleBotForm();
             }
         });
-    } else {
-        console.error('❌ Custom bots.js: createCustomBotBtn not found!');
     }
 
     // Close single bot modal when Cancel button is clicked
@@ -105,33 +220,37 @@ function initializeCustomBots() {
     initializeHolesButtons();
 }
 
-// Initialize custom bot modal functionality
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 Custom bots.js: DOMContentLoaded event fired');
-    // Initialize directly since we're loading from Supabase now
-        initializeCustomBots();
-
-  // Populate voice dropdown
+function initBotSetupOnReady() {
+  renderBotSelectRow();
+  initializeCustomBots();
   const voiceSelect = document.getElementById('customBotVoiceId');
   if (voiceSelect) {
-    voiceSelect.innerHTML = ""; // Clear any existing options
+    voiceSelect.innerHTML = '';
     availableVoices.forEach((voice, idx) => {
       const option = document.createElement('option');
       option.value = voice.id;
       option.textContent = `${voice.name} (${voice.language})`;
-      if (idx === 0) option.selected = true; // Default to first voice
+      if (idx === 0) option.selected = true;
       voiceSelect.appendChild(option);
     });
   }
-});
-
-// Fallback: If DOMContentLoaded already fired, initialize immediately
-if (document.readyState === 'loading') {
-    console.log('🔧 Custom bots.js: DOM still loading, waiting for DOMContentLoaded');
-} else {
-    console.log('🔧 Custom bots.js: DOM already loaded, initializing immediately');
-            initializeCustomBots();
+  if (typeof initializeGameModeButtons === 'function') {
+    initializeGameModeButtons();
+  }
 }
+
+function scheduleBotSetupInit() {
+  function run() {
+    initBotSetupOnReady();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  } else {
+    run();
+  }
+}
+
+scheduleBotSetupInit();
 
 
 
@@ -164,96 +283,46 @@ const announcerBots = [
 // Track selected bots for multi-selection mode
 window.selectedBots = []; // Will be populated when bots are loaded
 
-async function renderBotSelectRow() {
-  console.log('🎨 renderBotSelectRow() called');
+/** Map bundled setup entries to objects used by the game and chat. */
+function mapPlaceholderBotsToAllBots(placeholderBots) {
+  return (placeholderBots || []).map(function (p, i) {
+    var base = (p.img_path || '').split('/').pop() || '';
+    var ai_bot_id = base.replace(/\.[^.]+$/, '') || ('bot_' + i + '_' + (p.name || 'x').toLowerCase().replace(/[^a-z0-9]+/g, '_'));
+    var diff = (p.difficulty || 'medium').toLowerCase();
+    if (diff !== 'easy' && diff !== 'medium' && diff !== 'hard') diff = 'medium';
+    return {
+      ai_bot_id: ai_bot_id,
+      id: ai_bot_id,
+      name: p.name,
+      description: p.description || '',
+      difficulty: diff,
+      image_path: p.img_path
+    };
+  });
+}
+
+function shuffleBotListInPlace(arr) {
+  var shuffled = arr.slice().sort(function () { return Math.random() - 0.5; });
+  arr.length = 0;
+  arr.push.apply(arr, shuffled);
+}
+
+function renderBotSelectRow() {
   const row = document.getElementById('botSelectRow');
-  const imageContainer = document.getElementById('aiBotImageContainer');
-  console.log('🎨 botSelectRow element:', row ? 'found' : 'NOT FOUND');
-  console.log('🎨 aiBotImageContainer element:', imageContainer ? 'found' : 'NOT FOUND');
   if (!row) {
-    console.error('❌ botSelectRow element not found in DOM!');
-    return;
+    throw new Error('[Golf setup] #botSelectRow is missing from the DOM. Check index.html and that scripts run after the setup markup.');
+  }
+  if (!SETUP_PLACEHOLDER_BOTS || SETUP_PLACEHOLDER_BOTS.length === 0) {
+    throw new Error('[Golf setup] SETUP_PLACEHOLDER_BOTS is empty in custom-bots.js.');
   }
 
-  // Load bots from custom_bot.json
-  let allBots = [];
-
-    // Load bots directly from Supabase (no backend needed)
-  try {
-    console.log('🔍 Attempting to load bots directly from Supabase...');
-
-    // Check if Supabase client is available
-    if (!supabase) {
-      console.error('❌ Supabase client not initialized');
-      console.error('Supabase URL:', typeof supabaseUrl !== 'undefined' ? supabaseUrl : 'undefined');
-      console.error('Supabase Key:', typeof supabaseKey !== 'undefined' ? supabaseKey?.substring(0, 20) + '...' : 'undefined');
-      // Try to initialize Supabase if not already done
-      if (typeof window.supabase !== 'undefined' && typeof supabaseUrl !== 'undefined' && typeof supabaseKey !== 'undefined') {
-        console.log('Attempting to initialize Supabase client...');
-        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        console.log('Supabase client initialized:', !!supabase);
-      } else {
-        return;
-      }
-    }
-
-    // Use the Supabase client we set up earlier
-    // Try custom_bots_view first (the actual table), fall back to custom_bots
-    console.log('🗄️ CALLING DATABASE FOR CUSTOM BOTS...');
-    console.log('🗄️ Querying custom_bots_view table from Supabase...');
-    let { data, error } = await supabase
-      .from('custom_bots_view')
-      .select('*')
-      .order('created_at', { ascending: false });
-    console.log('🗄️ Database query completed. Data:', data ? `${data.length} records` : 'null', 'Error:', error ? 'Yes' : 'No');
-    
-    // If view doesn't work, try the base table
-    if (error && error.message && error.message.includes('could not find the table')) {
-      console.log('Trying custom_bots table instead...');
-      const result = await supabase
-        .from('custom_bots')
-        .select('*')
-        .order('created_at', { ascending: false });
-      data = result.data;
-      error = result.error;
-    }
-
-    if (error) {
-      console.error('❌ Supabase error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-    } else {
-      console.log(`📊 Found ${data.length} bots from Supabase:`, data);
-      // Log image paths for debugging
-      data.forEach(bot => {
-        const imagePath = bot.image_path || bot.image_url;
-        const fallbackName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
-        console.log(`Bot "${bot.name}": image_path=${imagePath}, fallback=${fallbackName}`);
-      });
-
-      // Store all fields for each bot
-      data.forEach(bot => {
-          allBots.push(bot); // Keep the full bot object
-      });
-      window.allBotsData = allBots;
-
-      // Randomize the order of bots for display
-      const shuffledBots = [...allBots].sort(() => Math.random() - 0.5);
-      allBots.length = 0; // Clear the array
-      allBots.push(...shuffledBots); // Add back in random order
-    }
-  } catch (error) {
-    console.error('Could not load bots from Supabase:', error);
-    // Don't return here - try to continue with empty array or fallback
+  let allBots = mapPlaceholderBotsToAllBots(SETUP_PLACEHOLDER_BOTS);
+  if (!allBots.length) {
+    throw new Error('[Golf setup] mapPlaceholderBotsToAllBots returned no bots.');
   }
+  window.allBotsData = allBots;
+  shuffleBotListInPlace(allBots);
 
-  // If no bots found, show a helpful message
-  if (allBots.length === 0) {
-    console.warn('No bots loaded from Supabase. Showing message to user.');
-    row.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; margin: 10px;"><p style="font-weight: bold; margin-bottom: 8px;">No bots found</p><p style="font-style: italic; font-size: 0.9em;">Check console for errors. Make sure Supabase is connected.</p></div>';
-    return;
-  }
-  
-  console.log(`✅ Successfully loaded ${allBots.length} bots, rendering cards...`);
 
   // Initialize selectedBots if not already set
   if (!window.selectedBots) {
@@ -279,8 +348,6 @@ async function renderBotSelectRow() {
   }
 
 
-  // Render all bots
-  console.log(`🎨 Rendering ${allBots.length} bot cards...`);
   row.innerHTML = '';
   let cardsRendered = 0;
   allBots.forEach((bot, idx) => {
@@ -309,28 +376,25 @@ async function renderBotSelectRow() {
       const imgName = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '.png';
       imgPath = `/static/AI_bot_images/${imgName}`;
     }
-    
+
+    const diffRaw = (bot.difficulty || 'medium').toLowerCase();
+
     // Use name, difficulty, description, and image for display
     btn.innerHTML = `
       <div class="bot-image-wrapper">
         <img src="${imgPath}" alt="${bot.name}" class="bot-select-img" onerror="this.style.display='none';" />
       </div>
-      <div class="bot-header">
-        <span class="bot-name">${bot.name}</span>
-        <span class="bot-difficulty ${bot.difficulty}">${bot.difficulty.charAt(0).toUpperCase() + bot.difficulty.slice(1)}</span>
-      </div>
-      <span class="bot-desc bot-desc-short">${bot.description || 'Custom bot with unique personality.'}</span>
+      <span class="bot-select-name" title="${bot.name}">${bot.name}</span>
+      <span class="bot-select-difficulty ${diffRaw}">${diffRaw.charAt(0).toUpperCase() + diffRaw.slice(1)}</span>
     `;
     btn.onclick = () => selectBotButton(bot.ai_bot_id || bot.id);
     row.appendChild(btn);
     cardsRendered++;
   });
   
-  console.log(`✅ Successfully rendered ${cardsRendered} bot selection cards`);
 
   // Set initial selected bot value for backward compatibility
   window.selectedBotValue = window.selectedBots[0];
-  // console.log(`✅ Rendered ${allBots.length} bots total from Supabase`);
 
   // Update the opponent display to show the initially selected bot
   updateOpponentDisplay();
@@ -341,8 +405,6 @@ async function renderBotSelectRow() {
     selectedBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  // Show selected bot images and descriptions
-  console.log(`Updating AI bot image container with ${allBots.length} bots, ${window.selectedBots.length} selected`);
   updateAIBotImageContainer(allBots);
 
   // Update start game button state
@@ -634,72 +696,6 @@ function handle1v3Mode() {
   renderBotSelectRow();
 }
 
-// Simplified initialization - no IIFE wrapper
-function initBotSelection() {
-  try {
-    console.log('📦 custom-bots.js: DOMContentLoaded event fired');
-    console.log('📦 Checking Supabase initialization...');
-    console.log('📦 typeof supabase:', typeof supabase);
-    console.log('📦 typeof window.supabase:', typeof window.supabase);
-    
-    // Wait a bit for Supabase to initialize
-    setTimeout(() => {
-      try {
-        console.log('📦 After timeout, checking Supabase again...');
-        console.log('📦 typeof supabase:', typeof supabase);
-        
-        if (typeof supabase !== 'undefined' && supabase) {
-          console.log('✅ Supabase client ready, rendering bots...');
-          renderBotSelectRow();
-        } else {
-          console.warn('⚠️ Supabase client not ready, checking if we can initialize...');
-          // Try to initialize Supabase if window.supabase is available
-          if (typeof window.supabase !== 'undefined' && typeof supabaseUrl !== 'undefined' && typeof supabaseKey !== 'undefined') {
-            console.log('🔄 Attempting to initialize Supabase client...');
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-            console.log('✅ Supabase initialized:', !!supabase);
-            renderBotSelectRow();
-          } else {
-            console.error('❌ Cannot initialize Supabase - missing dependencies');
-            console.error('window.supabase:', typeof window.supabase);
-            console.error('supabaseUrl:', typeof supabaseUrl !== 'undefined' ? supabaseUrl : 'undefined');
-            console.error('supabaseKey:', typeof supabaseKey !== 'undefined' ? supabaseKey.substring(0, 20) + '...' : 'undefined');
-            // Still try to render - it will show error message
-            console.log('🔄 Attempting to render bots anyway...');
-            renderBotSelectRow();
-          }
-        }
-      } catch (e) {
-        console.error('❌ Error in bot selection timeout:', e);
-        // Still try to render
-        try {
-          renderBotSelectRow();
-        } catch (e2) {
-          console.error('❌ Error rendering bots:', e2);
-        }
-      }
-    }, 1000); // Increased delay to 1000ms to give Supabase CDN more time
-    
-    initializeGameModeButtons();
-
-    // Initialize the opponent display
-    updateOpponentDisplay();
-
-    console.log('🎯 Bot selection initialization complete');
-  } catch (e) {
-    console.error('❌ Error in initBotSelection:', e);
-  }
-}
-
-// Set up DOMContentLoaded listener
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initBotSelection);
-} else {
-  // DOM already loaded
-  console.log('📦 DOM already loaded, initializing immediately...');
-  initBotSelection();
-}
-
 // Update opponent display based on selected bots
 function updateOpponentDisplay() {
     const opponentDisplay = document.getElementById('opponentDisplay');
@@ -746,22 +742,16 @@ function updateOpponentDisplay() {
 var supabase;
 
 function initializeSupabaseClient() {
-  console.log('🔄 Attempting to initialize Supabase client...');
-  console.log('window.supabase type:', typeof window.supabase);
-  
   if (typeof window.supabase !== 'undefined' && window.supabase && window.supabase.createClient) {
       try {
         supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        console.log('✅ Supabase client initialized successfully');
         return true;
     } catch (error) {
-      console.error('❌ Error creating Supabase client:', error);
+      console.error('Error creating Supabase client:', error);
       return false;
     }
-  } else {
-    console.warn('⚠️ window.supabase not available yet - CDN may still be loading');
-    return false;
   }
+  return false;
 }
 
 // Try to initialize immediately
@@ -955,13 +945,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-
-const availableVoices = [
-  { name: "Morgan Freeman", language: "English (US)", id: "5cd9f375-3a96-11ee-9fd9-8cec4b691ee9" },
-  // { name: "Firey", language: "English (US)", id: "8da96304-..." },
-  // { name: "Morpheus", language: "English (US)", id: "bf924282-..." },
-  // { name: "SUGA", language: "English (US)", id: "00156bfc-..." },
-  // { name: "Will Smith", language: "English (US)", id: "5cb4f88b-..." },
-  // { name: "Lionel Messi", language: "English (US)", id: "00157155-..." },
-  // { name: "Nayeon", language: "English (US)", id: "5ccf7354-..." }
-];

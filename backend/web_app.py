@@ -46,9 +46,9 @@ chatbot = GolfChatbot()
 chat_handler = ChatHandler(chatbot, games, get_game_state)
 # Add error handling for imports
 try:
-    print("✅ All imports successful")
+    print("All imports successful")
 except Exception as e:
-    print(f"❌ Import error: {e}")
+    print(f"Import error: {e}")
     import traceback
     traceback.print_exc()
 

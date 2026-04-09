@@ -89,7 +89,7 @@ async function startGame() {
         return;
     }
 
-    const playerName = document.getElementById('playerName').value || 'Human';
+    const playerName = (document.getElementById('playerName').value || '').trim() || 'You';
     const numGames = getCurrentHoles();
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
 
@@ -282,7 +282,7 @@ function restartGame() {
     window.selectedBots = [];
     window.selectedBotsInitialized = undefined; // Reset initialization flag
     setGameMode('1v1'); // Default game mode
-    document.getElementById('playerName').value = 'Kyle';
+    document.getElementById('playerName').value = '';
     document.getElementById('cardVisibilityDuration').value = 1.5;
     setHoles(1); // Default to 1 hole
     // Update bot selection UI
@@ -303,6 +303,8 @@ function restartGame() {
     if (typeof renderBotSelectRow === 'function') renderBotSelectRow();
     if (typeof initializeGameModeButtons === 'function') initializeGameModeButtons();
     if (typeof initializeHolesButtons === 'function') initializeHolesButtons();
+    // Reset wizard to step 1
+    if (typeof goToSetupStep === 'function') goToSetupStep(1);
 }
 
 function replayGame() {
@@ -1045,5 +1047,28 @@ function setHoleBackground(holeIndex) {
         el.style.backgroundColor = 'transparent';
     });
     console.log('Background should now be set to:', img);
+}
+
+// ===== SETUP STEP WIZARD =====
+var currentSetupStep = 1;
+
+function goToSetupStep(step) {
+    currentSetupStep = step;
+    var s1 = document.getElementById('setupStep1');
+    var s2 = document.getElementById('setupStep2');
+    if (!s1 || !s2) return;
+
+    s1.style.display = (step === 1) ? 'block' : 'none';
+    s2.style.display = (step === 2) ? 'block' : 'none';
+
+    var nums = document.querySelectorAll('.setup-stepbar-num');
+    var labels = document.querySelectorAll('.setup-stepbar-text');
+    nums.forEach(function(el, i) {
+        el.classList.toggle('setup-stepbar-num--active', i + 1 === step);
+        el.classList.toggle('setup-stepbar-num--done', i + 1 < step);
+    });
+    labels.forEach(function(el, i) {
+        el.classList.toggle('setup-stepbar-text--active', i + 1 === step);
+    });
 }
 
