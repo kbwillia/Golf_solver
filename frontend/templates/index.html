@@ -16,7 +16,8 @@
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
     <link rel="stylesheet" href="/static/css/custom-bots.css">
-    <link rel="stylesheet" href="/static/css/setup.css?v=4">
+    <link rel="stylesheet" href="/static/css/setup.css?v=6">
+    <link rel="stylesheet" href="/static/css/responsive.css?v=1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
 </head>
 <body>
@@ -75,16 +76,11 @@
                                     <div class="setup-inline-actions">
                                         <button type="button" id="createCustomBotBtn" class="btn btn-secondary setup-secondary-btn">Create custom bot</button>
                                         <span id="customBotCount" class="setup-meta"></span>
-                                    </div>
-                                    <div class="setup-voice-row">
                                         <button type="button" id="voiceToggleBtn" class="btn btn-secondary voice-btn setup-secondary-btn" onclick="toggleVoiceSystem()">
                                             <span id="voiceStatus">Commentary: Off</span>
                                         </button>
+                                        <button type="button" class="btn btn-primary setup-next-btn" onclick="goToSetupStep(2)">Next</button>
                                     </div>
-                                </div>
-                                <div class="setup-step-nav">
-                                    <span></span>
-                                    <button type="button" class="btn btn-primary setup-next-btn" onclick="goToSetupStep(2)">Next</button>
                                 </div>
                             </section>
 
@@ -162,7 +158,7 @@
                         </details>
                     </div>
                 </div>
-                <div id="setupRightColumn" style="display:none;">
+                <div id="setupRightColumn">
                     <div id="aiBotImageContainer"></div>
                 </div>
             </div>
@@ -292,11 +288,11 @@
     <!-- Position modal removed - now using drag-and-drop instead -->
 
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
-    <script src="/static/js/game-core.js?v=3"></script>
+    <script src="/static/js/game-core.js?v=4"></script>
     <script src="/static/js/game-ui.js"></script>
     <script src="/static/js/voice.js"></script>
     <script src="/static/js/probabilities.js"></script>
-    <script src="/static/js/custom-bots.js?v=8"></script>
+    <script src="/static/js/custom-bots.js?v=9"></script>
     <script type="module" src="/static/js/chatbot.js"></script>
     <script src="/static/js/crowd-audio.js"></script>
     <script src="/static/js/faq.js"></script>

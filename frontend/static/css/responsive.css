@@ -1,0 +1,1031 @@
+/* ===== RESPONSIVE CSS - Mobile & Multi-device Support ===== */
+
+/* -------------------------------------------------------
+   BREAKPOINT: 1400px - Large laptops / wide screens
+   ------------------------------------------------------- */
+@media (max-width: 1400px) {
+    .chart-container {
+        width: 560px;
+        min-width: 400px;
+    }
+
+    .probabilities-area {
+        min-width: 300px;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 1200px - Medium laptops
+   ------------------------------------------------------- */
+@media (max-width: 1200px) {
+    .header-game-info {
+        font-size: 1em;
+        min-width: 0;
+        white-space: normal;
+    }
+
+    .notification-area {
+        max-width: 280px;
+        min-width: 160px;
+    }
+
+    .notification-area.hidden {
+        max-width: 280px;
+        min-width: 160px;
+    }
+
+    .chart-container {
+        width: 480px;
+        min-width: 350px;
+        height: 220px;
+        min-height: 220px;
+    }
+
+    .chart-container.hidden {
+        width: 480px;
+        min-width: 350px;
+        height: 220px;
+        min-height: 220px;
+    }
+
+    .probabilities-area {
+        min-width: 250px;
+    }
+
+    .unknown-cards-column {
+        min-width: 120px;
+        max-width: 150px;
+    }
+
+    .other-probabilities-column {
+        min-width: 180px;
+        max-width: 260px;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 1024px - Small laptops / tablets landscape
+   ------------------------------------------------------- */
+@media (max-width: 1024px) {
+    .container {
+        height: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .game-grid-container {
+        grid-template-columns: 1fr minmax(0, 2fr);
+        grid-template-areas:
+            "gameplay probabilities";
+        gap: 8px;
+    }
+
+    .notification-area {
+        display: none;
+    }
+
+    .gameplay-area {
+        max-width: 100%;
+        padding: 0 4px;
+    }
+
+    .header {
+        flex-wrap: wrap;
+        padding: 4px 8px;
+    }
+
+    .header-content h1 {
+        font-size: 1.3em;
+    }
+
+    .header-game-info {
+        padding: 4px 10px;
+        font-size: 0.9em;
+    }
+
+    .probabilities-area {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .chart-container {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        height: 200px;
+        min-height: 200px;
+        right: auto;
+        bottom: auto;
+    }
+
+    .chart-container.hidden {
+        width: 100%;
+        min-width: 0;
+        height: 200px;
+        min-height: 200px;
+    }
+
+    .player-grid {
+        width: 240px;
+        height: 240px;
+    }
+
+    .player-grid.current-turn {
+        width: 240px;
+        height: 240px;
+    }
+
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 220px !important;
+        height: 220px !important;
+    }
+
+    .three-player-grid .player-grid {
+        width: 220px;
+        height: 220px;
+    }
+
+    .four-player-grid,
+    .three-player-grid {
+        gap: 20px 0;
+    }
+
+    #celebrationGif {
+        grid-column: 2;
+    }
+
+    .celebration-gif-container {
+        margin-left: auto;
+        margin-right: 0;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 768px - Tablets portrait / large phones
+   ------------------------------------------------------- */
+@media (max-width: 768px) {
+    .container {
+        height: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .game-board {
+        height: auto;
+        min-height: 0;
+    }
+
+    .game-grid-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+            "gameplay"
+            "probabilities";
+        gap: 12px;
+        height: auto;
+        padding: 0 4px;
+    }
+
+    .game-info-bar {
+        grid-area: unset;
+    }
+
+    .notification-area {
+        display: none;
+    }
+
+    .gameplay-area {
+        grid-area: gameplay;
+        max-width: 100%;
+        min-width: 0;
+        padding: 0;
+    }
+
+    .gameplay-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    #playerGrids {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .player-grid {
+        width: 200px;
+        height: 200px;
+        margin: 8px auto;
+    }
+
+    .player-grid.current-turn {
+        width: 200px;
+        height: 200px;
+        min-width: 180px;
+        min-height: 180px;
+    }
+
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 180px !important;
+        height: 180px !important;
+    }
+
+    .three-player-grid .player-grid {
+        width: 180px;
+        height: 180px;
+    }
+
+    .four-player-grid,
+    .three-player-grid {
+        gap: 16px 0;
+    }
+
+    .three-player-grid {
+        min-height: 300px;
+    }
+
+    .grid-container {
+        gap: 10px;
+        max-width: 200px;
+    }
+
+    .card {
+        width: 65px;
+        height: 92px;
+        font-size: 15px;
+    }
+
+    .card.face-down#deckCard {
+        width: 65px;
+        height: 95px;
+    }
+
+    #discardCard {
+        width: 65px;
+        height: 95px;
+    }
+
+    #drawnCardDisplay {
+        width: 65px;
+        height: 95px;
+    }
+
+    .deck-discard-container {
+        gap: 12px;
+        max-width: 180px;
+    }
+
+    .deck-area, .discard-area {
+        width: 70px;
+    }
+
+    .deck-discard-wrapper {
+        align-items: center;
+    }
+
+    .probabilities-area {
+        grid-area: probabilities;
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+        min-height: 0;
+        overflow: visible !important;
+        padding: 0 4px;
+    }
+
+    .probabilities-content {
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+    }
+
+    .unknown-cards-column {
+        flex-basis: 100%;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        max-height: none;
+        margin-left: 0;
+    }
+
+    .other-probabilities-column {
+        flex-basis: 100%;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 0;
+        max-height: none;
+    }
+
+    .chart-container {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        height: 200px;
+        min-height: 180px;
+        right: auto;
+        bottom: auto;
+        margin: 8px 0;
+    }
+
+    .chart-container.hidden {
+        width: 100%;
+        min-width: 0;
+        height: 200px;
+        min-height: 180px;
+    }
+
+    #customLegend {
+        top: 6px;
+        left: 6px;
+        padding: 3px 6px;
+        max-width: 100px;
+    }
+
+    .legend-item-box {
+        font-size: 0.58em;
+    }
+
+    #celebrationGif {
+        grid-column: 1;
+        grid-row: auto;
+        justify-content: center;
+        margin: 10px 0;
+    }
+
+    #celebrationGif img, .celebration-gif-img {
+        max-width: 200px;
+        max-height: 200px;
+    }
+
+    .celebration-gif-container {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .header {
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 8px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        width: 100%;
+    }
+
+    .header-content h1 {
+        font-size: 1.2em;
+    }
+
+    .header-game-info {
+        min-width: 0;
+        width: 100%;
+        font-size: 0.85em;
+        padding: 4px 8px;
+        text-align: center;
+        justify-content: center;
+    }
+
+    .header-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .player-header {
+        padding: 3px 6px 2px;
+        font-size: 0.85em;
+    }
+
+    .player-name {
+        font-size: 0.85em;
+    }
+
+    .player-score {
+        font-size: 0.85em;
+    }
+
+    .player-turn-status {
+        font-size: 0.8em;
+        min-width: 50px;
+    }
+
+    .probabilities-toggle-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .chatbot-panel {
+        height: auto;
+        max-height: 300px;
+        min-height: 200px;
+    }
+
+    .btn {
+        padding: 8px 14px;
+        font-size: 14px;
+    }
+
+    .next-hole-btn {
+        font-size: 13px;
+        padding: 8px 14px;
+    }
+
+    .game-control-btn {
+        font-size: 0.85em;
+        padding: 5px 10px;
+    }
+
+    .setup-and-board {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 600px - Small phones landscape / medium phones
+   ------------------------------------------------------- */
+@media (max-width: 600px) {
+    .game-grid-container {
+        padding: 0 2px;
+    }
+
+    .player-grid {
+        width: 170px;
+        height: 170px;
+    }
+
+    .player-grid.current-turn {
+        width: 170px;
+        height: 170px;
+        min-width: 150px;
+        min-height: 150px;
+    }
+
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 155px !important;
+        height: 155px !important;
+    }
+
+    .three-player-grid .player-grid {
+        width: 155px;
+        height: 155px;
+    }
+
+    .four-player-grid {
+        gap: 10px 0;
+    }
+
+    .three-player-grid {
+        gap: 10px 0;
+        min-height: 260px;
+    }
+
+    .grid-container {
+        gap: 6px;
+        max-width: 160px;
+    }
+
+    .card {
+        width: 55px;
+        height: 78px;
+        font-size: 13px;
+        margin: 1px;
+    }
+
+    .card.face-down#deckCard {
+        width: 55px;
+        height: 80px;
+    }
+
+    #discardCard {
+        width: 55px;
+        height: 80px;
+    }
+
+    #drawnCardDisplay {
+        width: 55px;
+        height: 80px;
+    }
+
+    .deck-area, .discard-area {
+        width: 60px;
+        gap: 4px;
+    }
+
+    .deck-area h4, .discard-area h4 {
+        font-size: 12px;
+    }
+
+    #deckSize {
+        font-size: 10px;
+    }
+
+    #drawnCardInstructions {
+        font-size: 10px;
+        max-width: 110px;
+        padding: 3px 5px;
+    }
+
+    .header-content h1 {
+        font-size: 1em;
+    }
+
+    .header-game-info {
+        font-size: 0.78em;
+    }
+
+    .chart-container {
+        height: 170px;
+        min-height: 150px;
+    }
+
+    .chart-container.hidden {
+        height: 170px;
+        min-height: 150px;
+    }
+
+    .player-header {
+        font-size: 0.75em;
+        padding: 2px 4px;
+    }
+
+    .player-turn-status {
+        min-width: 40px;
+        font-size: 0.72em;
+    }
+
+    .probabilities-table {
+        font-size: 11px;
+    }
+
+    .probabilities-bar-title {
+        font-size: 0.95em;
+    }
+
+    .probabilities-bar-main {
+        font-size: 0.95em;
+    }
+
+    .card-count-bar-container {
+        width: 80px;
+    }
+
+    .peek-btn {
+        min-width: 36px;
+        min-height: 36px;
+        font-size: 0.85em;
+    }
+
+    .btn-primary {
+        padding: 8px 16px;
+        font-size: 0.9em;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 480px - Small mobile phones
+   ------------------------------------------------------- */
+@media (max-width: 480px) {
+    .container {
+        padding: 0;
+    }
+
+    .game-grid-container {
+        padding: 0;
+        gap: 8px;
+    }
+
+    .four-player-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 0;
+    }
+
+    .three-player-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 0;
+        min-height: 220px;
+    }
+
+    .player-grid {
+        width: 150px;
+        height: 150px;
+    }
+
+    .player-grid.current-turn {
+        width: 150px;
+        height: 150px;
+        min-width: 130px;
+        min-height: 130px;
+    }
+
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 140px !important;
+        height: 140px !important;
+    }
+
+    .three-player-grid .player-grid {
+        width: 140px;
+        height: 140px;
+    }
+
+    .grid-container {
+        gap: 4px;
+        max-width: 140px;
+    }
+
+    .card {
+        width: 48px;
+        height: 68px;
+        font-size: 12px;
+        margin: 1px;
+        padding: 1px;
+        border-radius: 5px;
+    }
+
+    .card.face-down#deckCard {
+        width: 48px;
+        height: 70px;
+    }
+
+    #discardCard {
+        width: 48px;
+        height: 70px;
+    }
+
+    #drawnCardDisplay {
+        width: 48px;
+        height: 70px;
+    }
+
+    .deck-discard-container {
+        gap: 8px;
+        max-width: 140px;
+    }
+
+    .deck-area, .discard-area {
+        width: 52px;
+        min-height: 80px;
+        gap: 3px;
+    }
+
+    .deck-area h4, .discard-area h4 {
+        font-size: 11px;
+    }
+
+    .gameplay-row {
+        gap: 8px;
+    }
+
+    .header {
+        padding: 4px 6px;
+    }
+
+    .header-content h1 {
+        font-size: 0.9em;
+    }
+
+    .header-game-info {
+        font-size: 0.72em;
+        padding: 3px 6px;
+    }
+
+    .header-buttons .btn {
+        font-size: 0.8em;
+        padding: 4px 10px;
+    }
+
+    .player-header {
+        font-size: 0.68em;
+        padding: 2px 3px;
+        min-height: 22px;
+    }
+
+    .player-name {
+        font-size: 0.78em;
+    }
+
+    .player-score {
+        font-size: 0.78em;
+        padding: 1px 4px;
+    }
+
+    .player-turn-status {
+        font-size: 0.65em;
+        min-width: 35px;
+    }
+
+    .chart-container {
+        height: 150px;
+        min-height: 140px;
+    }
+
+    .chart-container.hidden {
+        height: 150px;
+        min-height: 140px;
+    }
+
+    #customLegend {
+        top: 4px;
+        left: 4px;
+        padding: 2px 4px;
+        max-width: 80px;
+    }
+
+    .legend-item-box {
+        font-size: 0.5em;
+        gap: 3px;
+    }
+
+    .legend-item-box .legend-color-box {
+        width: 10px;
+        height: 10px;
+    }
+
+    .probabilities-toggle-btn {
+        font-size: 0.85em;
+        padding: 4px 8px;
+    }
+
+    .probabilities-table {
+        font-size: 10px;
+    }
+
+    .card-count-bar-container {
+        width: 60px;
+        height: 8px;
+    }
+
+    .card-count-text {
+        font-size: 9px;
+    }
+
+    .probabilities-bar {
+        padding: 4px 6px;
+    }
+
+    .probabilities-bar-title {
+        font-size: 0.85em;
+    }
+
+    .probabilities-bar-main {
+        font-size: 0.85em;
+    }
+
+    .prob-label, .prob-value {
+        font-size: 0.85em;
+    }
+
+    #celebrationGif img, .celebration-gif-img {
+        max-width: 160px;
+        max-height: 160px;
+    }
+
+    .btn {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    .btn-primary {
+        padding: 8px 14px;
+        font-size: 0.85em;
+        letter-spacing: 1px;
+    }
+
+    .next-hole-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+
+    .game-control-btn {
+        font-size: 0.78em;
+        min-width: 60px;
+    }
+
+    .peek-btn {
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 0.78em;
+    }
+
+    .action-history-item {
+        font-size: 0.6em;
+    }
+
+    #drawnCardInstructions {
+        font-size: 9px;
+        max-width: 90px;
+        padding: 2px 4px;
+    }
+
+    .scores-panel {
+        padding: 6px;
+    }
+
+    .scores-panel h4 {
+        font-size: 0.6em;
+    }
+
+    .score-item {
+        font-size: 0.8em;
+        padding: 2px 4px;
+    }
+}
+
+/* -------------------------------------------------------
+   BREAKPOINT: 360px - Very small phones
+   ------------------------------------------------------- */
+@media (max-width: 360px) {
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 125px !important;
+        height: 125px !important;
+    }
+
+    .three-player-grid .player-grid {
+        width: 125px;
+        height: 125px;
+    }
+
+    .player-grid {
+        width: 130px;
+        height: 130px;
+    }
+
+    .player-grid.current-turn {
+        width: 130px;
+        height: 130px;
+        min-width: 120px;
+        min-height: 120px;
+    }
+
+    .grid-container {
+        gap: 3px;
+        max-width: 120px;
+    }
+
+    .card {
+        width: 42px;
+        height: 60px;
+        font-size: 11px;
+        border-radius: 4px;
+    }
+
+    .card.face-down#deckCard {
+        width: 42px;
+        height: 62px;
+    }
+
+    #discardCard {
+        width: 42px;
+        height: 62px;
+    }
+
+    #drawnCardDisplay {
+        width: 42px;
+        height: 62px;
+    }
+
+    .deck-area, .discard-area {
+        width: 46px;
+    }
+
+    .header-content h1 {
+        font-size: 0.8em;
+    }
+}
+
+/* -------------------------------------------------------
+   TOUCH DEVICE ENHANCEMENTS
+   ------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+    .card {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .chat-send-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 8px 12px;
+    }
+
+    .chat-input {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    .setup-input {
+        font-size: 16px;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+        font-size: 16px;
+    }
+
+    #gifSearchInput {
+        font-size: 16px;
+    }
+
+    .peek-btn {
+        min-width: 48px;
+        min-height: 48px;
+    }
+
+    .holes-btn {
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+
+    .game-mode-btn {
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+}
+
+/* -------------------------------------------------------
+   LANDSCAPE ORIENTATION on mobile
+   ------------------------------------------------------- */
+@media (max-height: 500px) and (orientation: landscape) {
+    .container {
+        height: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .game-grid-container {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+        grid-template-areas:
+            "gameplay probabilities";
+        height: auto;
+    }
+
+    .notification-area {
+        display: none;
+    }
+
+    .player-grid {
+        width: 160px;
+        height: 160px;
+    }
+
+    .player-grid.current-turn {
+        width: 160px;
+        height: 160px;
+        min-width: 140px;
+        min-height: 140px;
+    }
+
+    .four-player-grid .player-grid,
+    .four-player-grid .player-grid.current-turn {
+        width: 150px !important;
+        height: 150px !important;
+    }
+
+    .card {
+        width: 50px;
+        height: 70px;
+    }
+
+    .chart-container {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        height: 160px;
+        min-height: 140px;
+        right: auto;
+        bottom: auto;
+    }
+
+    .header {
+        padding: 2px 8px;
+    }
+}
+
+/* -------------------------------------------------------
+   SAFE AREA INSETS for notched phones
+   ------------------------------------------------------- */
+@supports (padding: max(0px)) {
+    .container {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}

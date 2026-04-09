@@ -221,14 +221,8 @@ async function refreshGameState() {
             // Update chart after game state refresh
             updateCumulativeScoreChart();
 
-            // Check if it's an AI's turn and start polling if needed
-            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                console.log('🔄 refreshGameState: AI turn detected, calling pollAITurns');
-                pollAITurnsRobust();
-            }
-
             if (data.game_over) {
-                // Game over - no modal needed
+                // Game over - handled by updateGameDisplay
             }
         }
     } catch (error) {
@@ -381,7 +375,9 @@ function replayGame() {
 }
 
 async function nextGame() {
-    clearCelebration(); // Hide You Won banner and celebration gif at the start of next game
+    clearCelebration();
+    aiPollingInProgress = false;
+    actionInProgress = false;
     if (!gameId) {
         console.error('No game ID available');
         return;
@@ -1058,6 +1054,9 @@ function goToSetupStep(step) {
     var s2 = document.getElementById('setupStep2');
     if (!s1 || !s2) return;
 
+    // Use CSS classes for animated transitions instead of direct display toggle
+    s1.classList.toggle('setup-panel--active', step === 1);
+    s2.classList.toggle('setup-panel--active', step === 2);
     s1.style.display = (step === 1) ? 'block' : 'none';
     s2.style.display = (step === 2) ? 'block' : 'none';
 
@@ -1070,5 +1069,15 @@ function goToSetupStep(step) {
     labels.forEach(function(el, i) {
         el.classList.toggle('setup-stepbar-text--active', i + 1 === step);
     });
+
+    // Hide right-side bot panel on step 2, restore on step 1
+    var rightCol = document.getElementById('setupRightColumn');
+    if (rightCol) {
+        if (step === 2) {
+            rightCol.classList.remove('visible');
+        } else if (window.selectedBots && window.selectedBots.length > 0) {
+            rightCol.classList.add('visible');
+        }
+    }
 }
 

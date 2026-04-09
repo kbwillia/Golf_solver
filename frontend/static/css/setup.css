@@ -1,16 +1,18 @@
 /* ===== SETUP SCREEN LAYOUT ===== */
 
-/* Single-column scrollable wrapper */
+/* Side-by-side scrollable wrapper: center + optional right panel */
 .setup-columns-wrap {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.25rem;
   width: 100%;
   max-width: 100vw;
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.5rem 0.5rem 2rem;
+  padding: 0.5rem 1rem 2rem;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(11, 80, 27, 0.3) transparent;
@@ -21,7 +23,7 @@
 .setup-columns-wrap::-webkit-scrollbar-thumb { background: rgba(11, 80, 27, 0.25); border-radius: 3px; }
 
 #setupCenterColumn {
-  width: 100%;
+  flex: 1 1 auto;
   max-width: 820px;
   min-width: 0;
   display: flex;
@@ -147,9 +149,11 @@
   background: linear-gradient(90deg, #0b501b, rgba(11, 80, 27, 0.25));
 }
 
-/* ===== STEP PANELS (one at a time) ===== */
+/* ===== STEP PANELS (one at a time, with slide transition) ===== */
 .setup-step-panels {
   display: block;
+  position: relative;
+  overflow: hidden;
 }
 
 .setup-step-panels > .setup-panel {
@@ -159,10 +163,21 @@
   border-radius: 10px;
   padding: 1rem 1.25rem 1.15rem;
   box-sizing: border-box;
+  animation: panelSlideIn 0.35s ease-out;
 }
 
 .setup-step-panels > .setup-panel.setup-panel--active {
   display: block !important;
+}
+
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes panelSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-60px); }
 }
 
 .setup-panel-block {
@@ -286,13 +301,13 @@
   margin-top: 0.5rem;
 }
 
+.setup-inline-actions .setup-next-btn {
+  margin-left: auto;
+}
+
 .setup-meta {
   font-size: 0.82rem;
   color: #5a6b62;
-}
-
-.setup-voice-row {
-  margin-top: 0.45rem;
 }
 
 .setup-secondary-btn {
@@ -406,8 +421,43 @@ details[open] > .setup-faq-summary::before {
   content: '- ';
 }
 
-/* Right column hidden on setup */
-#setupRightColumn { display: none !important; }
+/* Right column: shown via JS when bots are selected on step 1 */
+#setupRightColumn {
+  display: none;
+  width: 320px;
+  min-width: 260px;
+  max-width: 360px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 1rem;
+}
+
+#setupRightColumn.visible {
+  display: block;
+  animation: rightPanelFadeIn 0.3s ease-out;
+}
+
+@keyframes rightPanelFadeIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+#aiBotImageContainer {
+  background: rgba(250, 252, 248, 0.95);
+  border: 1px solid rgba(11, 80, 27, 0.15);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+  padding: 1rem;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 80, 27, 0.3) transparent;
+}
+
+#aiBotImageContainer::-webkit-scrollbar { width: 5px; }
+#aiBotImageContainer::-webkit-scrollbar-track { background: transparent; }
+#aiBotImageContainer::-webkit-scrollbar-thumb { background: rgba(11, 80, 27, 0.25); border-radius: 3px; }
 
 /* Override old white-on-dark label styles for light card */
 .setup-shell label,
@@ -426,26 +476,33 @@ details[open] > .setup-faq-summary::before {
 
 #gameSetup p { margin-top: 0; margin-bottom: 4px; }
 
-/* ===== AI BOT IMAGE + DESCRIPTION (detail panel, kept for JS) ===== */
+/* ===== AI BOT IMAGE + DESCRIPTION (right-side detail panel) ===== */
 .ai-bot-row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  margin: 8px 0;
-  gap: 12px;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 1rem;
+  gap: 0.65rem;
   min-height: 0;
-  border-radius: 8px;
-  padding: 4px;
-  transition: background-color 0.2s ease;
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: rgba(212, 237, 218, 0.45);
+  border: 1px solid rgba(11, 80, 27, 0.1);
+  transition: background-color 0.2s ease, transform 0.15s ease;
 }
 
-.ai-bot-row:hover { background-color: rgba(255, 255, 255, 0.1); }
+.ai-bot-row:hover {
+  background-color: rgba(212, 237, 218, 0.7);
+  transform: scale(0.98);
+}
 
 .ai-bot-img {
-  max-width: 80px;
-  max-height: 80px;
-  border-radius: 8px;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  border-radius: 10px;
   margin: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .ai-bot-info {
@@ -453,30 +510,31 @@ details[open] > .setup-faq-summary::before {
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  max-width: 220px;
-  background: #d4edda !important;
-  border-radius: 10px;
-  padding: 4px;
+  width: 100%;
+  background: transparent !important;
+  border-radius: 0;
+  padding: 0;
 }
 
 .ai-bot-name {
-  font-size: 0.85em;
-  font-weight: bold;
-  margin-bottom: 2px;
-  background: #d4edda !important;
-  color: #155724 !important;
-  border-radius: 12px;
-  padding: 4px 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+  background: transparent !important;
+  color: #0b501b !important;
+  border-radius: 0;
+  padding: 0;
 }
 
 .ai-bot-desc {
-  font-size: 0.78em;
-  background: #d4edda !important;
-  color: #155724 !important;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  background: transparent !important;
+  color: #2a3d32 !important;
 }
 
 .bot-desc-short {
-  font-size: 0.72em;
+  font-size: 0.78em;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -486,10 +544,40 @@ details[open] > .setup-faq-summary::before {
   width: 100%;
 }
 
+.ai-bot-row .bot-difficulty {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-bot-row + .ai-bot-row {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(11, 80, 27, 0.12);
+  border-radius: 10px;
+}
+
 /* Hide the old left-column FAQ (moved inline) */
 .setup-left-column { display: none !important; }
 
 /* ===== RESPONSIVE ===== */
+@media (max-width: 960px) {
+  .setup-columns-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #setupRightColumn.visible {
+    width: 100%;
+    max-width: 820px;
+    min-width: 0;
+    position: static;
+  }
+}
+
 @media (max-width: 600px) {
   .setup-shell {
     max-width: 100%;

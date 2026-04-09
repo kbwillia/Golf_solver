@@ -12,7 +12,7 @@
     max-height: 100vh;
     align-items: flex-start;
     border-radius: 20px !important;
-    min-width: 485px; /* Ensures panel does not collapse */
+    min-width: 0; /* Was 485px - now responsive */
     max-width: 100%;
     min-height: 260px; /* Ensures panel height remains even if content is hidden */
     height: 100%;

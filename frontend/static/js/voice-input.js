@@ -2,6 +2,7 @@
 export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = true) {
     let recognition;
     let recognizing = false;
+    let micPermissionGranted = false;
     let originalBtnBg = micBtn.style.backgroundColor;
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -12,6 +13,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
 
         recognition.onstart = function() {
             recognizing = true;
+            micPermissionGranted = true;
             micBtn.style.background = '#b71c1c';
             micBtn.innerHTML = '<span style="font-size:1.2em;">🎙️</span>';
         };
@@ -24,7 +26,14 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
             recognizing = false;
             micBtn.style.background = originalBtnBg;
             micBtn.innerHTML = '<span style="font-size:1.2em;">🎙️</span>';
-            alert('Speech recognition error: ' + event.error);
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                console.warn('Microphone access denied. Grant mic permission in browser settings.');
+                micPermissionGranted = false;
+            } else if (event.error === 'no-speech') {
+                console.log('No speech detected.');
+            } else if (event.error !== 'aborted') {
+                console.warn('Speech recognition error:', event.error);
+            }
         };
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript;
@@ -36,7 +45,7 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
             if (recognizing) {
                 recognition.stop();
             } else {
-                recognition.start();
+                try { recognition.start(); } catch(err) { /* already started */ }
             }
         });
 
@@ -63,14 +72,14 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
             });
         }
 
-        // Global Ctrl shortcut for voice input (works anywhere)
         let globalCtrlHeld = false;
         window.addEventListener('keydown', function(e) {
             if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && !globalCtrlHeld) {
                 globalCtrlHeld = true;
+                if (!micPermissionGranted) return;
                 e.preventDefault();
                 if (!recognizing) {
-                    recognition.start();
+                    try { recognition.start(); } catch(err) { /* already started */ }
                 }
             }
         });
@@ -92,21 +101,19 @@ export function setupChatMicButton(micBtn, chatInput, enableSpacebarShortcut = t
         window.addEventListener('keydown', function(e) {
             if (e.code === 'Space' && !spaceHeld) {
                 spaceHeld = true;
-                // Start a timer to trigger recording only if held long enough
+                if (!micPermissionGranted) return;
                 spaceHoldTimeout = setTimeout(() => {
-                    // Only start recording if still held
                     if (spaceHeld) {
                         e.preventDefault();
                         if (chatInput) {
                             chatInputPrevValue = chatInput.value;
                         }
                         if (!recognizing) {
-                            recognition.start();
+                            try { recognition.start(); } catch(err) { /* already started */ }
                         }
                     }
                 }, SPACE_HOLD_THRESHOLD);
             }
-            // If recording is already active, always prevent default
             if (e.code === 'Space' && recognizing) {
                 e.preventDefault();
             }

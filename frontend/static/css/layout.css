@@ -74,8 +74,7 @@ body, html {
 .game-grid-container {
     /* Main grid for layout: fills container, never exceeds it */
     display: grid;
-    grid-template-columns: minmax(320px, 0.450fr) minmax(2.5fr) minmax(300px, 1.5fr);
-    /* grid-template-columns: minmax(360px, 0.50fr) minmax(2.5fr) minmax(300px, 1.5fr); */
+    grid-template-columns: minmax(200px, 0.450fr) minmax(0, 2.5fr) minmax(200px, 1.5fr);
 
     grid-template-areas: "notification gameplay probabilities";
     gap: 0px; /* No gap between columns */
@@ -91,20 +90,7 @@ body, html {
 /* RESPONSIVE: Adjust for smaller screens */
 @media (max-width: 1200px) {
     .game-grid-container {
-        grid-template-columns: 1fr auto 250px; /* Smaller probabilities panel */
-    }
-}
-
-@media (max-width: 1200px) {
-    .game-grid-container {
-        grid-template-columns: 1fr; /* Single column on mobile */
-        grid-template-rows: auto auto auto auto;
-        grid-template-areas:
-            "info-bar"
-            /* "golf-green" */
-            "players-area"
-            "probabilities";
-        max-height: none; /* Allow scrolling on mobile if needed */
+        grid-template-columns: 1fr auto 250px;
     }
 }
 
@@ -272,7 +258,7 @@ body, html {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    min-width: 420px;
+    min-width: 0;
     max-width: 900px;
     padding: 0px 0px; /* Reduced padding from 18px 12px to save vertical space */
     border-radius: 20px;
@@ -355,7 +341,7 @@ body, html {
     margin-bottom: 2px;
     white-space: nowrap;
     min-width: 200px;
-    margin-right: 460px;
+    margin-right: auto;
     margin-left: 10px;
     /* Match .game-setup label style */
 }
