@@ -64,7 +64,7 @@
     text-align: center;
     margin-top: 6px;
     margin-right: 6px;
-    margin-left: 200px; /* Move GIF further right as requested */
+    margin-left: auto;
     /* margin-bottom: 12px; */
 }
 
@@ -77,7 +77,7 @@
   grid-row: 1;
   position: relative;
   width: 100%;           /* Fill the grid column */
-  margin: 50px 0 0 10;    /* Move down from the top, right, bottom, left*/
+  margin: 50px 0 0 10px;
   z-index: 10;
   display: flex;
   justify-content: flex-end; /* Push content to the right */
