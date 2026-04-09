@@ -301,13 +301,13 @@
   margin-top: 0.5rem;
 }
 
+.setup-inline-actions .setup-next-btn {
+  margin-left: auto;
+}
+
 .setup-meta {
   font-size: 0.82rem;
   color: #5a6b62;
-}
-
-.setup-voice-row {
-  margin-top: 0.45rem;
 }
 
 .setup-secondary-btn {

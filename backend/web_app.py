@@ -45,6 +45,7 @@ print(f"Static folder exists: {os.path.exists(os.path.join(frontend_dir, 'static
 
 # Store active games
 games = {}
+game_locks = {}  # Per-game threading locks to prevent concurrent turn processing
 
 chatbot = GolfChatbot()
 chat_handler = ChatHandler(chatbot, games, get_game_state)
@@ -199,6 +200,8 @@ def create_game():
     for i, name in enumerate(player_names):
         game.players[i].name = name
 
+    game_locks[game_id] = threading.Lock()
+
     # 4. Store the game session
     games[game_id] = {
         'game': game,
@@ -245,21 +248,22 @@ def make_move():
     if game_id not in games:
         return jsonify({'error': 'Game not found'}), 404
 
-    game_session = games[game_id]
-    game = game_session['game']
-
-    # Check if game is already over
-    if game_session['game_over']:
-        return jsonify({'error': 'Game is already over'}), 400
-
-    # Check if it's the human player's turn (always player 0)
-    if game.turn != 0:
-        return jsonify({'error': 'Not your turn'}), 400
-
-    player = game.players[0]  # Human player
+    lock = game_locks.get(game_id)
+    if lock and not lock.acquire(timeout=5):
+        return jsonify({'error': 'Server busy, try again'}), 503
 
     try:
-        # Convert frontend action to game action format
+        game_session = games[game_id]
+        game = game_session['game']
+
+        if game_session['game_over']:
+            return jsonify({'error': 'Game is already over'}), 400
+
+        if game.turn != 0:
+            return jsonify({'error': 'Not your turn'}), 400
+
+        player = game.players[0]
+
         game_action = None
 
         if action['type'] == 'take_discard':
@@ -275,7 +279,6 @@ def make_move():
                     return jsonify({'error': 'Position already revealed'}), 400
                 game_action = {'type': 'draw_deck', 'position': pos, 'keep': True}
             else:
-                # Drawing and discarding, with optional flip
                 game_action = {'type': 'draw_deck', 'position': -1, 'keep': False}
                 if 'flip_position' in action:
                     flip_pos = action['flip_position']
@@ -285,7 +288,6 @@ def make_move():
         if not game_action:
             return jsonify({'error': 'Invalid action'}), 400
 
-        # Temporarily override the human agent to return our action
         original_agent = game.agents[0]
 
         class MockAgent:
@@ -293,49 +295,37 @@ def make_move():
                 return game_action
 
         game.agents[0] = MockAgent()
-
-        # Use the game's built-in play_turn method
         game.play_turn(player)
-
-        # Restore original agent
         game.agents[0] = original_agent
 
-        # Mark that human has made at least one move (for AI delay logic)
         game_session['human_has_played'] = True
-
-        # Update cumulative scores for all players BEFORE advancing to next player
-        # This ensures scores are recorded for the current round before it advances
         update_round_cumulative_scores(game_session, game)
 
-        # Check for game over by all cards revealed
         if game.all_players_done():
             game_session['game_over'] = True
-        # Set waiting_for_next_game flag for multigame matches
         if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
             game_session['waiting_for_next_game'] = True
         else:
             game_session['waiting_for_next_game'] = False
 
-        # --- Upload game state after every turn ---
         upload_game_state(
             game_id=game_id,
             game_state=get_game_state(game_id, games)
         )
 
-        # Return game state BEFORE advancing to next player
-        response = jsonify({
+        game.next_player()
+
+        return jsonify({
             'success': True,
             'game_state': get_game_state(game_id, games)
         })
 
-        # Move to next player (this may advance the round)
-        game.next_player()
-
-        return response
-
     except Exception as e:
         print(f"Error processing move: {e}")
         return jsonify({'error': str(e)}), 400
+    finally:
+        if lock:
+            lock.release()
 
 @app.route('/draw_card/<game_id>')
 def draw_card(game_id):
@@ -437,17 +427,16 @@ def next_game():
                 player_names.append(bot.get('name', 'AI Opponent'))
         num_players = len(agent_types)
 
-        # Rotate whos_first
-        game_session['whos_first'] = (game_session.get('whos_first', 0) + 1) % num_players
+        # Human always goes first every round
+        game_session['whos_first'] = 0
 
         # Re-create the game
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
+        new_game.game_id = game_id
         for i, name in enumerate(player_names):
             new_game.players[i].name = name
 
-        # Set the starting player for this game
-        new_game.turn = game_session['whos_first']
-        # Ensure round is set to 1 for new game
+        new_game.turn = 0
         new_game.round = 1
 
         # Update session
@@ -490,38 +479,57 @@ def get_private_score(player, game):
 def run_ai_turn():
     data = request.json
     game_id = data['game_id']
-    game_session = games[game_id]
-    game = game_session['game']
 
-    # Only add delay for actual AI turns, not new game setup
-    if game.turn != 0 and not game_session['game_over']:
-        game_session['ai_thinking'] = True
-        player = game.players[game.turn]
-        time.sleep(AI_TURN_DELAY)
-        try:
-            move_success = game.play_turn(player)
-            update_round_cumulative_scores(game_session, game)
+    if game_id not in games:
+        return jsonify({'error': 'Game not found'}), 404
+
+    lock = game_locks.get(game_id)
+    if lock and not lock.acquire(timeout=5):
+        return jsonify({'success': True, 'game_state': get_game_state(game_id, games)})
+
+    try:
+        game_session = games[game_id]
+        game = game_session['game']
+
+        if game.turn != 0 and not game_session['game_over']:
+            game_session['ai_thinking'] = True
+            player = game.players[game.turn]
+            time.sleep(AI_TURN_DELAY)
+            try:
+                game.play_turn(player)
+            except Exception as e:
+                print(f"AI move failed: {e}")
+            try:
+                update_round_cumulative_scores(game_session, game)
+            except Exception as e:
+                print(f"Score update failed: {e}")
             if game.all_players_done():
                 game_session['game_over'] = True
-            game.next_player()  # Always advance the turn after a bot move
+            game.next_player()
             print(f"After next_player: turn={game.turn}, player={game.players[game.turn].name}")
-        except Exception as e:
-            print(f"AI move failed: {e}")
-            # Optionally, do not advance the turn
-        game_session['ai_thinking'] = False
+            game_session['ai_thinking'] = False
 
-        # Mark waiting for next game if more games remain (don't auto-start)
+            if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
+                if not game_session.get('cumulative_updated_for_game', False):
+                    public_scores = [get_public_score(p, game) for p in game.players]
+                    for i, s in enumerate(public_scores):
+                        game_session['cumulative_scores'][i] += s
+                    game_session['cumulative_updated_for_game'] = True
+                game_session['waiting_for_next_game'] = True
+            else:
+                game_session['waiting_for_next_game'] = False
+
+            return jsonify({
+                'success': True,
+                'game_state': get_game_state(game_id, games)
+            })
+
         if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-            # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
             if not game_session.get('cumulative_updated_for_game', False):
                 public_scores = [get_public_score(p, game) for p in game.players]
                 for i, s in enumerate(public_scores):
                     game_session['cumulative_scores'][i] += s
                 game_session['cumulative_updated_for_game'] = True
-                print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
-            else:
-                print("DEBUG: run_ai_turn: Cumulative scores already updated for this game.")
-            # Set flag that we're waiting for user to continue to next game
             game_session['waiting_for_next_game'] = True
         else:
             game_session['waiting_for_next_game'] = False
@@ -530,27 +538,9 @@ def run_ai_turn():
             'success': True,
             'game_state': get_game_state(game_id, games)
         })
-
-    # Mark waiting for next game if more games remain (don't auto-start)
-    if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
-        # Add final game scores to cumulative totals ONLY IF NOT ALREADY DONE
-        if not game_session.get('cumulative_updated_for_game', False):
-            public_scores = [get_public_score(p, game) for p in game.players]
-            for i, s in enumerate(public_scores):
-                game_session['cumulative_scores'][i] += s
-            game_session['cumulative_updated_for_game'] = True
-            print(f"DEBUG: run_ai_turn: Added final game scores to cumulative_scores: {game_session['cumulative_scores']}")
-        else:
-            print("DEBUG: run_ai_turn: Cumulative scores already updated for this game.")
-        # Set flag that we're waiting for user to continue to next game
-        game_session['waiting_for_next_game'] = True
-    else:
-        game_session['waiting_for_next_game'] = False
-
-    return jsonify({
-        'success': True,
-        'game_state': get_game_state(game_id, games)
-    })
+    finally:
+        if lock:
+            lock.release()
 
 def update_round_cumulative_scores(game_session, game):
     """Update round cumulative scores for all players after any move"""

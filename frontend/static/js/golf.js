@@ -665,54 +665,40 @@ async function executeAction(position, actionType = null) {
                 const discardElem = document.getElementById('discardCard');
 
                 if (cardElem && discardElem) {
-                    // First update the game state without UI refresh
                     currentGameState = data.game_state;
                     aiTurnInProgress = false;
 
-                    // Animate the old card to discard pile, then update UI
                     animateSnapToGrid(cardElem, discardElem, () => {
                         updateGameDisplay();
                         updateCumulativeScoreChart();
-                        refreshGameState();
 
-                        // Continue with AI turn logic
                         if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                            // console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
                             pollAITurnsRobust();
                         }
                     });
 
-                    // Reset the trackers
                     humanDiscardPosition = null;
                     humanDiscardAction = null;
-                    return; // Don't execute the normal update flow
+                    return;
                 }
 
-                // Reset trackers if animation elements not found
                 humanDiscardPosition = null;
                 humanDiscardAction = null;
             }
 
-            // Check if this was a drawn card move that needs animation
             if (humanDrawnCardPosition !== null && humanDiscardAction === 'draw_keep') {
-                // Animate the old card from grid to discard pile
                 const cardElem = document.querySelector(`.player-grid[data-player="0"] .card[data-position="${humanDrawnCardPosition}"]`);
                 const discardElem = document.getElementById('discardCard');
 
                 if (cardElem && discardElem) {
-                    // First update the game state without UI refresh
                     currentGameState = data.game_state;
                     aiTurnInProgress = false;
 
-                    // Animate the old card to discard pile, then update UI
                     animateSnapToGrid(cardElem, discardElem, () => {
                         updateGameDisplay();
                         updateCumulativeScoreChart();
-                        refreshGameState();
 
-                        // Continue with AI turn logic
                         if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                            console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
                             pollAITurnsRobust();
                         }
                     });
@@ -729,20 +715,13 @@ async function executeAction(position, actionType = null) {
             }
 
             currentGameState = data.game_state;
-
-            // Reset AI turn flag when human takes a turn
             aiTurnInProgress = false;
 
             updateGameDisplay();
-            console.log('🔄 executeAction: Called updateGameDisplay()');
             updateCumulativeScoreChart();
-            refreshGameState(); // This may trigger the AI turn if needed
-            if (data.game_state.game_over) {
-                // Game over - no modal needed
-            }
-            // If it's now an AI's turn, start polling for AI turns
+
             if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                console.log('⚡ executeAction: AI turn detected, calling pollAITurns');
+                console.log('executeAction: AI turn detected, starting AI polling');
                 pollAITurnsRobust();
             }
         } else {

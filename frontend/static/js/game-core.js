@@ -221,14 +221,8 @@ async function refreshGameState() {
             // Update chart after game state refresh
             updateCumulativeScoreChart();
 
-            // Check if it's an AI's turn and start polling if needed
-            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                console.log('🔄 refreshGameState: AI turn detected, calling pollAITurns');
-                pollAITurnsRobust();
-            }
-
             if (data.game_over) {
-                // Game over - no modal needed
+                // Game over - handled by updateGameDisplay
             }
         }
     } catch (error) {
@@ -381,7 +375,9 @@ function replayGame() {
 }
 
 async function nextGame() {
-    clearCelebration(); // Hide You Won banner and celebration gif at the start of next game
+    clearCelebration();
+    aiPollingInProgress = false;
+    actionInProgress = false;
     if (!gameId) {
         console.error('No game ID available');
         return;
