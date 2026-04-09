@@ -13,7 +13,7 @@ let browserVoices = []; // Available browser voices
 function initializeVoiceStatus() {
     const voiceStatus = document.getElementById('voiceStatus');
     if (voiceStatus) {
-        voiceStatus.textContent = voiceEnabled ? 'Jim Nantz Announcing: 🔊' : 'Jim Nantz Announcing: 🔇';
+        voiceStatus.textContent = voiceEnabled ? 'Commentary: On' : 'Commentary: Off';
     }
     console.log('🎤 Voice system initialized with status:', voiceEnabled ? 'enabled' : 'disabled');
 }
@@ -33,7 +33,7 @@ function toggleVoiceSystem() {
     const voiceToggleBtn = document.getElementById('voiceToggleBtn');
 
     if (voiceStatus) {
-        voiceStatus.textContent = voiceEnabled ? 'Jim Nantz Announcing: 🔊' : 'Jim Nantz Announcing: 🔇';
+        voiceStatus.textContent = voiceEnabled ? 'Commentary: On' : 'Commentary: Off';
     }
 
     // Update button styling

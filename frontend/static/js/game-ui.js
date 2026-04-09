@@ -620,7 +620,11 @@ function updateNextHoleButton() {
 function showHeaderButtons(show) {
     const headerButtons = document.getElementById('headerButtons');
     if (headerButtons) {
-        headerButtons.style.display = show ? 'flex' : 'none';
+        if (show) {
+            headerButtons.classList.add('visible');
+        } else {
+            headerButtons.classList.remove('visible');
+        }
     }
 }
 

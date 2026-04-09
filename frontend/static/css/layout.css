@@ -33,19 +33,17 @@ body, html {
 
 /* COMPACT RESPONSIVE CONTAINER: Minimal spacing */
 .container {
-    /* Main app container: fills the viewport, never exceeds it */
-    padding: 0px; /* Reduced from 5px to save space and prevent overflow */
+    display: flex;
+    flex-direction: column;
+    padding: 0;
     background: url('/static/4k-golf-1.jpg') center center/cover no-repeat;
-    /* width: 100vw; */
     max-width: 100%;
     margin: 0;
-    /* min-height: 100vh; Always at least as tall as the viewport */
     height: 100vh;
     min-height: 0;
     max-height: 100vh;
-    overflow: hidden; /* or overflow-y: auto; */
-    box-sizing: border-box; /* Include padding/border in size */
-    /* border: 3px solid red; */
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* Setup section at the top of the game */
@@ -306,7 +304,11 @@ body, html {
 .setup-and-board {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* Header Layout */
@@ -314,8 +316,8 @@ body, html {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 16px;
-    /* background: rgba(230, 249, 230, 0.1); */
+    padding: 4px 16px;
+    flex-shrink: 0;
 }
 
 .header-content {
@@ -329,6 +331,12 @@ body, html {
     margin: 0;
     white-space: nowrap;
     color: #0b501b;
+}
+
+.header-content h1.app-title {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .header-game-info {
@@ -396,6 +404,10 @@ body, html {
 
 #headerButtons {
     display: none;
+}
+
+#headerButtons.visible {
+    display: flex;
 }
 
 /* Game Setup Labels */
