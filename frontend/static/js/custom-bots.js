@@ -435,13 +435,16 @@ function updateStartGameButtonState() {
 
 function updateAIBotImageContainer(allBots) {
   const imageContainer = document.getElementById('aiBotImageContainer');
+  const rightColumn = document.getElementById('setupRightColumn');
   if (!imageContainer) return;
   imageContainer.innerHTML = '';
 
   if (!window.selectedBots || window.selectedBots.length === 0) {
-    imageContainer.innerHTML = '<div style="color:#888; font-style:italic; margin-top:24px;"></div>';
+    if (rightColumn) rightColumn.classList.remove('visible');
     return;
   }
+
+  if (rightColumn) rightColumn.classList.add('visible');
 
   window.selectedBots.forEach(selectedBot => {
     const botObj = allBots.find(b => (b.ai_bot_id || b.id) === (selectedBot.ai_bot_id || selectedBot.id));

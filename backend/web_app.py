@@ -1,3 +1,7 @@
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 from flask import Flask, render_template, request, jsonify, session, send_from_directory, send_file
 import uuid
 import json
