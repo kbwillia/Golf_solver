@@ -34,6 +34,12 @@
     /* Set animation offset to prevent restart on DOM updates */
     --animation-offset: 0s;
     animation-delay: calc(-1 * var(--animation-offset, 0s));
+    /* Mobile: stop long-press text/image selection and iOS callout on cards */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* Card hover effect using persistent animation */
@@ -132,6 +138,9 @@
     border-radius: 0px; /* match card border radius */
     border: none; /* Remove any SVG borders */
     outline: none; /* Remove any SVG outlines */
+    pointer-events: none; /* Touches go to .card parent (drag/click work on mobile) */
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 /* Privately visible card (for human) - SVG cards don't need background */
@@ -159,6 +168,7 @@
         0 6px 12px rgba(0,0,0,0.1);
     transform: translateZ(0);
     /* Inherits the casino back design from .card.face-down */
+    -webkit-touch-callout: none;
 }
 
 /* Discard pile card styling */
@@ -170,6 +180,15 @@
     visibility: visible !important; /* Force visibility */
     transition: opacity 0.3s ease, filter 0.3s ease; /* Smooth fade transitions */
     border: none !important; /* Remove border from discard pile */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+#discardCard svg {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 /* Discard card faded (when not available) - more specific selector */
@@ -411,11 +430,20 @@
 
     font-weight: bold;
     cursor: grab;
+    -webkit-user-select: none;
+    -moz-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
     box-shadow: none !important; /* Card shadow */
     position: relative; /* Ensure it stays in normal flow */
     overflow: hidden; /* Ensure SVG doesn't overflow */
     flex-shrink: 0; /* Prevent card from shrinking */
+}
+
+#drawnCardDisplay svg {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 /* Drawn card drag effect */

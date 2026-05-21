@@ -376,8 +376,30 @@ function replayGame() {
 
 async function nextGame() {
     clearCelebration();
+
+    // Full state reset so hole 2+ behaves identically to hole 1
     aiPollingInProgress = false;
     actionInProgress = false;
+    aiTurnInProgress = false;
+    lastTurnIndex = null;
+    previousGameState = null;
+    pollingPaused = false;
+    isDrawingFromDeck = false;
+    cardDrawnFromDeck = false;
+    drawnCardData = null;
+    drawnCardDragActive = false;
+    window.flipDrawnMode = false;
+    window.drawnCardDragActive = false;
+    window.dragActive = false;
+    window.draggedDiscardCard = null;
+    humanDiscardPosition = null;
+    humanDiscardAction = null;
+    humanDrawnCardPosition = null;
+    previousHumanPairs = [];
+    previousActionHistoryLength = 0;
+
+    hideDrawnCardArea();
+
     if (!gameId) {
         console.error('No game ID available');
         return;
@@ -399,7 +421,16 @@ async function nextGame() {
         if (data.success) {
             currentGameState = data.game_state;
 
-            // Set up card visibility for the new game (same as startGame/startGameWithSettings)
+            // Human always goes first on a new hole -- force it client-side as a safeguard
+            if (currentGameState.current_turn !== 0) {
+                console.error('nextGame: backend returned current_turn=' + currentGameState.current_turn + ', forcing to 0');
+                currentGameState.current_turn = 0;
+            }
+
+            // Prevent refreshGameState from re-triggering the setup timer
+            lastGameSetupReset = currentGameState.current_game;
+
+            // Set up card visibility for the new game (same as startGame)
             setupCardsHidden = false;
             if (setupHideTimeout) clearTimeout(setupHideTimeout);
             if (setupViewInterval) clearInterval(setupViewInterval);
@@ -424,10 +455,11 @@ async function nextGame() {
             updateGameDisplay();
             updateCumulativeScoreChart();
 
-            // Check if it's an AI's turn right after new game creation
-            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
-                pollAITurnsRobust();
-            }
+            // Explicitly enable deck/discard immediately (don't wait for 75ms debounce)
+            enableHumanInteractivity();
+
+            // Human goes first -- no AI polling here.
+            // AI turns are triggered only after the human makes their first move via executeAction.
         } else {
             console.error('Next game error:', data.error);
             alert('Error starting next game: ' + data.error);
@@ -641,14 +673,14 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
 // Global flag to prevent multiple concurrent AI polling
 let aiPollingInProgress = false;
 
-async function pollAITurnsRobust(maxRetries = 5, retryDelay = 500) {
-  // Prevent multiple concurrent polling instances
+async function pollAITurnsRobust(maxRetries = 15, retryDelay = 800) {
   if (aiPollingInProgress) {
-    console.log('🤖 AI polling already in progress, skipping...');
+    console.log('[AI Poll] Already in progress, skipping.');
     return;
   }
 
   aiPollingInProgress = true;
+  pausePolling();
   let retries = 0;
 
   try {
@@ -658,52 +690,48 @@ async function pollAITurnsRobust(maxRetries = 5, retryDelay = 500) {
       !currentGameState.game_over &&
       retries < maxRetries
     ) {
-    const currentBotIndex = currentGameState.current_turn;
-    const currentBotName = currentGameState.players && currentGameState.players[currentBotIndex] ? currentGameState.players[currentBotIndex].name : 'Unknown';
-    console.log(`[AI Poll] Before /run_ai_turn: currentBotIndex=${currentBotIndex}, name=${currentBotName}, retries=${retries}`);
+      const currentBotIndex = currentGameState.current_turn;
+      const currentBotName = currentGameState.players && currentGameState.players[currentBotIndex]
+        ? currentGameState.players[currentBotIndex].name : 'Unknown';
+      console.log(`[AI Poll] Requesting turn for bot ${currentBotIndex} (${currentBotName}), retries=${retries}`);
 
-    // Call /run_ai_turn for the current bot
-    const response = await fetch('/run_ai_turn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game_id: gameId }),
-    });
-    const data = await response.json();
-    const newGameState = data.game_state;
+      const response = await fetch('/run_ai_turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_id: gameId }),
+      });
+      const data = await response.json();
+      const newGameState = data.game_state;
 
-    const newTurnIndex = newGameState.current_turn;
-    const newTurnName = newGameState.players && newGameState.players[newTurnIndex] ? newGameState.players[newTurnIndex].name : 'Unknown';
-    console.log(`[AI Poll] After /run_ai_turn: newTurnIndex=${newTurnIndex}, name=${newTurnName}, game_over=${newGameState.game_over}`);
+      const newTurnIndex = newGameState.current_turn;
+      const newTurnName = newGameState.players && newGameState.players[newTurnIndex]
+        ? newGameState.players[newTurnIndex].name : 'Unknown';
+      console.log(`[AI Poll] Result: turn now ${newTurnIndex} (${newTurnName}), game_over=${newGameState.game_over}`);
 
-    // Always update the global state and UI after each call
-    currentGameState = newGameState;
-    updateGameDisplay();
+      currentGameState = newGameState;
+      updateGameDisplay();
 
-    // Check if the new current_turn is a bot
-    if (
-      newGameState.current_turn !== 0 &&
-      !newGameState.game_over
-    ) {
-      // If the turn did not advance (still same bot), retry after a delay
-      if (newGameState.current_turn === currentBotIndex) {
-        retries++;
-        console.log('[AI Poll] Still same bot, retrying...');
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      if (newGameState.current_turn !== 0 && !newGameState.game_over) {
+        if (newGameState.current_turn === currentBotIndex) {
+          retries++;
+          console.log(`[AI Poll] Turn stuck on bot ${currentBotIndex}, retry ${retries}/${maxRetries}`);
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        } else {
+          retries = 0;
+          // Brief pause so the user can see each bot's move before the next one starts
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       } else {
-        // Turn advanced to another bot, continue loop (reset retries)
-        console.log('[AI Poll] Turn advanced to another bot, continuing...');
-        retries = 0;
+        console.log('[AI Poll] Human turn or game over, stopping.');
+        break;
       }
-      // Loop continues for the next bot
-    } else {
-      // It's now a human's turn or game over, stop
-      console.log('[AI Poll] Human turn or game over, stopping.');
-      break;
     }
-  }
   } finally {
-    // Always reset the flag when polling completes
     aiPollingInProgress = false;
+    resumePolling();
+    if (currentGameState && currentGameState.current_turn === 0 && !currentGameState.game_over) {
+      enableHumanInteractivity();
+    }
   }
 }
 
@@ -837,6 +865,25 @@ function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+function enableHumanInteractivity() {
+    if (!currentGameState || currentGameState.current_turn !== 0 || currentGameState.game_over) return;
+    if (window.flipDrawnMode || drawnCardData || cardDrawnFromDeck) return;
+
+    const deckCard = document.getElementById('deckCard');
+    const discardCard = document.getElementById('discardCard');
+
+    if (deckCard) {
+        deckCard.classList.remove('disabled');
+        deckCard.onclick = drawFromDeck;
+    }
+    if (discardCard) {
+        discardCard.classList.remove('disabled');
+        discardCard.classList.remove('faded');
+        discardCard.onclick = takeDiscard;
+    }
+    if (typeof setupDiscardDrag === 'function') setupDiscardDrag();
+}
+
 // ===== TIMER FUNCTIONS =====
 
 function showSetupViewTimer(seconds) {
@@ -854,27 +901,51 @@ function hideSetupViewTimer() {
 
 // ===== PERIODIC POLLING SETUP =====
 
-// Periodically refresh game state to catch AI moves
+// Periodically refresh game state (skipped while AI polling is active to avoid race conditions)
 setInterval(() => {
-    if (gameId && currentGameState && !currentGameState.game_over && !pollingPaused) {
+    if (gameId && currentGameState && !currentGameState.game_over && !pollingPaused && !aiPollingInProgress) {
         refreshGameState();
     }
-}, 500); // Reduced from 1000ms to 500ms for more responsive AI turns
+}, 500);
 
 // ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
-function clearCelebration() { /* Will be implemented in notifications module */ }
-function updateGameDisplay() { /* Will be implemented in UI module */ }
+// These placeholders must NOT override real implementations.
+// They are only defined if the actual function hasn't been loaded yet.
+if (typeof clearCelebration === 'undefined') {
+    function clearCelebration() { /* Will be implemented in notifications module */ }
+}
+if (typeof updateGameDisplay === 'undefined') {
+    function updateGameDisplay() { /* Will be implemented in UI module */ }
+}
 // updateCumulativeScoreChart() implemented in probabilities.js
-function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
-function clearChatUI() { /* Will be implemented in chatbot module */ }
-function updateChatInputState() { /* Will be implemented in chatbot module */ }
-function requestProactiveComment() { /* Will be implemented in chatbot module */ }
-function setJimNantzDefault() { /* Will be implemented in chatbot module */ }
-function playCardShuffleSound() { /* Will be implemented in utils module */ }
-function showHeaderButtons() { /* Will be implemented in UI module */ }
-function hideDrawnCardArea() { /* Will be implemented in actions module */ }
-function onGameStart() { /* Will be implemented in UI module */ }
+if (typeof updateChatParticipantsHeader === 'undefined') {
+    function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
+}
+if (typeof clearChatUI === 'undefined') {
+    function clearChatUI() { /* Will be implemented in chatbot module */ }
+}
+if (typeof updateChatInputState === 'undefined') {
+    function updateChatInputState() { /* Will be implemented in chatbot module */ }
+}
+if (typeof requestProactiveComment === 'undefined') {
+    function requestProactiveComment() { /* Will be implemented in chatbot module */ }
+}
+if (typeof setJimNantzDefault === 'undefined') {
+    function setJimNantzDefault() { /* Will be implemented in chatbot module */ }
+}
+if (typeof playCardShuffleSound === 'undefined') {
+    function playCardShuffleSound() { /* Will be implemented in utils module */ }
+}
+if (typeof showHeaderButtons === 'undefined') {
+    function showHeaderButtons() { /* Will be implemented in UI module */ }
+}
+if (typeof hideDrawnCardArea === 'undefined') {
+    function hideDrawnCardArea() { /* Will be implemented in actions module */ }
+}
+if (typeof onGameStart === 'undefined') {
+    function onGameStart() { /* Will be implemented in UI module */ }
+}
 
 // Initialize game mode buttons
 function initializeGameModeButtons() {
