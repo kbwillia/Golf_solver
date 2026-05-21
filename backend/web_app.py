@@ -439,14 +439,14 @@ def next_game():
                 player_names.append(bot.get('name', 'AI Opponent'))
         num_players = len(agent_types)
 
-        game_session['whos_first'] = 0
+        game_session['whos_first'] = (game_session.get('whos_first', 0) + 1) % num_players
 
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
         new_game.game_id = game_id
         for i, name in enumerate(player_names):
             new_game.players[i].name = name
 
-        new_game.turn = 0
+        new_game.turn = game_session['whos_first']
         new_game.round = 1
 
         game_session['game'] = new_game
@@ -460,7 +460,7 @@ def next_game():
         game_session['pending_proactive_comments'] = []
 
         state = get_game_state(game_id, games)
-        assert state['current_turn'] == 0, f"next_game: expected current_turn=0, got {state['current_turn']}"
+        assert state['current_turn'] == game_session['whos_first'], f"next_game: expected current_turn={game_session['whos_first']}, got {state['current_turn']}"
 
         return jsonify({
             'success': True,

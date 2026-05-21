@@ -421,12 +421,6 @@ async function nextGame() {
         if (data.success) {
             currentGameState = data.game_state;
 
-            // Human always goes first on a new hole -- force it client-side as a safeguard
-            if (currentGameState.current_turn !== 0) {
-                console.error('nextGame: backend returned current_turn=' + currentGameState.current_turn + ', forcing to 0');
-                currentGameState.current_turn = 0;
-            }
-
             // Prevent refreshGameState from re-triggering the setup timer
             lastGameSetupReset = currentGameState.current_game;
 
@@ -458,8 +452,14 @@ async function nextGame() {
             // Explicitly enable deck/discard immediately (don't wait for 75ms debounce)
             enableHumanInteractivity();
 
-            // Human goes first -- no AI polling here.
-            // AI turns are triggered only after the human makes their first move via executeAction.
+            // Check if it's an AI's turn right after next game creation - add delay for first turn
+            if (currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                setTimeout(() => {
+                    if (currentGameState && currentGameState.current_turn !== 0 && !currentGameState.game_over) {
+                        pollAITurnsRobust();
+                    }
+                }, 500); // Add 500ms delay for first AI turn
+            }
         } else {
             console.error('Next game error:', data.error);
             alert('Error starting next game: ' + data.error);

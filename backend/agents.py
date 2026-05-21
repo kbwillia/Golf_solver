@@ -32,7 +32,10 @@ class RandomAgent:
         else:
             # For draw_deck, also decide whether to keep the card
             keep = random.choice([True, False])
-            return {'type': 'draw_deck', 'position': pos, 'keep': keep}
+            if keep:
+                return {'type': 'draw_deck', 'position': pos, 'keep': True}
+            else:
+                return {'type': 'draw_deck', 'position': -1, 'keep': False, 'flip_position': pos}
 
 class HumanAgent:
     """Human agent that allows manual input for testing gameplay"""
