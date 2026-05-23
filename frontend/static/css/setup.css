@@ -39,10 +39,12 @@
   margin: 0 auto;
   padding: 1.25rem 2rem 1.5rem;
   text-align: left;
-  background: rgba(250, 252, 248, 0.95);
-  border: 1px solid rgba(11, 80, 27, 0.15);
+  background: rgba(245, 250, 245, 0.28);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   box-sizing: border-box;
 }
 
@@ -158,8 +160,8 @@
 
 .setup-step-panels > .setup-panel {
   display: none;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(11, 80, 27, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 10px;
   padding: 1rem 1.25rem 1.15rem;
   box-sizing: border-box;
@@ -256,7 +258,7 @@
   border-radius: 6px;
   border: 1px solid rgba(11, 80, 27, 0.22);
   font-size: 0.95rem;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.42);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   width: 100%;
   box-sizing: border-box;
@@ -342,6 +344,10 @@
   grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
   gap: 0.4rem;
   margin-bottom: 0.15rem;
+}
+
+.setup-shell .bot-select-btn {
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .bot-select-btn {
@@ -444,10 +450,12 @@ details[open] > .setup-faq-summary::before {
 }
 
 #aiBotImageContainer {
-  background: rgba(250, 252, 248, 0.95);
-  border: 1px solid rgba(11, 80, 27, 0.15);
+  background: rgba(245, 250, 245, 0.28);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   padding: 1rem;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
@@ -486,13 +494,13 @@ details[open] > .setup-faq-summary::before {
   min-height: 0;
   border-radius: 10px;
   padding: 0.75rem;
-  background: rgba(212, 237, 218, 0.45);
+  background: rgba(212, 237, 218, 0.25);
   border: 1px solid rgba(11, 80, 27, 0.1);
   transition: background-color 0.2s ease, transform 0.15s ease;
 }
 
 .ai-bot-row:hover {
-  background-color: rgba(212, 237, 218, 0.7);
+  background-color: rgba(212, 237, 218, 0.42);
   transform: scale(0.98);
 }
 
