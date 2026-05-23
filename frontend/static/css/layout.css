@@ -127,9 +127,17 @@ body, html {
     box-sizing: border-box;
     /* You can also add: */
     overflow-x: auto;   /* just in case */
+    scrollbar-width: none; /* Firefox: hide scrollbar, keep scroll */
+    -ms-overflow-style: none; /* IE / legacy Edge */
     cursor: pointer; /* Indicate it's clickable */
     transition: opacity 0.3s ease; /* Smooth transition for opacity changes */
     position: relative; /* For tooltip positioning */
+}
+
+.notification-area::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .notification-area .tooltip {

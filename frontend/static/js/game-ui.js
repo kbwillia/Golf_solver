@@ -48,12 +48,13 @@ function updateGameDisplay() {
         // Update discard pile
         const discardCard = document.getElementById('discardCard');
         if (currentGameState.discard_top) {
-            // Don't remove faded class - let the game logic control it
             discardCard.classList.remove('disabled');
 
-            // Add fade if drawing from deck or if a card was drawn and needs to be resolved
+            // Manage faded state: add when drawing, remove when not
             if (isDrawingFromDeck || cardDrawnFromDeck) {
                 discardCard.classList.add('faded');
+            } else if (isHumanTurn) {
+                discardCard.classList.remove('faded');
             }
 
             // Restore functionality when not disabled
@@ -704,15 +705,37 @@ window.setDefaultBackground = setDefaultBackground;
 
 // ===== PLACEHOLDER FUNCTIONS FOR CROSS-MODULE DEPENDENCIES =====
 
-function getCardDisplayContent() { /* Will be implemented in cards module */ }
+// These placeholders must NOT override real implementations.
+// They are only defined if the actual function hasn't been loaded yet.
+if (typeof getCardDisplayContent === 'undefined') {
+    function getCardDisplayContent() { /* Will be implemented in cards module */ }
+}
 // updateProbabilitiesPanel() and updateCumulativeScoreChart() implemented in probabilities.js
 // function showCelebrationGif() { /* Will be implemented in notifications module */ }
-function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
-function requestProactiveComment() { /* Will be implemented in chatbot module */ }
-function takeDiscard() { /* Will be implemented in actions module */ }
-function animateSnapToGrid() { /* Will be implemented in actions module */ }
-function handleDropOnGrid() { /* Will be implemented in actions module */ }
-function findAIDiscardedCard() { /* Will be implemented in core module */ }
-function aiJustMoved() { /* Will be implemented in core module */ }
-function deepCopy() { /* Will be implemented in core module */ }
-function toggleActionHistory() { /* Will be implemented in chatbot module */ }
+if (typeof updateChatParticipantsHeader === 'undefined') {
+    function updateChatParticipantsHeader() { /* Will be implemented in chatbot module */ }
+}
+if (typeof requestProactiveComment === 'undefined') {
+    function requestProactiveComment() { /* Will be implemented in chatbot module */ }
+}
+if (typeof takeDiscard === 'undefined') {
+    function takeDiscard() { /* Will be implemented in actions module */ }
+}
+if (typeof animateSnapToGrid === 'undefined') {
+    function animateSnapToGrid() { /* Will be implemented in actions module */ }
+}
+if (typeof handleDropOnGrid === 'undefined') {
+    function handleDropOnGrid() { /* Will be implemented in actions module */ }
+}
+if (typeof findAIDiscardedCard === 'undefined') {
+    function findAIDiscardedCard() { /* Will be implemented in core module */ }
+}
+if (typeof aiJustMoved === 'undefined') {
+    function aiJustMoved() { /* Will be implemented in core module */ }
+}
+if (typeof deepCopy === 'undefined') {
+    function deepCopy() { /* Will be implemented in core module */ }
+}
+if (typeof toggleActionHistory === 'undefined') {
+    function toggleActionHistory() { /* Will be implemented in chatbot module */ }
+}

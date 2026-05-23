@@ -235,7 +235,16 @@ def create_game():
 
 @app.route('/game_state/<game_id>')
 def game_state(game_id):
-    """Get current game state"""
+    """Get current game state (acquires lock to avoid reading mid-mutation)"""
+    lock = game_locks.get(game_id)
+    if lock:
+        acquired = lock.acquire(timeout=2)
+        if not acquired:
+            return jsonify(get_game_state(game_id, games))
+        try:
+            return jsonify(get_game_state(game_id, games))
+        finally:
+            lock.release()
     return jsonify(get_game_state(game_id, games))
 
 @app.route('/make_move', methods=['POST'])
@@ -411,6 +420,10 @@ def next_game():
     if game_session['current_game'] >= game_session['num_games']:
         return jsonify({'error': 'No more games in this match'}), 400
 
+    lock = game_locks.get(game_id)
+    if lock:
+        lock.acquire(timeout=5)
+
     try:
         # Increment game number
         game_session['current_game'] += 1
@@ -421,27 +434,24 @@ def next_game():
         selected_bots = game_session.get('selected_bots', [])
         difficulty_to_agent = {'easy': 'random', 'medium': 'heuristic', 'hard': 'ev_ai'}
         for bot in selected_bots:
-            # Only add as player if not an announcer or non-player bot
             if bot.get('difficulty') not in ('announcer', 'nonplayer', 'announcer_only'):
                 agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
                 player_names.append(bot.get('name', 'AI Opponent'))
         num_players = len(agent_types)
 
-        # Human always goes first every round
-        game_session['whos_first'] = 0
+        game_session['whos_first'] = (game_session.get('whos_first', 0) + 1) % num_players
 
-        # Re-create the game
         new_game = GolfGame(num_players=num_players, agent_types=agent_types)
         new_game.game_id = game_id
         for i, name in enumerate(player_names):
             new_game.players[i].name = name
 
-        new_game.turn = 0
+        new_game.turn = game_session['whos_first']
         new_game.round = 1
 
-        # Update session
         game_session['game'] = new_game
         game_session['game_over'] = False
+        game_session['ai_thinking'] = False
         game_session['match_winner'] = None
         game_session['waiting_for_next_game'] = False
         game_session['cumulative_updated_for_game'] = False
@@ -449,14 +459,20 @@ def next_game():
         game_session['conversation_history'] = []
         game_session['pending_proactive_comments'] = []
 
+        state = get_game_state(game_id, games)
+        assert state['current_turn'] == game_session['whos_first'], f"next_game: expected current_turn={game_session['whos_first']}, got {state['current_turn']}"
+
         return jsonify({
             'success': True,
-            'game_state': get_game_state(game_id, games)
+            'game_state': state
         })
 
     except Exception as e:
         print(f"Error starting next game: {e}")
         return jsonify({'error': str(e)}), 400
+    finally:
+        if lock and lock.locked():
+            lock.release()
 
 def get_public_score(player, game):
     # Only sum cards that are public (face-up to all), using calculate_score for pair cancellation

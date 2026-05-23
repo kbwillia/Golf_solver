@@ -957,6 +957,12 @@
         min-height: 44px;
         padding: 8px 12px;
     }
+
+    /* Reduce scroll/gesture fighting with HTML5 drag on pile cards (Chrome Android) */
+    #discardCard:not(.disabled):not(.faded),
+    #drawnCardDisplay.playable {
+        touch-action: none;
+    }
 }
 
 /* -------------------------------------------------------
