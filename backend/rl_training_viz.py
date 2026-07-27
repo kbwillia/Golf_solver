@@ -1,7 +1,6 @@
 """Aggregate RL training CSVs/JSON into chart-ready payloads for the frontend."""
 from __future__ import annotations
 
-import ast
 import json
 import math
 import os
@@ -71,18 +70,24 @@ def _downsample(series: dict[str, list], max_points: int = 500) -> dict[str, lis
 
 
 def _action_type(action_raw: Any) -> str:
-    try:
-        action = ast.literal_eval(action_raw) if isinstance(action_raw, str) else action_raw
-    except (ValueError, SyntaxError):
+    # Fast path: trajectory rows are stringified dicts — avoid ast.literal_eval per row
+    if isinstance(action_raw, str):
+        if "take_discard" in action_raw:
+            return "take_discard"
+        if "draw_deck" in action_raw or "draw_flip" in action_raw:
+            low = action_raw.lower()
+            if "'keep': true" in low or '"keep": true' in low:
+                return "draw_keep"
+            return "draw_flip"
         return "unknown"
-    if not isinstance(action, dict):
-        return "unknown"
-    typ = action.get("type")
-    if typ == "draw_deck":
-        return "draw_keep" if action.get("keep") else "draw_flip"
-    if typ == "take_discard":
-        return "take_discard"
-    return str(typ or "unknown")
+    if isinstance(action_raw, dict):
+        typ = action_raw.get("type")
+        if typ == "draw_deck":
+            return "draw_keep" if action_raw.get("keep") else "draw_flip"
+        if typ == "take_discard":
+            return "take_discard"
+        return str(typ or "unknown")
+    return "unknown"
 
 
 def _build_action_series(traj_path: str, max_points: int = 500) -> dict[str, Any]:

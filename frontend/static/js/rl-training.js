@@ -20,6 +20,7 @@
   let glossary = {};
   let selectedCompare = [];
   let lastPayload = null;
+  let refreshAbort = null;
 
   function fmt(n, digits = 0) {
     if (n == null || Number.isNaN(n)) return "—";
@@ -731,17 +732,22 @@
   async function refresh({ sync } = { sync: true }) {
     const status = document.getElementById("rlStatus");
     const compareQs = selectedCompare.length ? `?compare=${selectedCompare.join(",")}` : "";
+    if (refreshAbort) {
+      try { refreshAbort.abort(); } catch (_) {}
+    }
+    refreshAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const signal = refreshAbort ? refreshAbort.signal : undefined;
     try {
       let data = null;
       if (sync) {
-        const syncRes = await fetch("/api/rl/sync" + compareQs);
+        const syncRes = await fetch("/api/rl/sync" + compareQs, { signal });
         const syncType = (syncRes.headers.get("content-type") || "").toLowerCase();
         if (syncRes.ok && syncType.includes("application/json")) {
           data = await syncRes.json();
         }
       }
       if (!data) {
-        const res = await fetch("/api/rl/training" + compareQs);
+        const res = await fetch("/api/rl/training" + compareQs, { signal });
         const type = (res.headers.get("content-type") || "").toLowerCase();
         if (!res.ok || !type.includes("application/json")) {
           // Transient blip (e.g. Start/SSH blocking) — keep polling, don't panic
@@ -756,6 +762,7 @@
       const running = !!(data.live && data.live.running) || !!(data.sync && data.sync.running);
       schedulePoll(running || sync);
     } catch (err) {
+      if (err && err.name === "AbortError") return;
       // Don't wipe a good live status line on a one-off failure
       const liveEl = document.getElementById("rlLiveStatus");
       const hadLive = liveEl && /Training live/.test(liveEl.textContent || "");

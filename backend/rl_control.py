@@ -116,9 +116,6 @@ def _connect():
     return env, host, port, ssh_base(env, host, port), scp_base(env, host, port)
 
 
-_TRAIN_CMD_MARKERS = ("parallel_train.py", "dqn_train.py", "train.py")
-
-
 def _clear_local_pid_file() -> None:
     try:
         LOCAL_PID_PATH.unlink(missing_ok=True)
@@ -133,44 +130,23 @@ def _clear_local_pid_file() -> None:
 
 
 def _pid_is_our_trainer(pid: int) -> bool:
-    """True only if pid is alive AND looks like our RL trainer (avoids PID reuse false positives)."""
+    """True if pid is alive. Stale pid files are cleared by callers when False.
+
+    We intentionally avoid PowerShell/WMI here — those were multi-second and made
+    every /api/rl/sync feel like a 500. Trainer scripts clear the pid file on exit;
+    PID-reuse false positives are rare and cleared on the next Stop/Start cycle.
+    """
     try:
         if sys.platform == "win32":
             out = subprocess.check_output(
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 text=True,
                 stderr=subprocess.DEVNULL,
+                timeout=3,
             )
-            if str(pid) not in out:
-                return False
-            # Prefer command-line check so a recycled PID (e.g. a shell) isn't treated as training
-            try:
-                cmd = subprocess.check_output(
-                    [
-                        "powershell",
-                        "-NoProfile",
-                        "-Command",
-                        f"(Get-CimInstance Win32_Process -Filter \"ProcessId={pid}\").CommandLine",
-                    ],
-                    text=True,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5,
-                ).strip()
-            except Exception:
-                cmd = ""
-            if cmd:
-                low = cmd.lower().replace("\\", "/")
-                return any(m in low for m in _TRAIN_CMD_MARKERS)
-            # Fallback: process image is python (weaker — still better than blind PID match alone)
-            return "python" in out.lower()
+            return str(pid) in out and "python" in out.lower()
         os.kill(pid, 0)
-        try:
-            import psutil
-
-            cmdline = " ".join(psutil.Process(pid).cmdline()).lower().replace("\\", "/")
-            return any(m in cmdline for m in _TRAIN_CMD_MARKERS)
-        except Exception:
-            return True
+        return True
     except Exception:
         return False
 
@@ -179,7 +155,7 @@ def _local_pid() -> int | None:
     if not LOCAL_PID_PATH.exists():
         return None
     try:
-        pid = int(LOCAL_PID_PATH.read_text(encoding="utf-8").strip())
+        pid = int(LOCAL_PID_PATH.read_text(encoding="utf-8").strip().splitlines()[0])
     except (OSError, ValueError):
         _clear_local_pid_file()
         return None
