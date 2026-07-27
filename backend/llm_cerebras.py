@@ -4,13 +4,27 @@ from cerebras.cloud.sdk import Cerebras
 from dotenv import load_dotenv
 import time
 
-load_dotenv()
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.dirname(_BACKEND_DIR)
+load_dotenv(os.path.join(_ROOT_DIR, ".env"))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 
 CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY")
-CEREBRAS_MODEL = "llama3.1-8b"
+CEREBRAS_MODEL = os.getenv("CEREBRAS_MODEL_ID") or "llama3.1-8b"
 
-# Initialize Cerebras client once
-cerebras_client = Cerebras(api_key=CEREBRAS_API_KEY)
+# Lazy client so missing key fails on first chat call, not on app import
+cerebras_client = None
+
+
+def _get_cerebras_client() -> Cerebras:
+    global cerebras_client
+    if cerebras_client is None:
+        if not CEREBRAS_API_KEY:
+            raise ValueError(
+                "CEREBRAS_API_KEY is not set. Add it to Golf_solver/.env"
+            )
+        cerebras_client = Cerebras(api_key=CEREBRAS_API_KEY)
+    return cerebras_client
 
 # Try importing job schema
 default_schema = None
@@ -53,7 +67,7 @@ def call_cerebras_llm(
         }
 
     try:
-        response = cerebras_client.chat.completions.create(**kwargs, stream=stream)
+        response = _get_cerebras_client().chat.completions.create(**kwargs, stream=stream)
 
         if stream:
             full_text = ""

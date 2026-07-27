@@ -26,8 +26,11 @@ from google_chipr_api import chirp3_voice
 from data_upset import upload_game_state, upload_human_demo, finalize_human_demos
 from agents import QLearningAgent
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from project-root .env (works from backend/ cwd)
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.dirname(_BACKEND_DIR)
+load_dotenv(os.path.join(_ROOT_DIR, ".env"))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 # log = logging.getLogger('werkzeug')
 
 _demo_encoder = QLearningAgent()
@@ -184,23 +187,39 @@ def api_rl_training():
         run_ids = [x.strip() for x in compare.split(",") if x.strip()]
         return jsonify(build_training_viz_payload(compare_run_ids=run_ids or None))
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        # Prefer soft failure so the UI can keep polling during a live local run
+        return jsonify({"ok": False, "error": str(e), "training_stats": {"available": False}}), 200
 
 
 @app.route('/api/rl/sync', methods=['POST', 'GET'])
 def api_rl_sync():
-    """Pull live progress from RunPod into local output for the viz page."""
+    """Live progress for the viz page (local-first; RunPod only when not training locally)."""
     try:
-        from rl_live_sync import sync_live_progress
+        from rl_control import _local_pid, load_saved_params
         from rl_training_viz import build_training_viz_payload
         from rl_runs import archive_current_run
-        live = sync_live_progress()
-        # When a run just finished and stats exist, archive it into run history
-        if live.get("ok") and not live.get("running") and live.get("pulled_training_stats"):
-            archive_current_run(source="runpod_sync")
+
+        local_pid = _local_pid()
+        params = load_saved_params()
+        live = {"ok": True, "running": bool(local_pid), "local": bool(local_pid)}
+
+        # Don't clobber local training_stats.json with RunPod pulls while a local job runs
+        if not local_pid and params.get("train_device") == "gpu":
+            from rl_live_sync import sync_live_progress
+            live = sync_live_progress()
+            if live.get("ok") and not live.get("running") and live.get("pulled_training_stats"):
+                archive_current_run(source="runpod_sync")
+
         compare = request.args.get("compare") or ""
         run_ids = [x.strip() for x in compare.split(",") if x.strip()]
-        payload = build_training_viz_payload(compare_run_ids=run_ids or None)
+        try:
+            payload = build_training_viz_payload(compare_run_ids=run_ids or None)
+        except Exception as viz_err:
+            payload = {
+                "ok": True,
+                "training_stats": {"available": False, "error": str(viz_err)},
+                "summary": live.get("summary") or {},
+            }
         payload["sync"] = live
         return jsonify(payload)
     except Exception as e:

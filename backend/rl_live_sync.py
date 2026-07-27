@@ -160,6 +160,20 @@ def _try_pull_stats(env: dict[str, str]) -> bool:
 
 def sync_live_progress() -> dict:
     """SSH to RunPod, parse train.log, optionally pull training_stats.json."""
+    # Never overwrite local artifacts while a local trainer owns the files
+    try:
+        from rl_control import _local_pid
+        if _local_pid() is not None:
+            return {
+                "ok": True,
+                "running": True,
+                "local": True,
+                "pulled_training_stats": False,
+                "skipped_remote": True,
+            }
+    except Exception:
+        pass
+
     env = _load_dotenv()
     ssh = _ssh_base(env)
     if not ssh:
@@ -171,7 +185,8 @@ def sync_live_progress() -> dict:
 
     running, log_text = _remote_status_and_log(ssh)
     parsed = _parse_progress(log_text)
-    pulled_stats = _try_pull_stats(env) if running or True else False
+    # Only pull remote stats when a remote job is active (avoid clobbering local files)
+    pulled_stats = _try_pull_stats(env) if running else False
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     payload = {

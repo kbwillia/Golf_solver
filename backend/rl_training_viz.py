@@ -179,8 +179,18 @@ def _build_from_stats(
     if not os.path.exists(stats_path):
         return {"available": False}
 
-    with open(stats_path, encoding="utf-8") as f:
-        stats = json.load(f)
+    try:
+        from progress_io import load_json_file
+        stats = load_json_file(stats_path, default=None)
+    except Exception:
+        stats = None
+        try:
+            with open(stats_path, encoding="utf-8") as f:
+                stats = json.load(f)
+        except Exception:
+            stats = None
+    if not isinstance(stats, dict):
+        return {"available": False, "error": "training_stats.json unreadable"}
 
     scores = [float(x) for x in stats.get("scores", [])]
     opp = [float(x) for x in stats.get("opponent_scores", [])]

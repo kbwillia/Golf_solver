@@ -6,7 +6,12 @@ from supabase import create_client, Client
 from datetime import datetime
 
 from dotenv import load_dotenv
-load_dotenv()
+
+# Load project-root .env even when launched from backend/
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.dirname(_BACKEND_DIR)
+load_dotenv(os.path.join(_ROOT_DIR, ".env"))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))  # optional backend override
 
 url = os.getenv("SUPABASE_URL")
 # Try legacy secret first, fall back to public key
