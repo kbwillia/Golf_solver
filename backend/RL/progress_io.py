@@ -73,6 +73,11 @@ def save_training_stats_json(training_stats: dict[str, Any], filename: str = "tr
         "qtable_entries": [int(x) for x in _tail(training_stats.get("qtable_entries", []))],
         "epsilon_values": [float(x) for x in _tail(training_stats.get("epsilon_values", []))],
         "training_times": [float(x) for x in _tail(training_stats.get("training_times", []))],
+        "loss_values": [
+            (None if x is None else float(x))
+            for x in _tail(training_stats.get("loss_values", []))
+        ],
+        "buffer_sizes": [int(x) for x in _tail(training_stats.get("buffer_sizes", []))],
         "train_device": training_stats.get("train_device"),
         "train_mode": training_stats.get("train_mode"),
     }
@@ -89,6 +94,10 @@ def append_progress_checkpoint(
     avg_score: float,
     states: int,
     epsilon: float,
+    loss: float | None = None,
+    buffer_size: int | None = None,
+    train_mode: str | None = None,
+    train_device: str | None = None,
     filename: str = "training_progress.json",
 ) -> None:
     """Update training_progress.json in the format the live viz expects."""
@@ -103,6 +112,8 @@ def append_progress_checkpoint(
             "qtable_states": [],
             "epsilon": [],
             "win_rates": [],
+            "losses": [],
+            "buffer_sizes": [],
         },
         "summary": {},
     }
@@ -115,6 +126,8 @@ def append_progress_checkpoint(
         "qtable_states": list(series.get("qtable_states") or []),
         "epsilon": list(series.get("epsilon") or []),
         "win_rates": list(series.get("win_rates") or []),
+        "losses": list(series.get("losses") or []),
+        "buffer_sizes": list(series.get("buffer_sizes") or []),
     }
 
     cp = {
@@ -125,6 +138,10 @@ def append_progress_checkpoint(
         "states": int(states),
         "epsilon": float(epsilon),
     }
+    if loss is not None:
+        cp["loss"] = float(loss)
+    if buffer_size is not None:
+        cp["buffer_size"] = int(buffer_size)
     data["checkpoints"].append(cp)
     data["checkpoints"] = data["checkpoints"][-200:]
     s = data["series"]
@@ -133,6 +150,8 @@ def append_progress_checkpoint(
     s["qtable_states"].append(int(states))
     s["epsilon"].append(float(epsilon))
     s["win_rates"].append(float(win_rate))
+    s["losses"].append(None if loss is None else float(loss))
+    s["buffer_sizes"].append(None if buffer_size is None else int(buffer_size))
     for key in s:
         s[key] = s[key][-200:]
 
@@ -142,6 +161,10 @@ def append_progress_checkpoint(
     data["tqdm_current"] = int(game)
     data["tqdm_total"] = int(games_total)
     data["running"] = game < games_total
+    if train_mode:
+        data["train_mode"] = train_mode
+    if train_device:
+        data["train_device"] = train_device
     data["summary"] = {
         "games_played": int(game),
         "games_total": int(games_total),
@@ -150,6 +173,10 @@ def append_progress_checkpoint(
         "final_states": int(states),
         "final_epsilon": float(epsilon),
         "win_rate": float(win_rate),
+        "final_loss": None if loss is None else float(loss),
+        "buffer_size": None if buffer_size is None else int(buffer_size),
+        "train_mode": train_mode,
+        "train_device": train_device,
     }
     _atomic_write_json(path, data)
 

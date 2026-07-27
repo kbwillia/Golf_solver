@@ -6,7 +6,7 @@
     <title>RL Training — Golf Solver</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260727c">
+    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260727d">
 </head>
 <body class="rl-page">
     <div class="rl-shell">
@@ -97,16 +97,24 @@
                     <p class="rl-stat-value" id="statImprovement">—</p>
                 </div>
                 <div class="rl-stat">
-                    <p class="rl-stat-label tip" data-tip="q_states">Q states</p>
+                    <p class="rl-stat-label tip" data-tip="q_states" id="statStatesLabel">Q states</p>
                     <p class="rl-stat-value" id="statStates">—</p>
                 </div>
                 <div class="rl-stat">
-                    <p class="rl-stat-label tip" data-tip="sa_pairs">SA pairs</p>
+                    <p class="rl-stat-label tip" data-tip="sa_pairs" id="statEntriesLabel">SA pairs</p>
                     <p class="rl-stat-value" id="statEntries">—</p>
                 </div>
                 <div class="rl-stat">
                     <p class="rl-stat-label tip" data-tip="epsilon">Epsilon</p>
                     <p class="rl-stat-value" id="statEpsilon">—</p>
+                </div>
+                <div class="rl-stat rl-dqn-only" hidden>
+                    <p class="rl-stat-label tip" data-tip="dqn_loss">DQN loss</p>
+                    <p class="rl-stat-value" id="statLoss">—</p>
+                </div>
+                <div class="rl-stat rl-dqn-only" hidden>
+                    <p class="rl-stat-label tip" data-tip="replay_buffer">Replay buffer</p>
+                    <p class="rl-stat-value" id="statBuffer">—</p>
                 </div>
             </section>
 
@@ -119,6 +127,7 @@
                             <tr>
                                 <th></th>
                                 <th>When</th>
+                                <th>Device</th>
                                 <th>Games</th>
                                 <th><span class="tip" data-tip="avg_score">Avg</span></th>
                                 <th><span class="tip" data-tip="win_rate">Win%</span></th>
@@ -159,14 +168,26 @@
                     <div class="rl-chart-wrap"><canvas id="chartScoreHist"></canvas></div>
                 </section>
 
-                <section class="rl-panel">
-                    <h2>Q-table growth</h2>
+                <section class="rl-panel" id="panelGrowth">
+                    <h2 id="growthTitle">Q-table growth</h2>
+                    <p class="hint" id="growthHint"></p>
                     <div class="rl-chart-wrap"><canvas id="chartGrowth"></canvas></div>
                 </section>
 
                 <section class="rl-panel">
                     <h2><span class="tip" data-tip="epsilon">Epsilon</span></h2>
                     <div class="rl-chart-wrap"><canvas id="chartEpsilon"></canvas></div>
+                </section>
+
+                <section class="rl-panel rl-dqn-only" id="panelLoss" hidden>
+                    <h2><span class="tip" data-tip="dqn_loss">DQN loss</span></h2>
+                    <p class="hint">Smooth L1 TD loss (raw + MA). GPU / neural runs only.</p>
+                    <div class="rl-chart-wrap"><canvas id="chartLoss"></canvas></div>
+                </section>
+
+                <section class="rl-panel rl-dqn-only" id="panelBuffer" hidden>
+                    <h2><span class="tip" data-tip="replay_buffer">Replay buffer</span></h2>
+                    <div class="rl-chart-wrap"><canvas id="chartBuffer"></canvas></div>
                 </section>
 
                 <section class="rl-panel">
@@ -180,7 +201,7 @@
                     <div class="rl-chart-wrap"><canvas id="chartActionMix"></canvas></div>
                 </section>
 
-                <section class="rl-panel rl-panel--wide">
+                <section class="rl-panel rl-panel--wide rl-tabular-only" id="panelQhist">
                     <h2><span class="tip" data-tip="q_value">Q-value</span> distribution</h2>
                     <p class="hint" id="qHint"></p>
                     <div class="rl-chart-wrap"><canvas id="chartQhist"></canvas></div>
@@ -192,6 +213,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260727c"></script>
+    <script src="/static/js/rl-training.js?v=20260727d"></script>
 </body>
 </html>

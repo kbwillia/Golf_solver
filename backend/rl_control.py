@@ -116,14 +116,24 @@ def _connect():
     return env, host, port, ssh_base(env, host, port), scp_base(env, host, port)
 
 
-def _local_pid() -> int | None:
-    if not LOCAL_PID_PATH.exists():
-        return None
+_TRAIN_CMD_MARKERS = ("parallel_train.py", "dqn_train.py", "train.py")
+
+
+def _clear_local_pid_file() -> None:
     try:
-        pid = int(LOCAL_PID_PATH.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return None
-    # Still alive?
+        LOCAL_PID_PATH.unlink(missing_ok=True)
+    except TypeError:
+        if LOCAL_PID_PATH.exists():
+            try:
+                LOCAL_PID_PATH.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _pid_is_our_trainer(pid: int) -> bool:
+    """True only if pid is alive AND looks like our RL trainer (avoids PID reuse false positives)."""
     try:
         if sys.platform == "win32":
             out = subprocess.check_output(
@@ -132,10 +142,49 @@ def _local_pid() -> int | None:
                 stderr=subprocess.DEVNULL,
             )
             if str(pid) not in out:
-                return None
-        else:
-            os.kill(pid, 0)
+                return False
+            # Prefer command-line check so a recycled PID (e.g. a shell) isn't treated as training
+            try:
+                cmd = subprocess.check_output(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-Command",
+                        f"(Get-CimInstance Win32_Process -Filter \"ProcessId={pid}\").CommandLine",
+                    ],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                ).strip()
+            except Exception:
+                cmd = ""
+            if cmd:
+                low = cmd.lower().replace("\\", "/")
+                return any(m in low for m in _TRAIN_CMD_MARKERS)
+            # Fallback: process image is python (weaker — still better than blind PID match alone)
+            return "python" in out.lower()
+        os.kill(pid, 0)
+        try:
+            import psutil
+
+            cmdline = " ".join(psutil.Process(pid).cmdline()).lower().replace("\\", "/")
+            return any(m in cmdline for m in _TRAIN_CMD_MARKERS)
+        except Exception:
+            return True
     except Exception:
+        return False
+
+
+def _local_pid() -> int | None:
+    if not LOCAL_PID_PATH.exists():
+        return None
+    try:
+        pid = int(LOCAL_PID_PATH.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        _clear_local_pid_file()
+        return None
+    if not _pid_is_our_trainer(pid):
+        _clear_local_pid_file()
         return None
     return pid
 
@@ -180,11 +229,7 @@ def _stop_local() -> dict[str, Any]:
                 pass
     except Exception as e:
         return {"ok": False, "error": f"Failed to stop local pid {pid}: {e}"}
-    try:
-        LOCAL_PID_PATH.unlink(missing_ok=True)
-    except TypeError:
-        if LOCAL_PID_PATH.exists():
-            LOCAL_PID_PATH.unlink()
+    _clear_local_pid_file()
     # Mark progress not running
     try:
         progress = OUTPUT_DIR / "training_progress.json"
