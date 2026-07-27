@@ -12,9 +12,29 @@ import pandas as pd
 
 RL_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RL", "output")
 
+# mtime caches — sync polls every few seconds; avoid re-parsing multi-MB CSVs each time
+_FILE_CACHE: dict[str, tuple[float, int, Any]] = {}
+
 
 def _path(name: str) -> str:
     return os.path.join(RL_OUTPUT_DIR, name)
+
+
+def _cached_file_build(path: str, builder, *args, **kwargs):
+    """Return builder(path, ...) result, cached while path mtime+size are unchanged."""
+    if not path or not os.path.exists(path):
+        return builder(path, *args, **kwargs)
+    try:
+        st = os.stat(path)
+        key = f"{path}|{args}|{tuple(sorted(kwargs.items()))}"
+        hit = _FILE_CACHE.get(key)
+        if hit and hit[0] == st.st_mtime and hit[1] == st.st_size:
+            return hit[2]
+        value = builder(path, *args, **kwargs)
+        _FILE_CACHE[key] = (st.st_mtime, st.st_size, value)
+        return value
+    except OSError:
+        return builder(path, *args, **kwargs)
 
 
 def _moving_average(values: list[float], window: int) -> list[float | None]:
@@ -197,7 +217,11 @@ def _build_from_stats(
     states = [int(x) for x in stats.get("qtable_states", [])]
     entries = [int(x) for x in stats.get("qtable_entries", [])]
     eps = [float(x) for x in stats.get("epsilon_values", [])]
-    n = max(len(scores), len(states), len(entries), len(eps), 0)
+    loss_raw = list(stats.get("loss_values", []) or [])
+    buffer_raw = list(stats.get("buffer_sizes", []) or [])
+    train_mode = str(stats.get("train_mode") or ("dqn" if loss_raw else "tabular"))
+    train_device = str(stats.get("train_device") or "")
+    n = max(len(scores), len(states), len(entries), len(eps), len(loss_raw), len(buffer_raw), 0)
     games = list(range(1, n + 1))
 
     def pad(seq: list, fill):
@@ -218,6 +242,16 @@ def _build_from_stats(
     states = pad(states, 0)
     entries = pad(entries, 0)
     eps = pad(eps, 0.0)
+    # Preserve None gaps in loss (warmup before buffer fills)
+    if loss_raw:
+        loss_vals = []
+        for i in range(n):
+            idx = min(len(loss_raw) - 1, int(i * len(loss_raw) / max(1, n)))
+            v = loss_raw[idx]
+            loss_vals.append(None if v is None else float(v))
+    else:
+        loss_vals = []
+    buffer_sizes = pad([int(x) for x in buffer_raw], 0) if buffer_raw else []
 
     window = max(5, min(50, n // 20 or 5))
     win_window = max(20, min(200, n // 10 or 20))
@@ -237,18 +271,33 @@ def _build_from_stats(
         "qtable_entries": entries,
         "epsilon": eps,
         "rolling_win_rate": _rolling_win_rate(scores, opp, win_window) if opp else [None] * n,
+        "loss": loss_vals,
+        "loss_ma": _moving_average([x for x in loss_vals if x is not None], window) if any(x is not None for x in loss_vals) else [],
+        "buffer_sizes": buffer_sizes,
     }
+    # Align loss_ma length to games if computed from filtered list — recompute properly
+    if loss_vals and any(x is not None for x in loss_vals):
+        filled = []
+        last = None
+        for x in loss_vals:
+            if x is not None:
+                last = x
+            filled.append(last if last is not None else 0.0)
+        series_raw["loss_ma"] = _moving_average(filled, window)
     series = _downsample(series_raw, max_points=max_points)
 
     games_played = int(stats.get("games_played") or n)
     first = scores[: min(100, len(scores))] if scores else []
     last = scores[-min(100, len(scores)) :] if scores else []
+    final_loss = next((x for x in reversed(loss_vals) if x is not None), None) if loss_vals else None
 
     return {
         "available": True,
         "games_ma_window": window,
         "win_rate_window": win_window,
         "bootstrap_games": bootstrap_games,
+        "train_mode": train_mode,
+        "train_device": train_device,
         "series": series,
         "score_histogram": _score_histogram(scores),
         "summary": {
@@ -267,6 +316,10 @@ def _build_from_stats(
             "final_states": int(states[-1]) if states else 0,
             "final_entries": int(entries[-1]) if entries else 0,
             "final_epsilon": float(eps[-1]) if eps else None,
+            "final_loss": final_loss,
+            "final_buffer_size": int(buffer_sizes[-1]) if buffer_sizes else None,
+            "train_mode": train_mode,
+            "train_device": train_device,
         },
     }
 
@@ -290,8 +343,9 @@ def build_compare_series(run_ids: list[str], max_points: int = 400) -> list[dict
     out = []
     for rid in run_ids:
         params = _run_params(rid)
-        learning = _build_from_stats(
+        learning = _cached_file_build(
             _run_stats_path(rid),
+            _build_from_stats,
             max_points=max_points,
             bootstrap_games=params.get("n_bootstrap_games"),
         )
@@ -345,6 +399,9 @@ GLOSSARY = {
     "ev_baseline": "Typical average score for the hand-coded expected-value agent (~12 in EV vs EV sims). Use this as a performance reference line.",
     "opponent_ma": "Moving average of the opponent’s score over games.",
     "score_ma": "Moving average of the agent’s score — dampens noise so learning trends are easier to see.",
+    "dqn_loss": "Smooth L1 (Huber) TD loss from neural DQN updates. Only for GPU/DQN runs — lower and more stable usually means the network is fitting better.",
+    "replay_buffer": "Number of transitions stored for DQN replay. Grows until the buffer cap; learning needs enough samples before loss is meaningful.",
+    "network_params": "Fixed neural network weight count (not a growing Q-table). Flat line is expected for DQN.",
 }
 
 
@@ -364,9 +421,22 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                 pass
 
     bootstrap = params.get("n_bootstrap_games")
-    stats = _build_from_stats(_path("training_stats.json"), bootstrap_games=bootstrap)
-    actions = _build_action_series(_path("trajectory_train.csv"))
-    qhist = _build_qvalue_hist(_path("qtable_train.csv"))
+    stats = _cached_file_build(
+        _path("training_stats.json"), _build_from_stats, bootstrap_games=bootstrap
+    )
+    actions = _cached_file_build(_path("trajectory_train.csv"), _build_action_series)
+    # Tabular Q CSV only — skip for DQN (uses dqn_policy.pt)
+    train_mode = (
+        (stats.get("train_mode") if isinstance(stats, dict) else None)
+        or params.get("train_mode")
+        or params.get("train_device")
+    )
+    is_dqn = str(train_mode).lower() in ("dqn", "gpu")
+    qhist = (
+        {"available": False}
+        if is_dqn
+        else _cached_file_build(_path("qtable_train.csv"), _build_qvalue_hist)
+    )
 
     live = {}
     live_path = _path("training_progress.json")
@@ -376,6 +446,12 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                 live = json.load(f)
         except (OSError, json.JSONDecodeError):
             live = {}
+
+    if live.get("train_mode"):
+        is_dqn = is_dqn or str(live.get("train_mode")).lower() == "dqn"
+        if isinstance(stats, dict) and stats.get("available"):
+            stats["train_mode"] = live.get("train_mode") or stats.get("train_mode")
+            stats["train_device"] = live.get("train_device") or stats.get("train_device")
 
     summary = dict(stats.get("summary") or {})
     if qhist.get("available"):
@@ -402,6 +478,8 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                 "games_ma_window": None,
                 "from_live_progress": True,
                 "bootstrap_games": bootstrap,
+                "train_mode": live.get("train_mode") or ("dqn" if is_dqn else "tabular"),
+                "train_device": live.get("train_device"),
                 "series": {
                     "games": s.get("games") or [],
                     "scores": s.get("avg_scores") or [],
@@ -412,6 +490,9 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                     "qtable_entries": [],
                     "epsilon": s.get("epsilon") or [],
                     "rolling_win_rate": [],
+                    "loss": s.get("losses") or [],
+                    "loss_ma": s.get("losses") or [],
+                    "buffer_sizes": s.get("buffer_sizes") or [],
                 },
                 "score_histogram": {"available": False},
                 "summary": summary,
@@ -422,6 +503,7 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                 "games_ma_window": None,
                 "from_trajectory_fallback": True,
                 "bootstrap_games": bootstrap,
+                "train_mode": "tabular",
                 "series": {
                     "games": actions["games"],
                     "scores": [],
@@ -432,10 +514,16 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
                     "qtable_entries": [],
                     "epsilon": [],
                     "rolling_win_rate": [],
+                    "loss": [],
+                    "buffer_sizes": [],
                 },
                 "score_histogram": {"available": False},
                 "summary": summary,
             }
+
+    # Ensure train_mode on learning payload
+    if isinstance(stats, dict) and stats.get("available") and not stats.get("train_mode"):
+        stats["train_mode"] = "dqn" if is_dqn else "tabular"
 
     runs = list_runs(limit=40)
     compare_ids = compare_run_ids or []

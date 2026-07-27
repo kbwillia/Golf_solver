@@ -153,7 +153,45 @@
     });
   }
 
-  function setSummary(summary) {
+  function setModeVisibility(isDqn) {
+    document.querySelectorAll(".rl-dqn-only").forEach((el) => {
+      el.hidden = !isDqn;
+    });
+    document.querySelectorAll(".rl-tabular-only").forEach((el) => {
+      el.hidden = !!isDqn;
+    });
+    const statesLabel = document.getElementById("statStatesLabel");
+    const entriesLabel = document.getElementById("statEntriesLabel");
+    const growthTitle = document.getElementById("growthTitle");
+    const growthHint = document.getElementById("growthHint");
+    if (isDqn) {
+      if (statesLabel) {
+        statesLabel.textContent = "Net params";
+        statesLabel.setAttribute("data-tip", "network_params");
+      }
+      if (entriesLabel) {
+        entriesLabel.textContent = "Net params";
+        entriesLabel.setAttribute("data-tip", "network_params");
+      }
+      if (growthTitle) growthTitle.innerHTML = '<span class="tip" data-tip="network_params">Network params</span>';
+      if (growthHint) growthHint.textContent = "Fixed weight count for the DQN — flat line is expected (not a growing Q-table).";
+    } else {
+      if (statesLabel) {
+        statesLabel.textContent = "Q states";
+        statesLabel.setAttribute("data-tip", "q_states");
+      }
+      if (entriesLabel) {
+        entriesLabel.textContent = "SA pairs";
+        entriesLabel.setAttribute("data-tip", "sa_pairs");
+      }
+      if (growthTitle) growthTitle.textContent = "Q-table growth";
+      if (growthHint) growthHint.textContent = "";
+    }
+  }
+
+  function setSummary(summary, trainMode) {
+    const isDqn = String(trainMode || summary.train_mode || "").toLowerCase() === "dqn";
+    setModeVisibility(isDqn);
     const map = {
       statGames: summary.games_total
         ? `${fmt(summary.games_played)} / ${fmt(summary.games_total)}`
@@ -165,8 +203,10 @@
           ? "—"
           : (summary.improvement >= 0 ? "+" : "") + fmt(summary.improvement, 2),
       statStates: fmt(summary.final_states),
-      statEntries: fmt(summary.final_entries),
+      statEntries: isDqn ? fmt(summary.final_states) : fmt(summary.final_entries),
       statEpsilon: summary.final_epsilon != null ? Number(summary.final_epsilon).toFixed(3) : "—",
+      statLoss: summary.final_loss != null ? Number(summary.final_loss).toFixed(4) : "—",
+      statBuffer: fmt(summary.final_buffer_size),
     };
     Object.entries(map).forEach(([id, val]) => {
       const node = document.getElementById(id);
@@ -201,7 +241,7 @@
     if (!body) return;
     selectedCompare = (compareIds || []).slice(0, 4);
     if (!runs || !runs.length) {
-      body.innerHTML = `<tr><td colspan="9">No archived runs yet. Finish a job and click Pull + archive.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="10">No archived runs yet. Finish a job and click Pull + archive.</td></tr>`;
       return;
     }
     body.innerHTML = runs
@@ -210,9 +250,11 @@
         const p = r.params || {};
         const checked = selectedCompare.includes(r.id) ? "checked" : "";
         const disabled = !r.has_stats ? "disabled" : "";
+        const device = (p.train_device || s.train_device || p.train_mode || "—").toString().toUpperCase();
         return `<tr>
           <td><input type="checkbox" class="run-check" data-id="${r.id}" ${checked} ${disabled}></td>
           <td>${r.label || r.id}</td>
+          <td>${device}</td>
           <td>${fmt(s.games_played)}</td>
           <td>${fmt(s.avg_score, 2)}</td>
           <td>${pct(s.win_rate)}</td>
@@ -296,6 +338,8 @@
       return;
     }
     const s = learning.series || {};
+    const isDqn = String(learning.train_mode || "").toLowerCase() === "dqn";
+    setModeVisibility(isDqn);
     const hasScores = Array.isArray(s.scores) && s.scores.length > 0;
     const bootstrap = learning.bootstrap_games;
     const windowHint = learning.games_ma_window;
@@ -305,7 +349,7 @@
         "Live checkpoints from RunPod log (sparse). Full curves appear after stats are saved.";
     } else if (hasScores) {
       document.getElementById("learningHint").innerHTML =
-        `Lower is better. MA window ${windowHint || 20}. ` +
+        `${isDqn ? "GPU DQN · " : "CPU tabular · "}Lower is better. MA window ${windowHint || 20}. ` +
         `<span class="tip" data-tip="ev_baseline">EV baseline</span> dashed. ` +
         (bootstrap ? `Amber band = first ${bootstrap} <span class="tip" data-tip="bootstrap">bootstrap</span> games.` : "");
     }
@@ -421,7 +465,7 @@
     if (Array.isArray(s.qtable_states) && s.qtable_states.length) {
       const growthDatasets = [
         {
-          label: "States",
+          label: isDqn ? "Network params" : "States",
           data: s.qtable_states,
           borderColor: COLORS.greenLight,
           pointRadius: 0,
@@ -429,7 +473,7 @@
           yAxisID: "y",
         },
       ];
-      if (Array.isArray(s.qtable_entries) && s.qtable_entries.length) {
+      if (!isDqn && Array.isArray(s.qtable_entries) && s.qtable_entries.length) {
         growthDatasets.push({
           label: "SA pairs",
           data: s.qtable_entries,
@@ -460,7 +504,7 @@
             },
             y: {
               position: "left",
-              title: { display: true, text: "States", color: COLORS.muted },
+              title: { display: true, text: isDqn ? "Params" : "States", color: COLORS.muted },
               ticks: { color: COLORS.muted },
               grid: { color: COLORS.grid },
             },
@@ -494,6 +538,64 @@
           ],
         },
         options: baseOptions("Epsilon", false),
+        plugins: [bootstrapPlugin(bootstrap)],
+      });
+    }
+
+    if (isDqn && Array.isArray(s.loss) && s.loss.some((v) => v != null)) {
+      const lossDatasets = [
+        {
+          label: "Loss",
+          data: s.loss,
+          borderColor: COLORS.rose,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          spanGaps: true,
+        },
+      ];
+      if (Array.isArray(s.loss_ma) && s.loss_ma.length) {
+        lossDatasets.push({
+          label: "Loss MA",
+          data: s.loss_ma,
+          borderColor: COLORS.cream,
+          pointRadius: 0,
+          borderWidth: 2,
+          spanGaps: true,
+        });
+      }
+      makeChart("chartLoss", {
+        type: "line",
+        data: { labels: s.games, datasets: lossDatasets },
+        options: {
+          ...baseOptions("Loss", false),
+          plugins: {
+            legend: {
+              labels: { color: COLORS.cream, boxWidth: 12, font: { family: "Arial", size: 11 } },
+            },
+          },
+        },
+        plugins: [bootstrapPlugin(bootstrap)],
+      });
+    }
+
+    if (isDqn && Array.isArray(s.buffer_sizes) && s.buffer_sizes.length) {
+      makeChart("chartBuffer", {
+        type: "line",
+        data: {
+          labels: s.games,
+          datasets: [
+            {
+              label: "Buffer size",
+              data: s.buffer_sizes,
+              borderColor: COLORS.blue,
+              backgroundColor: "rgba(91,143,185,0.18)",
+              fill: true,
+              pointRadius: 0,
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: baseOptions("Transitions", false),
         plugins: [bootstrapPlugin(bootstrap)],
       });
     }
@@ -547,7 +649,13 @@
     });
   }
 
-  function renderQvalues(qvalues) {
+  function renderQvalues(qvalues, learning) {
+    const isDqn = learning && String(learning.train_mode || "").toLowerCase() === "dqn";
+    if (isDqn) {
+      const hint = document.getElementById("qHint");
+      if (hint) hint.textContent = "DQN uses dqn_policy.pt (neural weights) — no tabular Q-value histogram.";
+      return;
+    }
     if (!qvalues || !qvalues.available) {
       document.getElementById("qHint").textContent = "No qtable_train.csv found.";
       return;
@@ -605,12 +713,12 @@
     }
     status.style.display = "none";
     document.getElementById("rlContent").hidden = false;
-    setSummary(data.summary || {});
+    setSummary(data.summary || {}, (data.learning && data.learning.train_mode) || (data.summary && data.summary.train_mode));
     renderRunsTable(data.runs || [], data.compare_ids || selectedCompare);
     renderCompare(data.compare || [], data.baselines);
     renderLearning(data.learning, data.baselines);
     renderActions(data.actions);
-    renderQvalues(data.qvalues);
+    renderQvalues(data.qvalues, data.learning);
     setLiveStatus(data.live || (data.sync && { running: data.sync.running, ...(data.sync.summary || {}) }));
 
     const meta = document.getElementById("rlMeta");

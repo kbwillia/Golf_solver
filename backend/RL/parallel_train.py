@@ -385,26 +385,38 @@ def _params_from_env_or_args() -> dict[str, Any]:
     return params
 
 
+def _clear_local_pid_file() -> None:
+    try:
+        pid_path = get_output_path("local_train.pid")
+        if os.path.exists(pid_path):
+            os.remove(pid_path)
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
-    p = _params_from_env_or_args()
-    train_qlearning_agent_parallel(
-        num_games=int(p.get("num_games", 5000)),
-        opponent_type=str(p.get("opponent_type", "ev_ai")),
-        verbose=True,
-        num_workers=int(p.get("num_workers") or 0) or None,
-        learning_rate=float(p.get("learning_rate", 0.1)),
-        discount_factor=float(p.get("discount_factor", 0.9)),
-        epsilon=float(p.get("epsilon", 0.2)),
-        epsilon_decay_factor=float(p.get("epsilon_decay_factor", 0.995)),
-        n_bootstrap_games=int(p.get("n_bootstrap_games", 1000)),
-        use_imitation_learning=bool(p.get("use_imitation_learning", True)),
-        epsilon_decay_interval=int(p.get("epsilon_decay_interval", 100)),
-        progress_report_interval=int(p.get("progress_report_interval", 250)),
-        use_reward_shaping=bool(p.get("use_reward_shaping", True)),
-        shape_step=float(p.get("shape_step", 0.05)),
-        shape_pair=float(p.get("shape_pair", 1.5)),
-        shape_high_keep=float(p.get("shape_high_keep", -0.8)),
-        shape_low_keep=float(p.get("shape_low_keep", 0.3)),
-        shape_midhigh_keep=float(p.get("shape_midhigh_keep", -0.4)),
-        shape_flip=float(p.get("shape_flip", 0.1)),
-    )
+    try:
+        p = _params_from_env_or_args()
+        train_qlearning_agent_parallel(
+            num_games=int(p.get("num_games", 5000)),
+            opponent_type=str(p.get("opponent_type", "ev_ai")),
+            verbose=True,
+            num_workers=int(p.get("num_workers") or 0) or None,
+            learning_rate=float(p.get("learning_rate", 0.1)),
+            discount_factor=float(p.get("discount_factor", 0.9)),
+            epsilon=float(p.get("epsilon", 0.2)),
+            epsilon_decay_factor=float(p.get("epsilon_decay_factor", 0.995)),
+            n_bootstrap_games=int(p.get("n_bootstrap_games", 1000)),
+            use_imitation_learning=bool(p.get("use_imitation_learning", True)),
+            epsilon_decay_interval=int(p.get("epsilon_decay_interval", 100)),
+            progress_report_interval=int(p.get("progress_report_interval", 250)),
+            use_reward_shaping=bool(p.get("use_reward_shaping", True)),
+            shape_step=float(p.get("shape_step", 0.05)),
+            shape_pair=float(p.get("shape_pair", 1.5)),
+            shape_high_keep=float(p.get("shape_high_keep", -0.8)),
+            shape_low_keep=float(p.get("shape_low_keep", 0.3)),
+            shape_midhigh_keep=float(p.get("shape_midhigh_keep", -0.4)),
+            shape_flip=float(p.get("shape_flip", 0.1)),
+        )
+    finally:
+        _clear_local_pid_file()

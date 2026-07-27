@@ -475,6 +475,8 @@ def train_dqn_agent(
         "qtable_entries": [],
         "epsilon_values": [],
         "training_times": [],
+        "loss_values": [],
+        "buffer_sizes": [],
         "train_device": "gpu" if device.type != "cpu" else "cpu",
         "train_mode": "dqn",
     }
@@ -482,7 +484,12 @@ def train_dqn_agent(
     with open(get_output_path("training_progress.json"), "w", encoding="utf-8") as f:
         json.dump({
             "ok": True, "running": True, "checkpoints": [],
-            "series": {"games": [], "avg_scores": [], "qtable_states": [], "epsilon": [], "win_rates": []},
+            "train_mode": "dqn",
+            "train_device": training_stats["train_device"],
+            "series": {
+                "games": [], "avg_scores": [], "qtable_states": [],
+                "epsilon": [], "win_rates": [], "losses": [], "buffer_sizes": [],
+            },
             "summary": {},
         }, f)
 
@@ -552,6 +559,8 @@ def train_dqn_agent(
         training_stats["qtable_entries"].append(entries)
         training_stats["epsilon_values"].append(agent.epsilon)
         training_stats["training_times"].append(time.time() - start)
+        training_stats["loss_values"].append(None if last_loss is None else float(last_loss))
+        training_stats["buffer_sizes"].append(len(buffer))
 
         if epsilon_decay_interval and (game_i + 1) % epsilon_decay_interval == 0:
             agent.decay_epsilon(factor=epsilon_decay_factor)
@@ -565,7 +574,7 @@ def train_dqn_agent(
             print(
                 f"  Game {game_i + 1}: {phase} | Win rate={win_rate:.2%}, "
                 f"Avg score={avg_score:.2f}, Params={states}, Epsilon={agent.epsilon:.3f}, "
-                f"loss={loss_s}, {gps:.1f} games/s, device={device}"
+                f"loss={loss_s}, buffer={len(buffer)}, {gps:.1f} games/s, device={device}"
             )
             save_training_stats_json(training_stats)
             append_progress_checkpoint(
@@ -576,6 +585,10 @@ def train_dqn_agent(
                 avg_score=avg_score,
                 states=states,
                 epsilon=agent.epsilon,
+                loss=last_loss,
+                buffer_size=len(buffer),
+                train_mode="dqn",
+                train_device=training_stats["train_device"],
             )
             agent.save()
 
@@ -596,6 +609,10 @@ def train_dqn_agent(
         avg_score=avg_score,
         states=agent.param_count(),
         epsilon=agent.epsilon,
+        loss=last_loss,
+        buffer_size=len(buffer),
+        train_mode="dqn",
+        train_device=training_stats["train_device"],
     )
     mark_progress_complete()
 
@@ -640,31 +657,39 @@ def _params_from_args() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    p = _params_from_args()
-    # DQN prefers a slightly higher LR than tabular 0.1
-    lr = float(p.get("learning_rate", 0.001))
-    if lr >= 0.05:
-        lr = 0.001
-    train_dqn_agent(
-        num_games=int(p.get("num_games", 5000)),
-        opponent_type=str(p.get("opponent_type", "ev_ai")),
-        verbose=True,
-        use_gpu=bool(p.get("use_gpu", True)),
-        learning_rate=lr,
-        discount_factor=float(p.get("discount_factor", 0.9)),
-        epsilon=float(p.get("epsilon", 0.2)),
-        epsilon_decay_factor=float(p.get("epsilon_decay_factor", 0.995)),
-        n_bootstrap_games=int(p.get("n_bootstrap_games", 500)),
-        use_imitation_learning=bool(p.get("use_imitation_learning", True)),
-        epsilon_decay_interval=int(p.get("epsilon_decay_interval", 100)),
-        progress_report_interval=int(p.get("progress_report_interval", 250)),
-        batch_size=int(p.get("batch_size", 256)),
-        hidden_size=int(p.get("hidden_size", 256)),
-        use_reward_shaping=bool(p.get("use_reward_shaping", True)),
-        shape_step=float(p.get("shape_step", 0.05)),
-        shape_pair=float(p.get("shape_pair", 1.5)),
-        shape_high_keep=float(p.get("shape_high_keep", -0.8)),
-        shape_low_keep=float(p.get("shape_low_keep", 0.3)),
-        shape_midhigh_keep=float(p.get("shape_midhigh_keep", -0.4)),
-        shape_flip=float(p.get("shape_flip", 0.1)),
-    )
+    try:
+        p = _params_from_args()
+        # DQN prefers a slightly higher LR than tabular 0.1
+        lr = float(p.get("learning_rate", 0.001))
+        if lr >= 0.05:
+            lr = 0.001
+        train_dqn_agent(
+            num_games=int(p.get("num_games", 5000)),
+            opponent_type=str(p.get("opponent_type", "ev_ai")),
+            verbose=True,
+            use_gpu=bool(p.get("use_gpu", True)),
+            learning_rate=lr,
+            discount_factor=float(p.get("discount_factor", 0.9)),
+            epsilon=float(p.get("epsilon", 0.2)),
+            epsilon_decay_factor=float(p.get("epsilon_decay_factor", 0.995)),
+            n_bootstrap_games=int(p.get("n_bootstrap_games", 500)),
+            use_imitation_learning=bool(p.get("use_imitation_learning", True)),
+            epsilon_decay_interval=int(p.get("epsilon_decay_interval", 100)),
+            progress_report_interval=int(p.get("progress_report_interval", 250)),
+            batch_size=int(p.get("batch_size", 256)),
+            hidden_size=int(p.get("hidden_size", 256)),
+            use_reward_shaping=bool(p.get("use_reward_shaping", True)),
+            shape_step=float(p.get("shape_step", 0.05)),
+            shape_pair=float(p.get("shape_pair", 1.5)),
+            shape_high_keep=float(p.get("shape_high_keep", -0.8)),
+            shape_low_keep=float(p.get("shape_low_keep", 0.3)),
+            shape_midhigh_keep=float(p.get("shape_midhigh_keep", -0.4)),
+            shape_flip=float(p.get("shape_flip", 0.1)),
+        )
+    finally:
+        try:
+            pid_path = get_output_path("local_train.pid")
+            if os.path.exists(pid_path):
+                os.remove(pid_path)
+        except OSError:
+            pass
