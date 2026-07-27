@@ -299,12 +299,14 @@ function updatePlayerGrids() {
                 let extraAttrs = '';
 
                 if (isHuman && pos >= 2) {
-                    if (!setupCardsHidden) {
-                        cardClass += ' privately-visible'; // Show bottom cards at setup
-                        displayContent = getCardDisplayContent(card, false);
-                        isFaceDown = false;
-                    } else if (card.public) {
-                        cardClass += ' face-up public'; // Show if made public
+                    if (!setupCardsHidden || card.public) {
+                        // Keep bottom cards readable during setup / demo recording,
+                        // but show the public (flipped) style when already revealed.
+                        if (card.public) {
+                            cardClass += ' face-up public';
+                        } else {
+                            cardClass += ' privately-visible';
+                        }
                         displayContent = getCardDisplayContent(card, false);
                         isFaceDown = false;
                     } else {

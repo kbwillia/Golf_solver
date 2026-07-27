@@ -215,6 +215,50 @@ def save_bot_to_supabase(bot):
     return response
 
 
+def upload_human_demo(
+    game_id,
+    player_name,
+    hole_num,
+    round_num,
+    state_key,
+    action_key,
+    action,
+):
+    """Insert one opt-in human demonstration step for RL bootstrap."""
+    data = {
+        "game_id": game_id,
+        "player_name": player_name,
+        "hole_num": hole_num,
+        "round_num": round_num,
+        "state_key": state_key,
+        "action_key": action_key,
+        "action": action,
+        "game_finished": False,
+    }
+    response = supabase.table("human_demos").insert(data).execute()
+    return response
+
+
+def finalize_human_demos(game_id, hole_num, human_score, opponent_scores, won):
+    """Mark all demo steps for a finished hole with outcome scores."""
+    response = (
+        supabase.table("human_demos")
+        .update(
+            {
+                "human_score": human_score,
+                "opponent_scores": opponent_scores,
+                "won": won,
+                "game_finished": True,
+            }
+        )
+        .eq("game_id", game_id)
+        .eq("hole_num", hole_num)
+        .eq("game_finished", False)
+        .execute()
+    )
+    return response
+
+
 def upload_game_state(game_id, game_state, timestamp=None, metadata=None):
     # get_game_state returns 'current_turn', not 'current_player'
     current_player = game_state.get("current_turn") or game_state.get("current_player")
@@ -254,6 +298,63 @@ def upload_game_state(game_id, game_state, timestamp=None, metadata=None):
     }
     response = supabase.table("game_states").insert(data).execute()
     return response
+
+    return response
+
+
+def upload_rl_training_run(meta: dict, *, upsert: bool = True):
+    """
+    Persist an archived RL training run summary to Supabase.
+    Called from the local machine after CPU training or after pulling GPU/RunPod results.
+    """
+    summary = meta.get("summary") or {}
+    params = meta.get("params") or {}
+    run_id = meta.get("id") or meta.get("run_id")
+    if not run_id:
+        raise ValueError("upload_rl_training_run requires meta['id']")
+
+    row = {
+        "run_id": str(run_id),
+        "source": meta.get("source"),
+        "train_device": params.get("train_device") or summary.get("train_device"),
+        "train_mode": params.get("train_mode") or summary.get("train_mode"),
+        "games_played": summary.get("games_played"),
+        "games_planned": summary.get("num_games_planned") or params.get("num_games"),
+        "wins": summary.get("wins"),
+        "ties": summary.get("ties"),
+        "win_rate": summary.get("win_rate"),
+        "avg_score": summary.get("avg_score"),
+        "avg_opponent_score": summary.get("avg_opponent_score"),
+        "best_score": summary.get("best_score"),
+        "worst_score": summary.get("worst_score"),
+        "early_avg_score": summary.get("early_avg_score"),
+        "late_avg_score": summary.get("late_avg_score"),
+        "improvement": summary.get("improvement"),
+        "final_states": summary.get("final_states"),
+        "final_entries": summary.get("final_entries"),
+        "final_epsilon": summary.get("final_epsilon"),
+        "learning_rate": summary.get("learning_rate") or params.get("learning_rate"),
+        "epsilon": summary.get("epsilon") or params.get("epsilon"),
+        "n_bootstrap_games": summary.get("n_bootstrap_games") or params.get("n_bootstrap_games"),
+        "opponent_type": summary.get("opponent_type") or params.get("opponent_type"),
+        "num_workers": params.get("num_workers"),
+        "batch_size": params.get("batch_size"),
+        "hidden_size": params.get("hidden_size"),
+        "params": params,
+        "summary": summary,
+    }
+    try:
+        table = supabase.table("rl_training_runs")
+        if upsert:
+            response = table.upsert(row, on_conflict="run_id").execute()
+        else:
+            response = table.insert(row).execute()
+        print(f"Uploaded RL run to Supabase: {run_id}")
+        return response
+    except Exception as e:
+        print(f"Error uploading RL training run: {e}")
+        return None
+
 
 if __name__ == "__main__":
     # Single test data row that matches the golf game codebase patterns

@@ -17,6 +17,7 @@ let setupHideTimeout = null; // Timeout for hiding setup cards
 let setupCardsHidden = false; // Whether setup cards are hidden
 let setupViewInterval = null; // Interval for setup view timer
 let cardVisibilityDuration = 1.5; // Default duration, updated from user input
+let recordForTrainingActive = false; // Keep bottom cards visible for demo recording
 const SNAP_THRESHOLD = 30; // pixels
 let isMyTurn = false;
 let actionInProgress = false; // Prevents multiple simultaneous actions
@@ -92,16 +93,19 @@ async function startGame() {
     const playerName = (document.getElementById('playerName').value || '').trim() || 'You';
     const numGames = getCurrentHoles();
     cardVisibilityDuration = parseFloat(document.getElementById('cardVisibilityDuration').value) || 1.5;
+    const recordForTraining = !!(document.getElementById('recordForTraining') || {}).checked;
 
     console.log('🎯 Frontend: Starting game with mode:', gameMode);
     console.log('🎯 Frontend: Selected bots:', window.selectedBots);
     console.log('🎯 Frontend: Auto-detected mode from', window.selectedBots?.length || 0, 'selected bots');
+    console.log('🎯 Frontend: Record for training:', recordForTraining);
 
     // Prepare game data
     const gameData = {
         player_name: playerName,
         num_games: numGames,
-        selected_bots: window.selectedBots // Each is a full bot object from Supabase
+        selected_bots: window.selectedBots, // Each is a full bot object from Supabase
+        record_for_training: recordForTraining
     };
 
     // Debug: Log all attributes of selected_bots being sent to backend
@@ -126,26 +130,8 @@ async function startGame() {
             document.getElementById('gameSetup').style.display = 'none';
             document.getElementById('gameBoard').style.display = 'block';
             showHeaderButtons(true); // <-- Add this here
-            setupCardsHidden = false;
-            if (setupHideTimeout) clearTimeout(setupHideTimeout);
-            if (setupViewInterval) clearInterval(setupViewInterval);
-            let secondsLeft = cardVisibilityDuration;
-            showSetupViewTimer(secondsLeft);
-            setupViewInterval = setInterval(() => {
-                secondsLeft -= 0.1;
-                if (secondsLeft > 0) {
-                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
-                } else {
-                    hideSetupViewTimer();
-                    clearInterval(setupViewInterval);
-                }
-            }, 100);
-            setupHideTimeout = setTimeout(() => {
-                setupCardsHidden = true;
-                updateGameDisplay();
-                hideSetupViewTimer();
-                if (setupViewInterval) clearInterval(setupViewInterval);
-            }, cardVisibilityDuration * 1000);
+            recordForTrainingActive = recordForTraining;
+            beginBottomCardVisibility();
             updateGameDisplay();
 
             // Update chat participants header for new game
@@ -190,30 +176,10 @@ async function refreshGameState() {
 
                         if (isNewGame || isMultiGameAndRound1) {
                 lastGameSetupReset = data.current_game; // Mark that we've reset for this game
-
-                // RESET SETUP TIMER FOR NEW GAME
-                setupCardsHidden = false;
-                if (setupHideTimeout) clearTimeout(setupHideTimeout);
-                if (setupViewInterval) clearInterval(setupViewInterval);
-
-                // Start the setup timer for the new game
-                let secondsLeft = cardVisibilityDuration;
-                showSetupViewTimer(secondsLeft);
-                setupViewInterval = setInterval(() => {
-                    secondsLeft -= 0.1;
-                    if (secondsLeft > 0) {
-                        showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
-                    } else {
-                        hideSetupViewTimer();
-                        clearInterval(setupViewInterval);
-                    }
-                }, 100);
-                setupHideTimeout = setTimeout(() => {
-                    setupCardsHidden = true;
-                    updateGameDisplay();
-                    hideSetupViewTimer();
-                    if (setupViewInterval) clearInterval(setupViewInterval);
-                }, cardVisibilityDuration * 1000);
+                if (typeof data.record_for_training === 'boolean') {
+                    recordForTrainingActive = data.record_for_training;
+                }
+                beginBottomCardVisibility();
             }
 
                         currentGameState = data;
@@ -237,6 +203,7 @@ function restartGame() {
 
     // Reset AI turn flag
     aiTurnInProgress = false;
+    recordForTrainingActive = false;
 
     // Hide game board and show setup screen
     document.getElementById('gameBoard').style.display = 'none';
@@ -424,27 +391,10 @@ async function nextGame() {
             // Prevent refreshGameState from re-triggering the setup timer
             lastGameSetupReset = currentGameState.current_game;
 
-            // Set up card visibility for the new game (same as startGame)
-            setupCardsHidden = false;
-            if (setupHideTimeout) clearTimeout(setupHideTimeout);
-            if (setupViewInterval) clearInterval(setupViewInterval);
-            let secondsLeft = cardVisibilityDuration;
-            showSetupViewTimer(secondsLeft);
-            setupViewInterval = setInterval(() => {
-                secondsLeft -= 0.1;
-                if (secondsLeft > 0) {
-                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
-                } else {
-                    hideSetupViewTimer();
-                    clearInterval(setupViewInterval);
-                }
-            }, 100);
-            setupHideTimeout = setTimeout(() => {
-                setupCardsHidden = true;
-                updateGameDisplay();
-                hideSetupViewTimer();
-                if (setupViewInterval) clearInterval(setupViewInterval);
-            }, cardVisibilityDuration * 1000);
+            if (typeof currentGameState.record_for_training === 'boolean') {
+                recordForTrainingActive = currentGameState.record_for_training;
+            }
+            beginBottomCardVisibility();
 
             updateGameDisplay();
             updateCumulativeScoreChart();
@@ -632,26 +582,8 @@ async function startGameWithSettings(gameMode, opponentType, playerName, numGame
             currentGameState = data.game_state;
             document.getElementById('gameSetup').style.display = 'none';
             document.getElementById('gameBoard').style.display = 'block';
-            setupCardsHidden = false;
-            if (setupHideTimeout) clearTimeout(setupHideTimeout);
-            if (setupViewInterval) clearInterval(setupViewInterval);
-            let secondsLeft = cardVisibilityDuration;
-            showSetupViewTimer(secondsLeft);
-            setupViewInterval = setInterval(() => {
-                secondsLeft -= 0.1;
-                if (secondsLeft > 0) {
-                    showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
-                } else {
-                    hideSetupViewTimer();
-                    clearInterval(setupViewInterval);
-                }
-            }, 100);
-            setupHideTimeout = setTimeout(() => {
-                setupCardsHidden = true;
-                updateGameDisplay();
-                hideSetupViewTimer();
-                if (setupViewInterval) clearInterval(setupViewInterval);
-            }, cardVisibilityDuration * 1000);
+            recordForTrainingActive = !!(gameData.record_for_training);
+            beginBottomCardVisibility();
             updateGameDisplay();
 
             // Check if it's an AI's turn right after game creation - add delay for first turn
@@ -886,9 +818,44 @@ function enableHumanInteractivity() {
 
 // ===== TIMER FUNCTIONS =====
 
+function beginBottomCardVisibility() {
+    if (setupHideTimeout) clearTimeout(setupHideTimeout);
+    if (setupViewInterval) clearInterval(setupViewInterval);
+    setupHideTimeout = null;
+    setupViewInterval = null;
+    setupCardsHidden = false;
+
+    if (recordForTrainingActive) {
+        showSetupViewTimer('always');
+        return;
+    }
+
+    let secondsLeft = cardVisibilityDuration;
+    showSetupViewTimer(secondsLeft);
+    setupViewInterval = setInterval(() => {
+        secondsLeft -= 0.1;
+        if (secondsLeft > 0) {
+            showSetupViewTimer(Math.max(0, secondsLeft).toFixed(1));
+        } else {
+            hideSetupViewTimer();
+            clearInterval(setupViewInterval);
+        }
+    }, 100);
+    setupHideTimeout = setTimeout(() => {
+        setupCardsHidden = true;
+        updateGameDisplay();
+        hideSetupViewTimer();
+        if (setupViewInterval) clearInterval(setupViewInterval);
+    }, cardVisibilityDuration * 1000);
+}
+
 function showSetupViewTimer(seconds) {
     const timerDiv = document.getElementById('setupViewTimer');
     if (!timerDiv) return;
+    if (seconds === 'always') {
+        timerDiv.textContent = 'Bottom two cards stay visible (recording for training)';
+        return;
+    }
     const secondsNum = parseFloat(seconds);
     timerDiv.textContent = `Bottom two cards visible for: ${seconds} second${secondsNum !== 1 ? 's' : ''}`;
 }

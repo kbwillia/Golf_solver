@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/static/css/probabilities.css">
     <link rel="stylesheet" href="/static/css/chatbot.css">
     <link rel="stylesheet" href="/static/css/custom-bots.css">
-    <link rel="stylesheet" href="/static/css/setup.css?v=6">
+    <link rel="stylesheet" href="/static/css/setup.css?v=7">
     <link rel="stylesheet" href="/static/css/responsive.css?v=1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
 </head>
@@ -30,6 +30,7 @@
                 <div id="GameAndRoundInfo" class="header-game-info"></div>
             </div>
             <div class="header-buttons" id="headerButtons">
+                <a href="/rl" class="btn btn-secondary game-control-btn" style="text-decoration:none;display:inline-flex;align-items:center;">RL Training</a>
                 <button onclick="restartGame()" class="btn btn-secondary game-control-btn new-game-btn">New Game</button>
                 <!-- <button onclick="replayGame()" class="btn btn-primary game-control-btn replay-btn">Replay</button> -->
             </div>
@@ -102,6 +103,17 @@
                                         <label for="cardVisibilityDuration" class="setup-label setup-label--inline">Visible for</label>
                                         <input type="number" id="cardVisibilityDuration" class="setup-input setup-input--narrow" min="0.5" max="10" step="0.1" value="1.5" />
                                         <span class="setup-suffix">seconds</span>
+                                    </div>
+                                </div>
+                                <div class="setup-panel-block setup-panel-block--tight">
+                                    <h3 class="setup-subheading" id="lbl-record">Record for training</h3>
+                                    <p class="setup-microcopy">When on, your moves are saved as demos for bootstrapping an agent, and your bottom two cards stay visible the whole hole. Off by default so casual/test play is never collected.</p>
+                                    <div class="setup-field-row setup-field-row--inline record-training-row">
+                                        <label class="toggle-switch" for="recordForTraining">
+                                            <input type="checkbox" id="recordForTraining" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <label for="recordForTraining" class="setup-label setup-label--inline">Save my moves as training demos</label>
                                     </div>
                                 </div>
                                 <div class="setup-step-nav">
@@ -288,7 +300,7 @@
     <!-- Position modal removed - now using drag-and-drop instead -->
 
     <!-- Main JavaScript for all UI/game logic --> <!-- All game logic below -->
-    <script src="/static/js/game-core.js?v=4"></script>
+    <script src="/static/js/game-core.js?v=5"></script>
     <script src="/static/js/game-ui.js"></script>
     <script src="/static/js/voice.js"></script>
     <script src="/static/js/probabilities.js"></script>
@@ -296,7 +308,7 @@
     <script type="module" src="/static/js/chatbot.js"></script>
     <script src="/static/js/crowd-audio.js"></script>
     <script src="/static/js/faq.js"></script>
-    <script src="/static/js/golf.js"></script>
+    <script src="/static/js/golf.js?v=2"></script>
 
     <audio id="golfClapAudio" src="/static/sounds/golf_clap.mp3" preload="auto"></audio>
     <audio id="cardShuffleAudio" src="/static/sounds/card-shuffle.mp3" preload="auto"></audio>

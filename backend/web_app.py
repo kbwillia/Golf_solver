@@ -23,11 +23,73 @@ import os
 from game_state import get_game_state
 from flask import send_file
 from google_chipr_api import chirp3_voice
-from data_upset import upload_game_state
+from data_upset import upload_game_state, upload_human_demo, finalize_human_demos
+from agents import QLearningAgent
 
 # Load environment variables from .env file
 load_dotenv()
 # log = logging.getLogger('werkzeug')
+
+_demo_encoder = QLearningAgent()
+
+
+def _record_human_demo_step(game_session, game, player, game_action):
+    """Encode and upload one human move when Record for training is enabled."""
+    if not game_session.get('record_for_training'):
+        return
+    if (
+        game_action.get('type') == 'draw_deck'
+        and not game_action.get('keep', True)
+        and 'flip_position' not in game_action
+    ):
+        print("Skipping human demo: draw-discard missing flip_position")
+        return
+    # For draw decisions the human already peeked; mirror that in the state key.
+    prev_drawn = getattr(game, 'drawn_card', None)
+    if game_action.get('type') == 'draw_deck' and game.deck:
+        game.drawn_card = game.deck[-1]
+    try:
+        state_key = _demo_encoder.get_state_key(player, game)
+        action_key = _demo_encoder.get_action_key(game_action)
+        upload_human_demo(
+            game_id=game.game_id,
+            player_name=game_session.get('player_name'),
+            hole_num=game_session.get('current_game', 1),
+            round_num=game.round,
+            state_key=state_key,
+            action_key=action_key,
+            action=game_action,
+        )
+    except Exception as e:
+        print(f"Human demo upload failed (non-fatal): {e}")
+    finally:
+        game.drawn_card = prev_drawn
+
+
+def _finalize_human_demos_if_needed(game_session, game):
+    """Attach hole outcome to demo steps once the hole ends."""
+    if not game_session.get('record_for_training'):
+        return
+    if not game_session.get('game_over'):
+        return
+    finalize_key = f"demos_finalized_hole_{game_session.get('current_game', 1)}"
+    if game_session.get(finalize_key):
+        return
+    try:
+        scores = [game.calculate_score(p.grid) for p in game.players]
+        human_score = scores[0]
+        opponent_scores = scores[1:]
+        won = human_score == min(scores)
+        finalize_human_demos(
+            game_id=game.game_id,
+            hole_num=game_session.get('current_game', 1),
+            human_score=human_score,
+            opponent_scores=opponent_scores,
+            won=won,
+        )
+        game_session[finalize_key] = True
+    except Exception as e:
+        print(f"Human demo finalize failed (non-fatal): {e}")
 # log.setLevel(logging.ERROR)  # Only show errors, not every request
 
 # Get the absolute path to the backend directory
@@ -106,6 +168,120 @@ def get_or_fetch_custom_bot(ai_bot_id):
 def index():
     return render_template('index.html')
 
+
+@app.route('/rl')
+def rl_training():
+    """RL training visualization page (separate from the golf game UI)."""
+    return render_template('rl_training.html')
+
+
+@app.route('/api/rl/training')
+def api_rl_training():
+    """Chart-ready aggregates from backend/RL/output training artifacts."""
+    try:
+        from rl_training_viz import build_training_viz_payload
+        compare = request.args.get("compare") or ""
+        run_ids = [x.strip() for x in compare.split(",") if x.strip()]
+        return jsonify(build_training_viz_payload(compare_run_ids=run_ids or None))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/sync', methods=['POST', 'GET'])
+def api_rl_sync():
+    """Pull live progress from RunPod into local output for the viz page."""
+    try:
+        from rl_live_sync import sync_live_progress
+        from rl_training_viz import build_training_viz_payload
+        from rl_runs import archive_current_run
+        live = sync_live_progress()
+        # When a run just finished and stats exist, archive it into run history
+        if live.get("ok") and not live.get("running") and live.get("pulled_training_stats"):
+            archive_current_run(source="runpod_sync")
+        compare = request.args.get("compare") or ""
+        run_ids = [x.strip() for x in compare.split(",") if x.strip()]
+        payload = build_training_viz_payload(compare_run_ids=run_ids or None)
+        payload["sync"] = live
+        return jsonify(payload)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/runs', methods=['GET'])
+def api_rl_runs():
+    try:
+        from rl_runs import list_runs, archive_current_run
+        if request.args.get("archive") == "1":
+            meta = archive_current_run(source="manual", force=True)
+            return jsonify({"ok": True, "archived": meta, "runs": list_runs()})
+        return jsonify({"ok": True, "runs": list_runs()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/runs/<run_id>', methods=['DELETE'])
+def api_rl_run_delete(run_id):
+    try:
+        from rl_runs import delete_run
+        delete_run(run_id)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/control/status', methods=['GET'])
+def api_rl_control_status():
+    try:
+        from rl_control import get_status
+        return jsonify(get_status())
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/control/start', methods=['POST'])
+def api_rl_control_start():
+    try:
+        from rl_control import start_training
+        body = request.get_json(silent=True) or {}
+        result = start_training(body.get("params") or body)
+        return jsonify(result), (200 if result.get("ok") else 400)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/control/stop', methods=['POST'])
+def api_rl_control_stop():
+    try:
+        from rl_control import stop_training
+        result = stop_training()
+        return jsonify(result), (200 if result.get("ok") else 400)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/control/pull', methods=['POST'])
+def api_rl_control_pull():
+    try:
+        from rl_control import pull_results
+        result = pull_results()
+        return jsonify(result), (200 if result.get("ok") else 400)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/rl/control/params', methods=['GET', 'POST'])
+def api_rl_control_params():
+    try:
+        from rl_control import load_saved_params, save_params, DEFAULT_PARAMS
+        if request.method == 'GET':
+            return jsonify({"ok": True, "params": load_saved_params(), "defaults": DEFAULT_PARAMS})
+        body = request.get_json(silent=True) or {}
+        saved = save_params(body.get("params") or body)
+        return jsonify({"ok": True, "params": saved})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route('/health')
 def health_check():
     """Simple health check to verify the app is running"""
@@ -151,6 +327,7 @@ def create_game():
     player_name = data.get('player_name', 'Human')
     num_games = int(data.get('num_games', 1))
     selected_bots = data.get('selected_bots', [])  # Always an array of bot objects
+    record_for_training = bool(data.get('record_for_training', False))
 
     # Ensure Jim Nantz, Golf Pro, and Golf Bro are present exactly once using a loop
     from bot_personalities import JimNantzBot # deciding to only keep players in the chat with announcers
@@ -218,6 +395,7 @@ def create_game():
         'pending_proactive_comments': [],
         'selected_bots': selected_bots, # Store selected_bots in session
         'whos_first': 0,  # Human starts first. Kinda like dealer, but want the human to start.
+        'record_for_training': record_for_training,
     }
 
     print("Final player order:")
@@ -297,6 +475,8 @@ def make_move():
         if not game_action:
             return jsonify({'error': 'Invalid action'}), 400
 
+        _record_human_demo_step(game_session, game, player, game_action)
+
         original_agent = game.agents[0]
 
         class MockAgent:
@@ -316,6 +496,8 @@ def make_move():
             game_session['waiting_for_next_game'] = True
         else:
             game_session['waiting_for_next_game'] = False
+
+        _finalize_human_demos_if_needed(game_session, game)
 
         upload_game_state(
             game_id=game_id,
@@ -524,6 +706,8 @@ def run_ai_turn():
             game.next_player()
             print(f"After next_player: turn={game.turn}, player={game.players[game.turn].name}")
             game_session['ai_thinking'] = False
+
+            _finalize_human_demos_if_needed(game_session, game)
 
             if game_session['game_over'] and game_session['current_game'] < game_session['num_games']:
                 if not game_session.get('cumulative_updated_for_game', False):
@@ -836,4 +1020,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask app on port {port}")
     print(f"Environment PORT: {os.environ.get('PORT', 'Not set')}")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)

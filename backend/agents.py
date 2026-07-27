@@ -1,11 +1,19 @@
 import random
 import itertools
+import re
 from collections import defaultdict
 # Import from same directory
 from models import Card
 from probabilities import expected_value_draw_vs_discard
 import csv
 import os
+
+# Point values used for reward shaping (matches Card.score())
+_RANK_SCORE = {
+    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+    '10': 10, 'J': 0, 'Q': 10, 'K': 10,
+}
+_HIGH_RANKS = frozenset({'10', 'Q', 'K'})  # bad to keep unpaired (J is 0 — good)
 
 # Add PyTorch imports for GPU support  asdf
 try:
@@ -273,16 +281,37 @@ class HeuristicAgent:
 
         return baseline_expected - total_expected_score
 
+# Default dense reward-shaping weights (editable from /rl UI).
+# For a true solve, set enabled=False (or all weights to 0) so learning
+# optimizes only terminal golf outcomes — shaped rewards can bias the policy.
+DEFAULT_REWARD_SHAPING = {
+    "enabled": True,
+    "step": 0.05,
+    "pair": 1.5,
+    "high_keep": -0.8,
+    "low_keep": 0.3,
+    "midhigh_keep": -0.4,
+    "flip": 0.1,
+}
+
+
 class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
-    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2, n_bootstrap_games=250):
+    def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
+                 n_bootstrap_games=250, reward_shaping=None):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
         self.q_table = defaultdict(lambda: defaultdict(float))
         self.training_mode = True
+        # When False, choose_action records trajectories but skips online BC/Q mutations
+        # (used by parallel rollout workers; main process applies updates).
+        self.online_updates = True
         self.n_bootstrap_games = n_bootstrap_games
         self.games_played = 0
+        self.reward_shaping = dict(DEFAULT_REWARD_SHAPING)
+        if reward_shaping:
+            self.reward_shaping.update(reward_shaping)
 
     def get_state_key(self, player, game_state):
         from probabilities import expected_value_draw_vs_discard
@@ -349,17 +378,94 @@ class QLearningAgent:
 
         return actions
 
+    def is_bootstrapping(self):
+        """True only during EV pretraining (games_played < n_bootstrap_games)."""
+        return self.n_bootstrap_games > 0 and self.games_played < self.n_bootstrap_games
+
+    def behavioral_clone(self, state_key, action_key, target=1.0):
+        """
+        Behavioral cloning: pull expert action's Q toward `target`.
+        Only used during bootstrap — stop once Q-learning phase begins.
+        """
+        current = self.q_table[state_key][action_key]
+        self.q_table[state_key][action_key] = (
+            current + self.learning_rate * (target - current)
+        )
+
+    @staticmethod
+    def _parse_state_ranks(state_key):
+        """Extract discard/drawn ranks and known hand ranks from a state key."""
+        dis_m = re.search(r'_dis_([^_]+)_drawn_', state_key)
+        drawn_m = re.search(r'_drawn_([^_]+)_round_', state_key)
+        discard_rank = dis_m.group(1) if dis_m else 'none'
+        drawn_rank = drawn_m.group(1) if drawn_m else 'none'
+        hand_ranks = set(re.findall(r"'([A2-9JQK]|10)'", state_key))
+        return discard_rank, drawn_rank, hand_ranks
+
+    def shaped_step_reward(self, step):
+        """
+        Dense reward shaping from a trajectory step (weights from self.reward_shaping).
+        Disable via reward_shaping['enabled']=False for unbiased / solve-mode training.
+        """
+        rs = self.reward_shaping
+        if not rs.get("enabled", True):
+            return 0.0
+
+        reward = float(rs.get("step", 0.05))
+        action = step.get('action')
+        if isinstance(action, str):
+            try:
+                import ast
+                action = ast.literal_eval(action)
+            except (ValueError, SyntaxError):
+                return reward
+        if not isinstance(action, dict):
+            return reward
+
+        discard_rank, drawn_rank, hand_ranks = self._parse_state_ranks(step.get('state_key', ''))
+        placed_rank = None
+        if action.get('type') == 'take_discard':
+            placed_rank = discard_rank if discard_rank != 'none' else None
+        elif action.get('type') == 'draw_deck' and action.get('keep', True):
+            # keep path: drawn is usually unknown at decision time (drawn_none);
+            # skip pair/high shaping when we can't see the card
+            if drawn_rank != 'none':
+                placed_rank = drawn_rank
+
+        if placed_rank and placed_rank != 'none':
+            if placed_rank in hand_ranks:
+                reward += float(rs.get("pair", 1.5))
+            elif placed_rank in _HIGH_RANKS:
+                reward += float(rs.get("high_keep", -0.8))
+            else:
+                pts = _RANK_SCORE.get(placed_rank, 5)
+                if pts <= 3:
+                    reward += float(rs.get("low_keep", 0.3))
+                elif pts >= 8:
+                    reward += float(rs.get("midhigh_keep", -0.4))
+
+        if action.get('type') == 'draw_deck' and not action.get('keep', True):
+            reward += float(rs.get("flip", 0.1))
+
+        return reward
+
     def choose_action(self, player, game_state, trajectory=None):
         legal_actions = self.get_legal_actions(player, game_state)
         if not legal_actions:
             return None
 
         # Bootstrapping phase: use EVAgent for first n_bootstrap_games
-        if self.games_played < self.n_bootstrap_games:
+        if self.is_bootstrapping():
             ev_agent = EVAgent()
             action = ev_agent.choose_action(player, game_state)
             if action not in legal_actions:
                 action = random.choice(legal_actions)
+            # Real imitation: boost the expert action's Q (behavioral cloning).
+            # Stops automatically when bootstrap ends.
+            if self.online_updates:
+                state_key = self.get_state_key(player, game_state)
+                action_key = self.get_action_key(action)
+                self.behavioral_clone(state_key, action_key, target=1.0)
         else:
             # Custom epsilon-greedy: 1/3 take_discard, 1/3 draw_deck_keep, 1/3 draw_deck_discard_flip
             if self.training_mode and random.random() < self.epsilon:
@@ -419,29 +525,22 @@ class QLearningAgent:
         self.q_table[state_key][action_key] = new_q
 
     def train_on_trajectory(self, trajectory, final_reward, final_score):
-        """Train the agent on a complete game trajectory with improved rewards"""
+        """Train on a trajectory with dense step shaping + terminal reward."""
         if not trajectory:
             return
 
-        # Update Q-values for each step in the trajectory
         for i, step in enumerate(trajectory):
             state_key = step['state_key']
             action_key = step['action_key']
+            immediate_reward = self.shaped_step_reward(step)
 
-            # Calculate immediate reward for this action
-            # Give small positive reward for taking actions (encourages exploration)
-            # The main learning comes from the final reward
-            immediate_reward = 0.1  # Small positive reward for taking action
-
-            # Get next state and actions (if not the last step)
             if i < len(trajectory) - 1:
                 next_step = trajectory[i + 1]
                 next_state_key = next_step['state_key']
                 next_actions = [next_step['action']]
             else:
-                next_state_key = state_key  # Terminal state
+                next_state_key = state_key
                 next_actions = []
-                # Add final reward to the last action
                 immediate_reward += final_reward
 
             self.update(state_key, action_key, immediate_reward, next_state_key, next_actions)
@@ -757,8 +856,14 @@ class GPUQLearningAgent(QLearningAgent):
     """GPU-accelerated version of QLearningAgent using PyTorch tensors for computation, but same Q-table structure as CPU agent."""
 
     def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
-                 n_bootstrap_games=0, device=None):
-        super().__init__(learning_rate, discount_factor, epsilon, n_bootstrap_games)
+                 n_bootstrap_games=0, device=None, reward_shaping=None):
+        super().__init__(
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon,
+            n_bootstrap_games=n_bootstrap_games,
+            reward_shaping=reward_shaping,
+        )
         if not TORCH_AVAILABLE:
             raise ImportError("PyTorch is required for GPUQLearningAgent")
         self.device = device if device else get_device()
@@ -775,23 +880,8 @@ class GPUQLearningAgent(QLearningAgent):
         self.q_table[state_key][action_key] = new_value
 
     def train_on_trajectory(self, trajectory, final_reward, final_score):
-        """Train the agent on a complete game trajectory with improved rewards (using tensor ops for speed)."""
-        if not trajectory:
-            return
-        # Update Q-values for each step in the trajectory
-        for i, step in enumerate(trajectory):
-            state_key = step['state_key']
-            action_key = step['action_key']
-            immediate_reward = 0.1
-            if i < len(trajectory) - 1:
-                next_step = trajectory[i + 1]
-                next_state_key = next_step['state_key']
-                next_actions = [next_step['action']]
-            else:
-                next_state_key = state_key
-                next_actions = []
-                immediate_reward += final_reward
-            self.update(state_key, action_key, immediate_reward, next_state_key, next_actions)
+        """Delegate to base class (includes dense reward shaping)."""
+        return QLearningAgent.train_on_trajectory(self, trajectory, final_reward, final_score)
 
     def update(self, state_key, action_key, reward, next_state_key, next_actions):
         """Update Q-values using Q-learning update rule (with tensor ops if possible)."""
@@ -815,7 +905,7 @@ class GPUQLearningAgent(QLearningAgent):
             for i, step in enumerate(trajectory):
                 state_key = step['state_key']
                 action_key = step['action_key']
-                immediate_reward = 0.1
+                immediate_reward = self.shaped_step_reward(step)
                 if i == len(trajectory) - 1:
                     immediate_reward += reward
                     next_state_key = state_key

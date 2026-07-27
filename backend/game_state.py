@@ -153,6 +153,7 @@ def get_game_state(game_id, games):
         'action_history': getattr(game, 'action_history', []),
         'game_id': game_id,  # where game_id is the UUID string
         'whos_first': game_session.get('whos_first', 0),
+        'record_for_training': bool(game_session.get('record_for_training', False)),
     }
         # Set winner for current game if over
     if game_session['game_over']:

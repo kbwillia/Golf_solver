@@ -33,9 +33,9 @@ class GolfGame:
                 agents.append(RandomAgent())
             elif agent_type == "heuristic":
                 agents.append(HeuristicAgent())
-            elif agent_type == "qlearning":
-                # Use persistent Q-learning agent if provided
-                if q_agents and i < len(q_agents):
+            elif agent_type in ("qlearning", "dqn"):
+                # Persistent learner (tabular Q or neural DQN) must be passed via q_agents
+                if q_agents and i < len(q_agents) and q_agents[i] is not None:
                     agents.append(q_agents[i])
                 else:
                     agents.append(QLearningAgent())
@@ -167,7 +167,9 @@ class GolfGame:
         # Display updated grids after the action
         # self.display_all_grids() # tst
 
-        # --- Upload game state after every action ---
+        # --- Upload game state after every action (skip headless RL / no game_id) ---
+        if getattr(self, "game_id", None) is None:
+            return
         try:
             game_state = {
                 "round": self.round,
@@ -181,7 +183,7 @@ class GolfGame:
                 "game_over": self.all_players_done(),
             }
             upload_game_state(
-                game_id=getattr(self, 'game_id', None),
+                game_id=self.game_id,
                 game_state=game_state
             )
         except Exception as e:

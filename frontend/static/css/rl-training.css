@@ -1,0 +1,349 @@
+/* RL training visualization page */
+body.rl-page,
+html.rl-page {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: Georgia, "Times New Roman", serif;
+  background: #1a2e1a;
+  color: #e8efe8;
+}
+
+.rl-page {
+  background:
+    linear-gradient(160deg, rgba(11, 80, 27, 0.92), rgba(26, 46, 26, 0.96)),
+    url('/static/4k-golf-1.jpg') center/cover no-repeat fixed;
+}
+
+.rl-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2.5rem;
+  box-sizing: border-box;
+  min-height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.rl-shell::-webkit-scrollbar {
+  width: 1px;
+}
+.rl-shell::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.rl-topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.rl-brand {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f5f5f0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.rl-sub {
+  margin: 0.25rem 0 0;
+  font-family: Arial, sans-serif;
+  font-size: 0.95rem;
+  color: rgba(245, 245, 240, 0.78);
+  max-width: 36rem;
+}
+
+.rl-nav a {
+  font-family: Arial, sans-serif;
+  color: #f5f5f0;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(245, 250, 245, 0.12);
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.rl-nav a:hover {
+  background: rgba(245, 250, 245, 0.22);
+}
+
+.rl-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.rl-stat {
+  background: rgba(245, 250, 245, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.rl-stat-label {
+  font-family: Arial, sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(245, 245, 240, 0.65);
+  margin: 0 0 0.35rem;
+}
+
+.rl-stat-value {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #f5f5f0;
+}
+
+.rl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .rl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rl-panel {
+  background: rgba(245, 250, 245, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 1rem 1.1rem 0.85rem;
+  backdrop-filter: blur(12px);
+  min-height: 280px;
+}
+
+.rl-panel--wide {
+  grid-column: 1 / -1;
+}
+
+.rl-panel h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f5f5f0;
+}
+
+.rl-panel p.hint {
+  margin: 0 0 0.75rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.8rem;
+  color: rgba(245, 245, 240, 0.6);
+}
+
+.rl-chart-wrap {
+  position: relative;
+  height: 260px;
+}
+
+.rl-panel--wide .rl-chart-wrap {
+  height: 300px;
+}
+
+.rl-empty,
+.rl-error,
+.rl-loading {
+  font-family: Arial, sans-serif;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: rgba(245, 245, 240, 0.85);
+}
+
+.rl-error {
+  color: #ffc9c9;
+}
+
+.rl-live {
+  margin: 0.45rem 0 0;
+  font-family: Arial, sans-serif;
+  font-size: 0.85rem;
+  color: #7bc48a;
+}
+
+.rl-live.is-idle {
+  color: rgba(245, 245, 240, 0.55);
+}
+
+.rl-live.is-error {
+  color: #ffc9c9;
+}
+
+.rl-controls {
+  margin-bottom: 1.25rem;
+}
+
+.rl-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.rl-btn {
+  font-family: Arial, sans-serif;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(245, 250, 245, 0.14);
+  color: #f5f5f0;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+
+.rl-btn:hover {
+  background: rgba(245, 250, 245, 0.24);
+}
+
+.rl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rl-btn-primary {
+  background: rgba(61, 139, 79, 0.75);
+  border-color: rgba(123, 196, 138, 0.55);
+}
+
+.rl-btn-danger {
+  background: rgba(160, 60, 60, 0.65);
+  border-color: rgba(255, 180, 180, 0.35);
+}
+
+.rl-control-msg {
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  color: rgba(245, 245, 240, 0.75);
+  min-height: 1.2em;
+  margin: 0 0 0.75rem;
+}
+
+.rl-control-msg.is-error {
+  color: #ffc9c9;
+}
+
+.rl-control-msg.is-ok {
+  color: #7bc48a;
+}
+
+.rl-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.65rem 0.85rem;
+}
+
+.rl-params-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  color: rgba(245, 245, 240, 0.72);
+}
+
+.rl-params-grid input,
+.rl-params-grid select {
+  font-family: Arial, sans-serif;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.22);
+  color: #f5f5f0;
+}
+
+.rl-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem !important;
+  margin-top: 1.15rem;
+}
+
+.rl-params-grid label.is-hidden {
+  display: none;
+}
+
+.rl-device-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  color: rgba(245, 245, 240, 0.55);
+}
+
+.rl-params-section {
+  grid-column: 1 / -1;
+  margin: 0.75rem 0 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(245, 245, 240, 0.88);
+  letter-spacing: 0.02em;
+}
+
+.rl-runs-wrap {
+  max-height: 240px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.rl-runs-wrap::-webkit-scrollbar { width: 1px; height: 1px; }
+.rl-runs-wrap::-webkit-scrollbar-thumb { background: transparent; }
+
+.rl-runs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  color: rgba(245, 245, 240, 0.88);
+}
+.rl-runs-table th,
+.rl-runs-table td {
+  text-align: left;
+  padding: 0.4rem 0.45rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+.rl-runs-table th {
+  color: rgba(245, 245, 240, 0.55);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: rgba(26, 46, 26, 0.95);
+}
+
+.tip {
+  border-bottom: 1px dotted rgba(245, 245, 240, 0.45);
+  cursor: help;
+}
+
+.rl-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 280px;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(12, 28, 12, 0.96);
+  border: 1px solid rgba(123, 196, 138, 0.35);
+  color: #f5f5f0;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
