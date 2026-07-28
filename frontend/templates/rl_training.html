@@ -6,7 +6,7 @@
     <title>RL Training — Golf Solver</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260727d">
+    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260727e">
 </head>
 <body class="rl-page">
     <div class="rl-shell">
@@ -25,28 +25,32 @@
 
         <section class="rl-panel rl-panel--wide rl-controls" id="rlControls" aria-label="Training controls">
             <h2>Training controls</h2>
-            <p class="hint">CPU = local parallel tabular Q (auto-archives + uploads run summary to Supabase). GPU = neural DQN on RunPod (auto-pulls into the UI and archives when finished). Hover any <span class="tip" data-tip="glossary">dotted term</span> for definitions.</p>
+            <p class="hint">CPU = local parallel tabular Q. GPU = neural DQN on RunPod. Use the toggle to switch param sets — each side is saved separately. Start / Stop apply to the selected device; Stop all kills both. Hover any <span class="tip" data-tip="glossary">dotted term</span> for definitions.</p>
             <div class="rl-control-actions">
-                <button type="button" class="rl-btn rl-btn-primary" id="btnStart">Start</button>
-                <button type="button" class="rl-btn rl-btn-danger" id="btnStop">Stop</button>
+                <button type="button" class="rl-btn rl-btn-primary" id="btnStart">Start CPU</button>
+                <button type="button" class="rl-btn rl-btn-danger" id="btnStop">Stop CPU</button>
+                <button type="button" class="rl-btn rl-btn-danger" id="btnStopAll" title="Stop local CPU and RunPod GPU">Stop all</button>
                 <button type="button" class="rl-btn" id="btnPull" title="Manual retry if auto-sync missed a finished RunPod job">Force pull</button>
-                <button type="button" class="rl-btn" id="btnSaveParams">Save params</button>
+                <button type="button" class="rl-btn" id="btnSaveParams">Save CPU params</button>
                 <button type="button" class="rl-btn" id="btnArchive">Archive current</button>
             </div>
             <p class="rl-control-msg" id="rlControlMsg"></p>
             <form id="rlParamsForm" class="rl-params-grid" autocomplete="off">
-                <label>Device
-                    <select name="train_device" id="trainDeviceSelect">
-                        <option value="cpu">CPU — local parallel tabular Q</option>
-                        <option value="gpu">GPU — RunPod neural DQN</option>
-                    </select>
-                </label>
+                <div class="rl-device-toggle-wrap">
+                    <span class="rl-device-toggle-label">Params</span>
+                    <div class="rl-device-toggle" role="group" aria-label="CPU or GPU parameter set">
+                        <button type="button" class="rl-device-btn is-active" data-device="cpu" id="deviceToggleCpu">CPU</button>
+                        <button type="button" class="rl-device-btn" data-device="gpu" id="deviceToggleGpu">GPU</button>
+                    </div>
+                    <input type="hidden" name="train_device" id="trainDeviceSelect" value="cpu">
+                    <p class="rl-device-toggle-hint" id="devicePresetHint">Editing CPU tabular Q params</p>
+                </div>
                 <label><span class="tip" data-tip="workers">Rollout workers</span> <input type="number" name="num_workers" min="1" max="64" step="1"></label>
                 <label class="rl-gpu-only"><span class="tip" data-tip="batch_size">DQN batch size</span> <input type="number" name="batch_size" min="32" step="32"></label>
                 <label class="rl-gpu-only"><span class="tip" data-tip="hidden_size">DQN hidden size</span> <input type="number" name="hidden_size" min="32" step="32"></label>
                 <label class="rl-gpu-only"><span class="tip" data-tip="train_steps">Train steps / round</span> <input type="number" name="train_steps_per_game" min="4" step="4"></label>
                 <label><span class="tip" data-tip="avg_score">Games</span> <input type="number" name="num_games" min="1" step="1"></label>
-                <label><span class="tip" data-tip="learning_rate">Learning rate</span> <input type="number" name="learning_rate" min="0" max="1" step="0.01"></label>
+                <label><span class="tip" data-tip="learning_rate">Learning rate</span> <input type="number" name="learning_rate" min="0" max="1" step="0.001"></label>
                 <label><span class="tip" data-tip="discount_factor">Discount</span> <input type="number" name="discount_factor" min="0" max="1" step="0.01"></label>
                 <label><span class="tip" data-tip="epsilon">Epsilon</span> <input type="number" name="epsilon" min="0" max="1" step="0.01"></label>
                 <label>Epsilon decay <input type="number" name="epsilon_decay_factor" min="0" max="1" step="0.001"></label>
@@ -215,6 +219,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260727e"></script>
+    <script src="/static/js/rl-training.js?v=20260727k"></script>
 </body>
 </html>

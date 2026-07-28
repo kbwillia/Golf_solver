@@ -278,6 +278,8 @@ def train_qlearning_agent_parallel(
                 phase = "BOOTSTRAP" if games_done < bootstrap_n else "Q-LEARNING"
                 elapsed = time.time() - t0
                 gps = games_done / max(1e-6, elapsed)
+                training_stats["total_time"] = float(elapsed)
+                training_stats["games_per_sec"] = float(gps)
                 print(
                     f"  Game {games_done}: {phase} | Win rate={win_rate:.2%}, "
                     f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "

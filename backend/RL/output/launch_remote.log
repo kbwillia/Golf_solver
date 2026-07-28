@@ -7,18 +7,7 @@ Using uploaded trainer overrides; skipping git pull
 torch 2.1.0+cu118 device NVIDIA GeForce RTX 3090
 === Local overrides (if uploaded) ===
 === Stub supabase for headless RL ===
-PID 30004 NUM_GAMES=200 TRAIN_DEVICE=gpu PYTHON=/workspace/venv/bin/python
-Starting remote training with params:
-{
-  "num_games": 200,
-  "learning_rate": 0.001,
-  "discount_factor": 0.9,
-  "epsilon": 0.2,
-  "epsilon_decay_factor": 0.995,
-  "n_bootstrap_games": 50,
-  "use_imitation_learning": true,
-  "epsilon_decay_interval": 100,
-  "progress_report_interval": 32,
+PID 57967 NUM_GAMES=100000 TRAIN_DEVICE=gpu PYTHON=/workspace/venv/bin/python
   "opponent_type": "ev_ai",
   "use_reward_shaping": true,
   "shape_step": 0.05,
@@ -30,8 +19,8 @@ Starting remote training with params:
   "train_device": "gpu",
   "train_mode": "dqn_parallel",
   "batch_size": 512,
-  "hidden_size": 256,
-  "train_steps_per_game": 16,
+  "hidden_size": 128,
+  "train_steps_per_game": 8,
   "num_workers": 8
 }
 ======================================================================
@@ -40,13 +29,25 @@ NEURAL DQN TRAINING (PARALLEL ROLLOUTS + GPU UPDATES)
 Device: cuda
 GPU: NVIDIA GeForce RTX 3090
 Workers: 8 (cpu_count=64) chunk=16
-State dim=140 actions=12 hidden=256 batch=512
-Train steps/round~16 (clamped 8-32 from transitions)
-Games=200 bootstrap=50 opponent=ev_ai
+State dim=140 actions=12 hidden=128 batch=512
+Train steps/round~8 (clamped 8-32 from transitions)
+Games=100000 bootstrap=80000 opponent=ev_ai
 Loaded DQN weights from /workspace/Golf_solver/backend/RL/output/dqn_policy.pt
-  Game 32: BOOTSTRAP | Win rate=46.88%, Avg score=16.94, States=136332, Epsilon=0.196, loss=n/a, buffer=192, steps=16, 12.7 games/s, workers=8, device=cuda
-  Game 64: DQN | Win rate=43.75%, Avg score=14.55, States=136332, Epsilon=0.196, loss=0.9247, buffer=448, steps=16, 21.1 games/s, workers=8, device=cuda
-  Game 96: DQN | Win rate=36.46%, Avg score=16.38, States=136332, Epsilon=0.196, loss=0.8338, buffer=576, steps=16, 16.7 games/s, workers=8, device=cuda
+  Game 64: BOOTSTRAP | Win rate=39.06%, Avg score=12.44, States=43596, Epsilon=0.010, loss=1.1094, buffer=512, steps=8, 83.3 games/s, workers=8, device=cuda
+  Game 112: BOOTSTRAP | Win rate=37.50%, Avg score=13.03, States=43596, Epsilon=0.010, loss=1.1671, buffer=896, steps=8, 101.7 games/s, workers=8, device=cuda
+  Game 160: BOOTSTRAP | Win rate=40.00%, Avg score=13.36, States=43596, Epsilon=0.010, loss=1.1379, buffer=1280, steps=8, 106.1 games/s, workers=8, device=cuda
+  Game 208: BOOTSTRAP | Win rate=41.83%, Avg score=13.04, States=43596, Epsilon=0.010, loss=1.1078, buffer=1664, steps=8, 113.1 games/s, workers=8, device=cuda
+  Game 256: BOOTSTRAP | Win rate=42.97%, Avg score=13.24, States=43596, Epsilon=0.010, loss=1.1010, buffer=2048, steps=8, 113.9 games/s, workers=8, device=cuda
+  Game 304: BOOTSTRAP | Win rate=42.11%, Avg score=13.27, States=43596, Epsilon=0.010, loss=1.0485, buffer=2432, steps=8, 116.7 games/s, workers=8, device=cuda
+  Game 352: BOOTSTRAP | Win rate=43.18%, Avg score=13.02, States=43596, Epsilon=0.010, loss=0.9888, buffer=2816, steps=8, 118.1 games/s, workers=8, device=cuda
+  Game 400: BOOTSTRAP | Win rate=44.75%, Avg score=12.79, States=43596, Epsilon=0.010, loss=1.1414, buffer=3200, steps=8, 120.8 games/s, workers=8, device=cuda
+  Game 464: BOOTSTRAP | Win rate=44.61%, Avg score=12.82, States=43596, Epsilon=0.010, loss=0.8443, buffer=3712, steps=8, 122.1 games/s, workers=8, device=cuda
+  Game 512: BOOTSTRAP | Win rate=43.75%, Avg score=13.01, States=43596, Epsilon=0.010, loss=0.9670, buffer=4096, steps=8, 123.1 games/s, workers=8, device=cuda
+Saved DQN weights to /workspace/Golf_solver/backend/RL/output/dqn_policy.pt
+  Game 560: BOOTSTRAP | Win rate=43.21%, Avg score=13.11, States=43596, Epsilon=0.010, loss=1.1493, buffer=4480, steps=8, 123.1 games/s, workers=8, device=cuda
+  Game 608: BOOTSTRAP | Win rate=43.42%, Avg score=13.19, States=43596, Epsilon=0.010, loss=1.0331, buffer=4864, steps=8, 122.3 games/s, workers=8, device=cuda
+  Game 656: BOOTSTRAP | Win rate=43.14%, Avg score=13.18, States=43596, Epsilon=0.010, loss=1.1047, buffer=5248, steps=8, 123.6 games/s, workers=8, device=cuda
+  Game 704: BOOTSTRAP | Win rate=44.18%, Avg score=12.96, States=43596, Epsilon=0.010, loss=0.8921, buffer=5632, steps=8, 125.3 games/s, workers=8, device=cuda
     PID     ELAPSED CMD
-  30004       00:08 /workspace/venv/bin/python -u run_remote_train.py
+  57967       00:08 /workspace/venv/bin/python -u run_remote_train.py
 === TRAIN LAUNCHED ===

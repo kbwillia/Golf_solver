@@ -751,6 +751,8 @@ def train_dqn_agent(
                 states, _ = agent.get_q_table_size()
                 phase = "BOOTSTRAP" if games_done < bootstrap_n else "DQN"
                 gps = games_done / max(1e-6, time.time() - t0)
+                training_stats["total_time"] = float(time.time() - t0)
+                training_stats["games_per_sec"] = float(gps)
                 loss_s = f"{last_loss:.4f}" if last_loss is not None else "n/a"
                 print(
                     f"  Game {games_done}: {phase} | Win rate={win_rate:.2%}, "

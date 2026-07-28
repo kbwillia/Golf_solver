@@ -217,70 +217,113 @@ def _build_from_stats(
     if not isinstance(stats, dict):
         return {"available": False, "error": "training_stats.json unreadable"}
 
-    scores = [float(x) for x in stats.get("scores", [])]
-    opp = [float(x) for x in stats.get("opponent_scores", [])]
-    states = [int(x) for x in stats.get("qtable_states", [])]
-    entries = [int(x) for x in stats.get("qtable_entries", [])]
-    eps = [float(x) for x in stats.get("epsilon_values", [])]
-    loss_raw = list(stats.get("loss_values", []) or [])
-    buffer_raw = list(stats.get("buffer_sizes", []) or [])
-    train_mode = str(stats.get("train_mode") or ("dqn" if loss_raw else "tabular"))
+    games_played = int(stats.get("games_played") or 0)
+    train_mode = str(stats.get("train_mode") or "")
     train_device = str(stats.get("train_device") or "")
-    n = max(len(scores), len(states), len(entries), len(eps), len(loss_raw), len(buffer_raw), 0)
-    games = list(range(1, n + 1))
 
-    def pad(seq: list, fill):
-        if len(seq) == n:
-            return seq
-        if not seq:
-            return [fill] * n
-        if len(seq) < n:
-            mapped = []
+    # Prefer compact full-run series (absolute game #s spanning the whole job)
+    full = stats.get("series_full") if isinstance(stats.get("series_full"), dict) else None
+    use_full = bool(full and full.get("games") and len(full["games"]) >= 2)
+
+    hist_scores = [float(x) for x in stats.get("scores", [])]
+    hist_opp = [float(x) for x in stats.get("opponent_scores", [])]
+
+    if use_full:
+        games = [int(x) for x in full["games"]]
+        n = len(games)
+
+        def _align(seq, cast, fill=None):
+            if not seq:
+                return [] if fill is None else [fill] * n
+            out = []
             for i in range(n):
-                idx = min(len(seq) - 1, int(i * len(seq) / n))
-                mapped.append(seq[idx])
-            return mapped
-        return seq[:n]
+                j = min(len(seq) - 1, i)
+                v = seq[j]
+                out.append(fill if v is None and fill is not None else (None if v is None else cast(v)))
+            return out
 
-    scores = pad(scores, 0.0)
-    opp = pad(opp, 0.0) if opp else []
-    states = pad(states, 0)
-    entries = pad(entries, 0)
-    eps = pad(eps, 0.0)
-    # Preserve None gaps in loss (warmup before buffer fills)
-    if loss_raw:
-        loss_vals = []
-        for i in range(n):
-            idx = min(len(loss_raw) - 1, int(i * len(loss_raw) / max(1, n)))
-            v = loss_raw[idx]
-            loss_vals.append(None if v is None else float(v))
+        scores = _align(full.get("scores") or hist_scores, float, 0.0)
+        opp = _align(full.get("opponent_scores") or hist_opp, float, 0.0) if (full.get("opponent_scores") or hist_opp) else []
+        states = _align(full.get("qtable_states") or [], int, 0)
+        entries = _align(full.get("qtable_entries") or [], int, 0)
+        eps = _align(full.get("epsilon") or [], float, 0.0)
+        loss_vals = _align(full.get("loss") or [], float, None) if full.get("loss") else []
+        buffer_sizes = _align(full.get("buffer_sizes") or [], int, 0) if full.get("buffer_sizes") else []
+        if not train_mode:
+            train_mode = "dqn" if loss_vals else "tabular"
     else:
-        loss_vals = []
-    buffer_sizes = pad([int(x) for x in buffer_raw], 0) if buffer_raw else []
+        scores = list(hist_scores)
+        opp = list(hist_opp)
+        states = [int(x) for x in stats.get("qtable_states", [])]
+        entries = [int(x) for x in stats.get("qtable_entries", [])]
+        eps = [float(x) for x in stats.get("epsilon_values", [])]
+        loss_raw = list(stats.get("loss_values", []) or [])
+        buffer_raw = list(stats.get("buffer_sizes", []) or [])
+        if not train_mode:
+            train_mode = "dqn" if loss_raw else "tabular"
+        n = max(len(scores), len(states), len(entries), len(eps), len(loss_raw), len(buffer_raw), 0)
+        # Absolute game numbers for tailed series (e.g. 45001..50000), not 1..n
+        start = max(1, (games_played or n) - n + 1) if n else 1
+        games = list(range(start, start + n))
+
+        def pad(seq: list, fill):
+            if len(seq) == n:
+                return seq
+            if not seq:
+                return [fill] * n
+            if len(seq) < n:
+                mapped = []
+                for i in range(n):
+                    idx = min(len(seq) - 1, int(i * len(seq) / n))
+                    mapped.append(seq[idx])
+                return mapped
+            return seq[:n]
+
+        scores = pad(scores, 0.0)
+        opp = pad(opp, 0.0) if opp else []
+        states = pad(states, 0)
+        entries = pad(entries, 0)
+        eps = pad(eps, 0.0)
+        if loss_raw:
+            loss_vals = []
+            for i in range(n):
+                idx = min(len(loss_raw) - 1, int(i * len(loss_raw) / max(1, n)))
+                v = loss_raw[idx]
+                loss_vals.append(None if v is None else float(v))
+        else:
+            loss_vals = []
+        buffer_sizes = pad([int(x) for x in buffer_raw], 0) if buffer_raw else []
+
+    if not hist_scores:
+        hist_scores = [float(x) for x in scores if x is not None]
+    if not hist_opp:
+        hist_opp = [float(x) for x in opp if x is not None]
 
     window = max(5, min(50, n // 20 or 5))
     win_window = max(20, min(200, n // 10 or 20))
 
-    # Score-based wins (reliable)
     score_wins = 0
-    if scores and opp and len(scores) == len(opp):
-        score_wins = sum(1 for a, b in zip(scores, opp) if a < b)
+    if hist_scores and hist_opp and len(hist_scores) == len(hist_opp):
+        score_wins = sum(1 for a, b in zip(hist_scores, hist_opp) if a < b)
 
     series_raw = {
         "games": games,
         "scores": scores,
         "opponent_scores": opp if opp else [None] * n,
-        "score_ma": _moving_average(scores, window),
-        "opponent_ma": _moving_average(opp, window) if opp else [None] * n,
+        "score_ma": _moving_average([float(x or 0) for x in scores], window),
+        "opponent_ma": _moving_average([float(x or 0) for x in opp], window) if opp else [None] * n,
         "qtable_states": states,
         "qtable_entries": entries,
         "epsilon": eps,
-        "rolling_win_rate": _rolling_win_rate(scores, opp, win_window) if opp else [None] * n,
+        "rolling_win_rate": _rolling_win_rate(
+            [float(x or 0) for x in scores],
+            [float(x or 0) for x in opp],
+            win_window,
+        ) if opp else [None] * n,
         "loss": loss_vals,
-        "loss_ma": _moving_average([x for x in loss_vals if x is not None], window) if any(x is not None for x in loss_vals) else [],
+        "loss_ma": [],
         "buffer_sizes": buffer_sizes,
     }
-    # Align loss_ma length to games if computed from filtered list — recompute properly
     if loss_vals and any(x is not None for x in loss_vals):
         filled = []
         last = None
@@ -289,12 +332,15 @@ def _build_from_stats(
                 last = x
             filled.append(last if last is not None else 0.0)
         series_raw["loss_ma"] = _moving_average(filled, window)
-    series = _downsample(series_raw, max_points=max_points)
+    # Full-run series is already compact; keep more points so GPU loss spans the job
+    series = _downsample(series_raw, max_points=max(max_points, 800 if use_full else max_points))
 
-    games_played = int(stats.get("games_played") or n)
+    if not games_played:
+        games_played = int(games[-1]) if games else n
     first = scores[: min(100, len(scores))] if scores else []
     last = scores[-min(100, len(scores)) :] if scores else []
     final_loss = next((x for x in reversed(loss_vals) if x is not None), None) if loss_vals else None
+    wins_count = score_wins or int(stats.get("wins", 0))
 
     return {
         "available": True,
@@ -304,15 +350,16 @@ def _build_from_stats(
         "train_mode": train_mode,
         "train_device": train_device,
         "series": series,
-        "score_histogram": _score_histogram(scores),
+        "series_span": "full" if use_full else "tail",
+        "score_histogram": _score_histogram(hist_scores),
         "summary": {
             "games_played": games_played,
-            "wins": score_wins or int(stats.get("wins", 0)),
-            "losses": max(0, games_played - (score_wins or int(stats.get("wins", 0)))),
-            "win_rate": ((score_wins or int(stats.get("wins", 0))) / games_played) if games_played else 0.0,
-            "avg_score": float(sum(scores) / len(scores)) if scores else None,
-            "avg_opponent_score": float(sum(opp) / len(opp)) if opp else None,
-            "best_score": float(min(scores)) if scores else None,
+            "wins": wins_count,
+            "losses": max(0, games_played - wins_count),
+            "win_rate": (wins_count / games_played) if games_played else 0.0,
+            "avg_score": float(sum(hist_scores) / len(hist_scores)) if hist_scores else None,
+            "avg_opponent_score": float(sum(hist_opp) / len(hist_opp)) if hist_opp else None,
+            "best_score": float(min(hist_scores)) if hist_scores else None,
             "early_avg_score": float(sum(first) / len(first)) if first else None,
             "late_avg_score": float(sum(last) / len(last)) if last else None,
             "improvement": (
@@ -441,7 +488,7 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
         or params.get("train_mode")
         or params.get("train_device")
     )
-    is_dqn = str(train_mode).lower() in ("dqn", "gpu")
+    is_dqn = str(train_mode).lower() in ("dqn", "dqn_parallel", "gpu")
     qhist = (
         {"available": False}
         if is_dqn
@@ -458,7 +505,7 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
             live = {}
 
     if live.get("train_mode"):
-        is_dqn = is_dqn or str(live.get("train_mode")).lower() == "dqn"
+        is_dqn = is_dqn or str(live.get("train_mode")).lower() in ("dqn", "dqn_parallel", "gpu")
         if isinstance(stats, dict) and stats.get("available"):
             stats["train_mode"] = live.get("train_mode") or stats.get("train_mode")
             stats["train_device"] = live.get("train_device") or stats.get("train_device")

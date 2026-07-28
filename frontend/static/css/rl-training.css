@@ -171,6 +171,7 @@ html.rl-page {
   font-family: Arial, sans-serif;
   font-size: 0.85rem;
   color: #7bc48a;
+  line-height: 1.35;
 }
 
 .rl-live.is-idle {
@@ -273,6 +274,62 @@ html.rl-page {
 
 .rl-params-grid label.is-hidden {
   display: none;
+}
+
+.rl-device-toggle-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.15rem;
+}
+
+.rl-device-toggle-label {
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  color: rgba(245, 245, 240, 0.72);
+}
+
+.rl-device-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.rl-device-btn {
+  font-family: Arial, sans-serif;
+  font-size: 0.88rem;
+  border: none;
+  background: transparent;
+  color: rgba(245, 245, 240, 0.7);
+  padding: 0.45rem 1.15rem;
+  cursor: pointer;
+  min-width: 4.5rem;
+}
+
+.rl-device-btn + .rl-device-btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.rl-device-btn:hover {
+  background: rgba(245, 250, 245, 0.12);
+  color: #f5f5f0;
+}
+
+.rl-device-btn.is-active {
+  background: rgba(61, 139, 79, 0.75);
+  color: #f5f5f0;
+}
+
+.rl-device-toggle-hint {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  color: rgba(245, 245, 240, 0.55);
+  flex: 1 1 12rem;
 }
 
 .rl-device-hint {

@@ -57,14 +57,78 @@ def load_json_file(path: str, default: Any = None) -> Any:
         return default
 
 
+def _downsample_indices(n: int, max_points: int) -> list[int]:
+    if n <= 0:
+        return []
+    if n <= max_points:
+        return list(range(n))
+    # Evenly spaced indices spanning the full run, always include last point
+    indices = [int(round(i * (n - 1) / (max_points - 1))) for i in range(max_points)]
+    # de-dupe while preserving order
+    out: list[int] = []
+    seen = set()
+    for i in indices:
+        if i not in seen:
+            seen.add(i)
+            out.append(i)
+    if out[-1] != n - 1:
+        out.append(n - 1)
+    return out
+
+
+def build_series_full(training_stats: dict[str, Any], max_points: int = 2500) -> dict[str, Any] | None:
+    """Downsample in-memory per-game arrays into a compact full-run series with absolute game #s."""
+    scores = list(training_stats.get("scores") or [])
+    opp = list(training_stats.get("opponent_scores") or [])
+    states = list(training_stats.get("qtable_states") or [])
+    entries = list(training_stats.get("qtable_entries") or [])
+    eps = list(training_stats.get("epsilon_values") or [])
+    loss = list(training_stats.get("loss_values") or [])
+    buffer = list(training_stats.get("buffer_sizes") or [])
+    n = max(len(scores), len(opp), len(states), len(entries), len(eps), len(loss), len(buffer), 0)
+    if n < 2:
+        return None
+    games_played = int(training_stats.get("games_played") or n)
+    start = max(1, games_played - n + 1)
+
+    def at(seq: list, i: int, cast):
+        if not seq:
+            return None
+        j = min(len(seq) - 1, i)
+        v = seq[j]
+        if v is None:
+            return None
+        return cast(v)
+
+    idxs = _downsample_indices(n, max_points)
+    series = {
+        "games": [start + i for i in idxs],
+        "scores": [at(scores, i, float) for i in idxs] if scores else [],
+        "opponent_scores": [at(opp, i, float) for i in idxs] if opp else [],
+        "qtable_states": [at(states, i, int) for i in idxs] if states else [],
+        "qtable_entries": [at(entries, i, int) for i in idxs] if entries else [],
+        "epsilon": [at(eps, i, float) for i in idxs] if eps else [],
+        "loss": [at(loss, i, float) for i in idxs] if loss else [],
+        "buffer_sizes": [at(buffer, i, int) for i in idxs] if buffer else [],
+    }
+    return series
+
+
 def save_training_stats_json(training_stats: dict[str, Any], filename: str = "training_stats.json") -> str:
     output_path = get_output_path(filename)
-    # Cap series length so the file stays readable for the UI while training
+    # Cap high-res series so the file stays readable for the UI while training
     def _tail(seq, n=5000):
         return list(seq[-n:]) if seq else []
 
+    games_played = int(training_stats.get("games_played", 0))
+    # Full-run downsample from in-memory arrays (before tailing) — absolute game axis
+    series_full = build_series_full(training_stats, max_points=2500)
+    # Keep caller-provided series_full if arrays were already tailed but full series exists
+    if series_full is None and isinstance(training_stats.get("series_full"), dict):
+        series_full = training_stats.get("series_full")
+
     payload = {
-        "games_played": int(training_stats.get("games_played", 0)),
+        "games_played": games_played,
         "wins": int(training_stats.get("wins", 0)),
         "losses": int(training_stats.get("losses", 0)),
         "scores": [float(x) for x in _tail(training_stats.get("scores", []))],
@@ -81,6 +145,20 @@ def save_training_stats_json(training_stats: dict[str, Any], filename: str = "tr
         "train_device": training_stats.get("train_device"),
         "train_mode": training_stats.get("train_mode"),
     }
+    if series_full:
+        payload["series_full"] = series_full
+        payload["series_full_games"] = int(series_full["games"][-1]) if series_full.get("games") else games_played
+    # Wall-clock totals must survive the series tail — UI duration depends on these
+    if training_stats.get("total_time") is not None:
+        try:
+            payload["total_time"] = float(training_stats["total_time"])
+        except (TypeError, ValueError):
+            pass
+    if training_stats.get("games_per_sec") is not None:
+        try:
+            payload["games_per_sec"] = float(training_stats["games_per_sec"])
+        except (TypeError, ValueError):
+            pass
     _atomic_write_json(output_path, payload)
     return output_path
 

@@ -151,21 +151,26 @@ def _parse_progress(log_text: str) -> dict:
     }
 
 
-def _try_pull_file(env: dict[str, str], name: str) -> bool:
+GPU_LIVE_DIR = OUTPUT_DIR / "gpu_live"
+GPU_PROGRESS_PATH = GPU_LIVE_DIR / "training_progress.json"
+
+
+def _try_pull_file(env: dict[str, str], name: str, dest_dir: Path | None = None) -> bool:
     scp = _scp_base(env)
     if not scp:
         return False
     scp_cmd, remote = scp
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    target_dir = dest_dir or OUTPUT_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
     remote_file = f"{remote}:/workspace/Golf_solver/backend/RL/output/{name}"
     try:
         subprocess.check_call(
-            scp_cmd + [remote_file, str(OUTPUT_DIR / name)],
+            scp_cmd + [remote_file, str(target_dir / name)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=60,
         )
-        return (OUTPUT_DIR / name).exists()
+        return (target_dir / name).exists()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
 
@@ -180,22 +185,24 @@ def _load_local_json(path: Path) -> dict | None:
         return None
 
 
+def _write_progress_payload(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def sync_live_progress() -> dict:
-    """SSH to RunPod, pull progress/stats, fall back to parsing train.log."""
-    # Never overwrite local artifacts while a local trainer owns the files
+    """SSH to RunPod and pull progress/stats.
+
+    If a local CPU trainer is running, GPU artifacts go to output/gpu_live/ so they
+    do not clobber the local Q-table / progress files. CPU + GPU can run together.
+    """
+    local_running = False
     try:
         from rl_control import _local_pid
 
-        if _local_pid() is not None:
-            return {
-                "ok": True,
-                "running": True,
-                "local": True,
-                "pulled_training_stats": False,
-                "skipped_remote": True,
-            }
+        local_running = _local_pid() is not None
     except Exception:
-        pass
+        local_running = False
 
     env = _load_dotenv()
     ssh = _ssh_base(env)
@@ -203,19 +210,23 @@ def sync_live_progress() -> dict:
         return {
             "ok": False,
             "error": "Missing RUNPOD_SSH_HOST / RUNPOD_SSH_PORT in .env",
-            "running": False,
+            "running": local_running,
+            "local": local_running,
+            "cpu_running": local_running,
+            "gpu_running": False,
         }
+
+    # While CPU owns the main output dir, park GPU sync alongside it
+    dest_dir = GPU_LIVE_DIR if local_running else OUTPUT_DIR
+    progress_path = GPU_PROGRESS_PATH if local_running else PROGRESS_PATH
 
     running, log_text = _remote_status_and_log(ssh)
     has_progress = "HAS_PROGRESS=1" in "\n".join(log_text.splitlines()[:8])
     has_stats = "HAS_STATS=1" in "\n".join(log_text.splitlines()[:8])
 
-    # Always pull live progress when the pod has it (running or finished)
-    pulled_progress = _try_pull_file(env, "training_progress.json") if has_progress else False
-    remote_progress = _load_local_json(PROGRESS_PATH) if pulled_progress else None
+    pulled_progress = _try_pull_file(env, "training_progress.json", dest_dir=dest_dir) if has_progress else False
+    remote_progress = _load_local_json(progress_path) if pulled_progress else None
 
-    # Pull finished (or in-progress) stats so the UI charts update without a manual Pull
-    # Previously this only ran while `running`, so completed GPU jobs never appeared.
     should_pull_stats = has_stats and (
         running
         or not (remote_progress or {}).get("running", True)
@@ -224,55 +235,68 @@ def sync_live_progress() -> dict:
         or "DQN TRAINING COMPLETE" in log_text
         or "PARALLEL CPU TRAINING COMPLETE" in log_text
     )
-    # Also pull while running so learning curves update live
     if has_stats and running:
         should_pull_stats = True
 
-    pulled_stats = _try_pull_file(env, "training_stats.json") if should_pull_stats else False
-    if has_stats and not running:
-        # Finished job: also grab policy / params for archive
-        _try_pull_file(env, "last_run_params.json")
-        _try_pull_file(env, "dqn_policy.pt")
+    # Only write finished GPU stats into the main output dir when CPU is idle
+    pulled_stats = False
+    if should_pull_stats:
+        if local_running:
+            pulled_stats = _try_pull_file(env, "training_stats.json", dest_dir=GPU_LIVE_DIR)
+        else:
+            pulled_stats = _try_pull_file(env, "training_stats.json", dest_dir=OUTPUT_DIR)
+    if has_stats and not running and not local_running:
+        _try_pull_file(env, "last_run_params.json", dest_dir=OUTPUT_DIR)
+        _try_pull_file(env, "dqn_policy.pt", dest_dir=OUTPUT_DIR)
 
     parsed = _parse_progress(log_text)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    gpu_running = bool(running)
 
-    # Prefer the pod's progress JSON (written by progress_io) over log scraping
-    if remote_progress and (remote_progress.get("series") or remote_progress.get("summary")):
-        payload = {
+    def _base_flags(**extra):
+        return {
             "ok": True,
-            "running": bool(running or remote_progress.get("running")),
-            "pulled_training_stats": pulled_stats,
-            "pulled_progress": True,
-            "checkpoints": remote_progress.get("checkpoints") or [],
-            "tqdm_pct": remote_progress.get("tqdm_pct"),
-            "tqdm_current": remote_progress.get("tqdm_current"),
-            "tqdm_total": remote_progress.get("tqdm_total"),
-            "series": remote_progress.get("series") or {},
-            "summary": remote_progress.get("summary") or {},
-            "train_mode": remote_progress.get("train_mode")
+            "running": bool(gpu_running or local_running),
+            "gpu_running": gpu_running,
+            "cpu_running": local_running,
+            "local": local_running,
+            "gpu_live_dir": local_running,
+            "pulled_training_stats": bool(pulled_stats and not local_running),
+            **extra,
+        }
+
+    if remote_progress and (remote_progress.get("series") or remote_progress.get("summary")):
+        payload = _base_flags(
+            pulled_progress=True,
+            checkpoints=remote_progress.get("checkpoints") or [],
+            tqdm_pct=remote_progress.get("tqdm_pct"),
+            tqdm_current=remote_progress.get("tqdm_current"),
+            tqdm_total=remote_progress.get("tqdm_total"),
+            series=remote_progress.get("series") or {},
+            summary=remote_progress.get("summary") or {},
+            train_mode=remote_progress.get("train_mode")
             or (remote_progress.get("summary") or {}).get("train_mode"),
-            "train_device": remote_progress.get("train_device")
+            train_device=remote_progress.get("train_device")
             or (remote_progress.get("summary") or {}).get("train_device")
             or "gpu",
-        }
-        # Force running=False if the process is dead even if the file still says running
+        )
         if not running:
-            payload["running"] = False
+            payload["gpu_running"] = False
+            if not local_running:
+                payload["running"] = False
             payload["summary"] = dict(payload.get("summary") or {})
             if payload["summary"].get("pct") is None and payload.get("tqdm_pct") is not None:
                 payload["summary"]["pct"] = payload["tqdm_pct"]
-        PROGRESS_PATH.write_text(json.dumps(payload), encoding="utf-8")
+        _write_progress_payload(progress_path, payload)
+        if not local_running:
+            _write_progress_payload(GPU_PROGRESS_PATH, payload)
         return payload
 
-    payload = {
-        "ok": True,
-        "running": running,
-        "pulled_training_stats": pulled_stats,
-        "pulled_progress": False,
+    payload = _base_flags(
+        pulled_progress=False,
         **parsed,
-        "train_device": "gpu",
-    }
+        train_device="gpu",
+    )
     cps = parsed["checkpoints"]
     if cps:
         payload["series"] = {
@@ -299,5 +323,7 @@ def sync_live_progress() -> dict:
             "pct": parsed["tqdm_pct"],
         }
 
-    PROGRESS_PATH.write_text(json.dumps(payload), encoding="utf-8")
+    _write_progress_payload(progress_path, payload)
+    if not local_running:
+        _write_progress_payload(GPU_PROGRESS_PATH, payload)
     return payload

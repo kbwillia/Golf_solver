@@ -193,48 +193,79 @@ def api_rl_training():
 
 @app.route('/api/rl/sync', methods=['POST', 'GET'])
 def api_rl_sync():
-    """Live progress for the viz page (local-first; RunPod only when not training locally)."""
+    """Live progress for the viz page. CPU and GPU can run together;
+    GPU pulls land in gpu_live/ while a local CPU job owns main output."""
     try:
-        from rl_control import _local_pid, load_saved_params
+        from rl_control import _local_pid
+        from rl_live_sync import sync_live_progress, PROGRESS_PATH, _load_local_json
         from rl_training_viz import build_training_viz_payload
         from rl_runs import archive_current_run
 
         local_pid = _local_pid()
-        params = load_saved_params()
-        live = {"ok": True, "running": bool(local_pid), "local": bool(local_pid)}
+        live = {
+            "ok": True,
+            "running": bool(local_pid),
+            "local": bool(local_pid),
+            "cpu_running": bool(local_pid),
+            "gpu_running": False,
+        }
 
-        # Don't clobber local training_stats.json with RunPod pulls while a local job runs
-        if not local_pid and params.get("train_device") == "gpu":
-            from rl_live_sync import sync_live_progress
+        # Always sync GPU (into gpu_live/ when CPU owns main output files)
+        try:
             live = sync_live_progress()
-            # Auto-archive once when a finished remote job's stats land locally
-            if (
-                live.get("ok")
-                and not live.get("running")
-                and live.get("pulled_training_stats")
-            ):
-                try:
-                    from pathlib import Path
-                    import json as _json
-                    marker = Path(__file__).resolve().parent / "RL" / "output" / "_last_auto_archive.json"
-                    summary = live.get("summary") or {}
-                    fingerprint = {
-                        "games": summary.get("games_played"),
-                        "avg": summary.get("avg_score"),
-                        "mode": summary.get("train_mode"),
-                        "win": summary.get("win_rate"),
-                    }
-                    prev = {}
-                    if marker.exists():
-                        try:
-                            prev = _json.loads(marker.read_text(encoding="utf-8"))
-                        except Exception:
-                            prev = {}
-                    if fingerprint and fingerprint != prev:
-                        archive_current_run(source="runpod_sync")
-                        marker.write_text(_json.dumps(fingerprint), encoding="utf-8")
-                except Exception:
-                    pass
+        except Exception as sync_err:
+            live = {
+                "ok": False,
+                "error": str(sync_err),
+                "running": bool(local_pid),
+                "local": bool(local_pid),
+                "cpu_running": bool(local_pid),
+                "gpu_running": False,
+            }
+
+        # Merge local CPU progress summary when dual-running (main progress file)
+        if local_pid:
+            cpu_progress = _load_local_json(PROGRESS_PATH) or {}
+            cpu_summary = cpu_progress.get("summary") if isinstance(cpu_progress, dict) else None
+            live["cpu_summary"] = cpu_summary or {}
+            live["cpu_running"] = True
+            live["local"] = True
+            live["running"] = True
+            if live.get("gpu_running") and live.get("summary"):
+                live["gpu_summary"] = live.get("summary")
+            # Charts stay on CPU; prefer CPU summary for the main strip when both run
+            if cpu_summary:
+                live["summary"] = {**(live.get("summary") or {}), **cpu_summary, "train_device": "cpu"}
+
+        # Auto-archive finished GPU job only when it wrote into main output (CPU idle)
+        if (
+            live.get("ok")
+            and not live.get("gpu_running")
+            and not live.get("cpu_running")
+            and live.get("pulled_training_stats")
+        ):
+            try:
+                from pathlib import Path
+                import json as _json
+                marker = Path(__file__).resolve().parent / "RL" / "output" / "_last_auto_archive.json"
+                summary = live.get("summary") or {}
+                fingerprint = {
+                    "games": summary.get("games_played"),
+                    "avg": summary.get("avg_score"),
+                    "mode": summary.get("train_mode"),
+                    "win": summary.get("win_rate"),
+                }
+                prev = {}
+                if marker.exists():
+                    try:
+                        prev = _json.loads(marker.read_text(encoding="utf-8"))
+                    except Exception:
+                        prev = {}
+                if fingerprint and fingerprint != prev:
+                    archive_current_run(source="runpod_sync")
+                    marker.write_text(_json.dumps(fingerprint), encoding="utf-8")
+            except Exception:
+                pass
 
         compare = request.args.get("compare") or ""
         run_ids = [x.strip() for x in compare.split(",") if x.strip()]
@@ -247,10 +278,12 @@ def api_rl_sync():
                 "summary": live.get("summary") or {},
             }
         payload["sync"] = live
-        # When GPU live summary exists, merge into the page summary
+        # When GPU live summary exists and CPU is idle, merge into the page summary
         if live.get("summary") and (
+            not live.get("cpu_running")
+        ) and (
             not (payload.get("summary") or {}).get("games_played")
-            or live.get("running")
+            or live.get("gpu_running")
             or live.get("pulled_training_stats")
         ):
             merged_summary = dict(payload.get("summary") or {})
@@ -307,7 +340,8 @@ def api_rl_control_start():
 def api_rl_control_stop():
     try:
         from rl_control import stop_training
-        result = stop_training()
+        body = request.get_json(silent=True) or {}
+        result = stop_training(body.get("device"))
         return jsonify(result), (200 if result.get("ok") else 400)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

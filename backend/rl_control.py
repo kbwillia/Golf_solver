@@ -22,22 +22,23 @@ PARALLEL_TRAIN = RL_DIR / "parallel_train.py"
 DQN_TRAIN = RL_DIR / "dqn_train.py"
 
 DEFAULT_PARAMS = {
-    "num_games": 5000,
+    "num_games": 300,
     "learning_rate": 0.1,
     "discount_factor": 0.9,
     "epsilon": 0.2,
     "epsilon_decay_factor": 0.995,
-    "n_bootstrap_games": 1000,
+    "n_bootstrap_games": 100,
     "use_imitation_learning": True,
     "epsilon_decay_interval": 100,
-    "progress_report_interval": 250,
+    "progress_report_interval": 50,
     "opponent_type": "ev_ai",
     # cpu = local parallel tabular Q | gpu = neural DQN (RunPod if remote, else local CUDA)
     "train_device": "cpu",
-    "num_workers": max(2, os.cpu_count() or 4),
+    # Local PC sweet spot (~2 workers); GPU RunPod uses device_presets["gpu"]
+    "num_workers": 2,
     "batch_size": 512,
-    "hidden_size": 256,
-    "train_steps_per_game": 16,
+    "hidden_size": 128,
+    "train_steps_per_game": 8,
     # Reward shaping — turn off (or zero weights) for unbiased / solve-mode runs
     "use_reward_shaping": True,
     "shape_step": 0.05,
@@ -48,6 +49,65 @@ DEFAULT_PARAMS = {
     "shape_flip": 0.1,
 }
 
+# Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
+DEVICE_PRESETS: dict[str, dict[str, Any]] = {
+    "cpu": {
+        "num_workers": 2,
+        "learning_rate": 0.1,
+        "n_bootstrap_games": 100,
+        "progress_report_interval": 50,
+        "num_games": 300,
+        "epsilon": 0.2,
+        "epsilon_decay_factor": 0.995,
+        "epsilon_decay_interval": 100,
+        "discount_factor": 0.9,
+        "use_imitation_learning": True,
+        "use_reward_shaping": True,
+        "opponent_type": "ev_ai",
+    },
+    "gpu": {
+        "num_workers": 8,
+        "learning_rate": 0.001,
+        "n_bootstrap_games": 400,
+        "progress_report_interval": 50,
+        "num_games": 1000,
+        "batch_size": 512,
+        "hidden_size": 128,
+        "train_steps_per_game": 8,
+        "epsilon": 0.2,
+        "epsilon_decay_factor": 0.995,
+        "epsilon_decay_interval": 100,
+        "discount_factor": 0.9,
+        "use_imitation_learning": True,
+        "use_reward_shaping": True,
+        "opponent_type": "ev_ai",
+    },
+}
+
+_PRESET_KEYS = (
+    "num_workers",
+    "learning_rate",
+    "n_bootstrap_games",
+    "progress_report_interval",
+    "num_games",
+    "batch_size",
+    "hidden_size",
+    "train_steps_per_game",
+    "epsilon",
+    "epsilon_decay_factor",
+    "epsilon_decay_interval",
+    "discount_factor",
+    "use_imitation_learning",
+    "use_reward_shaping",
+    "opponent_type",
+    "shape_step",
+    "shape_pair",
+    "shape_high_keep",
+    "shape_low_keep",
+    "shape_midhigh_keep",
+    "shape_flip",
+)
+
 _launch_lock = None
 _launch_state: dict[str, Any] = {"busy": False, "error": None, "started_at": None}
 
@@ -56,6 +116,24 @@ def _ensure_rl_import() -> None:
     rl_path = str(RL_DIR)
     if rl_path not in sys.path:
         sys.path.insert(0, rl_path)
+
+
+def _default_device_presets() -> dict[str, dict[str, Any]]:
+    return {
+        "cpu": dict(DEVICE_PRESETS["cpu"]),
+        "gpu": dict(DEVICE_PRESETS["gpu"]),
+    }
+
+
+def _merge_device_presets(saved: Any) -> dict[str, dict[str, Any]]:
+    presets = _default_device_presets()
+    if not isinstance(saved, dict):
+        return presets
+    for device in ("cpu", "gpu"):
+        block = saved.get(device)
+        if isinstance(block, dict):
+            presets[device].update({k: block[k] for k in _PRESET_KEYS if k in block})
+    return presets
 
 
 def load_saved_params() -> dict[str, Any]:
@@ -68,15 +146,24 @@ def load_saved_params() -> dict[str, Any]:
             for k, v in data.items():
                 if k in merged:
                     merged[k] = v
+            merged["device_presets"] = _merge_device_presets(data.get("device_presets"))
             return merged
         except (OSError, json.JSONDecodeError, TypeError):
             pass
-    return dict(DEFAULT_PARAMS)
+    out = dict(DEFAULT_PARAMS)
+    out["device_presets"] = _default_device_presets()
+    return out
 
 
 def save_params(params: dict[str, Any]) -> dict[str, Any]:
+    incoming = dict(params or {})
+    existing = load_saved_params()
+    presets = _merge_device_presets(incoming.get("device_presets") or existing.get("device_presets"))
+
     merged = dict(DEFAULT_PARAMS)
-    merged.update(params or {})
+    merged.update({k: existing[k] for k in DEFAULT_PARAMS if k in existing})
+    merged.update({k: incoming[k] for k in DEFAULT_PARAMS if k in incoming})
+
     merged["num_games"] = int(merged["num_games"])
     merged["learning_rate"] = float(merged["learning_rate"])
     merged["discount_factor"] = float(merged["discount_factor"])
@@ -89,10 +176,10 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     merged["opponent_type"] = str(merged["opponent_type"] or "ev_ai")
     device = str(merged.get("train_device") or "cpu").lower().strip()
     merged["train_device"] = "gpu" if device in ("gpu", "cuda", "dqn") else "cpu"
-    merged["num_workers"] = max(1, int(merged.get("num_workers") or (os.cpu_count() or 4)))
+    merged["num_workers"] = max(1, int(merged.get("num_workers") or 2))
     merged["batch_size"] = max(32, int(merged.get("batch_size") or 512))
-    merged["hidden_size"] = max(32, int(merged.get("hidden_size") or 256))
-    merged["train_steps_per_game"] = max(4, int(merged.get("train_steps_per_game") or 16))
+    merged["hidden_size"] = max(32, int(merged.get("hidden_size") or 128))
+    merged["train_steps_per_game"] = max(4, int(merged.get("train_steps_per_game") or 8))
     merged["use_reward_shaping"] = bool(merged["use_reward_shaping"])
     for key in (
         "shape_step",
@@ -103,6 +190,15 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
         "shape_flip",
     ):
         merged[key] = float(merged[key])
+
+    # Persist current form values into the active device's preset
+    active = merged["train_device"]
+    presets[active] = {
+        **presets.get(active, {}),
+        **{k: merged[k] for k in _PRESET_KEYS if k in merged},
+    }
+    merged["device_presets"] = presets
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     PARAMS_PATH.write_text(json.dumps(merged, indent=2), encoding="utf-8")
     return merged
@@ -283,43 +379,23 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_status() -> dict[str, Any]:
-    params = load_saved_params()
-    local_pid = _local_pid()
-    if local_pid is not None:
-        return {
-            "ok": True,
-            "running": True,
-            "local": True,
-            "launching": False,
-            "launch_error": None,
-            "elapsed": _local_elapsed(local_pid),
-            "pid": local_pid,
-            "params": params,
-            "remote_params": None,
-            "defaults": DEFAULT_PARAMS,
-            "train_device": params.get("train_device", "cpu"),
-        }
-
-    # No local job — optionally probe RunPod when last mode was GPU
-    remote = {
-        "ok": True,
-        "running": bool(_launch_state.get("busy")),
-        "local": False,
+def _probe_gpu_status(params: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Probe RunPod / launch lock without caring about local CPU."""
+    params = params or load_saved_params()
+    gpu: dict[str, Any] = {
+        "running": False,
         "launching": bool(_launch_state.get("busy")),
         "launch_error": _launch_state.get("error"),
         "elapsed": None,
-        "params": params,
         "remote_params": None,
-        "defaults": DEFAULT_PARAMS,
-        "train_device": params.get("train_device", "cpu"),
+        "error": None,
+        "ok": True,
     }
     # Sync launch lock from disk (survives Flask restarts) + surface errors
     try:
         launch = json.loads((OUTPUT_DIR / "launch_status.json").read_text(encoding="utf-8"))
-        if launch.get("error") and not remote["launch_error"]:
-            remote["launch_error"] = launch.get("error")
-        # Orphaned busy flag after process death / restart — don't block UI forever
+        if launch.get("error") and not gpu["launch_error"]:
+            gpu["launch_error"] = launch.get("error")
         if launch.get("busy") and not _launch_state.get("busy"):
             started_at = float(_launch_state.get("started_at") or 0)
             stale = (not started_at) or (time.time() - started_at > 30)
@@ -334,25 +410,24 @@ def get_status() -> dict[str, Any]:
                 (OUTPUT_DIR / "launch_status.json").write_text(
                     json.dumps(launch, indent=2), encoding="utf-8"
                 )
-                remote["launch_error"] = launch.get("error")
+                gpu["launch_error"] = launch.get("error")
         elif launch.get("busy") and _launch_state.get("busy"):
-            remote["running"] = True
-            remote["launching"] = True
+            gpu["running"] = True
+            gpu["launching"] = True
     except Exception:
         pass
-    if params.get("train_device") != "gpu" and not _launch_state.get("busy"):
-        return remote
 
+    # Always probe remote — CPU + GPU can run together, and Device may be set to CPU
     try:
-        env, host, port, ssh, _ = _connect()
+        _env, _host, _port, ssh, _ = _connect()
     except SystemExit as e:
-        remote["ok"] = False
-        remote["error"] = str(e)
-        return remote
+        gpu["ok"] = False
+        gpu["error"] = str(e)
+        return gpu
     except Exception as e:
-        remote["ok"] = False
-        remote["error"] = str(e)
-        return remote
+        gpu["ok"] = False
+        gpu["error"] = str(e)
+        return gpu
 
     remote_cmd = r"""
 running=0
@@ -380,9 +455,9 @@ fi
             timeout=30,
         )
     except Exception as e:
-        remote["ok"] = False
-        remote["error"] = str(e)
-        return remote
+        gpu["ok"] = False
+        gpu["error"] = str(e)
+        return gpu
 
     running = "RUNNING=1" in out
     etime = ""
@@ -398,23 +473,62 @@ fi
         except json.JSONDecodeError:
             remote_params = None
 
-    remote.update({
+    gpu.update({
         "ok": True,
         "running": running or bool(_launch_state.get("busy")),
         "launching": bool(_launch_state.get("busy")),
         "elapsed": etime or None,
         "remote_params": remote_params,
     })
-    return remote
+    return gpu
 
 
-def stop_training() -> dict[str, Any]:
+def get_status() -> dict[str, Any]:
+    """Status for both devices — CPU and GPU can run concurrently."""
+    params = load_saved_params()
+    local_pid = _local_pid()
+    cpu = {
+        "running": local_pid is not None,
+        "pid": local_pid,
+        "elapsed": _local_elapsed(local_pid) if local_pid else None,
+    }
+    gpu = _probe_gpu_status(params)
+
+    cpu_running = bool(cpu["running"])
+    gpu_running = bool(gpu.get("running") or gpu.get("launching"))
+    return {
+        "ok": True,
+        "running": cpu_running or gpu_running,
+        "local": cpu_running,
+        "cpu_running": cpu_running,
+        "gpu_running": gpu_running,
+        "launching": bool(gpu.get("launching")),
+        "launch_error": gpu.get("launch_error"),
+        "elapsed": gpu.get("elapsed") if gpu_running else cpu.get("elapsed"),
+        "pid": local_pid,
+        "cpu": cpu,
+        "gpu": {
+            "running": bool(gpu.get("running")),
+            "launching": bool(gpu.get("launching")),
+            "elapsed": gpu.get("elapsed"),
+            "error": gpu.get("error"),
+            "launch_error": gpu.get("launch_error"),
+        },
+        "params": params,
+        "remote_params": gpu.get("remote_params"),
+        "defaults": {**DEFAULT_PARAMS, "device_presets": _default_device_presets()},
+        "device_presets": params.get("device_presets") or _default_device_presets(),
+        "train_device": params.get("train_device", "cpu"),
+        "error": (
+            gpu.get("error")
+            if (not gpu.get("ok", True) and params.get("train_device") == "gpu" and not cpu_running)
+            else None
+        ),
+    }
+
+
+def _stop_remote() -> dict[str, Any]:
     global _launch_state
-    # Prefer local stop if a local pid exists
-    if _local_pid() is not None or LOCAL_PID_PATH.exists():
-        return _stop_local()
-
-    # Clear any stuck local launch lock so Start works again
     _launch_state["busy"] = False
     try:
         (OUTPUT_DIR / "launch_status.json").write_text(
@@ -425,7 +539,7 @@ def stop_training() -> dict[str, Any]:
         pass
 
     try:
-        env, host, port, ssh, _ = _connect()
+        _env, _host, _port, ssh, _ = _connect()
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -475,8 +589,41 @@ echo STOPPED
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-    return {"ok": True, "stopped": True, "message": "Stopped RunPod training (or it was already finished)."}
+    return {"ok": True, "stopped": True, "message": "Stopped RunPod GPU training (or it was already finished)."}
 
+
+def stop_training(device: str | None = None) -> dict[str, Any]:
+    """Stop one device or both. device: cpu | gpu | all | auto (selected train_device)."""
+    target = (device or "auto").strip().lower()
+    if target == "auto":
+        target = str(load_saved_params().get("train_device") or "cpu").lower()
+    if target not in ("cpu", "gpu", "all"):
+        target = "cpu"
+
+    messages: list[str] = []
+    ok = True
+    if target in ("cpu", "all"):
+        result = _stop_local()
+        if not result.get("ok"):
+            ok = False
+            messages.append(result.get("error") or "CPU stop failed")
+        else:
+            messages.append(result.get("message") or "Stopped CPU")
+    if target in ("gpu", "all"):
+        result = _stop_remote()
+        if not result.get("ok"):
+            ok = False
+            messages.append(result.get("error") or "GPU stop failed")
+        else:
+            messages.append(result.get("message") or "Stopped GPU")
+
+    return {
+        "ok": ok,
+        "stopped": ok,
+        "device": target,
+        "message": " · ".join(messages) if messages else "Nothing to stop",
+        "error": None if ok else " · ".join(messages),
+    }
 
 def _get_launch_lock():
     global _launch_lock
@@ -586,27 +733,34 @@ def start_training(params: dict[str, Any] | None = None) -> dict[str, Any]:
     import threading
 
     merged = save_params(params or load_saved_params())
-    status = get_status()
-    if status.get("running"):
-        # If "running" is only a stuck launch lock with no live remote pid, clear it
-        if status.get("launching") and not status.get("elapsed") and not status.get("local"):
-            started_at = float(_launch_state.get("started_at") or 0)
-            if started_at and (time.time() - started_at) > 180:
-                _launch_state["busy"] = False
-                status = get_status()
-        if status.get("running"):
-            where = "locally" if status.get("local") else "on RunPod"
+    device = "gpu" if str(merged.get("train_device") or "cpu").lower() == "gpu" else "cpu"
+
+    # CPU and GPU are independent — only block if *that* device is already busy
+    if device == "cpu":
+        if _local_pid() is not None:
             return {
                 "ok": False,
-                "error": f"Training already running {where}. Stop it first, then start with new params.",
+                "error": "Local CPU training already running. Stop CPU first, or switch Device to GPU to start a RunPod job alongside it.",
                 "running": True,
+                "cpu_running": True,
             }
-
-    # CPU → local parallel tabular; results archived + uploaded to Supabase from this machine
-    if merged.get("train_device") == "cpu":
         return _start_local(merged)
 
-    # GPU → RunPod neural DQN only (no local GPU fallback)
+    # GPU → RunPod neural DQN only (no local GPU fallback). CPU may keep running.
+    status = get_status()
+    if status.get("launching") and not (status.get("gpu") or {}).get("elapsed"):
+        started_at = float(_launch_state.get("started_at") or 0)
+        if started_at and (time.time() - started_at) > 180:
+            _launch_state["busy"] = False
+            status = get_status()
+    if status.get("gpu_running"):
+        return {
+            "ok": False,
+            "error": "GPU training already running on RunPod. Stop GPU first, or switch Device to CPU to start local tabular training alongside it.",
+            "running": True,
+            "gpu_running": True,
+        }
+
     try:
         _connect()
     except Exception as e:
@@ -640,12 +794,16 @@ def start_training(params: dict[str, Any] | None = None) -> dict[str, Any]:
     merged = {**merged, "train_device": "gpu"}
     save_params(merged)
     threading.Thread(target=_launch_training_job, args=(merged,), daemon=True).start()
+    cpu_note = " Local CPU can keep running in parallel." if status.get("cpu_running") else ""
     return {
         "ok": True,
         "started": True,
         "launching": True,
         "params": merged,
-        "message": "Launching neural DQN on RunPod. Progress and results sync into this page automatically when the job finishes.",
+        "message": (
+            "Launching neural DQN on RunPod. Progress syncs into this page"
+            f" (GPU files go to gpu_live/ while CPU owns local output).{cpu_note}"
+        ),
     }
 
 

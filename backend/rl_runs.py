@@ -65,30 +65,59 @@ def save_index(runs: list[dict[str, Any]]) -> None:
 
 
 def _duration_from_stats(stats: dict[str, Any] | None) -> tuple[float | None, float | None]:
-    """Return (duration_sec, games_per_sec) from training_stats."""
+    """Return (duration_sec, games_per_sec) from training_stats.
+
+    Prefer wall-clock total_time. training_times are per-game samples and may be
+    tailed to the last N games in live saves — never sum them when truncated.
+    """
     stats = stats or {}
     games = int(stats.get("games_played") or 0)
+
     total = stats.get("total_time")
-    if total is None:
-        times = stats.get("training_times") or []
-        if times:
-            try:
-                total = float(sum(float(x) for x in times))
-            except (TypeError, ValueError):
-                total = None
-    if total is None:
+    try:
+        total_f = float(total) if total is not None else None
+    except (TypeError, ValueError):
+        total_f = None
+
+    if total_f is not None and total_f > 0:
+        gps = (games / total_f) if games else stats.get("games_per_sec")
+        try:
+            gps_f = float(gps) if gps is not None else None
+        except (TypeError, ValueError):
+            gps_f = None
+        return total_f, gps_f
+
+    # Explicit throughput from trainer
+    try:
+        gps_direct = float(stats["games_per_sec"]) if stats.get("games_per_sec") is not None else None
+    except (TypeError, ValueError):
+        gps_direct = None
+    if gps_direct and gps_direct > 0 and games > 0:
+        return games / gps_direct, gps_direct
+
+    times = stats.get("training_times") or []
+    if not times:
         return None, None
     try:
-        total_f = float(total)
+        floats = [float(x) for x in times]
     except (TypeError, ValueError):
         return None, None
+    if not floats:
+        return None, None
+
+    mean_t = sum(floats) / len(floats)
+    if mean_t <= 0:
+        return None, None
+
+    # Per-game samples: if series was tailed, extrapolate to full run
+    if games > 0 and len(floats) < games:
+        total_f = mean_t * games
+    else:
+        total_f = sum(floats)
+
     if total_f <= 0:
         return None, None
-    gps = (games / total_f) if games else stats.get("games_per_sec")
-    try:
-        gps_f = float(gps) if gps is not None else None
-    except (TypeError, ValueError):
-        gps_f = None
+    gps_f = (games / total_f) if games else (1.0 / mean_t)
     return total_f, gps_f
 
 
@@ -262,14 +291,20 @@ def list_runs(limit: int = 50) -> list[dict[str, Any]]:
             continue
         meta = _load_json(RUNS_DIR / rid / "meta.json") or entry
         summary = dict(meta.get("summary") or {})
-        # Backfill duration for older archives that only have training_times
-        if summary.get("duration_sec") is None:
-            stats = _load_json(RUNS_DIR / rid / "training_stats.json")
-            dur, gps = _duration_from_stats(stats)
-            if dur is not None:
-                summary["duration_sec"] = dur
-                summary["games_per_sec"] = gps
-                meta = {**meta, "summary": summary}
+        stats = _load_json(RUNS_DIR / rid / "training_stats.json")
+        # Recompute duration — older archives summed tailed training_times (~25s for 50k)
+        dur, gps = _duration_from_stats(stats)
+        if dur is not None:
+            old = summary.get("duration_sec")
+            summary["duration_sec"] = dur
+            summary["games_per_sec"] = gps
+            meta = {**meta, "summary": summary}
+            # Persist corrected duration so the index stays honest
+            if old is None or (isinstance(old, (int, float)) and abs(float(old) - dur) > 1.0):
+                try:
+                    _write_json(RUNS_DIR / rid / "meta.json", meta)
+                except OSError:
+                    pass
         refreshed.append(meta)
     return refreshed
 

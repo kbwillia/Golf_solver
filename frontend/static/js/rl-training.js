@@ -119,8 +119,16 @@
           scales: { x },
         } = chart;
         if (!x) return;
-        const x0 = x.getPixelForValue(1);
-        const x1 = x.getPixelForValue(bootstrapGames);
+        const labels = chart.data.labels || [];
+        // Labels are absolute game numbers — find the visible span inside bootstrap
+        let iEnd = -1;
+        for (let i = 0; i < labels.length; i++) {
+          if (Number(labels[i]) <= Number(bootstrapGames)) iEnd = i;
+          else break;
+        }
+        if (iEnd < 0) return; // bootstrap finished before this window
+        const x0 = x.getPixelForValue(0);
+        const x1 = x.getPixelForValue(iEnd);
         ctx.save();
         ctx.fillStyle = "rgba(212,162,76,0.12)";
         ctx.fillRect(x0, top, Math.max(0, x1 - x0), bottom - top);
@@ -152,6 +160,11 @@
       const tipEl = document.getElementById("rlTooltip");
       if (tipEl) tipEl.hidden = true;
     });
+  }
+
+  function isDqnMode(mode) {
+    const m = String(mode || "").toLowerCase();
+    return m === "dqn" || m === "dqn_parallel" || m === "gpu";
   }
 
   function setModeVisibility(isDqn, { previewGpu = false } = {}) {
@@ -198,13 +211,17 @@
         lossHint.textContent = "No DQN run loaded yet — Start with Device=GPU (RunPod). Charts fill when the job syncs back.";
       }
     } else if (isDqn && lossHint) {
-      lossHint.textContent = "Smooth L1 TD loss (raw + MA). GPU / neural runs only.";
+      const span = (lastPayload && lastPayload.learning && lastPayload.learning.series_span) || "";
+      lossHint.textContent =
+        span === "full"
+          ? "Smooth L1 TD loss over the full run (downsampled). GPU / neural runs only."
+          : "Smooth L1 TD loss (raw + MA). X-axis uses absolute game #s; full-run history appears on the next GPU job.";
     }
     void bufferTitle;
   }
 
   function setSummary(summary, trainMode) {
-    const isDqn = String(trainMode || summary.train_mode || "").toLowerCase() === "dqn";
+    const isDqn = isDqnMode(trainMode || summary.train_mode);
     const previewGpu =
       (document.querySelector('[name="train_device"]')?.value || "").toLowerCase() === "gpu";
     setModeVisibility(isDqn, { previewGpu });
@@ -239,17 +256,52 @@
       el.textContent = "Live sync error: " + syncErr;
       return;
     }
-    if (live && live.running) {
-      const parts = ["Training live on RunPod"];
+    if (!live) {
+      el.classList.add("is-idle");
+      el.textContent = "No active training · showing latest local / archived runs";
+      return;
+    }
+    const anyCpu = !!(live.cpu_running || live.local);
+    const anyGpu = !!(live.gpu_running);
+    if (!anyCpu && !anyGpu && !live.running) {
+      el.classList.add("is-idle");
+      el.textContent = "No active training · showing latest local / archived runs";
+      return;
+    }
+    const lanes = [];
+    if (anyCpu) {
+      const cs = live.cpu_summary || {};
+      const parts = ["CPU local"];
+      const played = cs.games_played ?? (anyGpu ? null : live.games_played);
+      const total = cs.games_total ?? (anyGpu ? null : live.games_total);
+      const pctVal = cs.pct ?? (anyGpu ? null : live.pct);
+      if (played != null && total != null) parts.push(`${fmt(played)} / ${fmt(total)}`);
+      else if (played != null) parts.push(`${fmt(played)} games`);
+      if (pctVal != null) parts.push(`${pctVal}%`);
+      lanes.push(parts.join(" · "));
+    }
+    if (anyGpu || (!anyCpu && live.running && !live.local)) {
+      const gs = live.gpu_summary || (!anyCpu ? live : null);
+      const parts = ["GPU RunPod"];
+      if (gs) {
+        if (gs.games_played != null && gs.games_total != null) {
+          parts.push(`${fmt(gs.games_played)} / ${fmt(gs.games_total)}`);
+        } else if (gs.games_played != null) {
+          parts.push(`${fmt(gs.games_played)} games`);
+        }
+        if (gs.pct != null) parts.push(`${gs.pct}%`);
+      }
+      lanes.push(parts.join(" · "));
+    }
+    if (!lanes.length && live.running) {
+      const parts = [live.local ? "CPU local" : "GPU RunPod"];
       if (live.games_played != null && live.games_total != null) {
         parts.push(`${fmt(live.games_played)} / ${fmt(live.games_total)} games`);
       }
       if (live.pct != null) parts.push(`${live.pct}%`);
-      el.textContent = parts.join(" · ") + " · auto-refreshing";
-    } else {
-      el.classList.add("is-idle");
-      el.textContent = "No active RunPod training · showing latest local / archived runs";
+      lanes.push(parts.join(" · "));
     }
+    el.textContent = lanes.join("  |  ") + " · auto-refreshing";
   }
 
   function fmtDuration(sec) {
@@ -366,7 +418,7 @@
       return;
     }
     const s = learning.series || {};
-    const isDqn = String(learning.train_mode || "").toLowerCase() === "dqn";
+    const isDqn = isDqnMode(learning.train_mode);
     const previewGpu =
       (document.querySelector('[name="train_device"]')?.value || "").toLowerCase() === "gpu";
     setModeVisibility(isDqn, { previewGpu });
@@ -680,7 +732,7 @@
   }
 
   function renderQvalues(qvalues, learning) {
-    const isDqn = learning && String(learning.train_mode || "").toLowerCase() === "dqn";
+    const isDqn = learning && isDqnMode(learning.train_mode);
     if (isDqn) {
       const hint = document.getElementById("qHint");
       if (hint) hint.textContent = "DQN uses dqn_policy.pt (neural weights) — no tabular Q-value histogram.";
@@ -749,7 +801,19 @@
     renderLearning(data.learning, data.baselines);
     renderActions(data.actions);
     renderQvalues(data.qvalues, data.learning);
-    setLiveStatus(data.live || (data.sync && { running: data.sync.running, ...(data.sync.summary || {}) }));
+    setLiveStatus(
+      data.live ||
+        (data.sync && {
+          running: data.sync.running,
+          local: data.sync.local,
+          cpu_running: data.sync.cpu_running,
+          gpu_running: data.sync.gpu_running,
+          cpu_summary: data.sync.cpu_summary,
+          gpu_summary: data.sync.gpu_summary,
+          train_device: data.sync.train_device,
+          ...(data.sync.summary || {}),
+        })
+    );
 
     const meta = document.getElementById("rlMeta");
     if (meta) {
@@ -788,13 +852,15 @@
         setLiveStatus(null, data.sync.error);
       }
       renderAll(data);
-      const running = !!(data.live && data.live.running) || !!(data.sync && data.sync.running);
+      const running =
+        !!(data.sync && (data.sync.running || data.sync.cpu_running || data.sync.gpu_running)) ||
+        !!(data.live && data.live.running);
       schedulePoll(running || sync);
     } catch (err) {
       if (err && err.name === "AbortError") return;
       // Don't wipe a good live status line on a one-off failure
       const liveEl = document.getElementById("rlLiveStatus");
-      const hadLive = liveEl && /Training live/.test(liveEl.textContent || "");
+      const hadLive = liveEl && /(CPU local|GPU RunPod|Training live)/.test(liveEl.textContent || "");
       if (!hadLive) {
         setLiveStatus(null, err.message);
       }
@@ -821,6 +887,45 @@
     if (kind) el.classList.add(kind);
   }
 
+  const DEVICE_PRESETS = {
+    cpu: {
+      num_workers: 2,
+      learning_rate: 0.1,
+      n_bootstrap_games: 100,
+      progress_report_interval: 50,
+      num_games: 300,
+      epsilon: 0.2,
+      epsilon_decay_factor: 0.995,
+      epsilon_decay_interval: 100,
+      discount_factor: 0.9,
+      use_imitation_learning: true,
+      use_reward_shaping: true,
+      opponent_type: "ev_ai",
+    },
+    gpu: {
+      num_workers: 8,
+      learning_rate: 0.001,
+      n_bootstrap_games: 400,
+      progress_report_interval: 50,
+      num_games: 1000,
+      batch_size: 512,
+      hidden_size: 128,
+      train_steps_per_game: 8,
+      epsilon: 0.2,
+      epsilon_decay_factor: 0.995,
+      epsilon_decay_interval: 100,
+      discount_factor: 0.9,
+      use_imitation_learning: true,
+      use_reward_shaping: true,
+      opponent_type: "ev_ai",
+    },
+  };
+
+  let savedDevicePresets = {
+    cpu: { ...DEVICE_PRESETS.cpu },
+    gpu: { ...DEVICE_PRESETS.gpu },
+  };
+
   function readParamsFromForm() {
     const form = document.getElementById("rlParamsForm");
     const fd = new FormData(form);
@@ -835,20 +940,20 @@
       return Number.isFinite(n) ? n : fallback;
     };
     const device = String(fd.get("train_device") || "cpu").toLowerCase() === "gpu" ? "gpu" : "cpu";
-    return {
+    const params = {
       train_device: device,
-      num_workers: num("num_workers", 8),
+      num_workers: num("num_workers", device === "gpu" ? 8 : 2),
       batch_size: num("batch_size", 512),
-      hidden_size: num("hidden_size", 256),
-      train_steps_per_game: num("train_steps_per_game", 16),
-      num_games: num("num_games", 5000),
+      hidden_size: num("hidden_size", 128),
+      train_steps_per_game: num("train_steps_per_game", 8),
+      num_games: num("num_games", device === "gpu" ? 1000 : 300),
       learning_rate: num("learning_rate", device === "gpu" ? 0.001 : 0.1),
       discount_factor: num("discount_factor", 0.9),
       epsilon: num("epsilon", 0.2),
       epsilon_decay_factor: num("epsilon_decay_factor", 0.995),
       epsilon_decay_interval: num("epsilon_decay_interval", 100),
-      n_bootstrap_games: num("n_bootstrap_games", 1000),
-      progress_report_interval: num("progress_report_interval", 250),
+      n_bootstrap_games: num("n_bootstrap_games", device === "gpu" ? 400 : 100),
+      progress_report_interval: num("progress_report_interval", 50),
       opponent_type: String(fd.get("opponent_type") || "ev_ai"),
       use_imitation_learning: checked("use_imitation_learning", true),
       use_reward_shaping: checked("use_reward_shaping", true),
@@ -859,36 +964,128 @@
       shape_midhigh_keep: num("shape_midhigh_keep", -0.4),
       shape_flip: num("shape_flip", 0.1),
     };
+    // Keep the other device's preset when saving
+    const snapshot = { ...params };
+    delete snapshot.train_device;
+    savedDevicePresets = {
+      ...savedDevicePresets,
+      [device]: { ...(savedDevicePresets[device] || {}), ...snapshot },
+    };
+    params.device_presets = savedDevicePresets;
+    return params;
+  }
+
+  function selectedDevice() {
+    return (document.querySelector('[name="train_device"]')?.value || "cpu").toLowerCase() === "gpu"
+      ? "gpu"
+      : "cpu";
+  }
+
+  function setDeviceToggleUI(device) {
+    const key = device === "gpu" ? "gpu" : "cpu";
+    const hidden = document.getElementById("trainDeviceSelect");
+    if (hidden) hidden.value = key;
+    document.querySelectorAll(".rl-device-btn").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.getAttribute("data-device") === key);
+    });
+    const hint = document.getElementById("devicePresetHint");
+    if (hint) {
+      hint.textContent =
+        key === "gpu"
+          ? "Editing GPU DQN params — saved separately from CPU"
+          : "Editing CPU tabular Q params — saved separately from GPU";
+    }
+    const saveBtn = document.getElementById("btnSaveParams");
+    if (saveBtn) saveBtn.textContent = `Save ${key.toUpperCase()} params`;
+  }
+
+  function updateStartStopLabels() {
+    const device = selectedDevice();
+    const label = device === "gpu" ? "GPU" : "CPU";
+    const start = document.getElementById("btnStart");
+    const stop = document.getElementById("btnStop");
+    if (start) start.textContent = `Start ${label}`;
+    if (stop) stop.textContent = `Stop ${label}`;
+    setDeviceToggleUI(device);
   }
 
   function syncDeviceFields() {
     const form = document.getElementById("rlParamsForm");
     if (!form) return;
-    const device = (form.querySelector('[name="train_device"]')?.value || "cpu").toLowerCase();
+    const device = selectedDevice();
     const isGpu = device === "gpu";
     form.querySelectorAll(".rl-cpu-only").forEach((el) => el.classList.toggle("is-hidden", isGpu));
     form.querySelectorAll(".rl-gpu-only").forEach((el) => el.classList.toggle("is-hidden", !isGpu));
     const isDqn =
       lastPayload &&
       lastPayload.learning &&
-      String(lastPayload.learning.train_mode || "").toLowerCase() === "dqn";
+      isDqnMode(lastPayload.learning.train_mode);
     setModeVisibility(!!isDqn, { previewGpu: isGpu });
+    updateStartStopLabels();
+  }
+
+  function applyDevicePreset(device, { announce = false } = {}) {
+    const form = document.getElementById("rlParamsForm");
+    if (!form) return;
+    const key = device === "gpu" ? "gpu" : "cpu";
+    setDeviceToggleUI(key);
+    const preset = {
+      ...DEVICE_PRESETS[key],
+      ...(savedDevicePresets[key] || {}),
+    };
+    Object.keys(preset).forEach((name) => {
+      const input = form.querySelector(`[name="${name}"]`);
+      if (!input) return;
+      if (input.type === "checkbox") input.checked = !!preset[name];
+      else input.value = preset[name];
+    });
+    const lr = form.querySelector('[name="learning_rate"]');
+    if (lr) lr.step = key === "gpu" ? "0.001" : "0.01";
+    syncDeviceFields();
+    if (announce) {
+      setControlMsg(
+        key === "gpu"
+          ? "Switched to GPU params (CPU set kept)"
+          : "Switched to CPU params (GPU set kept)",
+        "is-ok"
+      );
+    }
+  }
+
+  function switchDevice(next) {
+    const nextKey = next === "gpu" ? "gpu" : "cpu";
+    const current = selectedDevice();
+    if (nextKey === current) return;
+    // Stash in-progress edits into the current device's slot before swapping
+    readParamsFromForm();
+    applyDevicePreset(nextKey, { announce: true });
   }
 
   function fillParamsForm(params) {
     if (!params) return;
     const form = document.getElementById("rlParamsForm");
-    Object.keys(params).forEach((key) => {
-      const input = form.querySelector(`[name="${key}"]`);
-      if (!input) return;
-      if (input.type === "checkbox") input.checked = !!params[key];
-      else input.value = params[key];
-    });
-    syncDeviceFields();
+    if (!form) return;
+    if (params.device_presets && typeof params.device_presets === "object") {
+      savedDevicePresets = {
+        cpu: { ...DEVICE_PRESETS.cpu, ...(params.device_presets.cpu || {}) },
+        gpu: { ...DEVICE_PRESETS.gpu, ...(params.device_presets.gpu || {}) },
+      };
+    }
+    const device = String(params.train_device || "cpu").toLowerCase() === "gpu" ? "gpu" : "cpu";
+    // Prefer the saved device slot; fall back to flat params for first load
+    const flat = { ...params };
+    delete flat.device_presets;
+    delete flat.train_device;
+    savedDevicePresets[device] = {
+      ...DEVICE_PRESETS[device],
+      ...(savedDevicePresets[device] || {}),
+      ...flat,
+    };
+    applyDevicePreset(device, { announce: false });
   }
 
   function setBusy(busy) {
-    ["btnStart", "btnStop", "btnPull", "btnSaveParams", "btnArchive", "btnCompare"].forEach((id) => {
+    ["btnStart", "btnStop", "btnStopAll", "btnPull", "btnSaveParams", "btnArchive", "btnCompare"].forEach((id) => {
       const btn = document.getElementById(id);
       if (btn) btn.disabled = busy;
     });
@@ -899,6 +1096,17 @@
       const res = await fetch("/api/rl/control/status");
       if (!res.ok) return;
       const data = await res.json();
+      if (data.device_presets) {
+        savedDevicePresets = {
+          cpu: { ...DEVICE_PRESETS.cpu, ...(data.device_presets.cpu || {}) },
+          gpu: { ...DEVICE_PRESETS.gpu, ...(data.device_presets.gpu || {}) },
+        };
+      } else if (data.defaults && data.defaults.device_presets) {
+        savedDevicePresets = {
+          cpu: { ...DEVICE_PRESETS.cpu, ...(data.defaults.device_presets.cpu || {}) },
+          gpu: { ...DEVICE_PRESETS.gpu, ...(data.defaults.device_presets.gpu || {}) },
+        };
+      }
       // Prefer saved/UI params; only overlay remote_params while a remote job is active
       const mergedParams = {
         ...(data.defaults || {}),
@@ -910,13 +1118,20 @@
         setControlMsg(data.launch_error, "is-error");
       } else if (data.launching) {
         setControlMsg("Launching neural DQN on RunPod…", "is-ok");
-      } else if (data.running) {
-        const where = data.local ? "Local" : "RunPod";
-        const device = (data.train_device || data.params?.train_device || "").toUpperCase();
-        setControlMsg(
-          `${where} job running${device ? " · " + device : ""}${data.elapsed ? " · " + data.elapsed : ""}`,
-          "is-ok"
-        );
+      } else if (data.running || data.cpu_running || data.gpu_running) {
+        const parts = [];
+        if (data.cpu_running || data.local) {
+          const el = (data.cpu && data.cpu.elapsed) || (data.local && data.elapsed);
+          parts.push(`CPU local${el ? " · " + el : ""}`);
+        }
+        if (data.gpu_running || data.launching) {
+          const el = (data.gpu && data.gpu.elapsed) || (!data.local && data.elapsed);
+          parts.push(`GPU RunPod${el ? " · " + el : ""}`);
+        }
+        if (!parts.length && data.running) {
+          parts.push(data.local ? "CPU local" : "GPU RunPod");
+        }
+        setControlMsg(parts.join("  |  ") + " running", "is-ok");
       }
     } catch (_) {}
   }
@@ -950,7 +1165,12 @@
     document.getElementById("btnStart")?.addEventListener("click", () =>
       postControl("/api/rl/control/start", { params: readParamsFromForm() })
     );
-    document.getElementById("btnStop")?.addEventListener("click", () => postControl("/api/rl/control/stop"));
+    document.getElementById("btnStop")?.addEventListener("click", () =>
+      postControl("/api/rl/control/stop", { device: selectedDevice() })
+    );
+    document.getElementById("btnStopAll")?.addEventListener("click", () =>
+      postControl("/api/rl/control/stop", { device: "all" })
+    );
     document.getElementById("btnPull")?.addEventListener("click", async () => {
       const data = await postControl("/api/rl/control/pull");
       if (data && data.ok) {
@@ -967,7 +1187,12 @@
           body: JSON.stringify({ params: readParamsFromForm() }),
         });
         const data = await res.json();
-        setControlMsg(data.ok ? "Params saved" : data.error || "Save failed", data.ok ? "is-ok" : "is-error");
+        setControlMsg(
+          data.ok
+            ? `${selectedDevice().toUpperCase()} params saved (other device kept)`
+            : data.error || "Save failed",
+          data.ok ? "is-ok" : "is-error"
+        );
       } catch (err) {
         setControlMsg(err.message, "is-error");
       } finally {
@@ -995,12 +1220,14 @@
       setControlMsg(`Comparing ${selectedCompare.length} run(s)…`, "is-ok");
       await refresh({ sync: false });
     });
+    document.querySelectorAll(".rl-device-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchDevice(btn.getAttribute("data-device")));
+    });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     wireTooltips();
     wireControls();
-    document.getElementById("trainDeviceSelect")?.addEventListener("change", syncDeviceFields);
     syncDeviceFields();
     loadControlStatus();
     refresh({ sync: true });
