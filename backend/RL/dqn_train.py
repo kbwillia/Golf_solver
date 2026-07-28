@@ -15,6 +15,7 @@ import random
 import sys
 import time
 from collections import deque
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any
 
 import numpy as np
@@ -162,12 +163,15 @@ def shaped_step_reward(action: dict, player, game, reward_shaping: dict) -> floa
 class QNetwork(nn.Module):
     def __init__(self, state_dim: int = STATE_DIM, hidden: int = 256, n_actions: int = NUM_ACTIONS):
         super().__init__()
+        h2 = max(hidden // 2, 64)
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden),
             nn.ReLU(),
             nn.Linear(hidden, hidden),
             nn.ReLU(),
-            nn.Linear(hidden, n_actions),
+            nn.Linear(hidden, h2),
+            nn.ReLU(),
+            nn.Linear(h2, n_actions),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -225,6 +229,10 @@ class DQNAgent:
         self.pending_transition: dict[str, Any] | None = None
         # Fake q_table attrs so existing save paths don't explode
         self.q_table = {}
+        self._use_amp = device.type == "cuda"
+        self._scaler = torch.cuda.amp.GradScaler(enabled=self._use_amp) if device.type == "cuda" else None
+        if device.type == "cuda":
+            torch.backends.cudnn.benchmark = True
 
     def is_bootstrapping(self) -> bool:
         return self.n_bootstrap_games > 0 and self.games_played < self.n_bootstrap_games
@@ -245,8 +253,9 @@ class DQNAgent:
 
     @torch.no_grad()
     def _select_greedy(self, state_vec: np.ndarray, mask: np.ndarray) -> int:
-        t = torch.from_numpy(state_vec).unsqueeze(0).to(self.device)
-        q = self.policy(t).squeeze(0).cpu().numpy()
+        # Inference on GPU is fine; keep contiguous float32
+        t = torch.from_numpy(np.ascontiguousarray(state_vec)).unsqueeze(0).to(self.device, non_blocking=True)
+        q = self.policy(t).squeeze(0).detach().float().cpu().numpy()
         q = np.where(mask, q, -1e9)
         return int(np.argmax(q))
 
@@ -331,29 +340,51 @@ class DQNAgent:
         )
 
     def optimize(self, buffer: ReplayBuffer, batch_size: int = 256) -> float | None:
-        if len(buffer) < max(64, batch_size // 2):
+        if len(buffer) < max(64, min(batch_size // 2, 256)):
             return None
         s, a, r, ns, d, nm = buffer.sample(batch_size)
-        st = torch.from_numpy(s).to(self.device)
-        at = torch.from_numpy(a).to(self.device)
-        rt = torch.from_numpy(r).to(self.device)
-        nst = torch.from_numpy(ns).to(self.device)
-        dt = torch.from_numpy(d).to(self.device)
-        nmt = torch.from_numpy(nm).to(self.device)
+        st = torch.as_tensor(s, device=self.device)
+        at = torch.as_tensor(a, device=self.device)
+        rt = torch.as_tensor(r, device=self.device)
+        nst = torch.as_tensor(ns, device=self.device)
+        dt = torch.as_tensor(d, device=self.device)
+        nmt = torch.as_tensor(nm, device=self.device)
 
-        q = self.policy(st).gather(1, at.unsqueeze(1)).squeeze(1)
-        with torch.no_grad():
-            next_q = self.target(nst)
-            next_q = next_q.masked_fill(nmt < 0.5, -1e9)
-            max_next = next_q.max(dim=1).values
-            max_next = torch.where(torch.isfinite(max_next), max_next, torch.zeros_like(max_next))
-            target = rt + (1.0 - dt) * self.discount_factor * max_next
-        loss = F.smooth_l1_loss(q, target)
+        with torch.cuda.amp.autocast(enabled=self._use_amp):
+            q = self.policy(st).gather(1, at.unsqueeze(1)).squeeze(1)
+            with torch.no_grad():
+                next_q = self.target(nst)
+                # float16 cannot hold -1e9 — use dtype-safe mask fill
+                neg = torch.finfo(next_q.dtype).min / 2
+                next_q = next_q.masked_fill(nmt < 0.5, neg)
+                max_next = next_q.max(dim=1).values
+                max_next = torch.where(torch.isfinite(max_next), max_next, torch.zeros_like(max_next))
+                target = rt + (1.0 - dt) * self.discount_factor * max_next
+            loss = F.smooth_l1_loss(q.float(), target.float())
+
         self.optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        nn.utils.clip_grad_norm_(self.policy.parameters(), 5.0)
-        self.optimizer.step()
-        return float(loss.item())
+        if self._scaler is not None:
+            self._scaler.scale(loss).backward()
+            self._scaler.unscale_(self.optimizer)
+            nn.utils.clip_grad_norm_(self.policy.parameters(), 5.0)
+            self._scaler.step(self.optimizer)
+            self._scaler.update()
+        else:
+            loss.backward()
+            nn.utils.clip_grad_norm_(self.policy.parameters(), 5.0)
+            self.optimizer.step()
+        return float(loss.detach().float().item())
+
+    def optimize_steps(self, buffer: ReplayBuffer, steps: int, batch_size: int = 256) -> float | None:
+        """Run many GPU updates back-to-back (keeps the 3090 busy between CPU rollouts)."""
+        last = None
+        for i in range(max(0, int(steps))):
+            loss = self.optimize(buffer, batch_size=batch_size)
+            if loss is not None:
+                last = loss
+            if (i + 1) % 4 == 0:
+                self.soft_update_target(tau=0.01)
+        return last
 
     def soft_update_target(self, tau: float = 0.01) -> None:
         for tp, pp in zip(self.target.parameters(), self.policy.parameters()):
@@ -374,9 +405,14 @@ class DQNAgent:
         path = path or get_output_path("dqn_policy.pt")
         if not os.path.exists(path):
             return False
-        ckpt = torch.load(path, map_location=self.device)
-        self.policy.load_state_dict(ckpt["policy"])
-        self.target.load_state_dict(ckpt.get("target", ckpt["policy"]))
+        try:
+            ckpt = torch.load(path, map_location=self.device)
+            self.policy.load_state_dict(ckpt["policy"])
+            self.target.load_state_dict(ckpt.get("target", ckpt["policy"]))
+        except Exception as e:
+            # Architecture / size changes (e.g. deeper net) must not kill the run
+            print(f"Skipping incompatible checkpoint {path}: {e}")
+            return False
         self.epsilon = float(ckpt.get("epsilon", self.epsilon))
         self.games_played = int(ckpt.get("games_played", 0))
         print(f"Loaded DQN weights from {path}")
@@ -405,6 +441,127 @@ def _terminal_reward(score: float, game_scores: list[float]) -> float:
     return -10.0
 
 
+def _slim_trajectory(traj: list[dict]) -> list[dict]:
+    """Keep only pickle-friendly arrays for worker → main handoff."""
+    out: list[dict] = []
+    for step in traj or []:
+        s = step.get("state_vec")
+        a = step.get("action_idx")
+        if s is None or a is None:
+            continue
+        m = step.get("mask")
+        out.append({
+            "state_vec": np.asarray(s, dtype=np.float32),
+            "action_idx": int(a),
+            "mask": np.asarray(
+                m if m is not None else np.ones(NUM_ACTIONS, dtype=np.float32),
+                dtype=np.float32,
+            ),
+        })
+    return out
+
+
+def _push_traj_transitions(
+    buffer: ReplayBuffer,
+    traj: list[dict],
+    scores: list[float],
+    reward_shaping: dict,
+    bootstrapping: bool,
+) -> int:
+    """Push TD (+ optional BC) transitions; return count added."""
+    added = 0
+    step_r = float(reward_shaping.get("step", 0.05)) if reward_shaping.get("enabled", True) else 0.0
+    for i, step in enumerate(traj):
+        s = step["state_vec"]
+        a = int(step["action_idx"])
+        m = step["mask"]
+        r = step_r
+        if i + 1 < len(traj):
+            ns = traj[i + 1]["state_vec"]
+            nm = traj[i + 1]["mask"]
+            done = 0.0
+        else:
+            ns = s
+            nm = np.zeros(NUM_ACTIONS, dtype=np.float32)
+            done = 1.0
+            r += _terminal_reward(scores[0], scores)
+        buffer.push((s, a, r, ns, done, m))
+        added += 1
+    if bootstrapping and traj:
+        for step in traj:
+            buffer.push((
+                step["state_vec"],
+                int(step["action_idx"]),
+                1.0,
+                step["state_vec"],
+                1.0,
+                step["mask"],
+            ))
+            added += 1
+    return added
+
+
+_WORKER_AGENT: DQNAgent | None = None
+_WORKER_HIDDEN: int | None = None
+
+
+def _play_dqn_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
+    """Play one game in a worker with a frozen CPU policy snapshot."""
+    global _WORKER_AGENT, _WORKER_HIDDEN
+    import random as _random
+
+    seed = payload.get("seed")
+    if seed is not None:
+        _random.seed(seed)
+        np.random.seed(int(seed) % (2**32 - 1))
+
+    hidden = int(payload["hidden_size"])
+    reward_shaping = payload.get("reward_shaping") or {"enabled": True}
+    if _WORKER_AGENT is None or _WORKER_HIDDEN != hidden:
+        _WORKER_AGENT = DQNAgent(
+            device=torch.device("cpu"),
+            learning_rate=1e-3,
+            discount_factor=float(payload.get("discount_factor", 0.9)),
+            epsilon=float(payload["epsilon"]),
+            hidden_size=hidden,
+            n_bootstrap_games=int(payload["n_bootstrap_games"]),
+            reward_shaping=reward_shaping,
+        )
+        _WORKER_AGENT._use_amp = False
+        _WORKER_AGENT._scaler = None
+        _WORKER_HIDDEN = hidden
+
+    agent = _WORKER_AGENT
+    agent.reward_shaping = dict(reward_shaping)
+    agent.n_bootstrap_games = int(payload["n_bootstrap_games"])
+    agent.epsilon = float(payload["epsilon"])
+    agent.games_played = int(payload["games_played"])
+    agent.training_mode = True
+    agent.pending_transition = None
+    # Skip weight reload while bootstrapping (EV chooses actions; net unused)
+    if not agent.is_bootstrapping():
+        agent.policy.load_state_dict(payload["policy_state"])
+        agent.policy.eval()
+
+    opponent, opp_type = _make_opponent(payload["opponent_type"])
+    agents = [agent, opponent]
+    traj: list[dict] = []
+    game = GolfGame(num_players=2, agent_types=["dqn", opp_type], q_agents=agents)
+    game.agents = agents
+    scores = game.play_game(verbose=False, trajectories=[traj, None])
+    return {
+        "trajectory": _slim_trajectory(traj),
+        "scores": [float(scores[0]), float(scores[1])],
+        "bootstrapping": bool(agent.is_bootstrapping()),
+    }
+
+
+def _gpu_train_steps(train_steps_per_game: int, n_transitions: int, batch_size: int) -> int:
+    """One short GPU burst per parallel round — throughput over util cosplay."""
+    raw = max(int(train_steps_per_game), int(n_transitions) // max(1, int(batch_size)))
+    return int(min(32, max(8, raw)))
+
+
 def train_dqn_agent(
     num_games: int = 5000,
     opponent_type: str = "ev_ai",
@@ -418,9 +575,11 @@ def train_dqn_agent(
     use_imitation_learning: bool = True,
     epsilon_decay_interval: int = 100,
     progress_report_interval: int = 250,
-    batch_size: int = 256,
+    batch_size: int = 512,
     hidden_size: int = 256,
-    train_steps_per_game: int = 4,
+    train_steps_per_game: int = 16,
+    num_workers: int | None = None,
+    chunk_size: int | None = None,
     target_tau: float = 0.01,
     use_reward_shaping: bool = True,
     shape_step: float = 0.05,
@@ -443,13 +602,31 @@ def train_dqn_agent(
         "flip": float(shape_flip),
     }
 
+    cpu_n = os.cpu_count() or 4
+    if num_workers is None or int(num_workers) <= 0:
+        # Prefer a small pool for games/hour; huge pods (64 vCPU) thrash if we use all of them
+        num_workers = min(8, max(2, cpu_n))
+    num_workers = max(1, min(int(num_workers), cpu_n))
+    if chunk_size is None or int(chunk_size) <= 0:
+        chunk_size = max(num_workers, num_workers * 2)
+    chunk_size = max(1, int(chunk_size))
+
+    train_steps_per_game = max(4, int(train_steps_per_game))
+    batch_size = max(32, int(batch_size))
+    hidden_size = max(32, int(hidden_size))
+    # Throughput floors — do NOT force huge GPU taxes
+    if device.type == "cuda":
+        train_steps_per_game = max(train_steps_per_game, 8)
+
     print("=" * 70)
-    print("NEURAL DQN TRAINING (GPU PATH)")
+    print("NEURAL DQN TRAINING (PARALLEL ROLLOUTS + GPU UPDATES)")
     print("=" * 70)
     print(f"Device: {device}")
     if device.type == "cuda":
         print(f"GPU: {torch.cuda.get_device_name(0)}")
+    print(f"Workers: {num_workers} (cpu_count={cpu_n}) chunk={chunk_size}")
     print(f"State dim={STATE_DIM} actions={NUM_ACTIONS} hidden={hidden_size} batch={batch_size}")
+    print(f"Train steps/round~{train_steps_per_game} (clamped 8-32 from transitions)")
     print(f"Games={num_games} bootstrap={bootstrap_n} opponent={opponent_type}")
 
     agent = DQNAgent(
@@ -462,8 +639,7 @@ def train_dqn_agent(
         reward_shaping=reward_shaping,
     )
     agent.load()
-    buffer = ReplayBuffer(100_000)
-    opponent, opp_type = _make_opponent(opponent_type)
+    buffer = ReplayBuffer(250_000)
 
     training_stats: dict[str, Any] = {
         "games_played": 0,
@@ -478,13 +654,14 @@ def train_dqn_agent(
         "loss_values": [],
         "buffer_sizes": [],
         "train_device": "gpu" if device.type != "cpu" else "cpu",
-        "train_mode": "dqn",
+        "train_mode": "dqn_parallel",
+        "num_workers": num_workers,
     }
 
     with open(get_output_path("training_progress.json"), "w", encoding="utf-8") as f:
         json.dump({
             "ok": True, "running": True, "checkpoints": [],
-            "train_mode": "dqn",
+            "train_mode": "dqn_parallel",
             "train_device": training_stats["train_device"],
             "series": {
                 "games": [], "avg_scores": [], "qtable_states": [],
@@ -495,110 +672,120 @@ def train_dqn_agent(
 
     t0 = time.time()
     last_loss = None
-    for game_i in range(num_games):
-        start = time.time()
-        agents = [agent, opponent]
-        traj: list[dict] = []
-        game = GolfGame(num_players=2, agent_types=["dqn", opp_type], q_agents=agents)
-        # Monkey-patch create already set agents; ensure agent list is ours
-        game.agents = agents
-        scores = game.play_game(verbose=False, trajectories=[traj, None])
+    games_done = 0
 
-        # Build transitions from trajectory state vectors
-        for i, step in enumerate(traj):
-            s = step.get("state_vec")
-            a = step.get("action_idx")
-            m = step.get("mask")
-            if s is None or a is None:
-                continue
-            r = float(reward_shaping.get("step", 0.05)) if reward_shaping.get("enabled", True) else 0.0
-            if i + 1 < len(traj):
-                ns = traj[i + 1].get("state_vec", s)
-                nm = traj[i + 1].get("mask", np.ones(NUM_ACTIONS, dtype=np.float32))
-                done = 0.0
+    with ProcessPoolExecutor(max_workers=num_workers) as pool:
+        while games_done < num_games:
+            batch_n = min(chunk_size, num_games - games_done)
+            # Avoid shipping weights while EV bootstrap ignores the net
+            if agent.games_played < bootstrap_n:
+                policy_state: dict[str, Any] = {}
             else:
-                ns = s
-                nm = np.zeros(NUM_ACTIONS, dtype=np.float32)
-                done = 1.0
-                r += _terminal_reward(scores[0], scores)
-            buffer.push((s, int(a), r, ns, done, np.asarray(m if m is not None else np.ones(NUM_ACTIONS), dtype=np.float32)))
+                policy_state = {k: v.detach().cpu() for k, v in agent.policy.state_dict().items()}
+            payloads = []
+            for i in range(batch_n):
+                payloads.append({
+                    "policy_state": policy_state,
+                    "epsilon": agent.epsilon,
+                    "hidden_size": hidden_size,
+                    "n_bootstrap_games": bootstrap_n,
+                    "games_played": agent.games_played,
+                    "discount_factor": discount_factor,
+                    "opponent_type": opponent_type,
+                    "reward_shaping": reward_shaping,
+                    "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
+                })
 
-        # During bootstrap, also push imitation targets via extra BC-style updates
-        if agent.is_bootstrapping() and traj:
-            for step in traj:
-                s = step.get("state_vec")
-                a = step.get("action_idx")
-                m = step.get("mask")
-                if s is None or a is None:
-                    continue
-                # Expert action gets positive terminal-like nudge
-                buffer.push((
-                    s, int(a), 1.0,
-                    s, 1.0,
-                    np.asarray(m if m is not None else np.ones(NUM_ACTIONS), dtype=np.float32),
-                ))
+            batch_start = time.time()
+            futures = [pool.submit(_play_dqn_worker_game, p) for p in payloads]
+            results = [fut.result() for fut in as_completed(futures)]
 
-        for _ in range(train_steps_per_game):
-            last_loss = agent.optimize(buffer, batch_size=batch_size)
+            n_transitions = 0
+            for result in results:
+                traj = result["trajectory"]
+                scores = result["scores"]
+                games_done += 1
+                agent.games_played = games_done
+
+                n_transitions += _push_traj_transitions(
+                    buffer,
+                    traj,
+                    scores,
+                    reward_shaping,
+                    bootstrapping=bool(result.get("bootstrapping")),
+                )
+
+                won = scores[0] < scores[1]
+                tied = scores[0] == scores[1]
+                if won:
+                    training_stats["wins"] += 1
+                elif not tied:
+                    training_stats["losses"] += 1
+
+                training_stats["games_played"] = games_done
+                training_stats["scores"].append(float(scores[0]))
+                training_stats["opponent_scores"].append(float(scores[1]))
+                states, entries = agent.get_q_table_size()
+                training_stats["qtable_states"].append(states)
+                training_stats["qtable_entries"].append(entries)
+                training_stats["epsilon_values"].append(agent.epsilon)
+                training_stats["training_times"].append((time.time() - batch_start) / max(1, batch_n))
+
+                if epsilon_decay_interval and games_done % epsilon_decay_interval == 0:
+                    agent.decay_epsilon(factor=epsilon_decay_factor)
+
+            steps = _gpu_train_steps(train_steps_per_game, n_transitions, batch_size)
+            last_loss = agent.optimize_steps(buffer, steps, batch_size=batch_size)
             agent.soft_update_target(tau=target_tau)
 
-        agent.notify_game_end()
+            for _ in range(batch_n):
+                training_stats["loss_values"].append(None if last_loss is None else float(last_loss))
+                training_stats["buffer_sizes"].append(len(buffer))
 
-        won = scores[0] < scores[1]
-        tied = scores[0] == scores[1]
-        if won:
-            training_stats["wins"] += 1
-        elif not tied:
-            training_stats["losses"] += 1
-
-        training_stats["games_played"] = game_i + 1
-        training_stats["scores"].append(float(scores[0]))
-        training_stats["opponent_scores"].append(float(scores[1]))
-        states, entries = agent.get_q_table_size()
-        training_stats["qtable_states"].append(states)
-        training_stats["qtable_entries"].append(entries)
-        training_stats["epsilon_values"].append(agent.epsilon)
-        training_stats["training_times"].append(time.time() - start)
-        training_stats["loss_values"].append(None if last_loss is None else float(last_loss))
-        training_stats["buffer_sizes"].append(len(buffer))
-
-        if epsilon_decay_interval and (game_i + 1) % epsilon_decay_interval == 0:
-            agent.decay_epsilon(factor=epsilon_decay_factor)
-
-        if verbose and ((game_i + 1) % progress_report_interval == 0 or game_i + 1 == num_games):
-            win_rate = training_stats["wins"] / (game_i + 1)
-            avg_score = float(np.mean(training_stats["scores"]))
-            phase = "BOOTSTRAP" if (game_i + 1) < bootstrap_n else "DQN"
-            gps = (game_i + 1) / max(1e-6, time.time() - t0)
-            loss_s = f"{last_loss:.4f}" if last_loss is not None else "n/a"
-            print(
-                f"  Game {game_i + 1}: {phase} | Win rate={win_rate:.2%}, "
-                f"Avg score={avg_score:.2f}, Params={states}, Epsilon={agent.epsilon:.3f}, "
-                f"loss={loss_s}, buffer={len(buffer)}, {gps:.1f} games/s, device={device}"
-            )
-            save_training_stats_json(training_stats)
-            append_progress_checkpoint(
-                game=game_i + 1,
-                games_total=num_games,
-                phase=phase,
-                win_rate=win_rate,
-                avg_score=avg_score,
-                states=states,
-                epsilon=agent.epsilon,
-                loss=last_loss,
-                buffer_size=len(buffer),
-                train_mode="dqn",
-                train_device=training_stats["train_device"],
-            )
-            agent.save()
+            if verbose and (
+                games_done % progress_report_interval < batch_n
+                or games_done >= num_games
+            ):
+                win_rate = training_stats["wins"] / max(1, games_done)
+                avg_score = float(np.mean(training_stats["scores"]))
+                states, _ = agent.get_q_table_size()
+                phase = "BOOTSTRAP" if games_done < bootstrap_n else "DQN"
+                gps = games_done / max(1e-6, time.time() - t0)
+                loss_s = f"{last_loss:.4f}" if last_loss is not None else "n/a"
+                print(
+                    f"  Game {games_done}: {phase} | Win rate={win_rate:.2%}, "
+                    f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
+                    f"loss={loss_s}, buffer={len(buffer)}, steps={steps}, "
+                    f"{gps:.1f} games/s, workers={num_workers}, device={device}"
+                )
+                save_training_stats_json(training_stats)
+                append_progress_checkpoint(
+                    game=games_done,
+                    games_total=num_games,
+                    phase=phase,
+                    win_rate=win_rate,
+                    avg_score=avg_score,
+                    states=states,
+                    epsilon=agent.epsilon,
+                    loss=last_loss,
+                    buffer_size=len(buffer),
+                    train_mode="dqn_parallel",
+                    train_device=training_stats["train_device"],
+                )
+                if games_done >= num_games or games_done % max(progress_report_interval * 4, 500) < batch_n:
+                    agent.save()
 
     win_rate = training_stats["wins"] / max(1, num_games)
     avg_score = float(np.mean(training_stats["scores"])) if training_stats["scores"] else 0.0
+    total_time = time.time() - t0
+    training_stats["total_time"] = float(total_time)
+    training_stats["games_per_sec"] = float(num_games / max(1e-6, total_time))
     print("\nDQN TRAINING COMPLETE")
     print(f"  Device: {device}")
+    print(f"  Workers: {num_workers}")
     print(f"  Win rate: {win_rate:.2%}")
     print(f"  Avg score: {avg_score:.2f}")
-    print(f"  Time: {time.time() - t0:.1f}s")
+    print(f"  Time: {total_time:.1f}s ({training_stats['games_per_sec']:.1f} games/s)")
     agent.save()
     save_training_stats_json(training_stats)
     append_progress_checkpoint(
@@ -611,7 +798,7 @@ def train_dqn_agent(
         epsilon=agent.epsilon,
         loss=last_loss,
         buffer_size=len(buffer),
-        train_mode="dqn",
+        train_mode="dqn_parallel",
         train_device=training_stats["train_device"],
     )
     mark_progress_complete()
@@ -620,13 +807,15 @@ def train_dqn_agent(
         json.dump({
             "num_games": num_games,
             "train_device": "gpu" if device.type != "cpu" else "cpu",
-            "train_mode": "dqn",
+            "train_mode": "dqn_parallel",
             "opponent_type": opponent_type,
             "learning_rate": learning_rate,
             "discount_factor": discount_factor,
             "epsilon": epsilon,
             "batch_size": batch_size,
             "hidden_size": hidden_size,
+            "train_steps_per_game": train_steps_per_game,
+            "num_workers": num_workers,
             "n_bootstrap_games": bootstrap_n,
             "use_imitation_learning": use_imitation_learning,
         }, f, indent=2)
@@ -676,8 +865,10 @@ if __name__ == "__main__":
             use_imitation_learning=bool(p.get("use_imitation_learning", True)),
             epsilon_decay_interval=int(p.get("epsilon_decay_interval", 100)),
             progress_report_interval=int(p.get("progress_report_interval", 250)),
-            batch_size=int(p.get("batch_size", 256)),
+            batch_size=int(p.get("batch_size", 512)),
             hidden_size=int(p.get("hidden_size", 256)),
+            train_steps_per_game=int(p.get("train_steps_per_game", 16)),
+            num_workers=int(p.get("num_workers", 0) or 0) or None,
             use_reward_shaping=bool(p.get("use_reward_shaping", True)),
             shape_step=float(p.get("shape_step", 0.05)),
             shape_pair=float(p.get("shape_pair", 1.5)),

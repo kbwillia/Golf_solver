@@ -14,11 +14,12 @@ ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 GAME_LINE_RE = re.compile(
     r"Game\s+(\d+)\s*:\s*(\S+)\s*\|\s*Win rate=([0-9.]+)%,\s*Avg score=([0-9.]+),\s*"
-    r"States=(\d+),\s*Epsilon=([0-9.]+)",
+    r"(?:States|Params)=(\d+),\s*Epsilon=([0-9.]+)",
     re.IGNORECASE,
 )
 TQDM_RE = re.compile(
-    r"Training Q-learning agent:\s+(\d+)%\|.*?\|\s+(\d+)/(\d+)\s+\[",
+    r"Training (?:Q-learning agent|DQN(?: agent)?):\s+(\d+)%\|.*?\|\s+(\d+)/(\d+)\s+\[",
+    re.IGNORECASE,
 )
 
 
@@ -89,7 +90,18 @@ if [ -f /workspace/logs/train.pid ] && ps -p $(cat /workspace/logs/train.pid) >/
   ps -p $(cat /workspace/logs/train.pid) -o etime= 2>/dev/null | tr -d ' '
 fi
 echo "RUNNING=$running"
-tail -n 80 /workspace/logs/train.log 2>/dev/null || true
+# Prefer progress file existence marker for the UI
+if [ -f /workspace/Golf_solver/backend/RL/output/training_progress.json ]; then
+  echo "HAS_PROGRESS=1"
+else
+  echo "HAS_PROGRESS=0"
+fi
+if [ -f /workspace/Golf_solver/backend/RL/output/training_stats.json ]; then
+  echo "HAS_STATS=1"
+else
+  echo "HAS_STATS=0"
+fi
+tail -n 120 /workspace/logs/train.log 2>/dev/null || true
 """
     try:
         out = subprocess.check_output(
@@ -102,7 +114,8 @@ tail -n 80 /workspace/logs/train.log 2>/dev/null || true
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
         return False, str(e)
-    running = "RUNNING=1" in (out or "").splitlines()[:5]
+    head = "\n".join((out or "").splitlines()[:8])
+    running = "RUNNING=1" in head
     return running, out or ""
 
 
@@ -119,7 +132,6 @@ def _parse_progress(log_text: str) -> dict:
                 "epsilon": float(m.group(6)),
             }
         )
-    # Dedupe by game, keep last
     by_game = {p["game"]: p for p in points}
     points = [by_game[g] for g in sorted(by_game)]
 
@@ -139,30 +151,41 @@ def _parse_progress(log_text: str) -> dict:
     }
 
 
-def _try_pull_stats(env: dict[str, str]) -> bool:
+def _try_pull_file(env: dict[str, str], name: str) -> bool:
     scp = _scp_base(env)
     if not scp:
         return False
     scp_cmd, remote = scp
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    remote_file = f"{remote}:/workspace/Golf_solver/backend/RL/output/training_stats.json"
+    remote_file = f"{remote}:/workspace/Golf_solver/backend/RL/output/{name}"
     try:
         subprocess.check_call(
-            scp_cmd + [remote_file, str(OUTPUT_DIR / "training_stats.json")],
+            scp_cmd + [remote_file, str(OUTPUT_DIR / name)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=40,
+            timeout=60,
         )
-        return True
+        return (OUTPUT_DIR / name).exists()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
 
 
+def _load_local_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def sync_live_progress() -> dict:
-    """SSH to RunPod, parse train.log, optionally pull training_stats.json."""
+    """SSH to RunPod, pull progress/stats, fall back to parsing train.log."""
     # Never overwrite local artifacts while a local trainer owns the files
     try:
         from rl_control import _local_pid
+
         if _local_pid() is not None:
             return {
                 "ok": True,
@@ -184,18 +207,72 @@ def sync_live_progress() -> dict:
         }
 
     running, log_text = _remote_status_and_log(ssh)
-    parsed = _parse_progress(log_text)
-    # Only pull remote stats when a remote job is active (avoid clobbering local files)
-    pulled_stats = _try_pull_stats(env) if running else False
+    has_progress = "HAS_PROGRESS=1" in "\n".join(log_text.splitlines()[:8])
+    has_stats = "HAS_STATS=1" in "\n".join(log_text.splitlines()[:8])
 
+    # Always pull live progress when the pod has it (running or finished)
+    pulled_progress = _try_pull_file(env, "training_progress.json") if has_progress else False
+    remote_progress = _load_local_json(PROGRESS_PATH) if pulled_progress else None
+
+    # Pull finished (or in-progress) stats so the UI charts update without a manual Pull
+    # Previously this only ran while `running`, so completed GPU jobs never appeared.
+    should_pull_stats = has_stats and (
+        running
+        or not (remote_progress or {}).get("running", True)
+        or bool((remote_progress or {}).get("summary"))
+        or "TRAINING COMPLETE" in log_text
+        or "DQN TRAINING COMPLETE" in log_text
+        or "PARALLEL CPU TRAINING COMPLETE" in log_text
+    )
+    # Also pull while running so learning curves update live
+    if has_stats and running:
+        should_pull_stats = True
+
+    pulled_stats = _try_pull_file(env, "training_stats.json") if should_pull_stats else False
+    if has_stats and not running:
+        # Finished job: also grab policy / params for archive
+        _try_pull_file(env, "last_run_params.json")
+        _try_pull_file(env, "dqn_policy.pt")
+
+    parsed = _parse_progress(log_text)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Prefer the pod's progress JSON (written by progress_io) over log scraping
+    if remote_progress and (remote_progress.get("series") or remote_progress.get("summary")):
+        payload = {
+            "ok": True,
+            "running": bool(running or remote_progress.get("running")),
+            "pulled_training_stats": pulled_stats,
+            "pulled_progress": True,
+            "checkpoints": remote_progress.get("checkpoints") or [],
+            "tqdm_pct": remote_progress.get("tqdm_pct"),
+            "tqdm_current": remote_progress.get("tqdm_current"),
+            "tqdm_total": remote_progress.get("tqdm_total"),
+            "series": remote_progress.get("series") or {},
+            "summary": remote_progress.get("summary") or {},
+            "train_mode": remote_progress.get("train_mode")
+            or (remote_progress.get("summary") or {}).get("train_mode"),
+            "train_device": remote_progress.get("train_device")
+            or (remote_progress.get("summary") or {}).get("train_device")
+            or "gpu",
+        }
+        # Force running=False if the process is dead even if the file still says running
+        if not running:
+            payload["running"] = False
+            payload["summary"] = dict(payload.get("summary") or {})
+            if payload["summary"].get("pct") is None and payload.get("tqdm_pct") is not None:
+                payload["summary"]["pct"] = payload["tqdm_pct"]
+        PROGRESS_PATH.write_text(json.dumps(payload), encoding="utf-8")
+        return payload
+
     payload = {
         "ok": True,
         "running": running,
         "pulled_training_stats": pulled_stats,
+        "pulled_progress": False,
         **parsed,
+        "train_device": "gpu",
     }
-    # If we only have sparse checkpoints, synthesize a mini series for the viz
     cps = parsed["checkpoints"]
     if cps:
         payload["series"] = {

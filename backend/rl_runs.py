@@ -64,6 +64,34 @@ def save_index(runs: list[dict[str, Any]]) -> None:
     _write_json(INDEX_PATH, {"runs": runs_sorted, "updated_at": _iso()})
 
 
+def _duration_from_stats(stats: dict[str, Any] | None) -> tuple[float | None, float | None]:
+    """Return (duration_sec, games_per_sec) from training_stats."""
+    stats = stats or {}
+    games = int(stats.get("games_played") or 0)
+    total = stats.get("total_time")
+    if total is None:
+        times = stats.get("training_times") or []
+        if times:
+            try:
+                total = float(sum(float(x) for x in times))
+            except (TypeError, ValueError):
+                total = None
+    if total is None:
+        return None, None
+    try:
+        total_f = float(total)
+    except (TypeError, ValueError):
+        return None, None
+    if total_f <= 0:
+        return None, None
+    gps = (games / total_f) if games else stats.get("games_per_sec")
+    try:
+        gps_f = float(gps) if gps is not None else None
+    except (TypeError, ValueError):
+        gps_f = None
+    return total_f, gps_f
+
+
 def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None) -> dict[str, Any]:
     stats = stats or {}
     params = params or {}
@@ -81,6 +109,7 @@ def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None
 
     first_n = scores[: max(1, min(100, len(scores)))] if scores else []
     last_n = scores[-max(1, min(100, len(scores))) :] if scores else []
+    duration_sec, games_per_sec = _duration_from_stats(stats)
 
     return {
         "games_played": games,
@@ -107,6 +136,8 @@ def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None
         "final_epsilon": float((stats.get("epsilon_values") or [None])[-1])
         if stats.get("epsilon_values")
         else None,
+        "duration_sec": duration_sec,
+        "games_per_sec": games_per_sec,
         "num_games_planned": params.get("num_games"),
         "learning_rate": params.get("learning_rate"),
         "epsilon": params.get("epsilon"),
@@ -230,6 +261,15 @@ def list_runs(limit: int = 50) -> list[dict[str, Any]]:
         if not rid:
             continue
         meta = _load_json(RUNS_DIR / rid / "meta.json") or entry
+        summary = dict(meta.get("summary") or {})
+        # Backfill duration for older archives that only have training_times
+        if summary.get("duration_sec") is None:
+            stats = _load_json(RUNS_DIR / rid / "training_stats.json")
+            dur, gps = _duration_from_stats(stats)
+            if dur is not None:
+                summary["duration_sec"] = dur
+                summary["games_per_sec"] = gps
+                meta = {**meta, "summary": summary}
         refreshed.append(meta)
     return refreshed
 

@@ -35,8 +35,9 @@ DEFAULT_PARAMS = {
     # cpu = local parallel tabular Q | gpu = neural DQN (RunPod if remote, else local CUDA)
     "train_device": "cpu",
     "num_workers": max(2, os.cpu_count() or 4),
-    "batch_size": 256,
+    "batch_size": 512,
     "hidden_size": 256,
+    "train_steps_per_game": 16,
     # Reward shaping — turn off (or zero weights) for unbiased / solve-mode runs
     "use_reward_shaping": True,
     "shape_step": 0.05,
@@ -89,8 +90,9 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     device = str(merged.get("train_device") or "cpu").lower().strip()
     merged["train_device"] = "gpu" if device in ("gpu", "cuda", "dqn") else "cpu"
     merged["num_workers"] = max(1, int(merged.get("num_workers") or (os.cpu_count() or 4)))
-    merged["batch_size"] = max(32, int(merged.get("batch_size") or 256))
+    merged["batch_size"] = max(32, int(merged.get("batch_size") or 512))
     merged["hidden_size"] = max(32, int(merged.get("hidden_size") or 256))
+    merged["train_steps_per_game"] = max(4, int(merged.get("train_steps_per_game") or 16))
     merged["use_reward_shaping"] = bool(merged["use_reward_shaping"])
     for key in (
         "shape_step",
@@ -256,7 +258,10 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
     log_f = open(LOCAL_LOG_PATH, "w", encoding="utf-8")
     creationflags = 0
     if sys.platform == "win32":
-        creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        # Keep training in the background — do not spawn a visible console window
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
 
     proc = subprocess.Popen(
         [sys.executable, "-u", str(script)],
@@ -309,6 +314,32 @@ def get_status() -> dict[str, Any]:
         "defaults": DEFAULT_PARAMS,
         "train_device": params.get("train_device", "cpu"),
     }
+    # Sync launch lock from disk (survives Flask restarts) + surface errors
+    try:
+        launch = json.loads((OUTPUT_DIR / "launch_status.json").read_text(encoding="utf-8"))
+        if launch.get("error") and not remote["launch_error"]:
+            remote["launch_error"] = launch.get("error")
+        # Orphaned busy flag after process death / restart — don't block UI forever
+        if launch.get("busy") and not _launch_state.get("busy"):
+            started_at = float(_launch_state.get("started_at") or 0)
+            stale = (not started_at) or (time.time() - started_at > 30)
+            if stale and launch.get("stage") in ("starting_remote", "uploading", None):
+                launch["busy"] = False
+                if not launch.get("error"):
+                    launch["error"] = (
+                        "Launch interrupted (server restarted or worker died). "
+                        "Press Start again."
+                    )
+                    launch["stage"] = "failed"
+                (OUTPUT_DIR / "launch_status.json").write_text(
+                    json.dumps(launch, indent=2), encoding="utf-8"
+                )
+                remote["launch_error"] = launch.get("error")
+        elif launch.get("busy") and _launch_state.get("busy"):
+            remote["running"] = True
+            remote["launching"] = True
+    except Exception:
+        pass
     if params.get("train_device") != "gpu" and not _launch_state.get("busy"):
         return remote
 
@@ -378,41 +409,73 @@ fi
 
 
 def stop_training() -> dict[str, Any]:
+    global _launch_state
     # Prefer local stop if a local pid exists
     if _local_pid() is not None or LOCAL_PID_PATH.exists():
         return _stop_local()
+
+    # Clear any stuck local launch lock so Start works again
+    _launch_state["busy"] = False
+    try:
+        (OUTPUT_DIR / "launch_status.json").write_text(
+            json.dumps({"busy": False, "error": None, "stage": "stopped"}, indent=2),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
 
     try:
         env, host, port, ssh, _ = _connect()
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-    remote = r"""
+    remote = """
 pkill -f "python -u run_remote_train.py" 2>/dev/null || true
 pkill -f "python -u dqn_train.py" 2>/dev/null || true
 pkill -f "python -u parallel_train.py" 2>/dev/null || true
 pkill -f "python -u train.py" 2>/dev/null || true
 sleep 1
-if [ -f /workspace/logs/train.pid ] && ps -p $(cat /workspace/logs/train.pid) >/dev/null 2>&1; then
+rm -f /workspace/logs/train.pid
+# Mark progress complete so UI sync does not look "live"
+if [ -f /workspace/Golf_solver/backend/RL/output/training_progress.json ]; then
+  python3 - <<'PY'
+import json, os
+p='/workspace/Golf_solver/backend/RL/output/training_progress.json'
+try:
+    d=json.load(open(p))
+    d['running']=False
+    json.dump(d, open(p,'w'))
+except Exception:
+    pass
+PY
+fi
+if pgrep -f "run_remote_train.py" >/dev/null 2>&1; then
   echo STILL_RUNNING
   exit 1
 fi
 echo STOPPED
 """
     try:
-        out = subprocess.check_output(
-            ssh + ["bash", "-lc", remote],
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=30,
+        payload = remote.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+        proc = subprocess.run(
+            ssh + ["bash", "-s"],
+            input=payload,
+            capture_output=True,
+            timeout=45,
+            check=False,
         )
-    except subprocess.CalledProcessError as e:
-        return {"ok": False, "error": "Failed to stop remote process", "detail": (e.output or "")[-500:]}
+        out = (proc.stdout or b"").decode("utf-8", errors="replace")
+        err = (proc.stderr or b"").decode("utf-8", errors="replace")
+        if proc.returncode != 0 and "STOPPED" not in out:
+            return {
+                "ok": False,
+                "error": "Failed to stop remote process",
+                "detail": (err or out)[-500:],
+            }
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-    return {"ok": True, "stopped": True, "message": out.strip() or "STOPPED"}
+    return {"ok": True, "stopped": True, "message": "Stopped RunPod training (or it was already finished)."}
 
 
 def _get_launch_lock():
@@ -426,10 +489,17 @@ def _get_launch_lock():
 def _launch_training_job(merged: dict[str, Any]) -> None:
     """Background worker: upload + remote bootstrap (can take minutes)."""
     global _launch_state
+    launch_log = OUTPUT_DIR / "launch_status.json"
     try:
         env, host, port, ssh, (scp_cmd, remote) = _connect()
         _ensure_rl_import()
         from runpod_train import remote_train_script
+
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        launch_log.write_text(
+            json.dumps({"busy": True, "error": None, "stage": "uploading"}, indent=2),
+            encoding="utf-8",
+        )
 
         # Upload trainers + agents so pod gets latest code
         uploads = [
@@ -443,25 +513,71 @@ def _launch_training_job(merged: dict[str, Any]) -> None:
             if local.exists():
                 subprocess.check_call(
                     scp_cmd + [str(local), f"{remote}:{remote_path}"],
-                    timeout=60,
+                    timeout=90,
                 )
 
-        script = remote_train_script(merged)
+        launch_log.write_text(
+            json.dumps({"busy": True, "error": None, "stage": "starting_remote"}, indent=2),
+            encoding="utf-8",
+        )
+        script = remote_train_script(merged).replace("\r\n", "\n").replace("\r", "\n")
         proc = subprocess.run(
             ssh + ["bash", "-s"],
             input=script.encode("utf-8"),
             capture_output=True,
-            timeout=300,
+            timeout=420,
             check=False,
         )
-        if proc.returncode != 0:
-            err = (proc.stderr or b"").decode("utf-8", errors="replace")[-800:]
-            out = (proc.stdout or b"").decode("utf-8", errors="replace")[-800:]
-            _launch_state["error"] = f"Remote launch failed: {err or out or proc.returncode}"
+        out = (proc.stdout or b"").decode("utf-8", errors="replace")
+        err = (proc.stderr or b"").decode("utf-8", errors="replace")
+        (OUTPUT_DIR / "launch_remote.log").write_text(
+            (out[-12000:] if out else "") + ("\n--- STDERR ---\n" + err[-4000:] if err else ""),
+            encoding="utf-8",
+        )
+        died = (
+            "=== TRAIN DIED IMMEDIATELY ===" in out
+            or "Traceback (most recent call last):" in out
+            or "RuntimeError:" in out
+        )
+        success_markers = (
+            "=== TRAIN LAUNCHED ===",
+            "=== TRAIN FINISHED OR STARTED",
+            "DQN TRAINING COMPLETE",
+            "TRAINING COMPLETE!",
+            "PARALLEL CPU TRAINING COMPLETE",
+        )
+        if died:
+            # Prefer the real exception over a false "launched" banner
+            detail = out[-1500:] if out else (err or "remote trainer crashed")
+            _launch_state["error"] = f"Remote trainer crashed:\n{detail}"
+        elif any(m in out for m in success_markers):
+            _launch_state["error"] = None
+        elif proc.returncode != 0:
+            detail = (err or out or str(proc.returncode))[-1200:]
+            _launch_state["error"] = f"Remote launch failed: {detail}"
         else:
             _launch_state["error"] = None
+        launch_log.write_text(
+            json.dumps(
+                {
+                    "busy": False,
+                    "error": _launch_state.get("error"),
+                    "stage": "done" if not _launch_state.get("error") else "failed",
+                    "returncode": proc.returncode,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     except Exception as e:
         _launch_state["error"] = str(e)
+        try:
+            launch_log.write_text(
+                json.dumps({"busy": False, "error": str(e), "stage": "failed"}, indent=2),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
     finally:
         _launch_state["busy"] = False
 
@@ -472,12 +588,19 @@ def start_training(params: dict[str, Any] | None = None) -> dict[str, Any]:
     merged = save_params(params or load_saved_params())
     status = get_status()
     if status.get("running"):
-        where = "locally" if status.get("local") else "on RunPod"
-        return {
-            "ok": False,
-            "error": f"Training already running {where}. Stop it first, then start with new params.",
-            "running": True,
-        }
+        # If "running" is only a stuck launch lock with no live remote pid, clear it
+        if status.get("launching") and not status.get("elapsed") and not status.get("local"):
+            started_at = float(_launch_state.get("started_at") or 0)
+            if started_at and (time.time() - started_at) > 180:
+                _launch_state["busy"] = False
+                status = get_status()
+        if status.get("running"):
+            where = "locally" if status.get("local") else "on RunPod"
+            return {
+                "ok": False,
+                "error": f"Training already running {where}. Stop it first, then start with new params.",
+                "running": True,
+            }
 
     # CPU → local parallel tabular; results archived + uploaded to Supabase from this machine
     if merged.get("train_device") == "cpu":
@@ -505,6 +628,13 @@ def start_training(params: dict[str, Any] | None = None) -> dict[str, Any]:
         _launch_state["busy"] = True
         _launch_state["error"] = None
         _launch_state["started_at"] = time.time()
+        try:
+            (OUTPUT_DIR / "launch_status.json").write_text(
+                json.dumps({"busy": True, "error": None, "stage": "queued"}, indent=2),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
 
     # Force remote script onto DQN path
     merged = {**merged, "train_device": "gpu"}
@@ -515,7 +645,7 @@ def start_training(params: dict[str, Any] | None = None) -> dict[str, Any]:
         "started": True,
         "launching": True,
         "params": merged,
-        "message": "Launching neural DQN on RunPod. Pull + archive when done to save results to Supabase.",
+        "message": "Launching neural DQN on RunPod. Progress and results sync into this page automatically when the job finishes.",
     }
 
 

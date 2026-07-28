@@ -298,6 +298,8 @@ def train_qlearning_agent_parallel(
     win_rate = training_stats["wins"] / max(1, num_games)
     avg_score = float(np.mean(training_stats["scores"])) if training_stats["scores"] else 0.0
     total_time = time.time() - t0
+    training_stats["total_time"] = float(total_time)
+    training_stats["games_per_sec"] = float(num_games / max(1e-6, total_time))
     print("\nPARALLEL CPU TRAINING COMPLETE")
     print(f"  Games: {num_games} | workers={num_workers}")
     print(f"  Win rate: {win_rate:.2%}")

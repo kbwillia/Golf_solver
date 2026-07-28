@@ -3,6 +3,12 @@
 *.json
 *.png
 *.mp3
+*.txt
+!requirements.txt
+!backend/requirements.txt
+!runtime.txt
+!backend/game_rules.txt
+!rules_gameplay.txt
 # Don't ignore static files
 !frontend/static/**/*.json
 !frontend/static/**/*.mp3

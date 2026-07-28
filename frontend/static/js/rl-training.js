@@ -154,10 +154,12 @@
     });
   }
 
-  function setModeVisibility(isDqn) {
+  function setModeVisibility(isDqn, { previewGpu = false } = {}) {
+    const showDqnUi = !!(isDqn || previewGpu);
     document.querySelectorAll(".rl-dqn-only").forEach((el) => {
-      el.hidden = !isDqn;
+      el.hidden = !showDqnUi;
     });
+    // Keep tabular Q-hist visible for CPU data; hide only when viewing a real DQN run
     document.querySelectorAll(".rl-tabular-only").forEach((el) => {
       el.hidden = !!isDqn;
     });
@@ -188,11 +190,24 @@
       if (growthTitle) growthTitle.textContent = "Q-table growth";
       if (growthHint) growthHint.textContent = "";
     }
+    // Empty-state hints when previewing GPU before a DQN run exists
+    const lossHint = document.querySelector("#panelLoss .hint");
+    const bufferTitle = document.querySelector("#panelBuffer h2");
+    if (!isDqn && previewGpu) {
+      if (lossHint) {
+        lossHint.textContent = "No DQN run loaded yet — Start with Device=GPU (RunPod). Charts fill when the job syncs back.";
+      }
+    } else if (isDqn && lossHint) {
+      lossHint.textContent = "Smooth L1 TD loss (raw + MA). GPU / neural runs only.";
+    }
+    void bufferTitle;
   }
 
   function setSummary(summary, trainMode) {
     const isDqn = String(trainMode || summary.train_mode || "").toLowerCase() === "dqn";
-    setModeVisibility(isDqn);
+    const previewGpu =
+      (document.querySelector('[name="train_device"]')?.value || "").toLowerCase() === "gpu";
+    setModeVisibility(isDqn, { previewGpu });
     const map = {
       statGames: summary.games_total
         ? `${fmt(summary.games_played)} / ${fmt(summary.games_total)}`
@@ -237,12 +252,23 @@
     }
   }
 
+  function fmtDuration(sec) {
+    if (sec == null || Number.isNaN(sec)) return "—";
+    const s = Math.max(0, Number(sec));
+    if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+    const m = Math.floor(s / 60);
+    const rem = Math.round(s % 60);
+    if (m < 60) return `${m}m ${rem}s`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+  }
+
   function renderRunsTable(runs, compareIds) {
     const body = document.getElementById("rlRunsBody");
     if (!body) return;
     selectedCompare = (compareIds || []).slice(0, 4);
     if (!runs || !runs.length) {
-      body.innerHTML = `<tr><td colspan="10">No archived runs yet. Finish a job and click Pull + archive.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="11">No archived runs yet. Finish a job — CPU/GPU archive automatically.</td></tr>`;
       return;
     }
     body.innerHTML = runs
@@ -257,6 +283,7 @@
           <td>${r.label || r.id}</td>
           <td>${device}</td>
           <td>${fmt(s.games_played)}</td>
+          <td title="${s.games_per_sec != null ? Number(s.games_per_sec).toFixed(1) + " games/s" : ""}">${fmtDuration(s.duration_sec)}</td>
           <td>${fmt(s.avg_score, 2)}</td>
           <td>${pct(s.win_rate)}</td>
           <td>${s.improvement == null ? "—" : fmt(s.improvement, 2)}</td>
@@ -340,7 +367,9 @@
     }
     const s = learning.series || {};
     const isDqn = String(learning.train_mode || "").toLowerCase() === "dqn";
-    setModeVisibility(isDqn);
+    const previewGpu =
+      (document.querySelector('[name="train_device"]')?.value || "").toLowerCase() === "gpu";
+    setModeVisibility(isDqn, { previewGpu });
     const hasScores = Array.isArray(s.scores) && s.scores.length > 0;
     const bootstrap = learning.bootstrap_games;
     const windowHint = learning.games_ma_window;
@@ -809,8 +838,9 @@
     return {
       train_device: device,
       num_workers: num("num_workers", 8),
-      batch_size: num("batch_size", 256),
+      batch_size: num("batch_size", 512),
       hidden_size: num("hidden_size", 256),
+      train_steps_per_game: num("train_steps_per_game", 16),
       num_games: num("num_games", 5000),
       learning_rate: num("learning_rate", device === "gpu" ? 0.001 : 0.1),
       discount_factor: num("discount_factor", 0.9),
@@ -838,6 +868,11 @@
     const isGpu = device === "gpu";
     form.querySelectorAll(".rl-cpu-only").forEach((el) => el.classList.toggle("is-hidden", isGpu));
     form.querySelectorAll(".rl-gpu-only").forEach((el) => el.classList.toggle("is-hidden", !isGpu));
+    const isDqn =
+      lastPayload &&
+      lastPayload.learning &&
+      String(lastPayload.learning.train_mode || "").toLowerCase() === "dqn";
+    setModeVisibility(!!isDqn, { previewGpu: isGpu });
   }
 
   function fillParamsForm(params) {
@@ -864,9 +899,18 @@
       const res = await fetch("/api/rl/control/status");
       if (!res.ok) return;
       const data = await res.json();
-      const mergedParams = { ...(data.defaults || {}), ...(data.params || {}), ...(data.remote_params || {}) };
+      // Prefer saved/UI params; only overlay remote_params while a remote job is active
+      const mergedParams = {
+        ...(data.defaults || {}),
+        ...(data.params || {}),
+        ...((data.running && !data.local && data.remote_params) || {}),
+      };
       if (Object.keys(mergedParams).length) fillParamsForm(mergedParams);
-      if (data.running) {
+      if (data.launch_error) {
+        setControlMsg(data.launch_error, "is-error");
+      } else if (data.launching) {
+        setControlMsg("Launching neural DQN on RunPod…", "is-ok");
+      } else if (data.running) {
         const where = data.local ? "Local" : "RunPod";
         const device = (data.train_device || data.params?.train_device || "").toUpperCase();
         setControlMsg(

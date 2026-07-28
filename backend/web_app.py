@@ -207,8 +207,34 @@ def api_rl_sync():
         if not local_pid and params.get("train_device") == "gpu":
             from rl_live_sync import sync_live_progress
             live = sync_live_progress()
-            if live.get("ok") and not live.get("running") and live.get("pulled_training_stats"):
-                archive_current_run(source="runpod_sync")
+            # Auto-archive once when a finished remote job's stats land locally
+            if (
+                live.get("ok")
+                and not live.get("running")
+                and live.get("pulled_training_stats")
+            ):
+                try:
+                    from pathlib import Path
+                    import json as _json
+                    marker = Path(__file__).resolve().parent / "RL" / "output" / "_last_auto_archive.json"
+                    summary = live.get("summary") or {}
+                    fingerprint = {
+                        "games": summary.get("games_played"),
+                        "avg": summary.get("avg_score"),
+                        "mode": summary.get("train_mode"),
+                        "win": summary.get("win_rate"),
+                    }
+                    prev = {}
+                    if marker.exists():
+                        try:
+                            prev = _json.loads(marker.read_text(encoding="utf-8"))
+                        except Exception:
+                            prev = {}
+                    if fingerprint and fingerprint != prev:
+                        archive_current_run(source="runpod_sync")
+                        marker.write_text(_json.dumps(fingerprint), encoding="utf-8")
+                except Exception:
+                    pass
 
         compare = request.args.get("compare") or ""
         run_ids = [x.strip() for x in compare.split(",") if x.strip()]
@@ -221,6 +247,15 @@ def api_rl_sync():
                 "summary": live.get("summary") or {},
             }
         payload["sync"] = live
+        # When GPU live summary exists, merge into the page summary
+        if live.get("summary") and (
+            not (payload.get("summary") or {}).get("games_played")
+            or live.get("running")
+            or live.get("pulled_training_stats")
+        ):
+            merged_summary = dict(payload.get("summary") or {})
+            merged_summary.update({k: v for k, v in (live.get("summary") or {}).items() if v is not None})
+            payload["summary"] = merged_summary
         return jsonify(payload)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -386,6 +421,12 @@ def create_game():
             agent_types.append(difficulty_to_agent.get(bot.get('difficulty', 'medium').lower(), 'heuristic'))
             player_names.append(bot.get('name', 'AI Opponent'))
             print(f' player_names: {player_names}')
+
+    # Solo / announcer-only selections used to create a 1-player game and break turns/UI.
+    if len(agent_types) < 2:
+        print("WARNING: No opponent bots selected — adding default EV AI opponent")
+        agent_types.append('ev_ai')
+        player_names.append('EV AI')
 
     num_players = len(agent_types)
 

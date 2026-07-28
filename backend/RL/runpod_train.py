@@ -197,8 +197,10 @@ def remote_train_script(params: dict | None = None) -> str:
     train_device = str(params.get("train_device", "gpu")).lower().strip()
     if train_device not in ("gpu", "cpu"):
         train_device = "gpu"
-    batch_size = int(params.get("batch_size", 256))
+    batch_size = int(params.get("batch_size", 512))
     hidden_size = int(params.get("hidden_size", 256))
+    train_steps_per_game = int(params.get("train_steps_per_game", 16))
+    num_workers = int(params.get("num_workers") or (os.cpu_count() or 8))
 
     script = r'''#!/bin/bash
 set -euo pipefail
@@ -214,24 +216,41 @@ PY
 
 echo "=== Repo ==="
 cd /workspace
-if [ -d Golf_solver/.git ]; then
-  cd Golf_solver
-  git fetch --all || true
-  git checkout Jagjit 2>/dev/null || git checkout main 2>/dev/null || true
-  git pull || true
+# Skip git sync when uploaded overrides are present — avoids dirty-tree merge aborts
+if [ -f /workspace/dqn_train.py.fixed ] || [ -f /workspace/train.py.fixed ]; then
+  echo "Using uploaded trainer overrides; skipping git pull"
+  if [ ! -d /workspace/Golf_solver/backend/RL ]; then
+    git clone https://github.com/kbwillia/Golf_solver.git || true
+  fi
+  cd /workspace/Golf_solver || exit 1
 else
-  git clone https://github.com/kbwillia/Golf_solver.git
-  cd Golf_solver
-  git checkout Jagjit 2>/dev/null || git checkout main 2>/dev/null || true
+  if [ -d Golf_solver/.git ]; then
+    cd Golf_solver
+    git stash push -u -m "runpod-pre-pull" >/dev/null 2>&1 || true
+    git fetch --all >/dev/null 2>&1 || true
+    git checkout Jagjit >/dev/null 2>&1 || git checkout main >/dev/null 2>&1 || true
+    git pull >/dev/null 2>&1 || true
+  else
+    git clone https://github.com/kbwillia/Golf_solver.git || true
+    cd Golf_solver || exit 1
+    git checkout Jagjit >/dev/null 2>&1 || git checkout main >/dev/null 2>&1 || true
+  fi
 fi
 
 echo "=== Venv ==="
 if [ ! -x /workspace/venv/bin/python ]; then
-  python -m venv /workspace/venv --system-site-packages
+  python3 -m venv /workspace/venv --system-site-packages || python -m venv /workspace/venv --system-site-packages
 fi
+# shellcheck disable=SC1091
 source /workspace/venv/bin/activate
-pip install -q --upgrade pip
-pip install -q numpy pandas tqdm scipy matplotlib seaborn python-dotenv
+pip install -q --upgrade pip || true
+pip install -q numpy pandas tqdm scipy python-dotenv || true
+# Torch usually comes from the RunPod image via --system-site-packages
+python - <<'PY'
+import torch
+assert torch.cuda.is_available(), "CUDA not available on this pod"
+print("torch", torch.__version__, "device", torch.cuda.get_device_name(0))
+PY
 
 echo "=== Local overrides (if uploaded) ==="
 if [ -f /workspace/train.py.fixed ]; then
@@ -294,8 +313,10 @@ shape_low_keep = env_float("SHAPE_LOW_KEEP", 0.3)
 shape_midhigh_keep = env_float("SHAPE_MIDHIGH_KEEP", -0.4)
 shape_flip = env_float("SHAPE_FLIP", 0.1)
 train_device = os.environ.get("TRAIN_DEVICE", "gpu").lower().strip()
-batch_size = env_int("BATCH_SIZE", 256)
+batch_size = env_int("BATCH_SIZE", 512)
 hidden_size = env_int("HIDDEN_SIZE", 256)
+train_steps_per_game = env_int("TRAIN_STEPS", 16)
+num_workers = env_int("NUM_WORKERS", 8)
 
 params = {
     "num_games": num_games,
@@ -316,8 +337,11 @@ params = {
     "shape_midhigh_keep": shape_midhigh_keep,
     "shape_flip": shape_flip,
     "train_device": train_device,
+    "train_mode": "dqn_parallel" if train_device == "gpu" else "tabular_parallel",
     "batch_size": batch_size,
     "hidden_size": hidden_size,
+    "train_steps_per_game": train_steps_per_game,
+    "num_workers": num_workers,
 }
 print("Starting remote training with params:")
 print(json.dumps(params, indent=2))
@@ -343,6 +367,8 @@ if train_device == "gpu":
         progress_report_interval=progress_report_interval,
         batch_size=batch_size,
         hidden_size=hidden_size,
+        train_steps_per_game=train_steps_per_game,
+        num_workers=num_workers,
         use_reward_shaping=use_reward_shaping,
         shape_step=shape_step,
         shape_pair=shape_pair,
@@ -359,7 +385,7 @@ else:
         num_games=num_games,
         opponent_type=opponent_type,
         verbose=True,
-        num_workers=env_int("NUM_WORKERS", 8),
+        num_workers=num_workers,
         learning_rate=learning_rate,
         discount_factor=discount_factor,
         epsilon=epsilon,
@@ -388,6 +414,8 @@ pkill -f "python -u run_remote_train.py" 2>/dev/null || true
 pkill -f "python -u dqn_train.py" 2>/dev/null || true
 pkill -f "python -u train.py" 2>/dev/null || true
 cd /workspace/Golf_solver/backend/RL
+# Clear stale progress so the UI does not show an old finished job as live
+rm -f /workspace/Golf_solver/backend/RL/output/training_progress.json
 export NUM_GAMES=__NUM_GAMES__
 export LEARNING_RATE=__LEARNING_RATE__
 export DISCOUNT_FACTOR=__DISCOUNT_FACTOR__
@@ -408,6 +436,12 @@ export SHAPE_FLIP=__SHAPE_FLIP__
 export TRAIN_DEVICE=__TRAIN_DEVICE__
 export BATCH_SIZE=__BATCH_SIZE__
 export HIDDEN_SIZE=__HIDDEN_SIZE__
+export TRAIN_STEPS=__TRAIN_STEPS__
+export NUM_WORKERS=__NUM_WORKERS__
+PYTHON_BIN=/workspace/venv/bin/python
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN=$(command -v python3 || command -v python)
+fi
 nohup env \
   NUM_GAMES="$NUM_GAMES" \
   LEARNING_RATE="$LEARNING_RATE" \
@@ -429,12 +463,24 @@ nohup env \
   TRAIN_DEVICE="$TRAIN_DEVICE" \
   BATCH_SIZE="$BATCH_SIZE" \
   HIDDEN_SIZE="$HIDDEN_SIZE" \
-  python -u run_remote_train.py > /workspace/logs/train.log 2>&1 &
+  TRAIN_STEPS="$TRAIN_STEPS" \
+  NUM_WORKERS="$NUM_WORKERS" \
+  "$PYTHON_BIN" -u run_remote_train.py > /workspace/logs/train.log 2>&1 &
 echo $! > /workspace/logs/train.pid
-sleep 5
-echo "PID $(cat /workspace/logs/train.pid) NUM_GAMES=$NUM_GAMES TRAIN_DEVICE=$TRAIN_DEVICE"
-tail -n 30 /workspace/logs/train.log
-ps -p "$(cat /workspace/logs/train.pid)" -o pid,etime,cmd
+sleep 8
+echo "PID $(cat /workspace/logs/train.pid) NUM_GAMES=$NUM_GAMES TRAIN_DEVICE=$TRAIN_DEVICE PYTHON=$PYTHON_BIN"
+tail -n 40 /workspace/logs/train.log || true
+if ! ps -p "$(cat /workspace/logs/train.pid)" >/dev/null 2>&1; then
+  if grep -Eq "TRAINING COMPLETE|DQN TRAINING COMPLETE|PARALLEL CPU TRAINING COMPLETE|Starting remote training" /workspace/logs/train.log 2>/dev/null; then
+    echo "=== TRAIN FINISHED OR STARTED (process already exited) ==="
+  else
+    echo "=== TRAIN DIED IMMEDIATELY ==="
+    tail -n 80 /workspace/logs/train.log || true
+    exit 1
+  fi
+else
+  ps -p "$(cat /workspace/logs/train.pid)" -o pid,etime,cmd || true
+fi
 echo "=== TRAIN LAUNCHED ==="
 '''
     return (
@@ -458,6 +504,8 @@ echo "=== TRAIN LAUNCHED ==="
         .replace("__TRAIN_DEVICE__", train_device)
         .replace("__BATCH_SIZE__", str(batch_size))
         .replace("__HIDDEN_SIZE__", str(hidden_size))
+        .replace("__TRAIN_STEPS__", str(train_steps_per_game))
+        .replace("__NUM_WORKERS__", str(num_workers))
     )
 
 

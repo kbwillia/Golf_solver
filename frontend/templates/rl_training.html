@@ -25,11 +25,11 @@
 
         <section class="rl-panel rl-panel--wide rl-controls" id="rlControls" aria-label="Training controls">
             <h2>Training controls</h2>
-            <p class="hint">CPU = local parallel tabular Q (auto-archives + uploads run summary to Supabase). GPU = neural DQN on RunPod — use Pull + archive when finished to save results to the database. Hover any <span class="tip" data-tip="glossary">dotted term</span> for definitions.</p>
+            <p class="hint">CPU = local parallel tabular Q (auto-archives + uploads run summary to Supabase). GPU = neural DQN on RunPod (auto-pulls into the UI and archives when finished). Hover any <span class="tip" data-tip="glossary">dotted term</span> for definitions.</p>
             <div class="rl-control-actions">
                 <button type="button" class="rl-btn rl-btn-primary" id="btnStart">Start</button>
                 <button type="button" class="rl-btn rl-btn-danger" id="btnStop">Stop</button>
-                <button type="button" class="rl-btn" id="btnPull">Pull + archive</button>
+                <button type="button" class="rl-btn" id="btnPull" title="Manual retry if auto-sync missed a finished RunPod job">Force pull</button>
                 <button type="button" class="rl-btn" id="btnSaveParams">Save params</button>
                 <button type="button" class="rl-btn" id="btnArchive">Archive current</button>
             </div>
@@ -41,9 +41,10 @@
                         <option value="gpu">GPU — RunPod neural DQN</option>
                     </select>
                 </label>
-                <label class="rl-cpu-only"><span class="tip" data-tip="workers">CPU workers</span> <input type="number" name="num_workers" min="1" max="64" step="1"></label>
+                <label><span class="tip" data-tip="workers">Rollout workers</span> <input type="number" name="num_workers" min="1" max="64" step="1"></label>
                 <label class="rl-gpu-only"><span class="tip" data-tip="batch_size">DQN batch size</span> <input type="number" name="batch_size" min="32" step="32"></label>
                 <label class="rl-gpu-only"><span class="tip" data-tip="hidden_size">DQN hidden size</span> <input type="number" name="hidden_size" min="32" step="32"></label>
+                <label class="rl-gpu-only"><span class="tip" data-tip="train_steps">Train steps / round</span> <input type="number" name="train_steps_per_game" min="4" step="4"></label>
                 <label><span class="tip" data-tip="avg_score">Games</span> <input type="number" name="num_games" min="1" step="1"></label>
                 <label><span class="tip" data-tip="learning_rate">Learning rate</span> <input type="number" name="learning_rate" min="0" max="1" step="0.01"></label>
                 <label><span class="tip" data-tip="discount_factor">Discount</span> <input type="number" name="discount_factor" min="0" max="1" step="0.01"></label>
@@ -120,7 +121,7 @@
 
             <section class="rl-panel rl-panel--wide">
                 <h2>Run history</h2>
-                <p class="hint">Archived runs over time. Check rows to compare (up to 4). Pull/archive after each job to keep history.</p>
+                <p class="hint">Archived runs over time. Check rows to compare (up to 4). CPU and GPU jobs archive automatically when they finish.</p>
                 <div class="rl-runs-wrap">
                     <table class="rl-runs-table" id="rlRunsTable">
                         <thead>
@@ -129,6 +130,7 @@
                                 <th>When</th>
                                 <th>Device</th>
                                 <th>Games</th>
+                                <th><span class="tip" data-tip="duration">Time</span></th>
                                 <th><span class="tip" data-tip="avg_score">Avg</span></th>
                                 <th><span class="tip" data-tip="win_rate">Win%</span></th>
                                 <th><span class="tip" data-tip="improvement">Δ</span></th>
@@ -213,6 +215,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260727d"></script>
+    <script src="/static/js/rl-training.js?v=20260727e"></script>
 </body>
 </html>

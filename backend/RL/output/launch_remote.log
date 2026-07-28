@@ -1,0 +1,52 @@
+=== CUDA check ===
+GPU 0: NVIDIA GeForce RTX 3090 (UUID: GPU-7baf366c-aba6-d35f-63b6-dc337ac48526)
+torch 2.1.0+cu118 device NVIDIA GeForce RTX 3090
+=== Repo ===
+Using uploaded trainer overrides; skipping git pull
+=== Venv ===
+torch 2.1.0+cu118 device NVIDIA GeForce RTX 3090
+=== Local overrides (if uploaded) ===
+=== Stub supabase for headless RL ===
+PID 30004 NUM_GAMES=200 TRAIN_DEVICE=gpu PYTHON=/workspace/venv/bin/python
+Starting remote training with params:
+{
+  "num_games": 200,
+  "learning_rate": 0.001,
+  "discount_factor": 0.9,
+  "epsilon": 0.2,
+  "epsilon_decay_factor": 0.995,
+  "n_bootstrap_games": 50,
+  "use_imitation_learning": true,
+  "epsilon_decay_interval": 100,
+  "progress_report_interval": 32,
+  "opponent_type": "ev_ai",
+  "use_reward_shaping": true,
+  "shape_step": 0.05,
+  "shape_pair": 1.5,
+  "shape_high_keep": -0.8,
+  "shape_low_keep": 0.3,
+  "shape_midhigh_keep": -0.4,
+  "shape_flip": 0.1,
+  "train_device": "gpu",
+  "train_mode": "dqn_parallel",
+  "batch_size": 512,
+  "hidden_size": 256,
+  "train_steps_per_game": 16,
+  "num_workers": 8
+}
+======================================================================
+NEURAL DQN TRAINING (PARALLEL ROLLOUTS + GPU UPDATES)
+======================================================================
+Device: cuda
+GPU: NVIDIA GeForce RTX 3090
+Workers: 8 (cpu_count=64) chunk=16
+State dim=140 actions=12 hidden=256 batch=512
+Train steps/round~16 (clamped 8-32 from transitions)
+Games=200 bootstrap=50 opponent=ev_ai
+Loaded DQN weights from /workspace/Golf_solver/backend/RL/output/dqn_policy.pt
+  Game 32: BOOTSTRAP | Win rate=46.88%, Avg score=16.94, States=136332, Epsilon=0.196, loss=n/a, buffer=192, steps=16, 12.7 games/s, workers=8, device=cuda
+  Game 64: DQN | Win rate=43.75%, Avg score=14.55, States=136332, Epsilon=0.196, loss=0.9247, buffer=448, steps=16, 21.1 games/s, workers=8, device=cuda
+  Game 96: DQN | Win rate=36.46%, Avg score=16.38, States=136332, Epsilon=0.196, loss=0.8338, buffer=576, steps=16, 16.7 games/s, workers=8, device=cuda
+    PID     ELAPSED CMD
+  30004       00:08 /workspace/venv/bin/python -u run_remote_train.py
+=== TRAIN LAUNCHED ===
