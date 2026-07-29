@@ -1,0 +1,9 @@
+key found: sb_publishable_RZ4sk...
+Traceback (most recent call last):
+  File "C:\Users\kbwil\Documents\Data_Projects\golf\Golf_solver\backend\run_app.py", line 12, in <module>
+    from web_app import app
+  File "C:\Users\kbwil\Documents\Data_Projects\golf\Golf_solver\backend\web_app.py", line 25, in <module>
+    from google_chipr_api import chirp3_voice
+  File "C:\Users\kbwil\Documents\Data_Projects\golf\Golf_solver\backend\google_chipr_api.py", line 8, in <module>
+    from google.cloud import texttospeech
+ModuleNotFoundError: No module named 'google'

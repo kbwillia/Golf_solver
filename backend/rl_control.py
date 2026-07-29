@@ -23,22 +23,27 @@ DQN_TRAIN = RL_DIR / "dqn_train.py"
 
 DEFAULT_PARAMS = {
     "num_games": 300,
-    "learning_rate": 0.1,
+    "learning_rate": 0.05,
     "discount_factor": 0.9,
     "epsilon": 0.2,
     "epsilon_decay_factor": 0.995,
-    "n_bootstrap_games": 100,
+    "n_bootstrap_games": 75,
     "use_imitation_learning": True,
     "epsilon_decay_interval": 100,
     "progress_report_interval": 50,
     "opponent_type": "ev_ai",
     # cpu = local parallel tabular Q | gpu = neural DQN (RunPod if remote, else local CUDA)
     "train_device": "cpu",
-    # Local PC sweet spot (~2 workers); GPU RunPod uses device_presets["gpu"]
-    "num_workers": 2,
+    # Sweep 2026-07-28: workers=1 in-process + chunk=16 + replay=4 ~61 gps on large Q
+    "num_workers": 1,
+    "chunk_size": 16,
     "batch_size": 512,
     "hidden_size": 128,
     "train_steps_per_game": 8,
+    "n_step": 3,
+    "replay_per_game": 4,
+    "replay_capacity": 2000,
+    "exploration_beta": 0.5,
     # Reward shaping — turn off (or zero weights) for unbiased / solve-mode runs
     "use_reward_shaping": True,
     "shape_step": 0.05,
@@ -52,9 +57,10 @@ DEFAULT_PARAMS = {
 # Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
 DEVICE_PRESETS: dict[str, dict[str, Any]] = {
     "cpu": {
-        "num_workers": 2,
-        "learning_rate": 0.1,
-        "n_bootstrap_games": 100,
+        "num_workers": 1,
+        "chunk_size": 16,
+        "learning_rate": 0.05,
+        "n_bootstrap_games": 75,
         "progress_report_interval": 50,
         "num_games": 300,
         "epsilon": 0.2,
@@ -64,6 +70,9 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "use_imitation_learning": True,
         "use_reward_shaping": True,
         "opponent_type": "ev_ai",
+        "n_step": 3,
+        "replay_per_game": 4,
+        "exploration_beta": 0.5,
     },
     "gpu": {
         "num_workers": 8,
@@ -86,6 +95,7 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
 
 _PRESET_KEYS = (
     "num_workers",
+    "chunk_size",
     "learning_rate",
     "n_bootstrap_games",
     "progress_report_interval",
@@ -93,6 +103,10 @@ _PRESET_KEYS = (
     "batch_size",
     "hidden_size",
     "train_steps_per_game",
+    "n_step",
+    "replay_per_game",
+    "replay_capacity",
+    "exploration_beta",
     "epsilon",
     "epsilon_decay_factor",
     "epsilon_decay_interval",
@@ -177,9 +191,14 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     device = str(merged.get("train_device") or "cpu").lower().strip()
     merged["train_device"] = "gpu" if device in ("gpu", "cuda", "dqn") else "cpu"
     merged["num_workers"] = max(1, int(merged.get("num_workers") or 2))
+    merged["chunk_size"] = max(1, int(merged.get("chunk_size") or 16))
     merged["batch_size"] = max(32, int(merged.get("batch_size") or 512))
     merged["hidden_size"] = max(32, int(merged.get("hidden_size") or 128))
     merged["train_steps_per_game"] = max(4, int(merged.get("train_steps_per_game") or 8))
+    merged["n_step"] = max(1, int(merged.get("n_step") or 3))
+    merged["replay_per_game"] = max(0, int(merged.get("replay_per_game") or 0))
+    merged["exploration_beta"] = max(0.0, float(merged.get("exploration_beta") or 0.0))
+    merged["replay_capacity"] = max(100, int(merged.get("replay_capacity") or 2000))
     merged["use_reward_shaping"] = bool(merged["use_reward_shaping"])
     for key in (
         "shape_step",
@@ -339,7 +358,7 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
             "NUM_GAMES": str(merged["num_games"]),
             "NUM_WORKERS": str(merged["num_workers"]),
         }
-        mode_msg = f"local parallel tabular Q ({merged['num_workers']} workers → Supabase on archive)"
+        mode_msg = f"local parallel tabular Q ({merged['num_workers']} workers -> Supabase on archive)"
 
     if not script.exists():
         return {"ok": False, "error": f"Trainer script missing: {script}"}
@@ -649,12 +668,25 @@ def _launch_training_job(merged: dict[str, Any]) -> None:
         )
 
         # Upload trainers + agents so pod gets latest code
+        try:
+            from human_bootstrap import load_human_demo_policy, save_policy_cache
+
+            policy = load_human_demo_policy(refresh=True)
+            if policy:
+                save_policy_cache(policy)
+        except Exception as e:
+            print(f"Human demo export for RunPod skipped: {e}")
+
+        human_bootstrap_py = BACKEND_DIR / "human_bootstrap.py"
+        human_demos_json = OUTPUT_DIR / "human_demos_bootstrap.json"
         uploads = [
             (LOCAL_TRAIN, "/workspace/train.py.fixed"),
             (LOCAL_AGENTS, "/workspace/agents.py.fixed"),
             (DQN_TRAIN, "/workspace/dqn_train.py.fixed"),
             (PARALLEL_TRAIN, "/workspace/parallel_train.py.fixed"),
             (RL_DIR / "progress_io.py", "/workspace/progress_io.py.fixed"),
+            (human_bootstrap_py, "/workspace/human_bootstrap.py.fixed"),
+            (human_demos_json, "/workspace/human_demos_bootstrap.json"),
         ]
         for local, remote_path in uploads:
             if local.exists():

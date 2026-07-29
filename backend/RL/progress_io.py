@@ -4,19 +4,35 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from typing import Any
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(_BASE, "output")
+_DEFAULT_OUTPUT_DIR = os.path.join(_BASE, "output")
+
+
+def _resolve_output_dir() -> str:
+    """Allow sweeps/tests to isolate I/O via RL_OUTPUT_DIR without touching the live run."""
+    override = (os.environ.get("RL_OUTPUT_DIR") or "").strip()
+    return override if override else _DEFAULT_OUTPUT_DIR
+
+
+# Kept for importers; prefer get_output_path() which respects RL_OUTPUT_DIR at call time.
+OUTPUT_DIR = _DEFAULT_OUTPUT_DIR
 
 
 def get_output_path(filename: str) -> str:
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    return os.path.join(OUTPUT_DIR, filename)
+    out = _resolve_output_dir()
+    os.makedirs(out, exist_ok=True)
+    return os.path.join(out, filename)
 
 
 def _atomic_write_json(path: str, payload: Any) -> None:
-    """Write JSON atomically to avoid torn/concatenated files under concurrent readers."""
+    """Write JSON atomically to avoid torn/concatenated files under concurrent readers.
+
+    On Windows, os.replace can hit WinError 5 if another process (UI sync, antivirus)
+    has the target open — retry, then fall back to a direct write so training continues.
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(
         prefix=os.path.basename(path) + ".",
@@ -28,7 +44,30 @@ def _atomic_write_json(path: str, payload: Any) -> None:
             json.dump(payload, f)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_path, path)
+        last_err: Exception | None = None
+        for attempt in range(8):
+            try:
+                os.replace(tmp_path, path)
+                return
+            except PermissionError as e:
+                last_err = e
+                time.sleep(0.05 * (attempt + 1))
+            except OSError as e:
+                last_err = e
+                time.sleep(0.05 * (attempt + 1))
+        # Last resort: non-atomic overwrite
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            return
+        except Exception:
+            if last_err is not None:
+                raise last_err
+            raise
     except Exception:
         try:
             os.unlink(tmp_path)
@@ -174,6 +213,9 @@ def append_progress_checkpoint(
     epsilon: float,
     loss: float | None = None,
     buffer_size: int | None = None,
+    completion_pct: float | None = None,
+    sparsity_index: float | None = None,
+    mean_visits: float | None = None,
     train_mode: str | None = None,
     train_device: str | None = None,
     filename: str = "training_progress.json",
@@ -192,6 +234,8 @@ def append_progress_checkpoint(
             "win_rates": [],
             "losses": [],
             "buffer_sizes": [],
+            "completion_pct": [],
+            "sparsity_index": [],
         },
         "summary": {},
     }
@@ -206,6 +250,8 @@ def append_progress_checkpoint(
         "win_rates": list(series.get("win_rates") or []),
         "losses": list(series.get("losses") or []),
         "buffer_sizes": list(series.get("buffer_sizes") or []),
+        "completion_pct": list(series.get("completion_pct") or []),
+        "sparsity_index": list(series.get("sparsity_index") or []),
     }
 
     cp = {
@@ -220,6 +266,12 @@ def append_progress_checkpoint(
         cp["loss"] = float(loss)
     if buffer_size is not None:
         cp["buffer_size"] = int(buffer_size)
+    if completion_pct is not None:
+        cp["completion_pct"] = float(completion_pct)
+    if sparsity_index is not None:
+        cp["sparsity_index"] = float(sparsity_index)
+    if mean_visits is not None:
+        cp["mean_visits"] = float(mean_visits)
     data["checkpoints"].append(cp)
     data["checkpoints"] = data["checkpoints"][-200:]
     s = data["series"]
@@ -230,6 +282,8 @@ def append_progress_checkpoint(
     s["win_rates"].append(float(win_rate))
     s["losses"].append(None if loss is None else float(loss))
     s["buffer_sizes"].append(None if buffer_size is None else int(buffer_size))
+    s["completion_pct"].append(None if completion_pct is None else float(completion_pct))
+    s["sparsity_index"].append(None if sparsity_index is None else float(sparsity_index))
     for key in s:
         s[key] = s[key][-200:]
 
@@ -253,6 +307,9 @@ def append_progress_checkpoint(
         "win_rate": float(win_rate),
         "final_loss": None if loss is None else float(loss),
         "buffer_size": None if buffer_size is None else int(buffer_size),
+        "completion_pct": None if completion_pct is None else float(completion_pct),
+        "sparsity_index": None if sparsity_index is None else float(sparsity_index),
+        "mean_visits": None if mean_visits is None else float(mean_visits),
         "train_mode": train_mode,
         "train_device": train_device,
     }

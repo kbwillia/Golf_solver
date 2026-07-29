@@ -35,6 +35,11 @@
     return (n * 100).toFixed(1) + "%";
   }
 
+  function pct2(n) {
+    if (n == null || Number.isNaN(n)) return "—";
+    return (n * 100).toFixed(2) + "%";
+  }
+
   function destroyCharts() {
     charts.forEach((c) => {
       try {
@@ -76,6 +81,10 @@
   function makeChart(canvasId, config) {
     const el = document.getElementById(canvasId);
     if (!el) return null;
+    try {
+      const existing = typeof Chart !== "undefined" && Chart.getChart ? Chart.getChart(el) : null;
+      if (existing) existing.destroy();
+    } catch (_) {}
     const chart = new Chart(el, config);
     charts.push(chart);
     return chart;
@@ -172,7 +181,9 @@
     document.querySelectorAll(".rl-dqn-only").forEach((el) => {
       el.hidden = !showDqnUi;
     });
-    // Keep tabular Q-hist visible for CPU data; hide only when viewing a real DQN run
+    // Param-form CPU-only fields use .is-hidden via syncDeviceFields — do not
+    // hide summary .rl-tabular-only / coverage off the GPU params toggle.
+    // Keep tabular Q-hist + coverage visible for CPU data; hide only for real DQN runs
     document.querySelectorAll(".rl-tabular-only").forEach((el) => {
       el.hidden = !!isDqn;
     });
@@ -220,12 +231,26 @@
     void bufferTitle;
   }
 
-  function setSummary(summary, trainMode) {
+  function setSummary(summary, trainMode, cpuCumulative) {
     const isDqn = isDqnMode(trainMode || summary.train_mode);
     const previewGpu =
       (document.querySelector('[name="train_device"]')?.value || "").toLowerCase() === "gpu";
     setModeVisibility(isDqn, { previewGpu });
+    const cpu = cpuCumulative || {};
     const map = {
+      statCpuGames: fmt(cpu.total_games != null ? cpu.total_games : summary.cpu_total_games),
+      statCpuStates: fmt(
+        cpu.q_states != null ? cpu.q_states : summary.final_states
+      ),
+      statCpuSa: fmt(cpu.sa_pairs != null ? cpu.sa_pairs : summary.final_entries),
+      statCoverage:
+        (cpu.completion_pct != null ? cpu.completion_pct : summary.completion_pct) != null
+          ? pct2(cpu.completion_pct != null ? cpu.completion_pct : summary.completion_pct)
+          : "—",
+      statSparsity:
+        (cpu.sparsity_index != null ? cpu.sparsity_index : summary.sparsity_index) != null
+          ? Number(cpu.sparsity_index != null ? cpu.sparsity_index : summary.sparsity_index).toFixed(3)
+          : "—",
       statGames: summary.games_total
         ? `${fmt(summary.games_played)} / ${fmt(summary.games_total)}`
         : fmt(summary.games_played),
@@ -510,23 +535,60 @@
     }
 
     const hist = learning.score_histogram;
-    if (hist && hist.available) {
+    const human = (lastPayload && lastPayload.human_demos) || null;
+    const humanHist = human && human.score_histogram;
+    const scoreHint = document.getElementById("scoreHistHint");
+    if (scoreHint) {
+      scoreHint.textContent = human && human.available
+        ? "Training run vs your human demo holes (dual scale — training on left, human on right)."
+        : "Training run scores (lower is better).";
+    }
+    if ((hist && hist.available) || (humanHist && humanHist.available)) {
+      const maxCenter = Math.max(
+        hist && hist.available ? Math.max(...(hist.bin_centers || [0])) : 0,
+        humanHist && humanHist.available ? Math.max(...(humanHist.bin_centers || [0])) : 0
+      );
+      const labels = [];
+      for (let i = 0; i <= maxCenter; i++) labels.push(String(i));
+      const alignCounts = (src) => {
+        const out = labels.map(() => 0);
+        if (!src || !src.available) return out;
+        (src.bin_centers || []).forEach((c, i) => {
+          const idx = Number(c);
+          if (idx >= 0 && idx < out.length) out[idx] = Number(src.counts[i] || 0);
+        });
+        return out;
+      };
+      const datasets = [];
+      if (hist && hist.available) {
+        datasets.push({
+          label: "Training games",
+          data: alignCounts(hist),
+          backgroundColor: "rgba(91,143,185,0.55)",
+          borderWidth: 0,
+          yAxisID: "y",
+        });
+      }
+      if (humanHist && humanHist.available) {
+        datasets.push({
+          label: "Human holes",
+          data: alignCounts(humanHist),
+          backgroundColor: "rgba(212,162,76,0.7)",
+          borderWidth: 0,
+          yAxisID: hist && hist.available ? "y1" : "y",
+        });
+      }
       makeChart("chartScoreHist", {
         type: "bar",
-        data: {
-          labels: hist.bin_centers.map((c) => String(Math.round(Number(c)))),
-          datasets: [
-            {
-              label: "Games",
-              data: hist.counts,
-              backgroundColor: "rgba(91,143,185,0.55)",
-              borderWidth: 0,
-            },
-          ],
-        },
+        data: { labels, datasets },
         options: {
           ...baseOptions("Count", false),
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: {
+              display: datasets.length > 1,
+              labels: { color: COLORS.cream, boxWidth: 12, font: { family: "Arial", size: 11 } },
+            },
+          },
           scales: {
             x: {
               title: { display: true, text: "Score (0 = perfect)", color: COLORS.muted },
@@ -534,9 +596,21 @@
               grid: { color: COLORS.grid },
             },
             y: {
-              title: { display: true, text: "Games", color: COLORS.muted },
+              title: {
+                display: true,
+                text: hist && hist.available ? "Training games" : "Human holes",
+                color: COLORS.muted,
+              },
               ticks: { color: COLORS.muted },
               grid: { color: COLORS.grid },
+              beginAtZero: true,
+            },
+            y1: {
+              position: "right",
+              display: !!(hist && hist.available && humanHist && humanHist.available),
+              title: { display: true, text: "Human holes", color: COLORS.muted },
+              ticks: { color: COLORS.muted },
+              grid: { drawOnChartArea: false },
               beginAtZero: true,
             },
           },
@@ -780,6 +854,174 @@
     });
   }
 
+  function renderHumanDemos(human) {
+    const hint = document.getElementById("humanDemoHint");
+    const statsEl = document.getElementById("humanDemoStats");
+    const histWrap = document.getElementById("humanHistWrap");
+    if (!human || !human.available) {
+      if (hint) {
+        hint.textContent = human && human.error
+          ? ("Human demos error: " + human.error + " — restart Flask (python run_app.py) if this persists.")
+          : human && human.message
+            ? human.message
+            : "No finished human demo holes in Supabase yet. Play with demo recording on to collect them.";
+      }
+      if (statsEl) statsEl.hidden = true;
+      return;
+    }
+    if (statsEl) statsEl.hidden = false;
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    set("humanHoles", fmt(human.holes));
+    set("humanAvg", fmt(human.avg_score, 1));
+    set("humanWin", pct(human.win_rate));
+    set("humanBest", fmt(human.best_score));
+    if (hint) {
+      const boot = human.used_in_bootstrap
+        ? "During bootstrap: human action on state match/close, else EV."
+        : "Not wired into bootstrap.";
+      hint.textContent = `${fmt(human.steps)} recorded steps across ${fmt(human.holes)} holes. ${boot}`;
+    }
+    const hist = human.score_histogram;
+    const hasHist =
+      hist &&
+      hist.available &&
+      Array.isArray(hist.bin_centers) &&
+      Array.isArray(hist.counts) &&
+      hist.bin_centers.length > 0;
+    if (histWrap) histWrap.hidden = !hasHist;
+    if (hasHist) {
+      makeChart("chartHumanHist", {
+        type: "bar",
+        data: {
+          labels: hist.bin_centers.map((c) => String(Math.round(Number(c)))),
+          datasets: [
+            {
+              label: "Human holes",
+              data: hist.counts,
+              backgroundColor: "rgba(212,162,76,0.7)",
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              title: { display: true, text: "Score (0 = perfect)", color: COLORS.muted },
+              ticks: { color: COLORS.muted, maxTicksLimit: 12, precision: 0 },
+              grid: { color: COLORS.grid },
+            },
+            y: {
+              title: { display: true, text: "Holes", color: COLORS.muted },
+              ticks: { color: COLORS.muted, precision: 0 },
+              grid: { color: COLORS.grid },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    const abr = human.action_by_round;
+    const actionWrap = document.getElementById("humanActionWrap");
+    const actionHint = document.getElementById("humanActionHint");
+    const hasActions =
+      abr &&
+      abr.available &&
+      Array.isArray(abr.rounds) &&
+      abr.rounds.length > 0 &&
+      abr.share;
+    if (actionWrap) actionWrap.hidden = !hasActions;
+    if (actionHint) {
+      if (hasActions && abr.overall_avg_per_hole) {
+        const o = abr.overall_avg_per_hole;
+        actionHint.hidden = false;
+        actionHint.textContent =
+          `Avg / hole: take ${fmt(o.take_discard, 2)} · keep ${fmt(o.draw_keep, 2)} · flip ${fmt(o.draw_flip, 2)}` +
+          (abr.holes_with_actions != null ? ` (${fmt(abr.holes_with_actions)} holes)` : "");
+      } else {
+        actionHint.hidden = true;
+      }
+    }
+    if (hasActions) {
+      const labels = abr.rounds.map((r) => "R" + String(r));
+      const share = abr.share || {};
+      makeChart("chartHumanActions", {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "take discard",
+              data: share.take_discard || [],
+              backgroundColor: "rgba(90, 158, 110, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+            },
+            {
+              label: "draw keep",
+              data: share.draw_keep || [],
+              backgroundColor: "rgba(212, 162, 76, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+            },
+            {
+              label: "draw flip",
+              data: share.draw_flip || [],
+              backgroundColor: "rgba(120, 150, 190, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: COLORS.muted, boxWidth: 10, font: { size: 11 } },
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const v = Number(ctx.raw);
+                  return `${ctx.dataset.label}: ${(v * 100).toFixed(1)}%`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              stacked: true,
+              title: { display: true, text: "Round", color: COLORS.muted },
+              ticks: { color: COLORS.muted },
+              grid: { color: COLORS.grid },
+            },
+            y: {
+              stacked: true,
+              min: 0,
+              max: 1,
+              title: { display: true, text: "Share of actions", color: COLORS.muted },
+              ticks: {
+                color: COLORS.muted,
+                callback: (v) => `${Math.round(Number(v) * 100)}%`,
+              },
+              grid: { color: COLORS.grid },
+            },
+          },
+        },
+      });
+    }
+  }
+
   function renderAll(data) {
     lastPayload = data;
     destroyCharts();
@@ -795,9 +1037,14 @@
     }
     status.style.display = "none";
     document.getElementById("rlContent").hidden = false;
-    setSummary(data.summary || {}, (data.learning && data.learning.train_mode) || (data.summary && data.summary.train_mode));
+    setSummary(
+      data.summary || {},
+      (data.learning && data.learning.train_mode) || (data.summary && data.summary.train_mode),
+      data.cpu_cumulative
+    );
     renderRunsTable(data.runs || [], data.compare_ids || selectedCompare);
     renderCompare(data.compare || [], data.baselines);
+    renderHumanDemos(data.human_demos);
     renderLearning(data.learning, data.baselines);
     renderActions(data.actions);
     renderQvalues(data.qvalues, data.learning);
@@ -889,9 +1136,10 @@
 
   const DEVICE_PRESETS = {
     cpu: {
-      num_workers: 2,
-      learning_rate: 0.1,
-      n_bootstrap_games: 100,
+      num_workers: 1,
+      chunk_size: 16,
+      learning_rate: 0.05,
+      n_bootstrap_games: 75,
       progress_report_interval: 50,
       num_games: 300,
       epsilon: 0.2,
@@ -901,6 +1149,9 @@
       use_imitation_learning: true,
       use_reward_shaping: true,
       opponent_type: "ev_ai",
+      n_step: 3,
+      replay_per_game: 4,
+      exploration_beta: 0.5,
     },
     gpu: {
       num_workers: 8,
@@ -942,7 +1193,8 @@
     const device = String(fd.get("train_device") || "cpu").toLowerCase() === "gpu" ? "gpu" : "cpu";
     const params = {
       train_device: device,
-      num_workers: num("num_workers", device === "gpu" ? 8 : 2),
+      num_workers: num("num_workers", device === "gpu" ? 8 : 1),
+      chunk_size: num("chunk_size", 16),
       batch_size: num("batch_size", 512),
       hidden_size: num("hidden_size", 128),
       train_steps_per_game: num("train_steps_per_game", 8),
@@ -963,6 +1215,10 @@
       shape_low_keep: num("shape_low_keep", 0.3),
       shape_midhigh_keep: num("shape_midhigh_keep", -0.4),
       shape_flip: num("shape_flip", 0.1),
+      exploration_beta: num("exploration_beta", 0.5),
+      n_step: num("n_step", 3),
+      replay_per_game: num("replay_per_game", 4),
+      replay_capacity: num("replay_capacity", 2000),
     };
     // Keep the other device's preset when saving
     const snapshot = { ...params };

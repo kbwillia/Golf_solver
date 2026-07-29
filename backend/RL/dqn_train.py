@@ -34,7 +34,7 @@ try:
 except ImportError as e:
     raise SystemExit(f"PyTorch required for DQN training: {e}") from e
 
-from agents import EVAgent, RandomAgent, AdvancedEVAgent  # noqa: E402
+from agents import EVAgent, RandomAgent, AdvancedEVAgent, QLearningAgent  # noqa: E402
 from game import GolfGame  # noqa: E402
 from progress_io import (  # noqa: E402
     append_progress_checkpoint,
@@ -227,12 +227,15 @@ class DQNAgent:
         self.target.load_state_dict(self.policy.state_dict())
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=learning_rate)
         self.pending_transition: dict[str, Any] | None = None
+        self.human_demo_policy = None
         # Fake q_table attrs so existing save paths don't explode
         self.q_table = {}
         self._use_amp = device.type == "cuda"
         self._scaler = torch.cuda.amp.GradScaler(enabled=self._use_amp) if device.type == "cuda" else None
         if device.type == "cuda":
             torch.backends.cudnn.benchmark = True
+        # Lightweight encoder for human-demo state keys (same as recording path)
+        self._state_encoder = QLearningAgent()
 
     def is_bootstrapping(self) -> bool:
         return self.n_bootstrap_games > 0 and self.games_played < self.n_bootstrap_games
@@ -264,11 +267,27 @@ class DQNAgent:
         if not mask.any():
             return None
         state_vec = encode_state(player, game_state)
+        legal = [index_to_action(int(i)) for i in np.flatnonzero(mask)]
 
         if self.is_bootstrapping():
-            ev = EVAgent()
-            action = ev.choose_action(player, game_state)
-            # Map EV action onto mask; fall back to random legal
+            action = None
+            if self.human_demo_policy:
+                try:
+                    from human_bootstrap import choose_bootstrap_action
+
+                    action, _tier = choose_bootstrap_action(
+                        encoder=self._state_encoder,
+                        policy=self.human_demo_policy,
+                        player=player,
+                        game_state=game_state,
+                        legal_actions=legal,
+                    )
+                except Exception:
+                    action = None
+            if action is None:
+                ev = EVAgent()
+                action = ev.choose_action(player, game_state)
+            # Map chosen action onto mask; fall back to random legal
             if action is None:
                 idxs = np.flatnonzero(mask)
                 idx = int(random.choice(idxs))
@@ -430,15 +449,17 @@ def _make_opponent(opponent_type: str):
 
 
 def _terminal_reward(score: float, game_scores: list[float]) -> float:
-    if score == min(game_scores):
-        return 10.0
-    if score == 0:
+    if score == min(game_scores) or score == 0:
         return 10.0
     if score <= 5:
         return 5.0
     if score <= 20:
         return -4.0
     return -10.0
+
+
+def _counts_as_win(our_score: float, opp_score: float) -> bool:
+    return our_score < opp_score or (our_score == 0 and opp_score == 0)
 
 
 def _slim_trajectory(traj: list[dict]) -> list[dict]:
@@ -538,7 +559,13 @@ def _play_dqn_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
     agent.games_played = int(payload["games_played"])
     agent.training_mode = True
     agent.pending_transition = None
-    # Skip weight reload while bootstrapping (EV chooses actions; net unused)
+    try:
+        from human_bootstrap import HumanDemoPolicy
+
+        agent.human_demo_policy = HumanDemoPolicy.from_payload(payload.get("human_demo_policy"))
+    except Exception:
+        agent.human_demo_policy = None
+    # Skip weight reload while bootstrapping (EV/human choose actions; net unused)
     if not agent.is_bootstrapping():
         agent.policy.load_state_dict(payload["policy_state"])
         agent.policy.eval()
@@ -629,6 +656,25 @@ def train_dqn_agent(
     print(f"Train steps/round~{train_steps_per_game} (clamped 8-32 from transitions)")
     print(f"Games={num_games} bootstrap={bootstrap_n} opponent={opponent_type}")
 
+    try:
+        from human_bootstrap import load_human_demo_policy
+
+        human_demo_policy = load_human_demo_policy(refresh=True)
+    except Exception as e:
+        print(f"Human demo policy unavailable: {e}")
+        from human_bootstrap import HumanDemoPolicy
+
+        human_demo_policy = HumanDemoPolicy()
+    human_payload = human_demo_policy.to_payload() if human_demo_policy else {}
+    if human_demo_policy:
+        print(
+            f"Human demos: {human_demo_policy.steps} weighted steps / "
+            f"{human_demo_policy.holes} holes "
+            f"({len(human_demo_policy.exact)} exact keys, source={human_demo_policy.source})"
+        )
+    else:
+        print("Human demos: none — bootstrap will use EV only")
+
     agent = DQNAgent(
         device=device,
         learning_rate=learning_rate,
@@ -638,6 +684,7 @@ def train_dqn_agent(
         n_bootstrap_games=bootstrap_n,
         reward_shaping=reward_shaping,
     )
+    agent.human_demo_policy = human_demo_policy
     agent.load()
     buffer = ReplayBuffer(250_000)
 
@@ -693,6 +740,7 @@ def train_dqn_agent(
                     "discount_factor": discount_factor,
                     "opponent_type": opponent_type,
                     "reward_shaping": reward_shaping,
+                    "human_demo_policy": human_payload,
                     "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
                 })
 
@@ -715,8 +763,8 @@ def train_dqn_agent(
                     bootstrapping=bool(result.get("bootstrapping")),
                 )
 
-                won = scores[0] < scores[1]
-                tied = scores[0] == scores[1]
+                won = _counts_as_win(scores[0], scores[1])
+                tied = (scores[0] == scores[1]) and not won
                 if won:
                     training_stats["wins"] += 1
                 elif not tied:

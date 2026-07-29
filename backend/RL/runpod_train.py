@@ -268,6 +268,13 @@ fi
 if [ -f /workspace/progress_io.py.fixed ]; then
   cp /workspace/progress_io.py.fixed /workspace/Golf_solver/backend/RL/progress_io.py
 fi
+if [ -f /workspace/human_bootstrap.py.fixed ]; then
+  cp /workspace/human_bootstrap.py.fixed /workspace/Golf_solver/backend/human_bootstrap.py
+fi
+if [ -f /workspace/human_demos_bootstrap.json ]; then
+  mkdir -p /workspace/Golf_solver/backend/RL/output
+  cp /workspace/human_demos_bootstrap.json /workspace/Golf_solver/backend/RL/output/human_demos_bootstrap.json
+fi
 
 echo "=== Stub supabase for headless RL ==="
 cat > /workspace/Golf_solver/backend/data_upset.py <<'PY'
@@ -280,6 +287,21 @@ def upload_chatbot_message(*args, **kwargs):
     return None
 
 def upload_llm_call_info(*args, **kwargs):
+    return None
+
+def upload_human_demo(*args, **kwargs):
+    return None
+
+def finalize_human_demos(*args, **kwargs):
+    return None
+
+def fetch_human_demo_bootstrap_rows():
+    return []
+
+def fetch_human_demo_score_summary():
+    return {"available": False, "used_in_bootstrap": True}
+
+def upload_rl_training_run(*args, **kwargs):
     return None
 PY
 

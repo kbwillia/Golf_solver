@@ -10,9 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pickle
 import sys
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any
 
@@ -35,17 +36,41 @@ from progress_io import (  # noqa: E402
     save_training_stats_json,
 )
 from train import (  # noqa: E402
-    load_trajectory_csv,
     save_trajectory_csv,
-    save_trajectory_csv_full,
 )
 
 
+def _peek_last_trajectory_game(filename: str = "trajectory_train.csv") -> int:
+    """Read only the last few KB of the trajectory CSV to find max game number."""
+    path = get_output_path(filename)
+    if not os.path.exists(path):
+        return 0
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as f:
+            f.seek(max(0, size - 256_000))
+            raw = f.read().decode("utf-8", errors="ignore")
+    except OSError:
+        return 0
+    last = 0
+    for line in raw.splitlines():
+        if not line or line.startswith("game"):
+            continue
+        part = line.split(",", 1)[0]
+        try:
+            last = max(last, int(part))
+        except ValueError:
+            continue
+    return last
+
+
 def _terminal_reward(score: float, game_scores: list[float]) -> float:
-    is_winner = score == min(game_scores)
-    if is_winner:
-        return 10.0
-    if score == 0:
+    """Terminal reward for our agent (player 0).
+
+    +10 if at the best score (includes any tie at the minimum, e.g. 0-0 or 5-5),
+    or score == 0. Then score buckets: ≤5 → +5, ≤20 → −4, else −10.
+    """
+    if score == min(game_scores) or score == 0:
         return 10.0
     if score <= 5:
         return 5.0
@@ -54,8 +79,17 @@ def _terminal_reward(score: float, game_scores: list[float]) -> float:
     return -10.0
 
 
+def _counts_as_win(our_score: float, opp_score: float) -> bool:
+    """Win-rate counting: strict lower score, or 0-0 (treated as a win)."""
+    return our_score < opp_score or (our_score == 0 and opp_score == 0)
+
+
 def _q_table_to_plain(q_table) -> dict[str, dict[str, float]]:
     return {sk: dict(actions) for sk, actions in q_table.items()}
+
+
+def _visits_to_plain(visit_counts) -> dict[str, dict[str, int]]:
+    return {sk: {ak: int(n) for ak, n in actions.items()} for sk, actions in visit_counts.items()}
 
 
 def _plain_to_q_table(plain: dict[str, dict[str, float]]):
@@ -64,6 +98,96 @@ def _plain_to_q_table(plain: dict[str, dict[str, float]]):
         for ak, v in actions.items():
             q[sk][ak] = float(v)
     return q
+
+
+def _plain_to_visits(plain: dict[str, dict[str, int]] | None):
+    v = defaultdict(lambda: defaultdict(int))
+    for sk, actions in (plain or {}).items():
+        for ak, n in actions.items():
+            v[sk][ak] = int(n)
+    return v
+
+
+# Per-worker cache: reload Q snapshot only when the file mtime changes (Priority 7)
+_WORKER_Q_CACHE: dict[str, Any] = {"path": None, "mtime": None, "q": None, "visits": None}
+
+
+def _load_q_snapshot(path: str):
+    """Load frozen Q-table (+ optional visits) from disk; cache in this worker process."""
+    global _WORKER_Q_CACHE
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return defaultdict(lambda: defaultdict(float)), defaultdict(lambda: defaultdict(int))
+    if (
+        _WORKER_Q_CACHE["path"] == path
+        and _WORKER_Q_CACHE["mtime"] == mtime
+        and _WORKER_Q_CACHE["q"] is not None
+    ):
+        return _WORKER_Q_CACHE["q"], _WORKER_Q_CACHE["visits"]
+    with open(path, "rb") as f:
+        raw = pickle.load(f)
+    if isinstance(raw, dict) and "q" in raw:
+        q = _plain_to_q_table(raw.get("q") or {})
+        visits = _plain_to_visits(raw.get("visits"))
+    else:
+        q = _plain_to_q_table(raw if isinstance(raw, dict) else {})
+        visits = defaultdict(lambda: defaultdict(int))
+    _WORKER_Q_CACHE = {"path": path, "mtime": mtime, "q": q, "visits": visits}
+    return q, visits
+
+
+def _write_q_snapshot(agent, path: str) -> None:
+    """Write one shared snapshot per chunk — workers load by path (not N pickled copies)."""
+    payload = {
+        "q": _q_table_to_plain(agent.q_table),
+        "visits": _visits_to_plain(agent.visit_counts),
+    }
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, path)
+
+
+class TrajectoryReplayBuffer:
+    """Tabular trajectory replay with loss prioritization (Priority 5)."""
+
+    def __init__(self, capacity: int = 2000):
+        self.buf: deque = deque(maxlen=max(1, int(capacity)))
+
+    def add(self, traj: list, final_reward: float, score: float, won: bool, tied: bool) -> None:
+        if not traj:
+            return
+        self.buf.append(
+            {
+                "traj": traj,
+                "final_reward": float(final_reward),
+                "score": float(score),
+                "won": bool(won),
+                "tied": bool(tied),
+            }
+        )
+
+    def __len__(self) -> int:
+        return len(self.buf)
+
+    def sample(self, k: int = 4) -> list[dict]:
+        if not self.buf or k <= 0:
+            return []
+        k = min(k, len(self.buf))
+        # Prefer losses ~3x vs wins/ties
+        weights = []
+        for item in self.buf:
+            if item["won"]:
+                weights.append(1.0)
+            elif item["tied"]:
+                weights.append(1.5)
+            else:
+                weights.append(3.0)
+        total = sum(weights)
+        probs = [w / total for w in weights]
+        idxs = np.random.choice(len(self.buf), size=k, replace=False, p=probs)
+        return [self.buf[int(i)] for i in idxs]
 
 
 def _make_opponent(opponent_type: str):
@@ -76,40 +200,66 @@ def _make_opponent(opponent_type: str):
     raise ValueError(f"Unsupported opponent_type for parallel CPU: {opponent_type}")
 
 
-def _play_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
-    """Play one game in a worker. Must be top-level for Windows spawn."""
+def _play_game_with_agent(agent: QLearningAgent, opponent_type: str, seed: int | None = None) -> dict[str, Any]:
+    """Simulate one game; learning stays off until the main loop applies updates."""
     import random as _random
 
-    seed = payload.get("seed")
     if seed is not None:
         _random.seed(seed)
         np.random.seed(seed % (2**32 - 1))
 
+    prev_online = getattr(agent, "online_updates", True)
+    prev_train = getattr(agent, "training_mode", False)
+    agent.online_updates = False
+    agent.training_mode = True
+    try:
+        opponent, opp_type = _make_opponent(opponent_type)
+        traj1: list[dict] = []
+        traj2: list[dict] = []
+        game = GolfGame(
+            num_players=2,
+            agent_types=["qlearning", opp_type],
+            q_agents=[agent, opponent],
+        )
+        scores = game.play_game(verbose=False, trajectories=[traj1, traj2])
+        return {
+            "trajectory": traj1,
+            "scores": [float(scores[0]), float(scores[1])],
+            "bootstrapping": bool(agent.is_bootstrapping()),
+        }
+    finally:
+        agent.online_updates = prev_online
+        agent.training_mode = prev_train
+
+
+def _play_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
+    """Play one game in a worker. Must be top-level for Windows spawn."""
     agent = QLearningAgent(
         learning_rate=payload["learning_rate"],
         discount_factor=payload["discount_factor"],
         epsilon=payload["epsilon"],
         n_bootstrap_games=payload["n_bootstrap_games"],
         reward_shaping=payload["reward_shaping"],
+        exploration_beta=float(payload.get("exploration_beta", 0.5) or 0.0),
     )
-    agent.q_table = _plain_to_q_table(payload.get("q_table") or {})
+    # Priority 7: load shared snapshot once per worker/chunk (cached by mtime)
+    snap = payload.get("q_snapshot_path")
+    if snap:
+        q, visits = _load_q_snapshot(snap)
+        agent.q_table = q
+        agent.visit_counts = visits
+    else:
+        agent.q_table = _plain_to_q_table(payload.get("q_table") or {})
+        agent.visit_counts = _plain_to_visits(payload.get("visits"))
     agent.games_played = int(payload["games_played"])
-    agent.online_updates = False  # main process owns learning updates
-    agent.training_mode = True
+    try:
+        from human_bootstrap import HumanDemoPolicy
 
-    opponent, opp_type = _make_opponent(payload["opponent_type"])
-    agents = [agent, opponent]
-    agent_types = ["qlearning", opp_type]
+        agent.human_demo_policy = HumanDemoPolicy.from_payload(payload.get("human_demo_policy"))
+    except Exception:
+        agent.human_demo_policy = None
 
-    traj1: list[dict] = []
-    traj2: list[dict] = []
-    game = GolfGame(num_players=2, agent_types=agent_types, q_agents=agents)
-    scores = game.play_game(verbose=False, trajectories=[traj1, traj2])
-    return {
-        "trajectory": traj1,
-        "scores": [float(scores[0]), float(scores[1])],
-        "bootstrapping": bool(agent.is_bootstrapping()),
-    }
+    return _play_game_with_agent(agent, payload["opponent_type"], seed=payload.get("seed"))
 
 
 def train_qlearning_agent_parallel(
@@ -133,12 +283,23 @@ def train_qlearning_agent_parallel(
     shape_midhigh_keep: float = -0.4,
     shape_flip: float = 0.1,
     chunk_size: int | None = None,
+    n_step: int = 3,
+    replay_capacity: int = 2000,
+    replay_per_game: int = 4,
+    exploration_beta: float = 0.5,
+    skip_archive: bool = False,
+    save_trajectories: bool = True,
+    prefer_pool: bool = False,
+    save_qtable: bool = True,
 ) -> tuple[QLearningAgent, dict[str, Any]]:
     """
     Parallel CPU tabular Q-learning.
 
-    Workers simulate games with a frozen Q snapshot; the main process merges
-    trajectory updates (BC during bootstrap, Q-learning after).
+    Workers simulate from a shared Q snapshot file; main process applies n-step
+    Q-learning (max over legal actions) + loss-prioritized trajectory replay.
+
+    With num_workers=1, games run in-process (no pickle snapshot) — much faster
+    once the Q-table is large. Set prefer_pool=True to force the snapshot path.
     """
     cpu_n = os.cpu_count() or 4
     if num_workers is None or num_workers <= 0:
@@ -146,6 +307,11 @@ def train_qlearning_agent_parallel(
     num_workers = max(1, int(num_workers))
     if chunk_size is None or chunk_size <= 0:
         chunk_size = max(num_workers, num_workers * 2)
+    chunk_size = max(1, int(chunk_size))
+    n_step = max(1, int(n_step))
+    replay_per_game = max(0, int(replay_per_game))
+    exploration_beta = float(exploration_beta)
+    in_process = num_workers == 1 and not prefer_pool
 
     bootstrap_n = n_bootstrap_games if use_imitation_learning else 0
     reward_shaping = {
@@ -165,6 +331,31 @@ def train_qlearning_agent_parallel(
     print(f"Chunk size: {chunk_size}")
     print(f"Games: {num_games} | opponent={opponent_type}")
     print(f"Bootstrap: {bootstrap_n} | epsilon={epsilon}")
+    print(f"n-step: {n_step} | replay_per_game: {replay_per_game} (cap={replay_capacity}) | visit beta={exploration_beta}")
+    if in_process:
+        print("Q sharing: in-process (workers=1; no snapshot I/O)")
+    else:
+        print("Q sharing: snapshot file (one write/chunk; workers cache by mtime)")
+    print(f"Trajectories: {'append CSV' if save_trajectories else 'off'}")
+
+    try:
+        from human_bootstrap import load_human_demo_policy
+
+        human_demo_policy = load_human_demo_policy(refresh=True)
+    except Exception as e:
+        print(f"Human demo policy unavailable: {e}")
+        from human_bootstrap import HumanDemoPolicy
+
+        human_demo_policy = HumanDemoPolicy()
+    human_payload = human_demo_policy.to_payload() if human_demo_policy else {}
+    if human_demo_policy:
+        print(
+            f"Human demos: {human_demo_policy.steps} weighted steps / "
+            f"{human_demo_policy.holes} holes "
+            f"({len(human_demo_policy.exact)} exact keys, source={human_demo_policy.source})"
+        )
+    else:
+        print("Human demos: none — bootstrap will use EV only")
 
     agent = QLearningAgent(
         learning_rate=learning_rate,
@@ -172,12 +363,18 @@ def train_qlearning_agent_parallel(
         epsilon=epsilon,
         n_bootstrap_games=bootstrap_n,
         reward_shaping=reward_shaping,
+        exploration_beta=exploration_beta,
     )
+    agent.human_demo_policy = human_demo_policy
     agent.load_q_table_csv()
 
-    trajectory, last_game_num = load_trajectory_csv()
+    # Do NOT load the full trajectory CSV into memory (can be 90MB+).
+    # Appends during training already persist; we only need the last game number.
+    last_game_num = _peek_last_trajectory_game()
     new_trajectory_steps: list[dict] = []
-
+    replay = TrajectoryReplayBuffer(capacity=replay_capacity)
+    snapshot_path = get_output_path("q_snapshot.pkl")
+    print(f"Trajectory resume index: last_game_num={last_game_num}")
     training_stats: dict[str, Any] = {
         "games_played": 0,
         "wins": 0,
@@ -188,130 +385,202 @@ def train_qlearning_agent_parallel(
         "qtable_entries": [],
         "epsilon_values": [],
         "training_times": [],
+        "completion_pct": [],
+        "sparsity_index": [],
+        "mean_visits": [],
         "train_device": "cpu",
         "train_mode": "tabular_parallel",
+        "n_step": n_step,
+        "replay_per_game": replay_per_game,
+        "exploration_beta": exploration_beta,
     }
 
     # Clear live progress for this run
     progress_path = get_output_path("training_progress.json")
     with open(progress_path, "w", encoding="utf-8") as f:
         json.dump({"ok": True, "running": True, "checkpoints": [], "series": {
-            "games": [], "avg_scores": [], "qtable_states": [], "epsilon": [], "win_rates": []
+            "games": [], "avg_scores": [], "qtable_states": [], "epsilon": [], "win_rates": [],
+            "completion_pct": [], "sparsity_index": [],
         }, "summary": {}}, f)
 
     games_done = 0
     t0 = time.time()
-    # Windows-friendly spawn pool
-    with ProcessPoolExecutor(max_workers=num_workers) as pool:
-        while games_done < num_games:
-            batch_n = min(chunk_size, num_games - games_done)
-            q_plain = _q_table_to_plain(agent.q_table)
-            payloads = []
-            for i in range(batch_n):
-                payloads.append({
-                    "q_table": q_plain,
-                    "learning_rate": learning_rate,
-                    "discount_factor": discount_factor,
-                    "epsilon": agent.epsilon,
-                    "n_bootstrap_games": bootstrap_n,
-                    "games_played": agent.games_played,
-                    "opponent_type": opponent_type,
-                    "reward_shaping": reward_shaping,
-                    "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
-                })
+    last_cov = {
+        "completion_pct": 0.0,
+        "sparsity_index": 1.0,
+        "mean_visits": 0.0,
+    }
 
-            batch_start = time.time()
-            futures = [pool.submit(_play_worker_game, p) for p in payloads]
-            results = [fut.result() for fut in as_completed(futures)]
-            # Preserve roughly submission order for reproducibility of stats length
-            # (as_completed is unordered — fine for learning)
-            for result in results:
-                traj = result["trajectory"]
-                scores = result["scores"]
-                games_done += 1
-                agent.games_played = games_done  # keep bootstrap boundary in sync
-                current_game_num = last_game_num + games_done
+    def _consume_result(result: dict[str, Any], batch_start: float, batch_n: int) -> None:
+        nonlocal games_done, last_cov
+        traj = result["trajectory"]
+        scores = result["scores"]
+        games_done += 1
+        agent.games_played = games_done  # keep bootstrap boundary in sync
+        current_game_num = last_game_num + games_done
 
-                won = scores[0] < scores[1]
-                tied = scores[0] == scores[1]
-                if won:
-                    training_stats["wins"] += 1
-                elif not tied:
-                    training_stats["losses"] += 1
+        won = _counts_as_win(scores[0], scores[1])
+        # Non-0-0 score ties stay ties for replay weighting
+        tied = (scores[0] == scores[1]) and not won
+        if won:
+            training_stats["wins"] += 1
+        elif not tied:
+            training_stats["losses"] += 1
 
-                reward = _terminal_reward(scores[0], scores)
-                if traj:
-                    if result.get("bootstrapping") and use_imitation_learning:
-                        for step in traj:
-                            agent.behavioral_clone(step["state_key"], step["action_key"], target=1.0)
-                    agent.train_on_trajectory(traj, reward, scores[0])
-                    save_trajectory_csv(traj, current_game_num)
-                    for step in traj:
-                        new_trajectory_steps.append({
-                            "game": current_game_num,
-                            "round": step.get("round", ""),
-                            "state_key": step.get("state_key", ""),
-                            "action_key": step.get("action_key", ""),
-                            "action": str(step.get("action", "")),
-                        })
+        reward = _terminal_reward(scores[0], scores)
+        if traj:
+            if result.get("bootstrapping") and use_imitation_learning:
+                for step in traj:
+                    agent.behavioral_clone(step["state_key"], step["action_key"], target=1.0)
+            # Priority 1 (legal max) + n-step returns
+            agent.train_on_trajectory(traj, reward, scores[0], n_step=n_step)
+            # Priority 5: trajectory replay, losses weighted higher
+            replay.add(traj, reward, scores[0], won=won, tied=tied)
+            for sample in replay.sample(replay_per_game):
+                agent.train_on_trajectory(
+                    sample["traj"],
+                    sample["final_reward"],
+                    sample["score"],
+                    n_step=n_step,
+                )
+            if save_trajectories:
+                save_trajectory_csv(traj, current_game_num)
+                for step in traj:
+                    new_trajectory_steps.append({
+                        "game": current_game_num,
+                        "round": step.get("round", ""),
+                        "state_key": step.get("state_key", ""),
+                        "action_key": step.get("action_key", ""),
+                        "action": str(step.get("action", "")),
+                    })
 
-                training_stats["games_played"] = games_done
-                training_stats["scores"].append(scores[0])
-                training_stats["opponent_scores"].append(scores[1])
-                states, entries = agent.get_q_table_size()
-                training_stats["qtable_states"].append(states)
-                training_stats["qtable_entries"].append(entries)
-                training_stats["epsilon_values"].append(agent.epsilon)
-                training_stats["training_times"].append((time.time() - batch_start) / max(1, batch_n))
+        training_stats["games_played"] = games_done
+        training_stats["scores"].append(scores[0])
+        training_stats["opponent_scores"].append(scores[1])
+        states, entries = agent.get_q_table_size()
+        training_stats["qtable_states"].append(states)
+        training_stats["qtable_entries"].append(entries)
+        training_stats["completion_pct"].append(last_cov["completion_pct"])
+        training_stats["sparsity_index"].append(last_cov["sparsity_index"])
+        training_stats["mean_visits"].append(last_cov["mean_visits"])
+        training_stats["epsilon_values"].append(agent.epsilon)
+        training_stats["training_times"].append((time.time() - batch_start) / max(1, batch_n))
 
-                if epsilon_decay_interval and games_done % epsilon_decay_interval == 0:
-                    agent.decay_epsilon(factor=epsilon_decay_factor)
+        if epsilon_decay_interval and games_done % epsilon_decay_interval == 0:
+            agent.decay_epsilon(factor=epsilon_decay_factor)
 
-            # Progress after each chunk
-            if verbose and (
+    def _maybe_report(batch_n: int) -> None:
+        nonlocal last_cov
+        if not (
+            verbose
+            and (
                 games_done % progress_report_interval < batch_n
                 or games_done >= num_games
-            ):
-                win_rate = training_stats["wins"] / max(1, games_done)
-                avg_score = float(np.mean(training_stats["scores"]))
-                states, _ = agent.get_q_table_size()
-                phase = "BOOTSTRAP" if games_done < bootstrap_n else "Q-LEARNING"
-                elapsed = time.time() - t0
-                gps = games_done / max(1e-6, elapsed)
-                training_stats["total_time"] = float(elapsed)
-                training_stats["games_per_sec"] = float(gps)
-                print(
-                    f"  Game {games_done}: {phase} | Win rate={win_rate:.2%}, "
-                    f"Avg score={avg_score:.2f}, States={states}, Epsilon={agent.epsilon:.3f}, "
-                    f"{gps:.1f} games/s"
-                )
-                save_training_stats_json(training_stats)
-                append_progress_checkpoint(
-                    game=games_done,
-                    games_total=num_games,
-                    phase=phase,
-                    win_rate=win_rate,
-                    avg_score=avg_score,
-                    states=states,
-                    epsilon=agent.epsilon,
-                )
+            )
+        ):
+            return
+        win_rate = training_stats["wins"] / max(1, games_done)
+        avg_score = float(np.mean(training_stats["scores"]))
+        states, _ = agent.get_q_table_size()
+        last_cov = agent.get_coverage_stats()
+        # Refresh trailing coverage samples for this report window
+        training_stats["completion_pct"][-1] = last_cov["completion_pct"]
+        training_stats["sparsity_index"][-1] = last_cov["sparsity_index"]
+        training_stats["mean_visits"][-1] = last_cov["mean_visits"]
+        phase = "BOOTSTRAP" if games_done < bootstrap_n else "Q-LEARNING"
+        elapsed = time.time() - t0
+        gps = games_done / max(1e-6, elapsed)
+        training_stats["total_time"] = float(elapsed)
+        training_stats["games_per_sec"] = float(gps)
+        training_stats["final_completion_pct"] = last_cov["completion_pct"]
+        training_stats["final_sparsity_index"] = last_cov["sparsity_index"]
+        training_stats["final_mean_visits"] = last_cov["mean_visits"]
+        print(
+            f"  Game {games_done}: {phase} | Win rate={win_rate:.2%}, "
+            f"Avg score={avg_score:.2f}, States={states}, "
+            f"Coverage={last_cov['completion_pct']:.2%} sparse={last_cov['sparsity_index']:.2f}, "
+            f"Epsilon={agent.epsilon:.3f}, {gps:.1f} games/s | replay={len(replay)}"
+        )
+        try:
+            save_training_stats_json(training_stats)
+            append_progress_checkpoint(
+                game=games_done,
+                games_total=num_games,
+                phase=phase,
+                win_rate=win_rate,
+                avg_score=avg_score,
+                states=states,
+                epsilon=agent.epsilon,
+                completion_pct=last_cov["completion_pct"],
+                sparsity_index=last_cov["sparsity_index"],
+                mean_visits=last_cov["mean_visits"],
+            )
+        except OSError as e:
+            print(f"  Warning: progress write failed (training continues): {e}")
+
+    if in_process:
+        while games_done < num_games:
+            batch_n = min(chunk_size, num_games - games_done)
+            batch_start = time.time()
+            for i in range(batch_n):
+                seed = int(time.time() * 1000) % 1_000_000_007 + games_done + i
+                result = _play_game_with_agent(agent, opponent_type, seed=seed)
+                _consume_result(result, batch_start, batch_n)
+            _maybe_report(batch_n)
+    else:
+        # Windows-friendly spawn pool (long-lived so Q snapshot mtime cache works)
+        with ProcessPoolExecutor(max_workers=num_workers) as pool:
+            while games_done < num_games:
+                batch_n = min(chunk_size, num_games - games_done)
+                # Priority 7: one snapshot write/chunk — not N pickled Q copies in payloads
+                _write_q_snapshot(agent, snapshot_path)
+                payloads = []
+                for i in range(batch_n):
+                    payloads.append({
+                        "q_snapshot_path": snapshot_path,
+                        "learning_rate": learning_rate,
+                        "discount_factor": discount_factor,
+                        "epsilon": agent.epsilon,
+                        "n_bootstrap_games": bootstrap_n,
+                        "games_played": agent.games_played,
+                        "opponent_type": opponent_type,
+                        "reward_shaping": reward_shaping,
+                        "human_demo_policy": human_payload,
+                        "exploration_beta": exploration_beta,
+                        "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
+                    })
+
+                batch_start = time.time()
+                futures = [pool.submit(_play_worker_game, p) for p in payloads]
+                results = [fut.result() for fut in as_completed(futures)]
+                for result in results:
+                    _consume_result(result, batch_start, batch_n)
+                _maybe_report(batch_n)
 
     final_states, final_entries = agent.get_q_table_size()
+    cov = agent.get_coverage_stats()
     win_rate = training_stats["wins"] / max(1, num_games)
     avg_score = float(np.mean(training_stats["scores"])) if training_stats["scores"] else 0.0
     total_time = time.time() - t0
     training_stats["total_time"] = float(total_time)
     training_stats["games_per_sec"] = float(num_games / max(1e-6, total_time))
+    training_stats["final_completion_pct"] = cov["completion_pct"]
+    training_stats["final_sparsity_index"] = cov["sparsity_index"]
+    training_stats["final_mean_visits"] = cov["mean_visits"]
     print("\nPARALLEL CPU TRAINING COMPLETE")
     print(f"  Games: {num_games} | workers={num_workers}")
     print(f"  Win rate: {win_rate:.2%}")
     print(f"  Avg score: {avg_score:.2f}")
     print(f"  Q-table: {final_states} states, {final_entries} entries")
+    print(
+        f"  Coverage: {cov['completion_pct']:.2%} well-visited "
+        f"(sparsity={cov['sparsity_index']:.3f}, mean N={cov['mean_visits']:.1f})"
+    )
     print(f"  Time: {total_time:.1f}s ({num_games / max(1e-6, total_time):.1f} games/s)")
 
-    full_trajectory = trajectory + new_trajectory_steps
-    save_trajectory_csv_full(full_trajectory)
-    agent.save_q_table_csv()
+    # Steps were appended live via save_trajectory_csv — skip rewriting the full file
+    if save_qtable:
+        agent.save_q_table_csv()
     save_training_stats_json(training_stats)
     append_progress_checkpoint(
         game=num_games,
@@ -321,6 +590,9 @@ def train_qlearning_agent_parallel(
         avg_score=avg_score,
         states=final_states,
         epsilon=agent.epsilon,
+        completion_pct=cov["completion_pct"],
+        sparsity_index=cov["sparsity_index"],
+        mean_visits=cov["mean_visits"],
     )
     mark_progress_complete()
 
@@ -347,19 +619,24 @@ def train_qlearning_agent_parallel(
             "shape_low_keep": shape_low_keep,
             "shape_midhigh_keep": shape_midhigh_keep,
             "shape_flip": shape_flip,
+            "n_step": n_step,
+            "replay_capacity": replay_capacity,
+            "replay_per_game": replay_per_game,
+            "exploration_beta": exploration_beta,
         }, f, indent=2)
 
     # Archive locally + upload summary to Supabase (this machine is the DB gateway)
-    try:
-        backend = os.path.dirname(_RL_DIR)
-        if backend not in sys.path:
-            sys.path.insert(0, backend)
-        from rl_runs import archive_current_run
-        meta = archive_current_run(source="local_cpu", force=True)
-        if meta:
-            print(f"Archived + DB upload: {meta.get('id')} (supabase={meta.get('supabase_uploaded')})")
-    except Exception as e:
-        print(f"Archive/DB upload skipped: {e}")
+    if not skip_archive:
+        try:
+            backend = os.path.dirname(_RL_DIR)
+            if backend not in sys.path:
+                sys.path.insert(0, backend)
+            from rl_runs import archive_current_run
+            meta = archive_current_run(source="local_cpu", force=True)
+            if meta:
+                print(f"Archived + DB upload: {meta.get('id')} (supabase={meta.get('supabase_uploaded')})")
+        except Exception as e:
+            print(f"Archive/DB upload skipped: {e}")
 
     return agent, training_stats
 
@@ -421,6 +698,12 @@ if __name__ == "__main__":
             shape_low_keep=float(p.get("shape_low_keep", 0.3)),
             shape_midhigh_keep=float(p.get("shape_midhigh_keep", -0.4)),
             shape_flip=float(p.get("shape_flip", 0.1)),
+            n_step=int(p.get("n_step", 3)),
+            replay_capacity=int(p.get("replay_capacity", 2000)),
+            replay_per_game=int(p.get("replay_per_game", 4)),
+            exploration_beta=float(p.get("exploration_beta", 0.5)),
+            chunk_size=int(p["chunk_size"]) if p.get("chunk_size") not in (None, "", 0, "0") else None,
+            save_trajectories=bool(p.get("save_trajectories", True)),
         )
     finally:
         _clear_local_pid_file()

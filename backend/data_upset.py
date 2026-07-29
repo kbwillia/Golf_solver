@@ -264,6 +264,193 @@ def finalize_human_demos(game_id, hole_num, human_score, opponent_scores, won):
     return response
 
 
+def fetch_human_demo_bootstrap_rows():
+    """
+    Rows for RL bootstrap lookup (state_key → action_key).
+    Prefer finished holes; still include unfinished steps that have keys.
+    """
+    response = (
+        supabase.table("human_demos")
+        .select("game_id,hole_num,state_key,action_key,action,won,game_finished,human_score")
+        .neq("game_id", "test_probe")
+        .execute()
+    )
+    return list(response.data or [])
+
+
+def fetch_human_demo_score_summary():
+    """
+    Hole-level human demo outcomes for the RL page (score histogram + summary)
+    plus per-round action-type averages.
+    """
+    try:
+        response = (
+            supabase.table("human_demos")
+            .select(
+                "game_id,hole_num,human_score,won,player_name,created_at,"
+                "round_num,action,action_key,game_finished"
+            )
+            .neq("game_id", "test_probe")
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as e:
+        print(f"Error fetching human demos: {e}")
+        return {"available": False, "error": str(e), "used_in_bootstrap": False}
+
+    holes = {}
+    action_rows = []
+    for r in rows:
+        gid = r.get("game_id") or ""
+        if gid == "test_probe":
+            continue
+        if r.get("game_finished") and r.get("human_score") is not None:
+            key = (gid, r.get("hole_num"))
+            if key not in holes:
+                holes[key] = r
+        if r.get("action") is not None or r.get("action_key"):
+            action_rows.append(r)
+
+    action_by_round = _human_action_by_round(action_rows)
+
+    if not holes:
+        return {
+            "available": bool(action_by_round.get("available")),
+            "used_in_bootstrap": True,
+            "holes": 0,
+            "steps": len(action_rows),
+            "message": (
+                None
+                if action_by_round.get("available")
+                else "No finished human demo holes yet."
+            ),
+            "action_by_round": action_by_round,
+        }
+
+    scores = [int(h["human_score"]) for h in holes.values() if h.get("human_score") is not None]
+    wins = sum(1 for h in holes.values() if h.get("won") is True)
+    n = len(scores)
+    max_score = max(0, max(scores) if scores else 0)
+    counts = [0] * (max_score + 1)
+    for s in scores:
+        if 0 <= s <= max_score:
+            counts[s] += 1
+
+    return {
+        "available": True,
+        "used_in_bootstrap": True,
+        "holes": n,
+        "steps": len(action_rows),
+        "wins": wins,
+        "win_rate": (wins / n) if n else None,
+        "avg_score": (sum(scores) / n) if n else None,
+        "best_score": min(scores) if scores else None,
+        "worst_score": max(scores) if scores else None,
+        "score_histogram": {
+            "available": True,
+            "bin_centers": list(range(0, max_score + 1)),
+            "counts": counts,
+            "min_score": 0,
+            "max_score": max_score,
+        },
+        "action_by_round": action_by_round,
+    }
+
+
+def _classify_human_action(action_raw, action_key=None) -> str:
+    """Map a stored demo action to take_discard / draw_keep / draw_flip."""
+    if isinstance(action_raw, dict):
+        typ = action_raw.get("type")
+        if typ == "take_discard":
+            return "take_discard"
+        if typ == "draw_deck":
+            if action_raw.get("keep") is True:
+                return "draw_keep"
+            return "draw_flip"
+        if typ == "draw_flip":
+            return "draw_flip"
+    key = str(action_key or "")
+    if "take_discard" in key:
+        return "take_discard"
+    if "flip" in key:
+        return "draw_flip"
+    if "draw_deck" in key or "draw" in key:
+        return "draw_keep"
+    if isinstance(action_raw, str):
+        low = action_raw.lower()
+        if "take_discard" in low:
+            return "take_discard"
+        if "draw" in low:
+            if "keep': true" in low or '"keep": true' in low or "keep\": true" in low:
+                return "draw_keep"
+            if "flip" in low or "keep': false" in low or '"keep": false' in low:
+                return "draw_flip"
+            return "draw_keep"
+    return "unknown"
+
+
+def _human_action_by_round(rows: list) -> dict:
+    """Average action-type mix per round_num across human demo steps."""
+    types = ("take_discard", "draw_keep", "draw_flip")
+    # round -> type -> count
+    by_round: dict[int, dict[str, int]] = {}
+    # hole -> type -> count (for overall avg per hole)
+    by_hole: dict[tuple, dict[str, int]] = {}
+    unknown = 0
+
+    for r in rows:
+        rn = r.get("round_num")
+        try:
+            rn = int(rn)
+        except (TypeError, ValueError):
+            continue
+        if rn < 0:
+            continue
+        at = _classify_human_action(r.get("action"), r.get("action_key"))
+        if at not in types:
+            unknown += 1
+            continue
+        by_round.setdefault(rn, {t: 0 for t in types})
+        by_round[rn][at] += 1
+        hkey = (r.get("game_id") or "", r.get("hole_num"))
+        by_hole.setdefault(hkey, {t: 0 for t in types})
+        by_hole[hkey][at] += 1
+
+    if not by_round:
+        return {"available": False, "types": list(types), "rounds": []}
+
+    rounds = sorted(by_round.keys())
+    totals = {rn: sum(by_round[rn].values()) for rn in rounds}
+    share = {t: [] for t in types}
+    avg_counts = {t: [] for t in types}
+    # holes that played at least one action in that round ≈ total actions that round
+    # (1 human action / round typically) — avg count of type = count / n_actions_in_round
+    for rn in rounds:
+        tot = max(1, totals[rn])
+        for t in types:
+            c = by_round[rn][t]
+            share[t].append(round(c / tot, 4))
+            avg_counts[t].append(round(c / tot, 4))  # same when 1 action/round
+
+    n_holes = max(1, len(by_hole))
+    overall_avg_per_hole = {
+        t: round(sum(h.get(t, 0) for h in by_hole.values()) / n_holes, 3)
+        for t in types
+    }
+
+    return {
+        "available": True,
+        "types": list(types),
+        "rounds": rounds,
+        "share": share,
+        "avg_counts": avg_counts,
+        "overall_avg_per_hole": overall_avg_per_hole,
+        "steps_classified": sum(totals.values()),
+        "unknown_steps": unknown,
+        "holes_with_actions": len(by_hole),
+    }
+
+
 def upload_game_state(game_id, game_state, timestamp=None, metadata=None):
     # get_game_state returns 'current_turn', not 'current_player'
     current_player = game_state.get("current_turn") or game_state.get("current_player")

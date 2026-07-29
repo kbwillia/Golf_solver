@@ -298,36 +298,32 @@ DEFAULT_REWARD_SHAPING = {
 class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
     def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
-                 n_bootstrap_games=250, reward_shaping=None):
+                 n_bootstrap_games=250, reward_shaping=None, exploration_beta=0.5):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
         self.q_table = defaultdict(lambda: defaultdict(float))
+        # Visit counts N(s,a) — used for count-based exploration + coverage/sparsity
+        self.visit_counts = defaultdict(lambda: defaultdict(int))
+        self.exploration_beta = float(exploration_beta)
         self.training_mode = True
         # When False, choose_action records trajectories but skips online BC/Q mutations
         # (used by parallel rollout workers; main process applies updates).
         self.online_updates = True
         self.n_bootstrap_games = n_bootstrap_games
         self.games_played = 0
+        # Optional HumanDemoPolicy: human action on state match, else EV (bootstrap only)
+        self.human_demo_policy = None
         self.reward_shaping = dict(DEFAULT_REWARD_SHAPING)
         if reward_shaping:
             self.reward_shaping.update(reward_shaping)
 
     def get_state_key(self, player, game_state):
-        from probabilities import expected_value_draw_vs_discard
-
         # Separate public cards (flipped, visible to all) from private cards (known only to this player)
         public_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
                                   if card and player.known[i]))
         private_cards = tuple(sorted(card.rank for i, card in enumerate(player.grid)
                                    if card and player.privately_visible[i] and not player.known[i]))
-
-        # Get EV analysis to inform state representation
-        ev_analysis = expected_value_draw_vs_discard(game_state, player)
-
-        # Use draw advantage (key decision factor) - bucket to reduce state space
-        draw_advantage = ev_analysis.get('draw_advantage', 0)
-        advantage_bucket = round(draw_advantage * 2) / 2  # Round to nearest 0.5
 
         # Discard card rank (since score isn't useful for Jacks)
         discard_rank = game_state.discard_pile[-1].rank if game_state.discard_pile else 'none'
@@ -339,8 +335,8 @@ class QLearningAgent:
             drawn_card_str = game_state.drawn_card.rank
         else:
             drawn_card_str = 'none'
-        # Add drawn_card_str to the state key
-        return f"pub_{public_cards}_priv_{private_cards}_adv_{advantage_bucket}_dis_{discard_rank}_drawn_{drawn_card_str}_round_{round_num}"
+        # No EV advantage bucket — bootstrap already teaches EV; adv_ only exploded the table
+        return f"pub_{public_cards}_priv_{private_cards}_dis_{discard_rank}_drawn_{drawn_card_str}_round_{round_num}"
 
     def get_action_key(self, action):
         """Convert action to a string key"""
@@ -454,12 +450,38 @@ class QLearningAgent:
         if not legal_actions:
             return None
 
-        # Bootstrapping phase: use EVAgent for first n_bootstrap_games
+        # Bootstrapping: human demo when state matches/close, else EVAgent
         if self.is_bootstrapping():
-            ev_agent = EVAgent()
-            action = ev_agent.choose_action(player, game_state)
+            action = None
+            if self.human_demo_policy:
+                try:
+                    from human_bootstrap import choose_bootstrap_action
+
+                    action, _tier = choose_bootstrap_action(
+                        encoder=self,
+                        policy=self.human_demo_policy,
+                        player=player,
+                        game_state=game_state,
+                        legal_actions=legal_actions,
+                    )
+                except Exception:
+                    action = None
+            if action is None:
+                ev_agent = EVAgent()
+                action = ev_agent.choose_action(player, game_state)
             if action not in legal_actions:
-                action = random.choice(legal_actions)
+                # Human/EV action may not compare equal by identity — rematch by key
+                matched = None
+                try:
+                    want = self.get_action_key(action) if action else None
+                    if want:
+                        for a in legal_actions:
+                            if self.get_action_key(a) == want:
+                                matched = a
+                                break
+                except Exception:
+                    matched = None
+                action = matched if matched is not None else random.choice(legal_actions)
             # Real imitation: boost the expert action's Q (behavioral cloning).
             # Stops automatically when bootstrap ends.
             if self.online_updates:
@@ -490,9 +512,14 @@ class QLearningAgent:
                 state_key = self.get_state_key(player, game_state)
                 best_action = None
                 best_value = float('-inf')
+                beta = float(getattr(self, "exploration_beta", 0.0) or 0.0)
                 for action_candidate in legal_actions:
                     action_key = self.get_action_key(action_candidate)
                     q_value = self.q_table[state_key][action_key]
+                    # Count-based bonus: prefer rarely tried (s,a)
+                    if beta > 0:
+                        n = int(self.visit_counts[state_key][action_key])
+                        q_value = q_value + beta / (n + 1) ** 0.5
                     if q_value > best_value:
                         best_value = q_value
                         best_action = action_candidate
@@ -506,6 +533,8 @@ class QLearningAgent:
                 'state_key': state_key,
                 'action_key': action_key,
                 'action': action,
+                # Legal action keys at this state — needed for true max_{a'} Q(s', a')
+                'legal_action_keys': [self.get_action_key(a) for a in legal_actions],
                 'round': getattr(game_state, 'round', None)
             })
         return action
@@ -513,37 +542,89 @@ class QLearningAgent:
     def notify_game_end(self):
         self.games_played += 1
 
-    def update(self, state_key, action_key, reward, next_state_key, next_actions):
-        """Update Q-values using Q-learning update rule"""
-        max_next_q = 0
-        if next_actions:
-            max_next_q = max(self.q_table[next_state_key][self.get_action_key(a)]
-                           for a in next_actions)
+    def _max_next_q(self, next_state_key, next_action_keys) -> float:
+        """Q-learning bootstrap: max over legal action keys at s' (not the taken action only)."""
+        if not next_action_keys:
+            return 0.0
+        return max(float(self.q_table[next_state_key][ak]) for ak in next_action_keys)
+
+    def update(self, state_key, action_key, reward, next_state_key, next_actions, done=False):
+        """Update Q-values using the Q-learning rule.
+
+        next_actions may be a list of action dicts or action-key strings.
+        When done=True (terminal), bootstrap value is 0.
+        """
+        if done:
+            max_next_q = 0.0
+        elif not next_actions:
+            max_next_q = 0.0
+        else:
+            keys = []
+            for a in next_actions:
+                if isinstance(a, str):
+                    keys.append(a)
+                else:
+                    keys.append(self.get_action_key(a))
+            max_next_q = self._max_next_q(next_state_key, keys)
 
         current_q = self.q_table[state_key][action_key]
-        new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+        new_q = current_q + self.learning_rate * (
+            reward + self.discount_factor * max_next_q - current_q
+        )
         self.q_table[state_key][action_key] = new_q
 
-    def train_on_trajectory(self, trajectory, final_reward, final_score):
-        """Train on a trajectory with dense step shaping + terminal reward."""
+    def train_on_trajectory(self, trajectory, final_reward, final_score, n_step=3):
+        """n-step Q-learning with dense step shaping + terminal reward.
+
+        Priority 1: bootstrap with max Q over *legal* actions at s_{t+n}, not the
+        action that happened to be taken in the trajectory.
+        """
         if not trajectory:
             return
 
+        n_step = max(1, int(n_step))
+        T = len(trajectory)
+        rewards = []
         for i, step in enumerate(trajectory):
-            state_key = step['state_key']
-            action_key = step['action_key']
-            immediate_reward = self.shaped_step_reward(step)
+            r = float(self.shaped_step_reward(step))
+            if i == T - 1:
+                r += float(final_reward)
+            rewards.append(r)
 
-            if i < len(trajectory) - 1:
-                next_step = trajectory[i + 1]
-                next_state_key = next_step['state_key']
-                next_actions = [next_step['action']]
-            else:
-                next_state_key = state_key
-                next_actions = []
-                immediate_reward += final_reward
+        for t in range(T):
+            G = 0.0
+            discount = 1.0
+            hit_terminal = False
+            for k in range(n_step):
+                idx = t + k
+                if idx >= T:
+                    hit_terminal = True
+                    break
+                G += discount * rewards[idx]
+                if idx == T - 1:
+                    hit_terminal = True
+                    break
+                discount *= self.discount_factor
 
-            self.update(state_key, action_key, immediate_reward, next_state_key, next_actions)
+            if not hit_terminal:
+                # Full n-step window: bootstrap at s_{t+n} with max over legal actions
+                boot = trajectory[t + n_step]
+                next_state_key = boot["state_key"]
+                legal_keys = boot.get("legal_action_keys") or []
+                if not legal_keys and boot.get("action_key"):
+                    legal_keys = [boot["action_key"]]
+                max_next = self._max_next_q(next_state_key, legal_keys)
+                G += discount * max_next
+
+            state_key = trajectory[t]["state_key"]
+            action_key = trajectory[t]["action_key"]
+            current_q = self.q_table[state_key][action_key]
+            self.q_table[state_key][action_key] = current_q + self.learning_rate * (
+                G - current_q
+            )
+            self.visit_counts[state_key][action_key] = int(
+                self.visit_counts[state_key][action_key]
+            ) + 1
 
     def set_training_mode(self, training):
         """Enable or disable training mode"""
@@ -554,25 +635,74 @@ class QLearningAgent:
         total_entries = sum(len(actions) for actions in self.q_table.values())
         return len(self.q_table), total_entries
 
+    def get_coverage_stats(self, well_visited_min: int = 5) -> dict:
+        """Sparsity / completion proxies for the growing Q-table.
+
+        There is no known finite 'full' state space — completion is relative:
+        - completion_pct: fraction of (s,a) entries with N >= well_visited_min
+        - sparsity_index: 1 - completion_pct (1 = all under-visited, 0 = all well-visited)
+        - mean_visits: average N(s,a) over entries that exist
+        """
+        visits = []
+        for sk, actions in self.q_table.items():
+            for ak in actions:
+                visits.append(int(self.visit_counts[sk][ak]))
+        n = len(visits)
+        if n == 0:
+            return {
+                "states": 0,
+                "entries": 0,
+                "mean_visits": 0.0,
+                "median_visits": 0.0,
+                "pct_once": 0.0,
+                "completion_pct": 0.0,
+                "sparsity_index": 1.0,
+                "well_visited_min": well_visited_min,
+            }
+        visits_sorted = sorted(visits)
+        well = sum(1 for v in visits if v >= well_visited_min)
+        once = sum(1 for v in visits if v <= 1)
+        completion = well / n
+        return {
+            "states": len(self.q_table),
+            "entries": n,
+            "mean_visits": float(sum(visits) / n),
+            "median_visits": float(visits_sorted[n // 2]),
+            "pct_once": once / n,
+            "completion_pct": completion,
+            "sparsity_index": 1.0 - completion,
+            "well_visited_min": well_visited_min,
+        }
+
     def decay_epsilon(self, factor=0.995):
         """Decay epsilon for better exploration/exploitation balance"""
         self.epsilon = max(0.01, self.epsilon * factor)
 
     def save_q_table_csv(self, filename="qtable_train.csv"):
-        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
-        os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, filename)
+        override = (os.environ.get("RL_OUTPUT_DIR") or "").strip()
+        if override:
+            os.makedirs(override, exist_ok=True)
+            output_path = os.path.join(override, filename)
+        else:
+            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, filename)
         with open(output_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['state_key', 'action_key', 'q_value'])
+            writer.writerow(['state_key', 'action_key', 'q_value', 'visits'])
             for state_key, actions in self.q_table.items():
                 for action_key, q_value in actions.items():
-                    writer.writerow([state_key, action_key, q_value])
+                    visits = int(self.visit_counts[state_key][action_key])
+                    writer.writerow([state_key, action_key, q_value, visits])
         print(f"Q-table saved to {output_path}")
 
     def load_q_table_csv(self, filename="qtable_train.csv"):
-        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
-        output_path = os.path.join(output_dir, filename)
+        override = (os.environ.get("RL_OUTPUT_DIR") or "").strip()
+        if override:
+            output_path = os.path.join(override, filename)
+        else:
+            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'RL', 'output')
+            output_path = os.path.join(output_dir, filename)
         if not os.path.exists(output_path):
             print(f"No Q-table file found at {output_path}, starting fresh.")
             return
@@ -585,6 +715,8 @@ class QLearningAgent:
                 state_key, action_key, q_value = row[0], row[1], row[2]
                 try:
                     self.q_table[state_key][action_key] = float(q_value)
+                    if len(row) >= 4 and row[3] != "":
+                        self.visit_counts[state_key][action_key] = int(float(row[3]))
                 except ValueError:
                     continue
         print(f"Loaded Q-table from {output_path}")
@@ -883,41 +1015,29 @@ class GPUQLearningAgent(QLearningAgent):
         """Delegate to base class (includes dense reward shaping)."""
         return QLearningAgent.train_on_trajectory(self, trajectory, final_reward, final_score)
 
-    def update(self, state_key, action_key, reward, next_state_key, next_actions):
-        """Update Q-values using Q-learning update rule (with tensor ops if possible)."""
-        # Use tensor ops for max_next_q if there are multiple next actions
-        if next_actions:
-            next_qs = [self.q_table[next_state_key][self.get_action_key(a)] for a in next_actions]
-            max_next_q = float(torch.tensor(next_qs, device=self.device).max())
-        else:
+    def update(self, state_key, action_key, reward, next_state_key, next_actions, done=False):
+        """Same Q-learning rule as CPU (legal max), optional tensor max."""
+        if done or not next_actions:
             max_next_q = 0.0
+        else:
+            keys = []
+            for a in next_actions:
+                if isinstance(a, str):
+                    keys.append(a)
+                else:
+                    keys.append(self.get_action_key(a))
+            next_qs = [self.q_table[next_state_key][ak] for ak in keys]
+            max_next_q = float(torch.tensor(next_qs, device=self.device).max()) if next_qs else 0.0
         current_q = self.q_table[state_key][action_key]
         new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
         self.q_table[state_key][action_key] = new_q
 
     def train_on_batch_trajectories_vectorized(self, batch_trajectories, batch_rewards, batch_scores):
-        """Vectorized batch training using tensor operations for maximum GPU efficiency, but Q-table structure matches CPU agent."""
+        """Batch training via n-step Q path on the base class."""
         if not batch_trajectories:
             return
-        # Collect all updates for batch processing
-        updates = []
-        for traj_idx, (trajectory, reward) in enumerate(zip(batch_trajectories, batch_rewards)):
-            for i, step in enumerate(trajectory):
-                state_key = step['state_key']
-                action_key = step['action_key']
-                immediate_reward = self.shaped_step_reward(step)
-                if i == len(trajectory) - 1:
-                    immediate_reward += reward
-                    next_state_key = state_key
-                    next_actions = []
-                else:
-                    next_step = trajectory[i + 1]
-                    next_state_key = next_step['state_key']
-                    next_actions = [next_step['action']]
-                updates.append((state_key, action_key, immediate_reward, next_state_key, next_actions))
-        # Batch update using tensor ops
-        for state_key, action_key, reward, next_state_key, next_actions in updates:
-            self.update(state_key, action_key, reward, next_state_key, next_actions)
+        for trajectory, reward, score in zip(batch_trajectories, batch_rewards, batch_scores):
+            QLearningAgent.train_on_trajectory(self, trajectory, reward, score, n_step=3)
 
     def get_q_table_size(self):
         """Get the size of the Q-table for debugging (matches CPU agent)."""

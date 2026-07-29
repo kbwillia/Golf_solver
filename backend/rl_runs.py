@@ -131,8 +131,8 @@ def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None
     wins = int(stats.get("wins") or 0)
     # Prefer score-based wins when available (more reliable than buggy counter)
     if scores and opp and len(scores) == len(opp):
-        wins = sum(1 for a, b in zip(scores, opp) if a < b)
-        ties = sum(1 for a, b in zip(scores, opp) if a == b)
+        wins = sum(1 for a, b in zip(scores, opp) if a < b or (a == 0 and b == 0))
+        ties = sum(1 for a, b in zip(scores, opp) if a == b and not (a == 0 and b == 0))
     else:
         ties = 0
 
@@ -162,6 +162,33 @@ def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None
         "final_entries": int((stats.get("qtable_entries") or [0])[-1] or 0)
         if stats.get("qtable_entries")
         else None,
+        "completion_pct": (
+            float(stats["final_completion_pct"])
+            if stats.get("final_completion_pct") is not None
+            else (
+                float((stats.get("completion_pct") or [None])[-1])
+                if stats.get("completion_pct")
+                else None
+            )
+        ),
+        "sparsity_index": (
+            float(stats["final_sparsity_index"])
+            if stats.get("final_sparsity_index") is not None
+            else (
+                float((stats.get("sparsity_index") or [None])[-1])
+                if stats.get("sparsity_index")
+                else None
+            )
+        ),
+        "mean_visits": (
+            float(stats["final_mean_visits"])
+            if stats.get("final_mean_visits") is not None
+            else (
+                float((stats.get("mean_visits") or [None])[-1])
+                if stats.get("mean_visits")
+                else None
+            )
+        ),
         "final_epsilon": float((stats.get("epsilon_values") or [None])[-1])
         if stats.get("epsilon_values")
         else None,

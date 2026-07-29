@@ -13,6 +13,8 @@ RL_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RL", "
 
 # mtime caches — sync polls every few seconds; avoid re-parsing multi-MB CSVs each time
 _FILE_CACHE: dict[str, tuple[float, int, Any]] = {}
+_HUMAN_DEMO_CACHE: tuple[float, Any] | None = None
+_HUMAN_DEMO_TTL_SEC = 30.0
 
 
 def _path(name: str) -> str:
@@ -25,7 +27,7 @@ def _cached_file_build(path: str, builder, *args, **kwargs):
         return builder(path, *args, **kwargs)
     try:
         st = os.stat(path)
-        key = f"{path}|{args}|{tuple(sorted(kwargs.items()))}"
+        key = f"{path}|{getattr(builder, '__name__', 'fn')}|{args}|{tuple(sorted(kwargs.items()))}"
         hit = _FILE_CACHE.get(key)
         if hit and hit[0] == st.st_mtime and hit[1] == st.st_size:
             return hit[2]
@@ -34,6 +36,39 @@ def _cached_file_build(path: str, builder, *args, **kwargs):
         return value
     except OSError:
         return builder(path, *args, **kwargs)
+
+
+def _human_demo_summary_cached() -> dict[str, Any]:
+    """Fetch human demo hole scores from Supabase, TTL-cached for sync polls."""
+    import importlib
+    import time
+
+    global _HUMAN_DEMO_CACHE
+    now = time.monotonic()
+    if _HUMAN_DEMO_CACHE and (now - _HUMAN_DEMO_CACHE[0]) < _HUMAN_DEMO_TTL_SEC:
+        cached = _HUMAN_DEMO_CACHE[1]
+        # Don't keep serving a failed import/error for the full TTL
+        if cached.get("available") or not cached.get("error"):
+            return cached
+    try:
+        import data_upset as _du
+
+        fetch = getattr(_du, "fetch_human_demo_score_summary", None)
+        if fetch is None:
+            _du = importlib.reload(_du)
+            fetch = getattr(_du, "fetch_human_demo_score_summary", None)
+        if fetch is None:
+            value = {
+                "available": False,
+                "error": "fetch_human_demo_score_summary missing — restart Flask (python run_app.py)",
+                "used_in_bootstrap": False,
+            }
+        else:
+            value = fetch()
+    except Exception as e:
+        value = {"available": False, "error": str(e), "used_in_bootstrap": False}
+    _HUMAN_DEMO_CACHE = (now, value)
+    return value
 
 
 def _moving_average(values: list[float], window: int) -> list[float | None]:
@@ -94,6 +129,14 @@ def _build_action_series(traj_path: str, max_points: int = 500) -> dict[str, Any
     if not os.path.exists(traj_path):
         return {"available": False}
 
+    # Huge trajectory CSVs — only scan a tail so the RL API stays responsive
+    try:
+        size = os.path.getsize(traj_path)
+    except OSError:
+        size = 0
+    if size > 12_000_000:
+        return _build_action_series_tail(traj_path, max_points=max_points, max_bytes=2_500_000)
+
     df = pd.read_csv(traj_path, usecols=["game", "action", "state_key"])
     if df.empty:
         return {"available": False}
@@ -131,46 +174,222 @@ def _build_action_series(traj_path: str, max_points: int = 500) -> dict[str, Any
     }
 
 
+def _build_action_series_tail(
+    traj_path: str, max_points: int = 500, max_bytes: int = 2_500_000
+) -> dict[str, Any]:
+    """Parse only the end of a large trajectory file for action charts."""
+    import csv
+
+    try:
+        with open(traj_path, "rb") as bf:
+            bf.seek(0, os.SEEK_END)
+            end = bf.tell()
+            start = max(0, end - max_bytes)
+            bf.seek(start)
+            raw = bf.read().decode("utf-8", errors="ignore")
+    except OSError:
+        return {"available": False, "truncated": True}
+
+    if start > 0:
+        nl = raw.find("\n")
+        raw = raw[nl + 1 :] if nl >= 0 else raw
+    with open(traj_path, "r", encoding="utf-8", errors="ignore") as f:
+        header = f.readline().strip()
+    text = header + "\n" + raw
+    reader = csv.DictReader(text.splitlines())
+    types = ["take_discard", "draw_keep", "draw_flip"]
+    counts = defaultdict(int)
+    by_game: dict[int, dict[str, int]] = {}
+    steps = 0
+    for row in reader:
+        try:
+            g = int(row.get("game") or 0)
+        except (TypeError, ValueError):
+            continue
+        atype = _action_type(row.get("action"))
+        counts[atype] += 1
+        steps += 1
+        bucket = by_game.setdefault(g, {t: 0 for t in types})
+        if atype in bucket:
+            bucket[atype] += 1
+    if not by_game:
+        return {"available": False, "truncated": True}
+    games = sorted(by_game)
+    cum = {t: 0 for t in types}
+    series = {t: [] for t in types}
+    g_out = []
+    for g in games:
+        for t in types:
+            cum[t] += by_game[g].get(t, 0)
+            series[t].append(cum[t])
+        g_out.append(g)
+    down = _downsample({"games": g_out, **series}, max_points=max_points)
+    return {
+        "available": True,
+        "truncated": True,
+        "games": down["games"],
+        "cumulative": {t: down[t] for t in types},
+        "unique_states": [],
+        "totals": {t: int(counts[t]) for t in types},
+        "steps": steps,
+    }
+
+
+def _count_csv_data_rows(path: str) -> int:
+    """Fast newline count (data rows ≈ lines − 1)."""
+    try:
+        with open(path, "rb") as f:
+            n = sum(buf.count(b"\n") for buf in iter(lambda: f.read(1 << 20), b""))
+        return max(0, n - 1)
+    except OSError:
+        return 0
+
+
 def _build_qvalue_hist(qtable_path: str, bins: int = 40) -> dict[str, Any]:
+    """Q-table summary without loading the full CSV into pandas.
+
+    Huge tables without a visits column use a fast line-count path so the RL
+    API stays responsive (human demos / cumulative strip still load).
+    """
     if not os.path.exists(qtable_path):
         return {"available": False}
 
+    import csv
+    import random
     import numpy as np
 
-    df = pd.read_csv(qtable_path, usecols=["q_value", "state_key", "action_key"])
-    if df.empty:
+    try:
+        size = os.path.getsize(qtable_path)
+    except OSError:
+        size = 0
+
+    try:
+        with open(qtable_path, "r", encoding="utf-8", errors="ignore") as f:
+            header_line = f.readline()
+    except OSError:
+        return {"available": False}
+    header_l = header_line.lower()
+    has_visits_col = "visits" in header_l
+
+    # Fast path: big table, no visit tracking yet — SA pairs via newline count
+    if size > 20_000_000 and not has_visits_col:
+        entries = _count_csv_data_rows(qtable_path)
+        return {
+            "available": True,
+            "bin_centers": [],
+            "counts": [],
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "num_states": None,
+            "num_entries": entries,
+            "states_partial": True,
+            "sampled_hist": True,
+            "fast_path": True,
+            "has_visits": False,
+        }
+
+    well_visited_min = 5
+    n = 0
+    states: set[str] = set()
+    has_visits = False
+    visit_sum = 0.0
+    well = 0
+    q_sum = 0.0
+    q_min = None
+    q_max = None
+    sample_cap = 40_000
+    sample: list[float] = []
+    sample_seen = 0
+    track_states = size < 25_000_000
+    stride = 1 if size < 40_000_000 else 4
+
+    try:
+        with open(qtable_path, "r", encoding="utf-8", errors="ignore", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                n += 1
+                if track_states:
+                    sk = row.get("state_key") or ""
+                    if sk:
+                        states.add(sk)
+                if n % stride != 0 and not has_visits_col:
+                    continue
+                try:
+                    qv = float(row.get("q_value") or 0.0)
+                except (TypeError, ValueError):
+                    qv = 0.0
+                q_sum += qv
+                q_min = qv if q_min is None else min(q_min, qv)
+                q_max = qv if q_max is None else max(q_max, qv)
+                sample_seen += 1
+                if len(sample) < sample_cap:
+                    sample.append(qv)
+                else:
+                    j = random.randint(0, sample_seen - 1)
+                    if j < sample_cap:
+                        sample[j] = qv
+                if has_visits_col:
+                    has_visits = True
+                    try:
+                        v = int(float(row.get("visits") or 0))
+                    except (TypeError, ValueError):
+                        v = 0
+                    visit_sum += v
+                    if v >= well_visited_min:
+                        well += 1
+    except OSError:
         return {"available": False}
 
-    values = df["q_value"].astype(float).to_numpy()
-    counts, edges = np.histogram(values, bins=bins)
+    if n == 0:
+        return {"available": False}
+
+    q_n = max(1, sample_seen)
+    values = np.asarray(sample, dtype=float) if sample else np.asarray([0.0])
+    hist_counts, edges = np.histogram(values, bins=bins)
     centers = ((edges[:-1] + edges[1:]) / 2.0).tolist()
-    return {
+    out: dict[str, Any] = {
         "available": True,
         "bin_centers": centers,
-        "counts": counts.tolist(),
-        "min": float(values.min()),
-        "max": float(values.max()),
-        "mean": float(values.mean()),
-        "std": float(values.std()),
-        "num_states": int(df["state_key"].nunique()),
-        "num_entries": int(len(df)),
+        "counts": hist_counts.tolist(),
+        "min": float(q_min if q_min is not None else 0.0),
+        "max": float(q_max if q_max is not None else 0.0),
+        "mean": float(q_sum / q_n),
+        "std": float(values.std()) if len(values) else 0.0,
+        "num_states": len(states) if track_states else None,
+        "num_entries": n,
+        "states_partial": not track_states,
+        "sampled_hist": True,
+        "fast_path": False,
     }
+    if has_visits:
+        completion = well / n
+        out["has_visits"] = True
+        out["completion_pct"] = float(completion)
+        out["sparsity_index"] = float(1.0 - completion)
+        out["mean_visits"] = float(visit_sum / n)
+        out["well_visited_min"] = well_visited_min
+    else:
+        out["has_visits"] = False
+    return out
+
+
+def _counts_as_win(our: float, opp: float) -> bool:
+    """Strict lower score wins; 0-0 ties count as a win."""
+    return our < opp or (our == 0 and opp == 0)
 
 
 def _rolling_win_rate(scores: list[float], opp: list[float], window: int) -> list[float | None]:
     if not scores or not opp or len(scores) != len(opp):
         return []
     out: list[float | None] = []
-    wins = 0
     for i, (a, b) in enumerate(zip(scores, opp)):
-        if a < b:
-            wins += 1
         if i + 1 < window:
             out.append(None)
         else:
-            # recompute window
             start = i + 1 - window
-            w = sum(1 for x, y in zip(scores[start : i + 1], opp[start : i + 1]) if x < y)
+            w = sum(1 for x, y in zip(scores[start : i + 1], opp[start : i + 1]) if _counts_as_win(x, y))
             out.append(w / window)
     return out
 
@@ -304,7 +523,7 @@ def _build_from_stats(
 
     score_wins = 0
     if hist_scores and hist_opp and len(hist_scores) == len(hist_opp):
-        score_wins = sum(1 for a, b in zip(hist_scores, hist_opp) if a < b)
+        score_wins = sum(1 for a, b in zip(hist_scores, hist_opp) if _counts_as_win(a, b))
 
     series_raw = {
         "games": games,
@@ -342,6 +561,24 @@ def _build_from_stats(
     final_loss = next((x for x in reversed(loss_vals) if x is not None), None) if loss_vals else None
     wins_count = score_wins or int(stats.get("wins", 0))
 
+    def _last_metric(key: str, final_key: str | None = None) -> float | None:
+        if final_key and stats.get(final_key) is not None:
+            try:
+                return float(stats[final_key])
+            except (TypeError, ValueError):
+                pass
+        seq = stats.get(key) or []
+        if not seq:
+            return None
+        try:
+            return float(seq[-1])
+        except (TypeError, ValueError):
+            return None
+
+    completion_pct = _last_metric("completion_pct", "final_completion_pct")
+    sparsity_index = _last_metric("sparsity_index", "final_sparsity_index")
+    mean_visits = _last_metric("mean_visits", "final_mean_visits")
+
     return {
         "available": True,
         "games_ma_window": window,
@@ -370,6 +607,9 @@ def _build_from_stats(
             "final_epsilon": float(eps[-1]) if eps else None,
             "final_loss": final_loss,
             "final_buffer_size": int(buffer_sizes[-1]) if buffer_sizes else None,
+            "completion_pct": completion_pct,
+            "sparsity_index": sparsity_index,
+            "mean_visits": mean_visits,
             "train_mode": train_mode,
             "train_device": train_device,
         },
@@ -439,16 +679,21 @@ GLOSSARY = {
     "epsilon": "Exploration rate: probability of taking a random action instead of the best known Q-value. Higher = more exploration, lower = more exploitation.",
     "learning_rate": "Step size (alpha) for Q-updates. Higher learns faster from each sample but can be unstable; lower is smoother.",
     "discount_factor": "Gamma: how much future rewards count vs immediate reward. Closer to 1 = more long-term planning.",
-    "bootstrap": "Imitation phase: the agent copies an EV (expected-value) policy for the first N games to seed the Q-table with reasonable behavior.",
+    "bootstrap": "Imitation phase: prefer recorded human (state→action) demos when the live state matches exactly or closely; otherwise copy EV. Seeds Q / replay before the agent plays on its own.",
+    "human_demos": "Opt-in human play recorded from the game UI. Used during bootstrap when the state matches (exact / close); EV fills gaps. Also shown here as a score distribution.",
     "reward_shaping": "Dense per-step bonuses/penalties (pair, high keep, etc.) to speed early learning. For a true solve, turn shaping OFF so the agent optimizes only real golf outcomes — shaped rewards can bias the final policy.",
     "q_states": "Number of distinct game situations (state keys) stored in the Q-table.",
     "sa_pairs": "State-action pairs: how many (situation, move) combinations have a Q-value.",
     "q_value": "Estimated quality of taking an action in a state. Higher Q means the agent currently prefers that action.",
     "avg_score": "Mean golf score (lower is better). EV agent baseline is typically around ~12.",
-    "win_rate": "Fraction of games where the agent’s score is strictly lower than the opponent’s.",
+    "win_rate": "Fraction of games counted as wins: strictly lower score than the opponent, or a 0–0 tie (treated as a win).",
     "duration": "Wall-clock training time for the run. Hover a cell for games/sec when available.",
     "improvement": "Early-window average score minus late-window average. Positive means the agent’s scores got lower (better) over training.",
     "rolling_win_rate": "Win rate over a sliding window of recent games — smoother than overall win rate for spotting learning trends.",
+    "completion_pct": "Fraction of known (state, action) Q entries with visit count N ≥ 5. Not a finite full-space % — the table grows forever; this is how ‘filled in’ the known cells are.",
+    "sparsity_index": "1 − completion_pct. Near 1 means most known cells are rarely visited; near 0 means most known cells are well sampled.",
+    "mean_visits": "Average visit count N(s,a) over every Q-table entry that exists.",
+    "exploration_beta": "Count-based exploration bonus β in Q + β/√(N+1). Higher β prefers rarely tried actions when exploiting (ε does not fire).",
     "ev_baseline": "Typical average score for the hand-coded expected-value agent (~12 in EV vs EV sims). Use this as a performance reference line.",
     "opponent_ma": "Moving average of the opponent’s score over games.",
     "score_ma": "Moving average of the agent’s score — dampens noise so learning trends are easier to see.",
@@ -459,12 +704,60 @@ GLOSSARY = {
     "workers": "Parallel CPU processes that simulate golf games. For GPU DQN this is the main speed lever — match your pod vCPU count (often 8).",
     "replay_buffer": "Number of transitions stored for DQN replay. Grows until the buffer cap; learning needs enough samples before loss is meaningful.",
     "network_params": "Fixed neural network weight count (not a growing Q-table). Flat line is expected for DQN.",
+    "cpu_total_games": "Sum of games_played across archived CPU tabular runs (plus the current stats file if not yet archived).",
+    "cpu_sa_pairs": "Total state-action pairs currently stored in qtable_train.csv (the live CPU Q-table).",
 }
+
+
+def _cpu_cumulative(runs: list[dict], stats: dict, qhist: dict) -> dict[str, Any]:
+    """Lifetime CPU Q-learning progress across archived runs + live table."""
+    total_games = 0
+    cpu_runs = 0
+    for r in runs or []:
+        params = r.get("params") or {}
+        summary = r.get("summary") or {}
+        device = str(params.get("train_device") or summary.get("train_device") or "").lower()
+        mode = str(params.get("train_mode") or summary.get("train_mode") or "").lower()
+        is_cpu = device == "cpu" or mode in ("tabular", "tabular_parallel", "")
+        is_gpu = device == "gpu" or mode in ("dqn", "dqn_parallel")
+        if is_gpu and not is_cpu:
+            continue
+        if is_cpu or (not is_gpu and r.get("has_stats")):
+            g = summary.get("games_played")
+            if g is None:
+                continue
+            try:
+                total_games += int(g)
+                cpu_runs += 1
+            except (TypeError, ValueError):
+                pass
+    # Prefer live Q CSV for SA pairs / states
+    sa = qhist.get("num_entries") if qhist.get("available") else None
+    states = qhist.get("num_states") if qhist.get("available") else None
+    # Don't fall back to a tiny last-run state count when the live Q-table is huge
+    if states is None and isinstance(stats, dict) and not qhist.get("fast_path"):
+        states = (stats.get("summary") or {}).get("final_states")
+    if sa is None and isinstance(stats, dict):
+        sa = (stats.get("summary") or {}).get("final_entries")
+    return {
+        "available": True,
+        "total_games": total_games or (stats.get("summary") or {}).get("games_played"),
+        "cpu_runs": cpu_runs,
+        "sa_pairs": sa,
+        "q_states": states,
+        "completion_pct": qhist.get("completion_pct") if qhist.get("has_visits") else None,
+        "sparsity_index": qhist.get("sparsity_index") if qhist.get("has_visits") else None,
+        "mean_visits": qhist.get("mean_visits") if qhist.get("has_visits") else None,
+        "has_visits": bool(qhist.get("has_visits")),
+    }
 
 
 def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict[str, Any]:
     """Build the full JSON response for GET /api/rl/training."""
     from rl_runs import list_runs
+
+    # Human demos first — cheap Supabase call; must not wait on huge CSVs
+    human_demos = _human_demo_summary_cached()
 
     params = {}
     for name in ("last_run_params.json", "ui_train_params.json"):
@@ -482,18 +775,15 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
         _path("training_stats.json"), _build_from_stats, bootstrap_games=bootstrap
     )
     actions = _cached_file_build(_path("trajectory_train.csv"), _build_action_series)
-    # Tabular Q CSV only — skip for DQN (uses dqn_policy.pt)
-    train_mode = (
-        (stats.get("train_mode") if isinstance(stats, dict) else None)
-        or params.get("train_mode")
-        or params.get("train_device")
+
+    train_mode = (stats.get("train_mode") if isinstance(stats, dict) else None) or params.get(
+        "train_mode"
     )
-    is_dqn = str(train_mode).lower() in ("dqn", "dqn_parallel", "gpu")
-    qhist = (
-        {"available": False}
-        if is_dqn
-        else _cached_file_build(_path("qtable_train.csv"), _build_qvalue_hist)
-    )
+    # Do NOT treat ui train_device=gpu as "this page is DQN" — that hid Q-table stats
+    is_dqn = str(train_mode or "").lower() in ("dqn", "dqn_parallel")
+
+    # Always load Q-table summary for cumulative CPU strip (fast-path on large files)
+    qhist = _cached_file_build(_path("qtable_train.csv"), _build_qvalue_hist)
 
     live = {}
     live_path = _path("training_progress.json")
@@ -505,17 +795,26 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
             live = {}
 
     if live.get("train_mode"):
-        is_dqn = is_dqn or str(live.get("train_mode")).lower() in ("dqn", "dqn_parallel", "gpu")
+        live_mode = str(live.get("train_mode")).lower()
+        is_dqn = is_dqn or live_mode in ("dqn", "dqn_parallel")
         if isinstance(stats, dict) and stats.get("available"):
             stats["train_mode"] = live.get("train_mode") or stats.get("train_mode")
             stats["train_device"] = live.get("train_device") or stats.get("train_device")
 
     summary = dict(stats.get("summary") or {})
     if qhist.get("available"):
-        summary.setdefault("final_states", qhist["num_states"])
-        summary.setdefault("final_entries", qhist["num_entries"])
-        summary["q_mean"] = qhist["mean"]
-        summary["q_std"] = qhist["std"]
+        if qhist.get("num_states") is not None:
+            summary.setdefault("final_states", qhist["num_states"])
+        if qhist.get("num_entries") is not None:
+            summary.setdefault("final_entries", qhist["num_entries"])
+        if not qhist.get("fast_path"):
+            summary["q_mean"] = qhist.get("mean")
+            summary["q_std"] = qhist.get("std")
+        if qhist.get("has_visits") and qhist.get("completion_pct") is not None:
+            summary.setdefault("completion_pct", qhist["completion_pct"])
+            summary.setdefault("sparsity_index", qhist.get("sparsity_index"))
+            summary.setdefault("mean_visits", qhist.get("mean_visits"))
+            summary.setdefault("has_visits", True)
     if actions.get("available"):
         summary["trajectory_steps"] = actions["steps"]
         summary["action_totals"] = actions["totals"]
@@ -588,6 +887,19 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
     if not compare_ids:
         compare_ids = [r["id"] for r in runs if r.get("has_stats")][:3]
 
+    cpu_cumulative = _cpu_cumulative(runs, stats if isinstance(stats, dict) else {}, qhist)
+    # Mirror cumulative into summary so the top strip always has SA pairs / coverage
+    if cpu_cumulative.get("sa_pairs") is not None:
+        summary.setdefault("final_entries", cpu_cumulative["sa_pairs"])
+    if cpu_cumulative.get("q_states") is not None:
+        summary.setdefault("final_states", cpu_cumulative["q_states"])
+    if cpu_cumulative.get("completion_pct") is not None:
+        summary.setdefault("completion_pct", cpu_cumulative["completion_pct"])
+        summary.setdefault("sparsity_index", cpu_cumulative.get("sparsity_index"))
+        summary.setdefault("has_visits", True)
+    summary["cpu_total_games"] = cpu_cumulative.get("total_games")
+    summary["cpu_runs"] = cpu_cumulative.get("cpu_runs")
+
     files = {
         "training_stats": os.path.exists(_path("training_stats.json")),
         "trajectory": os.path.exists(_path("trajectory_train.csv")),
@@ -596,13 +908,16 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
     }
 
     return {
-        "ok": any(files.values()) or bool(live.get("ok")) or bool(runs),
+        "ok": any(files.values()) or bool(live.get("ok")) or bool(runs) or bool(human_demos.get("available")),
         "files": files,
         "summary": summary,
         "params": params,
         "learning": stats,
         "actions": actions,
-        "qvalues": qhist,
+        "qvalues": {"available": False} if is_dqn or qhist.get("fast_path") else qhist,
+        "cpu_cumulative": cpu_cumulative,
+        "human_demos": human_demos,
+        "api_build": "2026-07-28-cpu-human",
         "baselines": {
             "ev_avg_score": 12.0,
             "label": "EV agent baseline (~12 avg score)",

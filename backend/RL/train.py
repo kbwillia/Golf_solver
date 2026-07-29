@@ -278,6 +278,20 @@ def train_qlearning_agent(
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
 
+    try:
+        from human_bootstrap import load_human_demo_policy
+
+        agent.human_demo_policy = load_human_demo_policy(refresh=True)
+        if agent.human_demo_policy:
+            print(
+                f"  • Human demos: {agent.human_demo_policy.holes} holes / "
+                f"{len(agent.human_demo_policy.exact)} exact states "
+                f"(source={agent.human_demo_policy.source})"
+            )
+    except Exception as e:
+        print(f"  • Human demos unavailable: {e}")
+        agent.human_demo_policy = None
+
     # Load Q-table from previous run if available (now from Google Drive)
     agent.load_q_table_csv()
 
@@ -307,7 +321,7 @@ def train_qlearning_agent(
     print(f"  • Epsilon decay factor: {epsilon_decay_factor}")
     print(f"  • Epsilon decay interval: {epsilon_decay_interval} games")
     if use_imitation_learning:
-        print(f"  • Bootstrapping: {n_bootstrap_games} games with EVAgent")
+        print(f"  • Bootstrapping: {n_bootstrap_games} games (human match else EV)")
     else:
         print(f"  • Bootstrapping: Disabled")
     print(f"  • Reward shaping: {'ON' if use_reward_shaping else 'OFF'} {reward_shaping}")
@@ -495,6 +509,13 @@ def train_qlearning_agent_batch(
         agent_types = ["qlearning", "ev_ai"]
     else:
         raise ValueError(f"Unknown opponent type: {opponent_type}")
+
+    try:
+        from human_bootstrap import load_human_demo_policy
+
+        agent.human_demo_policy = load_human_demo_policy(refresh=True)
+    except Exception:
+        agent.human_demo_policy = None
 
     agent.load_q_table_csv()
     trajectory, last_game_num = load_trajectory_csv()
