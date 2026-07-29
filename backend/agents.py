@@ -294,11 +294,19 @@ DEFAULT_REWARD_SHAPING = {
     "flip": 0.1,
 }
 
+# Soft Q prior on first visit: map visible-hand golf strength → Q₀ ∈ [-scale, +scale]
+DEFAULT_SOFT_PRIOR = {
+    "enabled": True,
+    "max_round": 2,   # only early rounds (0..max_round inclusive)
+    "scale": 5.0,     # |Q₀| cap — matches terminal reward magnitude band
+}
+
 
 class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
     def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
-                 n_bootstrap_games=250, reward_shaping=None, exploration_beta=0.5):
+                 n_bootstrap_games=250, reward_shaping=None, exploration_beta=0.5,
+                 soft_prior=None):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
@@ -317,6 +325,9 @@ class QLearningAgent:
         self.reward_shaping = dict(DEFAULT_REWARD_SHAPING)
         if reward_shaping:
             self.reward_shaping.update(reward_shaping)
+        self.soft_prior = dict(DEFAULT_SOFT_PRIOR)
+        if soft_prior:
+            self.soft_prior.update(soft_prior)
 
     def get_state_key(self, player, game_state):
         # Separate public cards (flipped, visible to all) from private cards (known only to this player)
@@ -383,10 +394,58 @@ class QLearningAgent:
         Behavioral cloning: pull expert action's Q toward `target`.
         Only used during bootstrap — stop once Q-learning phase begins.
         """
-        current = self.q_table[state_key][action_key]
+        current = self.get_q(state_key, action_key)
         self.q_table[state_key][action_key] = (
             current + self.learning_rate * (target - current)
         )
+
+    @staticmethod
+    def _parse_round(state_key: str) -> int | None:
+        m = re.search(r"_round_(\d+)$", state_key or "")
+        if not m:
+            return None
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+
+    def _hand_strength_prior(self, state_key: str) -> float:
+        """Map visible hand golf points → Q₀ ∈ [-scale, +scale].
+
+        Low points (A/2/J) → positive prior; high points (10/Q/K) → negative.
+        Neutral (~5 pts/card) → ~0. No visible cards → 0.
+        """
+        sp = self.soft_prior or {}
+        scale = float(sp.get("scale", 5.0) or 5.0)
+        round_num = self._parse_round(state_key)
+        max_round = int(sp.get("max_round", 2))
+        if round_num is not None and round_num > max_round:
+            return 0.0
+
+        _, _, hand_ranks = self._parse_state_ranks(state_key)
+        if not hand_ranks:
+            return 0.0
+        pts = [_RANK_SCORE.get(r, 5) for r in hand_ranks]
+        avg = sum(pts) / len(pts)
+        # avg 0 → +scale, avg 5 → 0, avg 10 → -scale
+        prior = scale * (1.0 - avg / 5.0)
+        return float(max(-scale, min(scale, prior)))
+
+    def has_q(self, state_key, action_key) -> bool:
+        """True if (s,a) was written explicitly (learned, loaded, or soft-prior seeded)."""
+        if state_key not in self.q_table:
+            return False
+        return action_key in self.q_table[state_key]
+
+    def get_q(self, state_key, action_key) -> float:
+        """Read Q(s,a); on first visit optionally seed a hand-strength soft prior."""
+        if self.has_q(state_key, action_key):
+            return float(self.q_table[state_key][action_key])
+        prior = 0.0
+        if (self.soft_prior or {}).get("enabled", True):
+            prior = self._hand_strength_prior(state_key)
+        self.q_table[state_key][action_key] = prior
+        return float(prior)
 
     @staticmethod
     def _parse_state_ranks(state_key):
@@ -515,7 +574,7 @@ class QLearningAgent:
                 beta = float(getattr(self, "exploration_beta", 0.0) or 0.0)
                 for action_candidate in legal_actions:
                     action_key = self.get_action_key(action_candidate)
-                    q_value = self.q_table[state_key][action_key]
+                    q_value = self.get_q(state_key, action_key)
                     # Count-based bonus: prefer rarely tried (s,a)
                     if beta > 0:
                         n = int(self.visit_counts[state_key][action_key])
@@ -546,7 +605,7 @@ class QLearningAgent:
         """Q-learning bootstrap: max over legal action keys at s' (not the taken action only)."""
         if not next_action_keys:
             return 0.0
-        return max(float(self.q_table[next_state_key][ak]) for ak in next_action_keys)
+        return max(float(self.get_q(next_state_key, ak)) for ak in next_action_keys)
 
     def update(self, state_key, action_key, reward, next_state_key, next_actions, done=False):
         """Update Q-values using the Q-learning rule.
@@ -567,7 +626,7 @@ class QLearningAgent:
                     keys.append(self.get_action_key(a))
             max_next_q = self._max_next_q(next_state_key, keys)
 
-        current_q = self.q_table[state_key][action_key]
+        current_q = self.get_q(state_key, action_key)
         new_q = current_q + self.learning_rate * (
             reward + self.discount_factor * max_next_q - current_q
         )
@@ -618,7 +677,7 @@ class QLearningAgent:
 
             state_key = trajectory[t]["state_key"]
             action_key = trajectory[t]["action_key"]
-            current_q = self.q_table[state_key][action_key]
+            current_q = self.get_q(state_key, action_key)
             self.q_table[state_key][action_key] = current_q + self.learning_rate * (
                 G - current_q
             )

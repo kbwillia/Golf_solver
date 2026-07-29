@@ -242,6 +242,7 @@ def _play_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
         n_bootstrap_games=payload["n_bootstrap_games"],
         reward_shaping=payload["reward_shaping"],
         exploration_beta=float(payload.get("exploration_beta", 0.5) or 0.0),
+        soft_prior=payload.get("soft_prior"),
     )
     # Priority 7: load shared snapshot once per worker/chunk (cached by mtime)
     snap = payload.get("q_snapshot_path")
@@ -299,6 +300,9 @@ def train_qlearning_agent_parallel(
     coverage_every_n_reports: int = 5,
     offline_human_bc_every: int = 100,
     offline_human_bc_batch: int = 32,
+    use_soft_prior: bool = True,
+    soft_prior_max_round: int = 2,
+    soft_prior_scale: float = 5.0,
 ) -> tuple[QLearningAgent, dict[str, Any]]:
     """
     Parallel CPU tabular Q-learning.
@@ -315,6 +319,7 @@ def train_qlearning_agent_parallel(
     - stats_stride / stats_max_points: downsampled series for UI JSON
     - coverage_every_n_reports: full coverage scan cadence
     - offline_human_bc_*: batch BC from demos (not live state match)
+    - use_soft_prior: first-visit hand-strength Q₀ (early rounds)
     """
     cpu_n = os.cpu_count() or 4
     if num_workers is None or num_workers <= 0:
@@ -334,6 +339,11 @@ def train_qlearning_agent_parallel(
     coverage_every_n_reports = max(1, int(coverage_every_n_reports or 5))
     offline_human_bc_every = max(0, int(offline_human_bc_every or 0))
     offline_human_bc_batch = max(1, int(offline_human_bc_batch or 32))
+    soft_prior_cfg = {
+        "enabled": bool(use_soft_prior),
+        "max_round": max(0, int(soft_prior_max_round)),
+        "scale": float(soft_prior_scale),
+    }
 
     bootstrap_n = n_bootstrap_games if use_imitation_learning else 0
     reward_shaping = {
@@ -372,6 +382,13 @@ def train_qlearning_agent_parallel(
             f"Offline human BC: every {offline_human_bc_every} games, "
             f"batch={offline_human_bc_batch}"
         )
+    if soft_prior_cfg["enabled"]:
+        print(
+            f"Soft prior: ON (rounds ≤ {soft_prior_cfg['max_round']}, "
+            f"scale=±{soft_prior_cfg['scale']})"
+        )
+    else:
+        print("Soft prior: OFF")
 
     try:
         from human_bootstrap import load_human_demo_policy
@@ -399,6 +416,7 @@ def train_qlearning_agent_parallel(
         n_bootstrap_games=bootstrap_n,
         reward_shaping=reward_shaping,
         exploration_beta=exploration_beta,
+        soft_prior=soft_prior_cfg,
     )
     agent.human_demo_policy = human_demo_policy
     agent.load_q_table_csv()
@@ -698,6 +716,7 @@ def train_qlearning_agent_parallel(
                         "reward_shaping": reward_shaping,
                         "human_demo_policy": human_payload,
                         "exploration_beta": exploration_beta,
+                        "soft_prior": soft_prior_cfg,
                         "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
                     })
 
@@ -805,6 +824,9 @@ def train_qlearning_agent_parallel(
             "stats_stride": stats_stride,
             "offline_human_bc_every": offline_human_bc_every,
             "offline_human_bc_batch": offline_human_bc_batch,
+            "use_soft_prior": soft_prior_cfg["enabled"],
+            "soft_prior_max_round": soft_prior_cfg["max_round"],
+            "soft_prior_scale": soft_prior_cfg["scale"],
         }, f, indent=2)
 
     # Archive locally + upload summary to Supabase (this machine is the DB gateway)
@@ -893,6 +915,9 @@ if __name__ == "__main__":
             coverage_every_n_reports=int(p.get("coverage_every_n_reports", 5)),
             offline_human_bc_every=int(p.get("offline_human_bc_every", 100)),
             offline_human_bc_batch=int(p.get("offline_human_bc_batch", 32)),
+            use_soft_prior=bool(p.get("use_soft_prior", True)),
+            soft_prior_max_round=int(p.get("soft_prior_max_round", 2)),
+            soft_prior_scale=float(p.get("soft_prior_scale", 5.0)),
         )
     finally:
         _clear_local_pid_file()

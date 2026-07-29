@@ -1,5 +1,6 @@
 from supabase import create_client, Client
 import os
+import re
 from datetime import datetime
 import uuid
 from supabase import create_client, Client
@@ -288,7 +289,7 @@ def fetch_human_demo_score_summary():
             supabase.table("human_demos")
             .select(
                 "game_id,hole_num,human_score,won,player_name,created_at,"
-                "round_num,action,action_key,game_finished"
+                "round_num,action,action_key,state_key,game_finished"
             )
             .neq("game_id", "test_probe")
             .execute()
@@ -312,19 +313,23 @@ def fetch_human_demo_score_summary():
             action_rows.append(r)
 
     action_by_round = _human_action_by_round(action_rows)
+    action_by_board = _human_action_by_board(action_rows)
 
     if not holes:
         return {
-            "available": bool(action_by_round.get("available")),
+            "available": bool(
+                action_by_round.get("available") or action_by_board.get("available")
+            ),
             "used_in_bootstrap": True,
             "holes": 0,
             "steps": len(action_rows),
             "message": (
                 None
-                if action_by_round.get("available")
+                if action_by_round.get("available") or action_by_board.get("available")
                 else "No finished human demo holes yet."
             ),
             "action_by_round": action_by_round,
+            "action_by_board": action_by_board,
         }
 
     scores = [int(h["human_score"]) for h in holes.values() if h.get("human_score") is not None]
@@ -354,6 +359,7 @@ def fetch_human_demo_score_summary():
             "max_score": max_score,
         },
         "action_by_round": action_by_round,
+        "action_by_board": action_by_board,
     }
 
 
@@ -448,6 +454,136 @@ def _human_action_by_round(rows: list) -> dict:
         "steps_classified": sum(totals.values()),
         "unknown_steps": unknown,
         "holes_with_actions": len(by_hole),
+    }
+
+
+_RANK_PTS = {
+    "A": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    "J": 0,
+    "Q": 10,
+    "K": 10,
+}
+
+
+def _parse_demo_board(state_key: str | None) -> dict | None:
+    """Parse pub/priv ranks from a demo state_key."""
+    sk = state_key or ""
+    if "pub_" not in sk or "_priv_" not in sk:
+        return None
+    try:
+        pub_part = sk.split("pub_", 1)[1].split("_priv_", 1)[0]
+        rest = sk.split("_priv_", 1)[1]
+        priv_part = rest.split("_dis_", 1)[0]
+    except (IndexError, ValueError):
+        return None
+
+    pub_ranks = re.findall(r"'([A2-9JQK]|10)'", pub_part)
+    priv_ranks = re.findall(r"'([A2-9JQK]|10)'", priv_part)
+    pub_pts = [_RANK_PTS.get(r, 5) for r in pub_ranks]
+    priv_pts = [_RANK_PTS.get(r, 5) for r in priv_ranks]
+    return {
+        "n_pub": len(pub_ranks),
+        "n_priv": len(priv_ranks),
+        "pub_avg": (sum(pub_pts) / len(pub_pts)) if pub_pts else None,
+        "priv_avg": (sum(priv_pts) / len(priv_pts)) if priv_pts else None,
+        "pub_ranks": pub_ranks,
+        "priv_ranks": priv_ranks,
+    }
+
+
+def _human_action_by_board(rows: list) -> dict:
+    """Action mix by public face-up count × private-known count (+ avg card points)."""
+    types = ("take_discard", "draw_keep", "draw_flip")
+    # (n_pub, n_priv) -> type counts + point accumulators
+    buckets: dict[tuple[int, int], dict] = {}
+    unknown = 0
+    no_state = 0
+
+    for r in rows:
+        board = _parse_demo_board(r.get("state_key"))
+        if not board:
+            no_state += 1
+            continue
+        at = _classify_human_action(r.get("action"), r.get("action_key"))
+        if at not in types:
+            unknown += 1
+            continue
+        key = (int(board["n_pub"]), int(board["n_priv"]))
+        b = buckets.get(key)
+        if b is None:
+            b = {
+                "counts": {t: 0 for t in types},
+                "pub_sum": 0.0,
+                "pub_n": 0,
+                "priv_sum": 0.0,
+                "priv_n": 0,
+            }
+            buckets[key] = b
+        b["counts"][at] += 1
+        if board["pub_avg"] is not None:
+            b["pub_sum"] += float(board["pub_avg"])
+            b["pub_n"] += 1
+        if board["priv_avg"] is not None:
+            b["priv_sum"] += float(board["priv_avg"])
+            b["priv_n"] += 1
+
+    if not buckets:
+        return {
+            "available": False,
+            "types": list(types),
+            "labels": [],
+            "message": "No demos with parseable state_key (pub/priv) yet.",
+        }
+
+    keys = sorted(buckets.keys(), key=lambda k: (k[0] + k[1], k[0], k[1]))
+    labels = []
+    n_pub_list = []
+    n_priv_list = []
+    share = {t: [] for t in types}
+    steps = []
+    avg_pub_pts = []
+    avg_priv_pts = []
+    for key in keys:
+        b = buckets[key]
+        tot = sum(b["counts"].values())
+        if tot <= 0:
+            continue
+        n_pub, n_priv = key
+        labels.append(f"pub{n_pub} priv{n_priv}")
+        n_pub_list.append(n_pub)
+        n_priv_list.append(n_priv)
+        steps.append(tot)
+        for t in types:
+            share[t].append(round(b["counts"][t] / tot, 4))
+        avg_pub_pts.append(
+            round(b["pub_sum"] / b["pub_n"], 2) if b["pub_n"] else None
+        )
+        avg_priv_pts.append(
+            round(b["priv_sum"] / b["priv_n"], 2) if b["priv_n"] else None
+        )
+
+    return {
+        "available": bool(labels),
+        "types": list(types),
+        "labels": labels,
+        "n_pub": n_pub_list,
+        "n_priv": n_priv_list,
+        "share": share,
+        "steps": steps,
+        "avg_pub_pts": avg_pub_pts,
+        "avg_priv_pts": avg_priv_pts,
+        "steps_classified": sum(steps),
+        "unknown_steps": unknown,
+        "missing_state_key": no_state,
     }
 
 

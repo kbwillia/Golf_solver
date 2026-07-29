@@ -1020,6 +1020,154 @@
         },
       });
     }
+
+    const abb = human.action_by_board;
+    const boardWrap = document.getElementById("humanBoardWrap");
+    const boardHint = document.getElementById("humanBoardHint");
+    const hasBoard =
+      abb &&
+      abb.available &&
+      Array.isArray(abb.labels) &&
+      abb.labels.length > 0 &&
+      abb.share;
+    if (boardWrap) boardWrap.hidden = !hasBoard;
+    if (boardHint) {
+      if (hasBoard) {
+        boardHint.hidden = false;
+        const miss = abb.missing_state_key ? `; ${fmt(abb.missing_state_key)} steps lacked state_key` : "";
+        boardHint.textContent =
+          `pubN = face-up public cards, privM = privately known. Bars = action share; lines = avg card points (J=0 … K=10). ` +
+          `${fmt(abb.steps_classified)} steps${miss}.`;
+      } else {
+        boardHint.hidden = true;
+        if (abb && abb.message) {
+          boardHint.hidden = false;
+          boardHint.textContent = abb.message;
+        }
+      }
+    }
+    if (hasBoard) {
+      const share = abb.share || {};
+      const stepsArr = abb.steps || [];
+      makeChart("chartHumanBoard", {
+        type: "bar",
+        data: {
+          labels: abb.labels,
+          datasets: [
+            {
+              label: "take discard",
+              data: share.take_discard || [],
+              backgroundColor: "rgba(90, 158, 110, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+              yAxisID: "y",
+              order: 2,
+            },
+            {
+              label: "draw keep",
+              data: share.draw_keep || [],
+              backgroundColor: "rgba(212, 162, 76, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+              yAxisID: "y",
+              order: 2,
+            },
+            {
+              label: "draw flip",
+              data: share.draw_flip || [],
+              backgroundColor: "rgba(120, 150, 190, 0.85)",
+              stack: "mix",
+              borderWidth: 0,
+              yAxisID: "y",
+              order: 2,
+            },
+            {
+              type: "line",
+              label: "avg ↑ pts",
+              data: abb.avg_pub_pts || [],
+              borderColor: "rgba(230, 120, 100, 0.95)",
+              backgroundColor: "rgba(230, 120, 100, 0.2)",
+              borderWidth: 2,
+              pointRadius: 3,
+              tension: 0.2,
+              yAxisID: "yPts",
+              order: 1,
+            },
+            {
+              type: "line",
+              label: "avg priv pts",
+              data: abb.avg_priv_pts || [],
+              borderColor: "rgba(180, 140, 220, 0.95)",
+              backgroundColor: "rgba(180, 140, 220, 0.2)",
+              borderWidth: 2,
+              pointRadius: 3,
+              tension: 0.2,
+              yAxisID: "yPts",
+              order: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: COLORS.muted, boxWidth: 10, font: { size: 10 } },
+            },
+            tooltip: {
+              callbacks: {
+                afterTitle: (items) => {
+                  const i = items && items[0] && items[0].dataIndex;
+                  if (i == null || !stepsArr[i]) return "";
+                  return `${stepsArr[i]} steps`;
+                },
+                label: (ctx) => {
+                  const v = Number(ctx.raw);
+                  if (ctx.dataset.yAxisID === "yPts") {
+                    return `${ctx.dataset.label}: ${Number.isFinite(v) ? v.toFixed(1) : "—"}`;
+                  }
+                  return `${ctx.dataset.label}: ${(v * 100).toFixed(1)}%`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              stacked: true,
+              title: {
+                display: true,
+                text: "Board visibility (pub face-up · priv known)",
+                color: COLORS.muted,
+              },
+              ticks: { color: COLORS.muted, maxRotation: 45, minRotation: 0, font: { size: 10 } },
+              grid: { color: COLORS.grid },
+            },
+            y: {
+              stacked: true,
+              position: "left",
+              min: 0,
+              max: 1,
+              title: { display: true, text: "Action share", color: COLORS.muted },
+              ticks: {
+                color: COLORS.muted,
+                callback: (v) => `${Math.round(Number(v) * 100)}%`,
+              },
+              grid: { color: COLORS.grid },
+            },
+            yPts: {
+              position: "right",
+              min: 0,
+              max: 10,
+              title: { display: true, text: "Avg card pts", color: COLORS.muted },
+              ticks: { color: COLORS.muted, precision: 0 },
+              grid: { drawOnChartArea: false },
+            },
+          },
+        },
+      });
+    }
   }
 
   function renderAll(data) {
@@ -1148,6 +1296,9 @@
       discount_factor: 0.9,
       use_imitation_learning: true,
       use_reward_shaping: true,
+      use_soft_prior: true,
+      soft_prior_max_round: 2,
+      soft_prior_scale: 5.0,
       opponent_type: "ev_ai",
       n_step: 3,
       replay_per_game: 4,
@@ -1209,6 +1360,9 @@
       opponent_type: String(fd.get("opponent_type") || "ev_ai"),
       use_imitation_learning: checked("use_imitation_learning", true),
       use_reward_shaping: checked("use_reward_shaping", true),
+      use_soft_prior: checked("use_soft_prior", true),
+      soft_prior_max_round: num("soft_prior_max_round", 2),
+      soft_prior_scale: num("soft_prior_scale", 5.0),
       shape_step: num("shape_step", 0.05),
       shape_pair: num("shape_pair", 1.5),
       shape_high_keep: num("shape_high_keep", -0.8),

@@ -677,11 +677,15 @@ def build_compare_series(run_ids: list[str], max_points: int = 400) -> list[dict
 
 GLOSSARY = {
     "epsilon": "Exploration rate: probability of taking a random action instead of the best known Q-value. Higher = more exploration, lower = more exploitation.",
+    "epsilon_decay_factor": "Multiply ε by this every decay step (e.g. 0.995). Closer to 1 = slower decay. With 0.995, ~140 decays halves ε; ~460 decays cuts it by ~10×.",
+    "epsilon_decay_interval": "How often ε is multiplied by the decay factor. Rule of thumb: set this to ~0.5–1% of total Games (e.g. 2M games → 10k–20k). Smaller % = more decays = ε drops faster. Your 2M/10k setup is ~0.5%.",
     "learning_rate": "Step size (alpha) for Q-updates. Higher learns faster from each sample but can be unstable; lower is smoother.",
     "discount_factor": "Gamma: how much future rewards count vs immediate reward. Closer to 1 = more long-term planning.",
     "bootstrap": "Imitation phase: prefer recorded human (state→action) demos when the live state matches exactly or closely; otherwise copy EV. Seeds Q / replay before the agent plays on its own.",
     "human_demos": "Opt-in human play recorded from the game UI. Used during bootstrap when the state matches (exact / close); EV fills gaps. Also shown here as a score distribution.",
+    "human_board": "Human action mix by visible board: pubN = N face-up public cards, privM = M privately known cards. Bars = action share; lines = average golf points of those public / private cards (lower is better).",
     "reward_shaping": "Dense per-step bonuses/penalties (pair, high keep, etc.) to speed early learning. For a true solve, turn shaping OFF so the agent optimizes only real golf outcomes — shaped rewards can bias the final policy.",
+    "soft_prior": "On first visit to a (state, action) in early rounds, seed Q₀ from visible-hand strength instead of 0: low cards (A/2/J) → positive, high (10/Q/K) → negative, clipped to ±scale (default 5). Learning overwrites it; biases early TD targets and max-Q bootstrap. Applies only for round ≤ Prior max round.",
     "q_states": "Number of distinct game situations (state keys) stored in the Q-table.",
     "sa_pairs": "State-action pairs: how many (situation, move) combinations have a Q-value.",
     "q_value": "Estimated quality of taking an action in a state. Higher Q means the agent currently prefers that action.",

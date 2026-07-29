@@ -56,8 +56,8 @@
                 <label><span class="tip" data-tip="discount_factor">Discount</span> <input type="number" name="discount_factor" min="0" max="1" step="0.01"></label>
                 <label><span class="tip" data-tip="epsilon">Epsilon</span> <input type="number" name="epsilon" min="0" max="1" step="0.01"></label>
                 <label class="rl-cpu-only"><span class="tip" data-tip="exploration_beta">Visit bonus β</span> <input type="number" name="exploration_beta" min="0" max="5" step="0.1" value="0.5"></label>
-                <label>Epsilon decay <input type="number" name="epsilon_decay_factor" min="0" max="1" step="0.001"></label>
-                <label>Decay every N games <input type="number" name="epsilon_decay_interval" min="1" step="1"></label>
+                <label><span class="tip" data-tip="epsilon_decay_factor">Epsilon decay</span> <input type="number" name="epsilon_decay_factor" min="0" max="1" step="0.001"></label>
+                <label><span class="tip" data-tip="epsilon_decay_interval">Decay every N games</span> <input type="number" name="epsilon_decay_interval" min="1" step="1"></label>
                 <label><span class="tip" data-tip="bootstrap">Bootstrap games</span> <input type="number" name="n_bootstrap_games" min="0" step="1"></label>
                 <label>Progress every N <input type="number" name="progress_report_interval" min="1" step="1"></label>
                 <label>Opponent
@@ -71,6 +71,12 @@
                     <input type="checkbox" name="use_imitation_learning">
                     <span class="tip" data-tip="bootstrap">Imitation / EV bootstrap</span>
                 </label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_soft_prior" checked>
+                    <span class="tip" data-tip="soft_prior">Soft Q prior (hand strength)</span>
+                </label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="soft_prior">Prior max round</span> <input type="number" name="soft_prior_max_round" min="0" max="20" step="1" value="2"></label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="soft_prior">Prior scale ±</span> <input type="number" name="soft_prior_scale" min="0" max="20" step="0.5" value="5"></label>
 
                 <p class="rl-params-section tip" data-tip="reward_shaping">Reward shaping</p>
                 <label class="rl-check">
@@ -197,6 +203,11 @@
                         <div class="rl-chart-wrap rl-chart-wrap--human" id="humanActionWrap" hidden>
                             <canvas id="chartHumanActions"></canvas>
                         </div>
+                        <p class="rl-human-chart-label tip" data-tip="human_board">Action mix by board (pub / priv)</p>
+                        <p class="hint rl-human-action-hint" id="humanBoardHint" hidden></p>
+                        <div class="rl-chart-wrap rl-chart-wrap--human rl-chart-wrap--human-tall" id="humanBoardWrap" hidden>
+                            <canvas id="chartHumanBoard"></canvas>
+                        </div>
                     </div>
                 </section>
 
@@ -268,6 +279,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260728j"></script>
+    <script src="/static/js/rl-training.js?v=20260729c"></script>
 </body>
 </html>

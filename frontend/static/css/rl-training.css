@@ -195,6 +195,10 @@ html.rl-page {
   height: 220px;
 }
 
+.rl-chart-wrap--human-tall {
+  height: 280px;
+}
+
 .rl-human-action-hint {
   margin: 0 0 0.35rem;
   font-size: 0.78rem;

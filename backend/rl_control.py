@@ -61,6 +61,9 @@ DEFAULT_PARAMS = {
     "coverage_every_n_reports": 5,
     "offline_human_bc_every": 100,
     "offline_human_bc_batch": 32,
+    "use_soft_prior": True,
+    "soft_prior_max_round": 2,
+    "soft_prior_scale": 5.0,
 }
 
 # Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
@@ -90,6 +93,9 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "coverage_every_n_reports": 5,
         "offline_human_bc_every": 100,
         "offline_human_bc_batch": 32,
+        "use_soft_prior": True,
+        "soft_prior_max_round": 2,
+        "soft_prior_scale": 5.0,
     },
     "gpu": {
         "num_workers": 8,
@@ -145,6 +151,9 @@ _PRESET_KEYS = (
     "coverage_every_n_reports",
     "offline_human_bc_every",
     "offline_human_bc_batch",
+    "use_soft_prior",
+    "soft_prior_max_round",
+    "soft_prior_scale",
 )
 
 _launch_lock = None
@@ -242,6 +251,9 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     merged["coverage_every_n_reports"] = max(1, int(merged.get("coverage_every_n_reports") or 5))
     merged["offline_human_bc_every"] = max(0, int(merged.get("offline_human_bc_every") or 0))
     merged["offline_human_bc_batch"] = max(1, int(merged.get("offline_human_bc_batch") or 32))
+    merged["use_soft_prior"] = bool(merged.get("use_soft_prior", True))
+    merged["soft_prior_max_round"] = max(0, int(merged.get("soft_prior_max_round") or 2))
+    merged["soft_prior_scale"] = float(merged.get("soft_prior_scale") or 5.0)
 
     # Persist current form values into the active device's preset
     active = merged["train_device"]
