@@ -233,6 +233,81 @@ def load_human_demo_policy(*, refresh: bool = True) -> HumanDemoPolicy:
     return HumanDemoPolicy(source="empty")
 
 
+def load_offline_bc_steps(
+    *,
+    max_score_prefer: int = 5,
+    skip_loss_score_ge: int = 12,
+) -> list[tuple[str, str, float]]:
+    """
+    Build (state_key, action_key, weight) rows for offline behavioral cloning.
+
+    Prefers wins and low scores; skips high-score losses.
+    """
+    try:
+        rows = fetch_human_demo_rows()
+    except Exception as e:
+        print(f"Offline BC: failed to load demos: {e}")
+        return []
+
+    # Hole outcomes for weighting
+    hole_meta: dict[tuple[Any, Any], dict[str, Any]] = {}
+    for r in rows:
+        gid = r.get("game_id") or ""
+        if gid == "test_probe":
+            continue
+        key = (gid, r.get("hole_num"))
+        if r.get("game_finished") and r.get("human_score") is not None:
+            hole_meta[key] = {
+                "won": r.get("won") is True,
+                "score": int(r["human_score"]),
+            }
+
+    out: list[tuple[str, str, float]] = []
+    for r in rows:
+        gid = r.get("game_id") or ""
+        if gid == "test_probe":
+            continue
+        sk = r.get("state_key")
+        ak = r.get("action_key")
+        if not sk or not ak or not isinstance(ak, str):
+            continue
+        if "_" not in ak:
+            continue
+        sk = strip_adv_from_state_key(sk)
+        meta = hole_meta.get((gid, r.get("hole_num")))
+        if meta:
+            score = meta["score"]
+            won = meta["won"]
+            if (not won) and score >= skip_loss_score_ge:
+                continue
+            # Weight: wins and low scores up; high scores down
+            w = 1.0
+            if won:
+                w *= 2.0
+            if score <= max_score_prefer:
+                w *= 2.0
+            elif score >= 15:
+                w *= 0.25
+        else:
+            w = 1.0
+        out.append((sk, ak, w))
+    return out
+
+
+def sample_offline_bc_batch(
+    steps: list[tuple[str, str, float]],
+    k: int = 32,
+) -> list[tuple[str, str]]:
+    """Weighted sample of offline BC steps."""
+    if not steps or k <= 0:
+        return []
+    import random as _random
+
+    weights = [max(1e-6, float(w)) for _, _, w in steps]
+    idxs = _random.choices(range(len(steps)), weights=weights, k=k)
+    return [(steps[i][0], steps[i][1]) for i in idxs]
+
+
 def choose_bootstrap_action(
     *,
     encoder,

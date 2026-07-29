@@ -24,6 +24,9 @@ ARCHIVE_FILES = (
     "last_run_params.json",
     "ui_train_params.json",
     "training_progress.json",
+    "train_perf.json",
+    "train_perf.jsonl",
+    "last_run_perf.json",
 )
 
 

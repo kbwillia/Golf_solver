@@ -36,8 +36,9 @@ from progress_io import (  # noqa: E402
     save_training_stats_json,
 )
 from train import (  # noqa: E402
-    save_trajectory_csv,
+    save_trajectory_csv_batch,
 )
+from train_perf import TrainPerfTracker  # noqa: E402
 
 
 def _peek_last_trajectory_game(filename: str = "trajectory_train.csv") -> int:
@@ -291,6 +292,13 @@ def train_qlearning_agent_parallel(
     save_trajectories: bool = True,
     prefer_pool: bool = False,
     save_qtable: bool = True,
+    traj_flush_every: int = 100,
+    q_checkpoint_every: int = 50_000,
+    stats_stride: int = 100,
+    stats_max_points: int = 5_000,
+    coverage_every_n_reports: int = 5,
+    offline_human_bc_every: int = 100,
+    offline_human_bc_batch: int = 32,
 ) -> tuple[QLearningAgent, dict[str, Any]]:
     """
     Parallel CPU tabular Q-learning.
@@ -300,6 +308,13 @@ def train_qlearning_agent_parallel(
 
     With num_workers=1, games run in-process (no pickle snapshot) — much faster
     once the Q-table is large. Set prefer_pool=True to force the snapshot path.
+
+    I/O controls (speed / safety):
+    - traj_flush_every: buffer trajectory CSV writes
+    - q_checkpoint_every: periodic qtable_train.csv save
+    - stats_stride / stats_max_points: downsampled series for UI JSON
+    - coverage_every_n_reports: full coverage scan cadence
+    - offline_human_bc_*: batch BC from demos (not live state match)
     """
     cpu_n = os.cpu_count() or 4
     if num_workers is None or num_workers <= 0:
@@ -312,6 +327,13 @@ def train_qlearning_agent_parallel(
     replay_per_game = max(0, int(replay_per_game))
     exploration_beta = float(exploration_beta)
     in_process = num_workers == 1 and not prefer_pool
+    traj_flush_every = max(1, int(traj_flush_every or 100))
+    q_checkpoint_every = max(0, int(q_checkpoint_every or 0))
+    stats_stride = max(1, int(stats_stride or 100))
+    stats_max_points = max(100, int(stats_max_points or 5000))
+    coverage_every_n_reports = max(1, int(coverage_every_n_reports or 5))
+    offline_human_bc_every = max(0, int(offline_human_bc_every or 0))
+    offline_human_bc_batch = max(1, int(offline_human_bc_batch or 32))
 
     bootstrap_n = n_bootstrap_games if use_imitation_learning else 0
     reward_shaping = {
@@ -336,7 +358,20 @@ def train_qlearning_agent_parallel(
         print("Q sharing: in-process (workers=1; no snapshot I/O)")
     else:
         print("Q sharing: snapshot file (one write/chunk; workers cache by mtime)")
-    print(f"Trajectories: {'append CSV' if save_trajectories else 'off'}")
+    if save_trajectories:
+        print(f"Trajectories: buffered flush every {traj_flush_every} games")
+    else:
+        print("Trajectories: off")
+    print(
+        f"I/O: q_ckpt every {q_checkpoint_every or 'off'} | "
+        f"stats stride={stats_stride} cap={stats_max_points} | "
+        f"coverage every {coverage_every_n_reports} reports"
+    )
+    if offline_human_bc_every > 0:
+        print(
+            f"Offline human BC: every {offline_human_bc_every} games, "
+            f"batch={offline_human_bc_batch}"
+        )
 
     try:
         from human_bootstrap import load_human_demo_policy
@@ -368,10 +403,19 @@ def train_qlearning_agent_parallel(
     agent.human_demo_policy = human_demo_policy
     agent.load_q_table_csv()
 
+    offline_bc_steps: list[tuple[str, str, float]] = []
+    if offline_human_bc_every > 0:
+        try:
+            from human_bootstrap import load_offline_bc_steps
+
+            offline_bc_steps = load_offline_bc_steps()
+            print(f"Offline BC pool: {len(offline_bc_steps)} weighted demo steps")
+        except Exception as e:
+            print(f"Offline BC pool unavailable: {e}")
+            offline_bc_steps = []
+
     # Do NOT load the full trajectory CSV into memory (can be 90MB+).
-    # Appends during training already persist; we only need the last game number.
     last_game_num = _peek_last_trajectory_game()
-    new_trajectory_steps: list[dict] = []
     replay = TrajectoryReplayBuffer(capacity=replay_capacity)
     snapshot_path = get_output_path("q_snapshot.pkl")
     print(f"Trajectory resume index: last_game_num={last_game_num}")
@@ -394,6 +438,8 @@ def train_qlearning_agent_parallel(
         "replay_per_game": replay_per_game,
         "exploration_beta": exploration_beta,
     }
+    score_sum = 0.0
+    score_count = 0
 
     # Clear live progress for this run
     progress_path = get_output_path("training_progress.json")
@@ -410,9 +456,93 @@ def train_qlearning_agent_parallel(
         "sparsity_index": 1.0,
         "mean_visits": 0.0,
     }
+    report_count = 0
+    traj_buffer: list[tuple[list, int]] = []
+    perf = TrainPerfTracker(
+        config={
+            "num_games": num_games,
+            "num_workers": num_workers,
+            "chunk_size": chunk_size,
+            "in_process": in_process,
+            "replay_per_game": replay_per_game,
+            "replay_capacity": replay_capacity,
+            "n_step": n_step,
+            "progress_report_interval": progress_report_interval,
+            "traj_flush_every": traj_flush_every,
+            "q_checkpoint_every": q_checkpoint_every,
+            "stats_stride": stats_stride,
+            "stats_max_points": stats_max_points,
+            "coverage_every_n_reports": coverage_every_n_reports,
+            "offline_human_bc_every": offline_human_bc_every,
+            "offline_human_bc_batch": offline_human_bc_batch,
+            "save_trajectories": save_trajectories,
+            "save_qtable": save_qtable,
+            "n_bootstrap_games": bootstrap_n,
+        }
+    )
+
+    def _flush_traj_buffer(*, force: bool = False) -> None:
+        if not save_trajectories:
+            traj_buffer.clear()
+            return
+        if not traj_buffer:
+            return
+        if not force and len(traj_buffer) < traj_flush_every:
+            return
+        n_games = len(traj_buffer)
+        try:
+            with perf.timed("traj_flush"):
+                save_trajectory_csv_batch(traj_buffer)
+            perf.note_traj_games(n_games)
+        except OSError as e:
+            print(f"  Warning: trajectory flush failed: {e}")
+        traj_buffer.clear()
+
+    def _trim_series() -> None:
+        for key in (
+            "scores",
+            "opponent_scores",
+            "qtable_states",
+            "qtable_entries",
+            "epsilon_values",
+            "training_times",
+            "completion_pct",
+            "sparsity_index",
+            "mean_visits",
+        ):
+            arr = training_stats.get(key)
+            if isinstance(arr, list) and len(arr) > stats_max_points:
+                training_stats[key] = arr[-stats_max_points:]
+
+    def _maybe_offline_bc() -> None:
+        if offline_human_bc_every <= 0 or not offline_bc_steps:
+            return
+        if games_done % offline_human_bc_every != 0:
+            return
+        try:
+            from human_bootstrap import sample_offline_bc_batch
+
+            with perf.timed("offline_bc"):
+                batch = sample_offline_bc_batch(offline_bc_steps, k=offline_human_bc_batch)
+                for sk, ak in batch:
+                    agent.behavioral_clone(sk, ak, target=1.0)
+        except Exception as e:
+            print(f"  Warning: offline BC failed: {e}")
+
+    def _maybe_q_checkpoint() -> None:
+        if not save_qtable or q_checkpoint_every <= 0:
+            return
+        if games_done % q_checkpoint_every != 0:
+            return
+        try:
+            print(f"  Q checkpoint at game {games_done} ...")
+            with perf.timed("q_checkpoint"):
+                agent.save_q_table_csv()
+        except OSError as e:
+            print(f"  Warning: Q checkpoint failed: {e}")
 
     def _consume_result(result: dict[str, Any], batch_start: float, batch_n: int) -> None:
-        nonlocal games_done, last_cov
+        nonlocal games_done, last_cov, score_sum, score_count
         traj = result["trajectory"]
         scores = result["scores"]
         games_done += 1
@@ -420,7 +550,6 @@ def train_qlearning_agent_parallel(
         current_game_num = last_game_num + games_done
 
         won = _counts_as_win(scores[0], scores[1])
-        # Non-0-0 score ties stay ties for replay weighting
         tied = (scores[0] == scores[1]) and not won
         if won:
             training_stats["wins"] += 1
@@ -432,9 +561,7 @@ def train_qlearning_agent_parallel(
             if result.get("bootstrapping") and use_imitation_learning:
                 for step in traj:
                     agent.behavioral_clone(step["state_key"], step["action_key"], target=1.0)
-            # Priority 1 (legal max) + n-step returns
             agent.train_on_trajectory(traj, reward, scores[0], n_step=n_step)
-            # Priority 5: trajectory replay, losses weighted higher
             replay.add(traj, reward, scores[0], won=won, tied=tied)
             for sample in replay.sample(replay_per_game):
                 agent.train_on_trajectory(
@@ -444,33 +571,35 @@ def train_qlearning_agent_parallel(
                     n_step=n_step,
                 )
             if save_trajectories:
-                save_trajectory_csv(traj, current_game_num)
-                for step in traj:
-                    new_trajectory_steps.append({
-                        "game": current_game_num,
-                        "round": step.get("round", ""),
-                        "state_key": step.get("state_key", ""),
-                        "action_key": step.get("action_key", ""),
-                        "action": str(step.get("action", "")),
-                    })
+                traj_buffer.append((traj, current_game_num))
+                _flush_traj_buffer()
 
+        score_sum += float(scores[0])
+        score_count += 1
         training_stats["games_played"] = games_done
-        training_stats["scores"].append(scores[0])
-        training_stats["opponent_scores"].append(scores[1])
-        states, entries = agent.get_q_table_size()
-        training_stats["qtable_states"].append(states)
-        training_stats["qtable_entries"].append(entries)
-        training_stats["completion_pct"].append(last_cov["completion_pct"])
-        training_stats["sparsity_index"].append(last_cov["sparsity_index"])
-        training_stats["mean_visits"].append(last_cov["mean_visits"])
-        training_stats["epsilon_values"].append(agent.epsilon)
-        training_stats["training_times"].append((time.time() - batch_start) / max(1, batch_n))
+
+        # Downsampled series — not every game (keeps RAM + JSON writes small)
+        if games_done % stats_stride == 0 or games_done >= num_games:
+            states, entries = agent.get_q_table_size()
+            training_stats["scores"].append(scores[0])
+            training_stats["opponent_scores"].append(scores[1])
+            training_stats["qtable_states"].append(states)
+            training_stats["qtable_entries"].append(entries)
+            training_stats["completion_pct"].append(last_cov["completion_pct"])
+            training_stats["sparsity_index"].append(last_cov["sparsity_index"])
+            training_stats["mean_visits"].append(last_cov["mean_visits"])
+            training_stats["epsilon_values"].append(agent.epsilon)
+            training_stats["training_times"].append((time.time() - batch_start) / max(1, batch_n))
+            _trim_series()
 
         if epsilon_decay_interval and games_done % epsilon_decay_interval == 0:
             agent.decay_epsilon(factor=epsilon_decay_factor)
 
+        _maybe_offline_bc()
+        _maybe_q_checkpoint()
+
     def _maybe_report(batch_n: int) -> None:
-        nonlocal last_cov
+        nonlocal last_cov, report_count
         if not (
             verbose
             and (
@@ -479,14 +608,20 @@ def train_qlearning_agent_parallel(
             )
         ):
             return
+        report_count += 1
         win_rate = training_stats["wins"] / max(1, games_done)
-        avg_score = float(np.mean(training_stats["scores"]))
-        states, _ = agent.get_q_table_size()
-        last_cov = agent.get_coverage_stats()
-        # Refresh trailing coverage samples for this report window
-        training_stats["completion_pct"][-1] = last_cov["completion_pct"]
-        training_stats["sparsity_index"][-1] = last_cov["sparsity_index"]
-        training_stats["mean_visits"][-1] = last_cov["mean_visits"]
+        avg_score = float(score_sum / max(1, score_count))
+        states, entries = agent.get_q_table_size()
+        if (
+            (report_count - 1) % coverage_every_n_reports == 0
+            or games_done >= num_games
+        ):
+            with perf.timed("coverage_scan"):
+                last_cov = agent.get_coverage_stats()
+            if training_stats["completion_pct"]:
+                training_stats["completion_pct"][-1] = last_cov["completion_pct"]
+                training_stats["sparsity_index"][-1] = last_cov["sparsity_index"]
+                training_stats["mean_visits"][-1] = last_cov["mean_visits"]
         phase = "BOOTSTRAP" if games_done < bootstrap_n else "Q-LEARNING"
         elapsed = time.time() - t0
         gps = games_done / max(1e-6, elapsed)
@@ -502,21 +637,38 @@ def train_qlearning_agent_parallel(
             f"Epsilon={agent.epsilon:.3f}, {gps:.1f} games/s | replay={len(replay)}"
         )
         try:
-            save_training_stats_json(training_stats)
-            append_progress_checkpoint(
+            with perf.timed("stats_write"):
+                save_training_stats_json(training_stats)
+            with perf.timed("progress_write"):
+                append_progress_checkpoint(
+                    game=games_done,
+                    games_total=num_games,
+                    phase=phase,
+                    win_rate=win_rate,
+                    avg_score=avg_score,
+                    states=states,
+                    epsilon=agent.epsilon,
+                    completion_pct=last_cov["completion_pct"],
+                    sparsity_index=last_cov["sparsity_index"],
+                    mean_visits=last_cov["mean_visits"],
+                )
+        except OSError as e:
+            print(f"  Warning: progress write failed (training continues): {e}")
+        try:
+            sample = perf.sample(
                 game=games_done,
                 games_total=num_games,
                 phase=phase,
-                win_rate=win_rate,
-                avg_score=avg_score,
                 states=states,
-                epsilon=agent.epsilon,
-                completion_pct=last_cov["completion_pct"],
-                sparsity_index=last_cov["sparsity_index"],
-                mean_visits=last_cov["mean_visits"],
+                entries=entries,
+                replay_len=len(replay),
+                traj_buffer_len=len(traj_buffer),
             )
-        except OSError as e:
-            print(f"  Warning: progress write failed (training continues): {e}")
+            # Log perf every report early, then every 5th (keeps console readable)
+            if report_count <= 3 or report_count % 5 == 0 or games_done >= num_games:
+                print(perf.format_log_line(sample))
+        except Exception as e:
+            print(f"  Warning: perf sample failed: {e}")
 
     if in_process:
         while games_done < num_games:
@@ -528,12 +680,11 @@ def train_qlearning_agent_parallel(
                 _consume_result(result, batch_start, batch_n)
             _maybe_report(batch_n)
     else:
-        # Windows-friendly spawn pool (long-lived so Q snapshot mtime cache works)
         with ProcessPoolExecutor(max_workers=num_workers) as pool:
             while games_done < num_games:
                 batch_n = min(chunk_size, num_games - games_done)
-                # Priority 7: one snapshot write/chunk — not N pickled Q copies in payloads
-                _write_q_snapshot(agent, snapshot_path)
+                with perf.timed("snapshot_write"):
+                    _write_q_snapshot(agent, snapshot_path)
                 payloads = []
                 for i in range(batch_n):
                     payloads.append({
@@ -557,10 +708,13 @@ def train_qlearning_agent_parallel(
                     _consume_result(result, batch_start, batch_n)
                 _maybe_report(batch_n)
 
+    _flush_traj_buffer(force=True)
+
     final_states, final_entries = agent.get_q_table_size()
-    cov = agent.get_coverage_stats()
+    with perf.timed("coverage_scan"):
+        cov = agent.get_coverage_stats()
     win_rate = training_stats["wins"] / max(1, num_games)
-    avg_score = float(np.mean(training_stats["scores"])) if training_stats["scores"] else 0.0
+    avg_score = float(score_sum / max(1, score_count))
     total_time = time.time() - t0
     training_stats["total_time"] = float(total_time)
     training_stats["games_per_sec"] = float(num_games / max(1e-6, total_time))
@@ -578,22 +732,44 @@ def train_qlearning_agent_parallel(
     )
     print(f"  Time: {total_time:.1f}s ({num_games / max(1e-6, total_time):.1f} games/s)")
 
-    # Steps were appended live via save_trajectory_csv — skip rewriting the full file
     if save_qtable:
-        agent.save_q_table_csv()
-    save_training_stats_json(training_stats)
-    append_progress_checkpoint(
-        game=num_games,
-        games_total=num_games,
-        phase="DONE",
-        win_rate=win_rate,
-        avg_score=avg_score,
-        states=final_states,
-        epsilon=agent.epsilon,
-        completion_pct=cov["completion_pct"],
-        sparsity_index=cov["sparsity_index"],
-        mean_visits=cov["mean_visits"],
-    )
+        with perf.timed("q_checkpoint"):
+            agent.save_q_table_csv()
+    try:
+        final_sample = perf.sample(
+            game=num_games,
+            games_total=num_games,
+            phase="DONE",
+            states=final_states,
+            entries=final_entries,
+            replay_len=len(replay),
+            traj_buffer_len=0,
+        )
+        print(perf.format_log_line(final_sample))
+        perf_summary = perf.finalize()
+        training_stats["perf"] = {
+            "counters": perf_summary.get("counters"),
+            "last": perf_summary.get("last"),
+        }
+        with open(get_output_path("last_run_perf.json"), "w", encoding="utf-8") as f:
+            json.dump(perf_summary, f, indent=2)
+    except Exception as e:
+        print(f"  Warning: perf finalize failed: {e}")
+    with perf.timed("stats_write"):
+        save_training_stats_json(training_stats)
+    with perf.timed("progress_write"):
+        append_progress_checkpoint(
+            game=num_games,
+            games_total=num_games,
+            phase="DONE",
+            win_rate=win_rate,
+            avg_score=avg_score,
+            states=final_states,
+            epsilon=agent.epsilon,
+            completion_pct=cov["completion_pct"],
+            sparsity_index=cov["sparsity_index"],
+            mean_visits=cov["mean_visits"],
+        )
     mark_progress_complete()
 
     params_path = get_output_path("last_run_params.json")
@@ -623,6 +799,12 @@ def train_qlearning_agent_parallel(
             "replay_capacity": replay_capacity,
             "replay_per_game": replay_per_game,
             "exploration_beta": exploration_beta,
+            "chunk_size": chunk_size,
+            "traj_flush_every": traj_flush_every,
+            "q_checkpoint_every": q_checkpoint_every,
+            "stats_stride": stats_stride,
+            "offline_human_bc_every": offline_human_bc_every,
+            "offline_human_bc_batch": offline_human_bc_batch,
         }, f, indent=2)
 
     # Archive locally + upload summary to Supabase (this machine is the DB gateway)
@@ -704,6 +886,13 @@ if __name__ == "__main__":
             exploration_beta=float(p.get("exploration_beta", 0.5)),
             chunk_size=int(p["chunk_size"]) if p.get("chunk_size") not in (None, "", 0, "0") else None,
             save_trajectories=bool(p.get("save_trajectories", True)),
+            traj_flush_every=int(p.get("traj_flush_every", 100)),
+            q_checkpoint_every=int(p.get("q_checkpoint_every", 50_000)),
+            stats_stride=int(p.get("stats_stride", 100)),
+            stats_max_points=int(p.get("stats_max_points", 5_000)),
+            coverage_every_n_reports=int(p.get("coverage_every_n_reports", 5)),
+            offline_human_bc_every=int(p.get("offline_human_bc_every", 100)),
+            offline_human_bc_batch=int(p.get("offline_human_bc_batch", 32)),
         )
     finally:
         _clear_local_pid_file()

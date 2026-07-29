@@ -167,6 +167,31 @@ def save_trajectory_csv(trajectory, game_num, filename="trajectory_train.csv"):
             }
             writer.writerow(row)
 
+
+def save_trajectory_csv_batch(items, filename="trajectory_train.csv"):
+    """Append many (trajectory, game_num) pairs in one open/close — far fewer FS ops."""
+    if not items:
+        return
+    output_path = get_output_path(filename)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    file_exists = os.path.isfile(output_path)
+    with open(output_path, "a", newline="", encoding="utf-8") as csvfile:
+        fieldnames = ["game", "round", "state_key", "action_key", "action"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        for trajectory, game_num in items:
+            for step in trajectory or []:
+                writer.writerow(
+                    {
+                        "game": game_num,
+                        "round": step.get("round", ""),
+                        "state_key": step.get("state_key", ""),
+                        "action_key": step.get("action_key", ""),
+                        "action": str(step.get("action", "")),
+                    }
+                )
+
 # ============================================================================
 # GPU UTILITIES
 # ============================================================================

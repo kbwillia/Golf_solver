@@ -52,6 +52,15 @@ DEFAULT_PARAMS = {
     "shape_low_keep": 0.3,
     "shape_midhigh_keep": -0.4,
     "shape_flip": 0.1,
+    # I/O / safety (CPU parallel trainer)
+    "save_trajectories": True,
+    "traj_flush_every": 100,
+    "q_checkpoint_every": 50_000,
+    "stats_stride": 100,
+    "stats_max_points": 5_000,
+    "coverage_every_n_reports": 5,
+    "offline_human_bc_every": 100,
+    "offline_human_bc_batch": 32,
 }
 
 # Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
@@ -73,6 +82,14 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "n_step": 3,
         "replay_per_game": 4,
         "exploration_beta": 0.5,
+        "save_trajectories": True,
+        "traj_flush_every": 100,
+        "q_checkpoint_every": 50_000,
+        "stats_stride": 100,
+        "stats_max_points": 5_000,
+        "coverage_every_n_reports": 5,
+        "offline_human_bc_every": 100,
+        "offline_human_bc_batch": 32,
     },
     "gpu": {
         "num_workers": 8,
@@ -120,6 +137,14 @@ _PRESET_KEYS = (
     "shape_low_keep",
     "shape_midhigh_keep",
     "shape_flip",
+    "save_trajectories",
+    "traj_flush_every",
+    "q_checkpoint_every",
+    "stats_stride",
+    "stats_max_points",
+    "coverage_every_n_reports",
+    "offline_human_bc_every",
+    "offline_human_bc_batch",
 )
 
 _launch_lock = None
@@ -209,6 +234,14 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
         "shape_flip",
     ):
         merged[key] = float(merged[key])
+    merged["save_trajectories"] = bool(merged.get("save_trajectories", True))
+    merged["traj_flush_every"] = max(1, int(merged.get("traj_flush_every") or 100))
+    merged["q_checkpoint_every"] = max(0, int(merged.get("q_checkpoint_every") or 0))
+    merged["stats_stride"] = max(1, int(merged.get("stats_stride") or 100))
+    merged["stats_max_points"] = max(100, int(merged.get("stats_max_points") or 5000))
+    merged["coverage_every_n_reports"] = max(1, int(merged.get("coverage_every_n_reports") or 5))
+    merged["offline_human_bc_every"] = max(0, int(merged.get("offline_human_bc_every") or 0))
+    merged["offline_human_bc_batch"] = max(1, int(merged.get("offline_human_bc_batch") or 32))
 
     # Persist current form values into the active device's preset
     active = merged["train_device"]
