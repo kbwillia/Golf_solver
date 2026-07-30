@@ -917,10 +917,27 @@ def _params_from_env_or_args() -> dict[str, Any]:
     return params
 
 
+def _write_local_pid_file() -> None:
+    """Trainer writes its own pid so UI detects CLI / detached runs."""
+    try:
+        path = get_output_path("local_train.pid")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+    except OSError as e:
+        print(f"  Warning: could not write local_train.pid: {e}")
+
+
 def _clear_local_pid_file() -> None:
     try:
         pid_path = get_output_path("local_train.pid")
-        if os.path.exists(pid_path):
+        if not os.path.exists(pid_path):
+            return
+        # Only clear if this process owns the file (avoid wiping a sibling trainer)
+        try:
+            stored = int(open(pid_path, encoding="utf-8").read().strip().splitlines()[0])
+        except (OSError, ValueError):
+            stored = None
+        if stored is None or stored == os.getpid():
             os.remove(pid_path)
     except OSError:
         pass
@@ -928,6 +945,7 @@ def _clear_local_pid_file() -> None:
 
 if __name__ == "__main__":
     try:
+        _write_local_pid_file()
         p = _params_from_env_or_args()
         train_qlearning_agent_parallel(
             num_games=int(p.get("num_games", 5000)),

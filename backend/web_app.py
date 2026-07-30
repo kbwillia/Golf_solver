@@ -196,18 +196,20 @@ def api_rl_sync():
     """Live progress for the viz page. CPU and GPU can run together;
     GPU pulls land in gpu_live/ while a local CPU job owns main output."""
     try:
-        from rl_control import _local_pid
+        from rl_control import _local_cpu_active
         from rl_live_sync import sync_live_progress, PROGRESS_PATH, _load_local_json
         from rl_training_viz import build_training_viz_payload
         from rl_runs import archive_current_run
 
-        local_pid = _local_pid()
+        local_pid, hb = _local_cpu_active()
+        cpu_active = local_pid is not None or bool(hb.get("active"))
         live = {
             "ok": True,
-            "running": bool(local_pid),
-            "local": bool(local_pid),
-            "cpu_running": bool(local_pid),
+            "running": bool(cpu_active),
+            "local": bool(cpu_active),
+            "cpu_running": bool(cpu_active),
             "gpu_running": False,
+            "cpu_summary": hb.get("summary") if cpu_active else {},
         }
 
         # Always sync GPU (into gpu_live/ when CPU owns main output files)
@@ -217,20 +219,25 @@ def api_rl_sync():
             live = {
                 "ok": False,
                 "error": str(sync_err),
-                "running": bool(local_pid),
-                "local": bool(local_pid),
-                "cpu_running": bool(local_pid),
+                "running": bool(cpu_active),
+                "local": bool(cpu_active),
+                "cpu_running": bool(cpu_active),
                 "gpu_running": False,
+                "cpu_summary": hb.get("summary") if cpu_active else {},
             }
 
-        # Merge local CPU progress summary when dual-running (main progress file)
-        if local_pid:
+        # Merge local CPU progress summary when CPU is active (pid or heartbeat)
+        if cpu_active:
             cpu_progress = _load_local_json(PROGRESS_PATH) or {}
             cpu_summary = cpu_progress.get("summary") if isinstance(cpu_progress, dict) else None
+            if not cpu_summary:
+                cpu_summary = hb.get("summary") or {}
             live["cpu_summary"] = cpu_summary or {}
             live["cpu_running"] = True
             live["local"] = True
             live["running"] = True
+            if local_pid is None:
+                live["cpu_heartbeat"] = True  # active without pid file
             if live.get("gpu_running") and live.get("summary"):
                 live["gpu_summary"] = live.get("summary")
             # Charts stay on CPU; prefer CPU summary for the main strip when both run

@@ -49,14 +49,17 @@ def _human_demo_summary_cached() -> dict[str, Any]:
         cached = _HUMAN_DEMO_CACHE[1]
         # Don't keep serving a failed import/error for the full TTL
         if cached.get("available") or not cached.get("error"):
-            return cached
+            abb = cached.get("action_by_board") or {}
+            # Stale schema (pre score-slider): force refresh once
+            if not cached.get("available") or "draw_flip_by_score" in abb or not abb.get("available"):
+                return cached
     try:
         import data_upset as _du
 
+        # Always reload so new chart fields (e.g. draw_flip_by_score) appear without
+        # a full Flask process restart.
+        _du = importlib.reload(_du)
         fetch = getattr(_du, "fetch_human_demo_score_summary", None)
-        if fetch is None:
-            _du = importlib.reload(_du)
-            fetch = getattr(_du, "fetch_human_demo_score_summary", None)
         if fetch is None:
             value = {
                 "available": False,
@@ -1241,11 +1244,31 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
         ],
         "compare": build_compare_series(compare_ids),
         "compare_ids": compare_ids,
-        "live": {
-            "running": bool(live.get("running")),
-            "pct": (live.get("summary") or {}).get("pct"),
-            "games_played": (live.get("summary") or {}).get("games_played"),
-            "games_total": (live.get("summary") or {}).get("games_total"),
-            "pulled_training_stats": bool(live.get("pulled_training_stats")),
-        },
+        "live": _viz_live_status(live),
+    }
+
+
+def _viz_live_status(progress: dict[str, Any]) -> dict[str, Any]:
+    """Mark CPU live when progress says running *and* files are freshly updating."""
+    summary = (progress.get("summary") or {}) if isinstance(progress, dict) else {}
+    cpu_running = False
+    try:
+        from rl_control import _local_cpu_active
+
+        pid, hb = _local_cpu_active()
+        cpu_running = pid is not None or bool(hb.get("active"))
+        if hb.get("summary"):
+            summary = {**summary, **(hb.get("summary") or {})}
+    except Exception:
+        cpu_running = bool(progress.get("running"))
+    return {
+        "running": cpu_running,
+        "local": cpu_running,
+        "cpu_running": cpu_running,
+        "gpu_running": False,
+        "pct": summary.get("pct"),
+        "games_played": summary.get("games_played"),
+        "games_total": summary.get("games_total"),
+        "pulled_training_stats": bool(progress.get("pulled_training_stats")),
+        "cpu_summary": summary,
     }

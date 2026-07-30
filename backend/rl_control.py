@@ -331,6 +331,92 @@ def _clear_local_pid_file() -> None:
         pass
 
 
+# Progress / perf / stats newer than this → treat as live even if pid file missing
+# (CLI starts, detached PID cleared, or sync wiped the pid).
+_CPU_HEARTBEAT_MAX_AGE_SEC = 180.0
+
+
+def _file_mtime_age_sec(path: Path) -> float | None:
+    try:
+        return max(0.0, time.time() - path.stat().st_mtime)
+    except OSError:
+        return None
+
+
+def _load_json_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {}
+
+
+def _cpu_heartbeat() -> dict[str, Any]:
+    """Detect an active local CPU trainer from live output files.
+
+    Used when local_train.pid is missing (CLI launch, pid cleared) but
+    training_progress / train_perf / stats keep updating.
+    """
+    progress_path = OUTPUT_DIR / "training_progress.json"
+    perf_path = OUTPUT_DIR / "train_perf.json"
+    stats_path = OUTPUT_DIR / "training_stats.json"
+
+    progress = _load_json_file(progress_path)
+    perf = _load_json_file(perf_path)
+    summary = progress.get("summary") if isinstance(progress.get("summary"), dict) else {}
+    perf_last = perf.get("last") if isinstance(perf.get("last"), dict) else {}
+
+    ages = {
+        "progress": _file_mtime_age_sec(progress_path),
+        "perf": _file_mtime_age_sec(perf_path),
+        "stats": _file_mtime_age_sec(stats_path),
+    }
+    fresh = {
+        k: (v is not None and v <= _CPU_HEARTBEAT_MAX_AGE_SEC) for k, v in ages.items()
+    }
+    flag_running = bool(progress.get("running")) or bool(perf.get("running"))
+    active = bool(flag_running and (fresh["progress"] or fresh["perf"] or fresh["stats"]))
+
+    games_played = summary.get("games_played")
+    games_total = summary.get("games_total")
+    if games_played is None and perf_last.get("game") is not None:
+        games_played = perf_last.get("game")
+    if games_total is None and perf_last.get("games_total") is not None:
+        games_total = perf_last.get("games_total")
+    pct = summary.get("pct")
+    if pct is None and games_played is not None and games_total:
+        try:
+            pct = round(100.0 * float(games_played) / float(games_total), 2)
+        except (TypeError, ValueError, ZeroDivisionError):
+            pct = None
+
+    return {
+        "active": active,
+        "summary": {
+            **summary,
+            "games_played": games_played,
+            "games_total": games_total,
+            "pct": pct,
+            "train_device": summary.get("train_device") or "cpu",
+            "train_mode": summary.get("train_mode") or "tabular_parallel",
+        },
+        "ages": ages,
+        "fresh": fresh,
+        "flag_running": flag_running,
+    }
+
+
+def _local_cpu_active() -> tuple[int | None, dict[str, Any]]:
+    """Return (pid_or_None, heartbeat). Active if pid alive OR fresh live files."""
+    pid = _local_pid()
+    hb = _cpu_heartbeat()
+    if pid is not None:
+        return pid, {**hb, "active": True}
+    return None, hb
+
+
 def _pid_is_our_trainer(pid: int) -> bool:
     """True if pid is alive. Stale pid files are cleared by callers when False.
 
@@ -432,11 +518,17 @@ def _stop_local() -> dict[str, Any]:
 
 
 def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
-    if _local_pid() is not None:
+    local_pid, hb = _local_cpu_active()
+    if local_pid is not None or bool(hb.get("active")):
         return {
             "ok": False,
-            "error": "Local training already running. Stop it first.",
+            "error": (
+                "Local training already running. Stop it first."
+                if local_pid is not None
+                else "Local training looks active (live progress files updating) but pid file is missing — Stop may not kill it; end the trainer process, then Start again."
+            ),
             "running": True,
+            "cpu_running": True,
         }
 
     # If a previous job died without Stop, archive leftover stats as partial first
@@ -626,15 +718,17 @@ fi
 def get_status() -> dict[str, Any]:
     """Status for both devices — CPU and GPU can run concurrently."""
     params = load_saved_params()
-    local_pid = _local_pid()
+    local_pid, hb = _local_cpu_active()
+    cpu_running = local_pid is not None or bool(hb.get("active"))
     cpu = {
-        "running": local_pid is not None,
+        "running": cpu_running,
         "pid": local_pid,
         "elapsed": _local_elapsed(local_pid) if local_pid else None,
+        "heartbeat": bool(hb.get("active")) and local_pid is None,
+        "summary": hb.get("summary") if cpu_running else {},
     }
     gpu = _probe_gpu_status(params)
 
-    cpu_running = bool(cpu["running"])
     gpu_running = bool(gpu.get("running") or gpu.get("launching"))
     return {
         "ok": True,

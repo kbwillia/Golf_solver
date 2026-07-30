@@ -6,7 +6,7 @@
     <title>RL Training — Golf Solver</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260730d">
+    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260730e">
 </head>
 <body class="rl-page">
     <div class="rl-shell">
@@ -214,49 +214,60 @@
             </section>
 
             <div class="rl-grid">
-                <section class="rl-panel">
+                <section class="rl-panel" id="panelHumanOverview">
                     <h2><span class="tip" data-tip="human_demos">Human demos</span></h2>
                     <p class="hint" id="humanDemoHint">Loading human demo scores…</p>
-                    <div class="rl-human-block" id="humanDemoStats" hidden>
-                        <div class="rl-human-stats">
-                            <div class="rl-stat"><p class="rl-stat-label">Holes</p><p class="rl-stat-value" id="humanHoles">—</p></div>
-                            <div class="rl-stat"><p class="rl-stat-label">Avg</p><p class="rl-stat-value" id="humanAvg">—</p></div>
-                            <div class="rl-stat"><p class="rl-stat-label tip" data-tip="win_rate">Win%</p><p class="rl-stat-value" id="humanWin">—</p></div>
-                            <div class="rl-stat"><p class="rl-stat-label">Best</p><p class="rl-stat-value" id="humanBest">—</p></div>
+                    <div class="rl-human-stats" id="humanDemoStats" hidden>
+                        <div class="rl-stat"><p class="rl-stat-label">Holes</p><p class="rl-stat-value" id="humanHoles">—</p></div>
+                        <div class="rl-stat"><p class="rl-stat-label">Avg</p><p class="rl-stat-value" id="humanAvg">—</p></div>
+                        <div class="rl-stat"><p class="rl-stat-label tip" data-tip="win_rate">Win%</p><p class="rl-stat-value" id="humanWin">—</p></div>
+                        <div class="rl-stat"><p class="rl-stat-label">Best</p><p class="rl-stat-value" id="humanBest">—</p></div>
+                    </div>
+                </section>
+
+                <section class="rl-panel" id="panelHumanScoreHist" hidden>
+                    <h2><span class="tip" data-tip="avg_score">Human score distribution</span></h2>
+                    <p class="hint">Finished demo holes (lower is better).</p>
+                    <div class="rl-chart-wrap rl-chart-wrap--human" id="humanHistWrap">
+                        <canvas id="chartHumanHist"></canvas>
+                    </div>
+                </section>
+
+                <section class="rl-panel rl-panel--wide" id="panelHumanActions" hidden>
+                    <h2><span class="tip" data-tip="human_demos">Action mix by human turn</span></h2>
+                    <p class="hint rl-human-action-hint" id="humanActionHint"></p>
+                    <div class="rl-chart-wrap rl-chart-wrap--human" id="humanActionWrap">
+                        <canvas id="chartHumanActions"></canvas>
+                    </div>
+                </section>
+
+                <section class="rl-panel rl-panel--wide" id="panelHumanBoard" hidden>
+                    <h2><span class="tip" data-tip="human_board">Action mix by card slot (2×2)</span></h2>
+                    <p class="hint rl-human-action-hint" id="humanBoardHint"></p>
+                    <div class="rl-human-handgrid-wrap" id="humanBoardWrap">
+                        <div class="rl-human-handgrid" id="humanBoardHeatmap"></div>
+                        <div class="rl-human-handgrid-legend" id="humanBoardLegend">
+                            <span><i class="rl-swatch rl-swatch--take"></i> take discard</span>
+                            <span><i class="rl-swatch rl-swatch--keep"></i> draw keep</span>
+                            <span><i class="rl-swatch rl-swatch--flip"></i> draw flip</span>
                         </div>
-                        <p class="rl-human-chart-label tip" data-tip="avg_score">Score distribution</p>
-                        <div class="rl-chart-wrap rl-chart-wrap--human" id="humanHistWrap">
-                            <canvas id="chartHumanHist"></canvas>
-                        </div>
-                        <p class="rl-human-chart-label tip" data-tip="human_demos">Action mix by human turn</p>
-                        <p class="hint rl-human-action-hint" id="humanActionHint" hidden></p>
-                        <div class="rl-chart-wrap rl-chart-wrap--human" id="humanActionWrap" hidden>
-                            <canvas id="chartHumanActions"></canvas>
-                        </div>
-                        <p class="rl-human-chart-label tip" data-tip="human_board">Action mix by card slot (2×2)</p>
-                        <p class="hint rl-human-action-hint" id="humanBoardHint" hidden></p>
-                        <div class="rl-human-handgrid-wrap" id="humanBoardWrap" hidden>
-                            <div class="rl-human-handgrid" id="humanBoardHeatmap"></div>
-                            <div class="rl-human-handgrid-legend" id="humanBoardLegend">
-                                <span><i class="rl-swatch rl-swatch--take"></i> take discard</span>
-                                <span><i class="rl-swatch rl-swatch--keep"></i> draw keep</span>
-                                <span><i class="rl-swatch rl-swatch--flip"></i> draw flip</span>
-                            </div>
-                        </div>
-                        <p class="rl-human-chart-label tip" data-tip="human_flips">Which card flipped (human turn)</p>
-                        <p class="hint rl-human-action-hint" id="humanFlipHint" hidden></p>
-                        <div class="rl-human-handgrid-wrap" id="humanFlipWrap" hidden>
-                            <div class="rl-human-score-filter" id="humanFlipScoreFilter" hidden>
-                                <label class="rl-human-score-filter-label" for="humanFlipScoreMax">
-                                    Holes scoring ≤ <strong id="humanFlipScoreMaxLabel">—</strong>
-                                </label>
-                                <input type="range" id="humanFlipScoreMax" class="rl-human-score-slider" min="0" max="20" value="20" step="1">
-                                <span class="rl-human-score-filter-meta" id="humanFlipScoreMeta"></span>
-                            </div>
-                            <div class="rl-human-handgrid" id="humanFlipGrid"></div>
-                            <div class="rl-human-handgrid-legend">
-                                <span><i class="rl-swatch rl-swatch--flip"></i> darker = more flips that round</span>
-                            </div>
+                    </div>
+                </section>
+
+                <section class="rl-panel rl-panel--wide" id="panelHumanFlips" hidden>
+                    <h2><span class="tip" data-tip="human_flips">Which card flipped (human turn)</span></h2>
+                    <p class="hint rl-human-action-hint" id="humanFlipHint"></p>
+                    <div class="rl-human-score-filter" id="humanFlipScoreFilter">
+                        <label class="rl-human-score-filter-label" for="humanFlipScoreMax">
+                            Holes scoring ≤ <strong id="humanFlipScoreMaxLabel">—</strong>
+                        </label>
+                        <input type="range" id="humanFlipScoreMax" class="rl-human-score-slider" min="0" max="20" value="20" step="1">
+                        <span class="rl-human-score-filter-meta" id="humanFlipScoreMeta"></span>
+                    </div>
+                    <div class="rl-human-handgrid-wrap" id="humanFlipWrap">
+                        <div class="rl-human-handgrid" id="humanFlipGrid"></div>
+                        <div class="rl-human-handgrid-legend">
+                            <span><i class="rl-swatch rl-swatch--flip"></i> darker = more flips that round</span>
                         </div>
                     </div>
                 </section>
@@ -335,6 +346,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260730g"></script>
+    <script src="/static/js/rl-training.js?v=20260730i"></script>
 </body>
 </html>

@@ -292,8 +292,9 @@
       return;
     }
     const anyCpu = !!(live.cpu_running || live.local);
-    const anyGpu = !!(live.gpu_running);
-    if (!anyCpu && !anyGpu && !live.running) {
+    const anyGpu = !!live.gpu_running;
+    // progress.running alone used to mis-label as GPU; require cpu/gpu flags
+    if (!anyCpu && !anyGpu) {
       el.classList.add("is-idle");
       el.textContent = "No active training · showing latest local / archived runs";
       return;
@@ -301,17 +302,17 @@
     const lanes = [];
     if (anyCpu) {
       const cs = live.cpu_summary || {};
-      const parts = ["CPU local"];
-      const played = cs.games_played ?? (anyGpu ? null : live.games_played);
-      const total = cs.games_total ?? (anyGpu ? null : live.games_total);
-      const pctVal = cs.pct ?? (anyGpu ? null : live.pct);
+      const parts = [live.cpu_heartbeat ? "CPU local (detected)" : "CPU local"];
+      const played = cs.games_played ?? live.games_played;
+      const total = cs.games_total ?? live.games_total;
+      const pctVal = cs.pct ?? live.pct;
       if (played != null && total != null) parts.push(`${fmt(played)} / ${fmt(total)}`);
       else if (played != null) parts.push(`${fmt(played)} games`);
       if (pctVal != null) parts.push(`${pctVal}%`);
       lanes.push(parts.join(" · "));
     }
-    if (anyGpu || (!anyCpu && live.running && !live.local)) {
-      const gs = live.gpu_summary || (!anyCpu ? live : null);
+    if (anyGpu) {
+      const gs = live.gpu_summary || null;
       const parts = ["GPU RunPod"];
       if (gs) {
         if (gs.games_played != null && gs.games_total != null) {
@@ -321,14 +322,6 @@
         }
         if (gs.pct != null) parts.push(`${gs.pct}%`);
       }
-      lanes.push(parts.join(" · "));
-    }
-    if (!lanes.length && live.running) {
-      const parts = [live.local ? "CPU local" : "GPU RunPod"];
-      if (live.games_played != null && live.games_total != null) {
-        parts.push(`${fmt(live.games_played)} / ${fmt(live.games_total)} games`);
-      }
-      if (live.pct != null) parts.push(`${live.pct}%`);
       lanes.push(parts.join(" · "));
     }
     el.textContent = lanes.join("  |  ") + " · auto-refreshing";
@@ -1038,7 +1031,13 @@
   function renderHumanDemos(human) {
     const hint = document.getElementById("humanDemoHint");
     const statsEl = document.getElementById("humanDemoStats");
+    const panelOverview = document.getElementById("panelHumanOverview");
+    const panelHist = document.getElementById("panelHumanScoreHist");
+    const panelActions = document.getElementById("panelHumanActions");
+    const panelBoard = document.getElementById("panelHumanBoard");
+    const panelFlips = document.getElementById("panelHumanFlips");
     const histWrap = document.getElementById("humanHistWrap");
+
     if (!human || !human.available) {
       if (hint) {
         hint.textContent = human && human.error
@@ -1048,8 +1047,15 @@
             : "No finished human demo holes in Supabase yet. Play with demo recording on to collect them.";
       }
       if (statsEl) statsEl.hidden = true;
+      if (panelOverview) panelOverview.hidden = false;
+      [panelHist, panelActions, panelBoard, panelFlips].forEach((el) => {
+        if (el) el.hidden = true;
+      });
+      lastFlipBoard = null;
       return;
     }
+
+    if (panelOverview) panelOverview.hidden = false;
     if (statsEl) statsEl.hidden = false;
     const set = (id, v) => {
       const el = document.getElementById(id);
@@ -1065,6 +1071,7 @@
         : "Not wired into bootstrap.";
       hint.textContent = `${fmt(human.steps)} recorded steps across ${fmt(human.holes)} holes. ${boot}`;
     }
+
     const hist = human.score_histogram;
     const hasHist =
       hist &&
@@ -1072,6 +1079,7 @@
       Array.isArray(hist.bin_centers) &&
       Array.isArray(hist.counts) &&
       hist.bin_centers.length > 0;
+    if (panelHist) panelHist.hidden = !hasHist;
     if (histWrap) histWrap.hidden = !hasHist;
     if (hasHist) {
       makeChart("chartHumanHist", {
@@ -1118,14 +1126,14 @@
       Array.isArray(abr.rounds) &&
       abr.rounds.length > 0 &&
       abr.share;
+    if (panelActions) panelActions.hidden = !hasActions;
     if (actionWrap) actionWrap.hidden = !hasActions;
     if (!hasActions) {
-      if (actionHint) actionHint.hidden = true;
+      if (actionHint) actionHint.textContent = "";
     } else {
       const labels = abr.rounds.map((r) => "T" + String(r));
       const share = abr.share || {};
       if (actionHint) {
-        actionHint.hidden = false;
         const o = abr.overall_avg_per_hole || {};
         const seat =
           abr.holes_human_first != null
@@ -1220,10 +1228,10 @@
       Array.isArray(abb.rounds) &&
       abb.rounds.length > 0 &&
       abb.counts;
+    if (panelBoard) panelBoard.hidden = !hasBoard;
     if (boardWrap) boardWrap.hidden = !hasBoard;
     if (boardHint) {
       if (hasBoard) {
-        boardHint.hidden = false;
         const missParts = [];
         if (abb.missing_position) missParts.push(`${fmt(abb.missing_position)} lacked position`);
         const miss = missParts.length ? `; ${missParts.join(", ")}` : "";
@@ -1235,11 +1243,7 @@
             : "") +
           `${miss}.`;
       } else {
-        boardHint.hidden = true;
-        if (abb && abb.message) {
-          boardHint.hidden = false;
-          boardHint.textContent = abb.message;
-        }
+        boardHint.textContent = (abb && abb.message) || "";
       }
     }
     if (hasBoard) {
@@ -1249,28 +1253,26 @@
     const flipWrap = document.getElementById("humanFlipWrap");
     const flipHint = document.getElementById("humanFlipHint");
     const flipCounts = hasBoard && abb.counts && abb.counts.draw_flip;
+    if (panelFlips) panelFlips.hidden = !flipCounts;
     if (flipWrap) flipWrap.hidden = !flipCounts;
     if (flipHint) {
       if (flipCounts) {
-        flipHint.hidden = false;
         flipHint.textContent =
           `Draw-and-flip by human turn. Darker = larger share of that turn’s flips.` +
           (abb.holes_human_second != null
             ? ` · ${fmt(abb.holes_human_first)} 1st / ${fmt(abb.holes_human_second)} 2nd seat`
             : "") +
-          `. Slide max score to see where good vs junk holes flipped.`;
+          `. Drag the score slider to keep holes ≤ N.`;
       } else {
-        flipHint.hidden = true;
+        flipHint.textContent = "";
       }
     }
     if (flipCounts) {
       lastFlipBoard = abb;
-      setupHumanFlipScoreFilter(abb);
+      setupHumanFlipScoreFilter(abb, human);
       renderHumanFlipGrid(abb, flipScoreMax);
     } else {
       lastFlipBoard = null;
-      const filter = document.getElementById("humanFlipScoreFilter");
-      if (filter) filter.hidden = true;
     }
   }
 
@@ -1297,39 +1299,45 @@
     return mat;
   }
 
-  function setupHumanFlipScoreFilter(abb) {
+  function setupHumanFlipScoreFilter(abb, human) {
     const filter = document.getElementById("humanFlipScoreFilter");
     const slider = document.getElementById("humanFlipScoreMax");
     const label = document.getElementById("humanFlipScoreMaxLabel");
     const meta = document.getElementById("humanFlipScoreMeta");
     if (!filter || !slider) return;
 
-    const hasScores =
-      abb.draw_flip_by_score &&
-      Object.keys(abb.draw_flip_by_score).length > 0 &&
-      abb.flip_score_min != null &&
-      abb.flip_score_max != null;
-
-    if (!hasScores) {
-      filter.hidden = true;
-      flipScoreMax = null;
-      return;
+    const byScore = abb.draw_flip_by_score || {};
+    const scoreKeys = Object.keys(byScore);
+    let lo = abb.flip_score_min;
+    let hi = abb.flip_score_max;
+    if ((lo == null || hi == null) && human && human.score_histogram) {
+      lo = human.score_histogram.min_score != null ? human.score_histogram.min_score : 0;
+      hi = human.score_histogram.max_score != null ? human.score_histogram.max_score : 20;
     }
+    if (lo == null) lo = 0;
+    if (hi == null) hi = 20;
+    lo = Number(lo);
+    hi = Number(hi);
+    if (!Number.isFinite(lo)) lo = 0;
+    if (!Number.isFinite(hi) || hi < lo) hi = Math.max(lo, 20);
 
-    const lo = Number(abb.flip_score_min);
-    const hi = Number(abb.flip_score_max);
     slider.min = String(lo);
     slider.max = String(hi);
+    slider.disabled = scoreKeys.length === 0;
     if (flipScoreMax == null || flipScoreMax < lo || flipScoreMax > hi) {
       flipScoreMax = hi;
     }
     slider.value = String(flipScoreMax);
     if (label) label.textContent = String(flipScoreMax);
     if (meta) {
-      const nFlip = Number(abb.flips_with_score) || 0;
-      const miss = Number(abb.flips_missing_score) || 0;
-      meta.textContent =
-        `${fmt(nFlip)} scored flips` + (miss ? ` · ${fmt(miss)} unscored` : "");
+      if (scoreKeys.length) {
+        const nFlip = Number(abb.flips_with_score) || 0;
+        const miss = Number(abb.flips_missing_score) || 0;
+        meta.textContent =
+          `${fmt(nFlip)} scored flips` + (miss ? ` · ${fmt(miss)} unscored` : "");
+      } else {
+        meta.textContent = "Score buckets loading — wait ~30s or restart Flask";
+      }
     }
     filter.hidden = false;
   }
@@ -1503,17 +1511,18 @@
     renderActions(data.actions);
     renderQvalues(data.qvalues, data.learning);
     setLiveStatus(
-      data.live ||
-        (data.sync && {
-          running: data.sync.running,
-          local: data.sync.local,
-          cpu_running: data.sync.cpu_running,
-          gpu_running: data.sync.gpu_running,
-          cpu_summary: data.sync.cpu_summary,
-          gpu_summary: data.sync.gpu_summary,
-          train_device: data.sync.train_device,
-          ...(data.sync.summary || {}),
-        })
+      (data.sync && {
+        running: data.sync.running,
+        local: data.sync.local,
+        cpu_running: data.sync.cpu_running,
+        gpu_running: data.sync.gpu_running,
+        cpu_heartbeat: data.sync.cpu_heartbeat,
+        cpu_summary: data.sync.cpu_summary || (data.live && data.live.cpu_summary),
+        gpu_summary: data.sync.gpu_summary,
+        train_device: data.sync.train_device,
+        ...(data.sync.summary || {}),
+      }) ||
+        data.live
     );
 
     const meta = document.getElementById("rlMeta");

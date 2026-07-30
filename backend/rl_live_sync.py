@@ -198,11 +198,17 @@ def sync_live_progress() -> dict:
     """
     local_running = False
     try:
-        from rl_control import _local_pid
+        from rl_control import _local_cpu_active
 
-        local_running = _local_pid() is not None
+        _pid, hb = _local_cpu_active()
+        local_running = _pid is not None or bool(hb.get("active"))
     except Exception:
-        local_running = False
+        try:
+            from rl_control import _local_pid
+
+            local_running = _local_pid() is not None
+        except Exception:
+            local_running = False
 
     env = _load_dotenv()
     ssh = _ssh_base(env)
