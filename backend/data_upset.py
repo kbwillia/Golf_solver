@@ -395,48 +395,90 @@ def _classify_human_action(action_raw, action_key=None) -> str:
     return "unknown"
 
 
+def _human_demo_steps_by_turn(rows: list) -> tuple[list[dict], dict]:
+    """Order human demo steps within each hole and assign human_turn 1..N.
+
+    `round_num` is the game counter (increments when seat 0's turn comes up).
+    When the opponent goes first (`whos_first != 0`), the human's four actions
+    are labeled R2–R5 — not a 5th play round. Charts should use human_turn.
+    """
+    by_hole: dict[tuple, list] = {}
+    for r in rows:
+        if r.get("action") is None and not r.get("action_key"):
+            continue
+        hkey = (r.get("game_id") or "", r.get("hole_num"))
+        by_hole.setdefault(hkey, []).append(r)
+
+    annotated: list[dict] = []
+    holes_human_first = 0
+    holes_human_second = 0
+    for steps in by_hole.values():
+        steps = sorted(
+            steps,
+            key=lambda s: (str(s.get("created_at") or ""), str(s.get("action_key") or "")),
+        )
+        rns = []
+        for i, r in enumerate(steps):
+            item = dict(r)
+            item["_human_turn"] = i + 1
+            annotated.append(item)
+            try:
+                rns.append(int(r.get("round_num")))
+            except (TypeError, ValueError):
+                pass
+        if rns:
+            if min(rns) <= 1:
+                holes_human_first += 1
+            else:
+                holes_human_second += 1
+
+    meta = {
+        "holes_with_actions": len(by_hole),
+        "holes_human_first": holes_human_first,
+        "holes_human_second": holes_human_second,
+        "axis": "human_turn",
+        "axis_label": "Human turn",
+    }
+    return annotated, meta
+
+
 def _human_action_by_round(rows: list) -> dict:
-    """Average action-type mix per round_num across human demo steps."""
+    """Action-type mix by the human's Nth action on each hole (not raw round_num).
+
+    When human goes first: turns map ~ R1–R4.
+    When opponent goes first: turns map ~ R2–R5 on the game counter — still T1–T4 here.
+    """
     types = ("take_discard", "draw_keep", "draw_flip")
-    # round -> type -> count
-    by_round: dict[int, dict[str, int]] = {}
-    # hole -> type -> count (for overall avg per hole)
+    annotated, meta = _human_demo_steps_by_turn(rows)
+    by_turn: dict[int, dict[str, int]] = {}
     by_hole: dict[tuple, dict[str, int]] = {}
     unknown = 0
 
-    for r in rows:
-        rn = r.get("round_num")
-        try:
-            rn = int(rn)
-        except (TypeError, ValueError):
-            continue
-        if rn < 0:
-            continue
+    for r in annotated:
         at = _classify_human_action(r.get("action"), r.get("action_key"))
         if at not in types:
             unknown += 1
             continue
-        by_round.setdefault(rn, {t: 0 for t in types})
-        by_round[rn][at] += 1
+        tn = int(r["_human_turn"])
+        by_turn.setdefault(tn, {t: 0 for t in types})
+        by_turn[tn][at] += 1
         hkey = (r.get("game_id") or "", r.get("hole_num"))
         by_hole.setdefault(hkey, {t: 0 for t in types})
         by_hole[hkey][at] += 1
 
-    if not by_round:
-        return {"available": False, "types": list(types), "rounds": []}
+    if not by_turn:
+        return {"available": False, "types": list(types), "rounds": [], **meta}
 
-    rounds = sorted(by_round.keys())
-    totals = {rn: sum(by_round[rn].values()) for rn in rounds}
+    turns = sorted(by_turn.keys())
+    totals = {tn: sum(by_turn[tn].values()) for tn in turns}
     share = {t: [] for t in types}
     avg_counts = {t: [] for t in types}
-    # holes that played at least one action in that round ≈ total actions that round
-    # (1 human action / round typically) — avg count of type = count / n_actions_in_round
-    for rn in rounds:
-        tot = max(1, totals[rn])
+    for tn in turns:
+        tot = max(1, totals[tn])
         for t in types:
-            c = by_round[rn][t]
+            c = by_turn[tn][t]
             share[t].append(round(c / tot, 4))
-            avg_counts[t].append(round(c / tot, 4))  # same when 1 action/round
+            avg_counts[t].append(round(c / tot, 4))
 
     n_holes = max(1, len(by_hole))
     overall_avg_per_hole = {
@@ -447,13 +489,13 @@ def _human_action_by_round(rows: list) -> dict:
     return {
         "available": True,
         "types": list(types),
-        "rounds": rounds,
+        "rounds": turns,  # human turn index; kept key name for UI/notebook compat
         "share": share,
         "avg_counts": avg_counts,
         "overall_avg_per_hole": overall_avg_per_hole,
         "steps_classified": sum(totals.values()),
         "unknown_steps": unknown,
-        "holes_with_actions": len(by_hole),
+        **meta,
     }
 
 
@@ -500,90 +542,151 @@ def _parse_demo_board(state_key: str | None) -> dict | None:
     }
 
 
-def _human_action_by_board(rows: list) -> dict:
-    """Action mix by public face-up count × private-known count (+ avg card points)."""
-    types = ("take_discard", "draw_keep", "draw_flip")
-    # (n_pub, n_priv) -> type counts + point accumulators
-    buckets: dict[tuple[int, int], dict] = {}
-    unknown = 0
-    no_state = 0
+def _action_target_pos(action_raw, action_key=None) -> int | None:
+    """Position replaced or flipped by the action."""
+    action = action_raw
+    if isinstance(action, str):
+        try:
+            import ast
+            action = ast.literal_eval(action)
+        except (ValueError, SyntaxError):
+            action = None
+    if isinstance(action, dict):
+        if action.get("type") == "take_discard":
+            try:
+                return int(action.get("position"))
+            except (TypeError, ValueError):
+                return None
+        if action.get("type") == "draw_deck":
+            if action.get("keep", True):
+                try:
+                    return int(action.get("position"))
+                except (TypeError, ValueError):
+                    return None
+            try:
+                return int(action.get("flip_position"))
+            except (TypeError, ValueError):
+                return None
+    key = str(action_key or "")
+    m = re.search(r"(?:take_discard|draw_deck)_(\d+)$", key)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"flip_(\d+)$", key)
+    if m:
+        return int(m.group(1))
+    return None
 
-    for r in rows:
-        board = _parse_demo_board(r.get("state_key"))
-        if not board:
-            no_state += 1
-            continue
+
+def _action_target_visibility(action_raw, *, inferred: str | None = None) -> str | None:
+    """private | hidden from recorded action, or inferred label."""
+    action = action_raw
+    if isinstance(action, str):
+        try:
+            import json as _json
+            action = _json.loads(action)
+        except Exception:
+            try:
+                import ast
+                action = ast.literal_eval(action)
+            except (ValueError, SyntaxError):
+                action = None
+    if isinstance(action, dict):
+        vis = action.get("target_visibility")
+        if vis in ("private", "hidden"):
+            return vis
+    if inferred in ("private", "hidden"):
+        return inferred
+    return None
+
+
+def _human_action_by_board(rows: list) -> dict:
+    """Per human-turn 2×2 hand grid: action counts at each card position.
+
+    Hand layout (same as the game UI):
+        [0 top-L] [1 top-R]     ← often start hidden; become public when flipped
+        [2 bot-L] [3 bot-R]     ← start privately visible (deal)
+
+    X-axis = human's Nth action on the hole (T1..T4), not raw game.round.
+    When the opponent deals first, game.round labels that as R2–R5; we still use T1–T4.
+    """
+    types = ("take_discard", "draw_keep", "draw_flip")
+    positions = (0, 1, 2, 3)
+    position_labels = ("top-L", "top-R", "bot-L", "bot-R")
+    position_roles = (
+        "top-L (often hidden→public)",
+        "top-R (often hidden→public)",
+        "bot-L (starts private)",
+        "bot-R (starts private)",
+    )
+
+    annotated, meta = _human_demo_steps_by_turn(rows)
+    cells: dict[tuple[int, int], dict[str, int]] = {}
+    unknown_action = 0
+    no_pos = 0
+
+    for r in annotated:
         at = _classify_human_action(r.get("action"), r.get("action_key"))
         if at not in types:
-            unknown += 1
+            unknown_action += 1
             continue
-        key = (int(board["n_pub"]), int(board["n_priv"]))
-        b = buckets.get(key)
-        if b is None:
-            b = {
-                "counts": {t: 0 for t in types},
-                "pub_sum": 0.0,
-                "pub_n": 0,
-                "priv_sum": 0.0,
-                "priv_n": 0,
-            }
-            buckets[key] = b
-        b["counts"][at] += 1
-        if board["pub_avg"] is not None:
-            b["pub_sum"] += float(board["pub_avg"])
-            b["pub_n"] += 1
-        if board["priv_avg"] is not None:
-            b["priv_sum"] += float(board["priv_avg"])
-            b["priv_n"] += 1
+        pos = _action_target_pos(r.get("action"), r.get("action_key"))
+        if pos is None or pos not in positions:
+            no_pos += 1
+            continue
+        tn = int(r["_human_turn"])
+        key = (tn, pos)
+        cell = cells.get(key)
+        if cell is None:
+            cell = {t: 0 for t in types}
+            cells[key] = cell
+        cell[at] += 1
 
-    if not buckets:
+    if not cells:
         return {
             "available": False,
+            "mode": "hand_2x2",
             "types": list(types),
-            "labels": [],
-            "message": "No demos with parseable state_key (pub/priv) yet.",
+            "rounds": [],
+            "positions": list(positions),
+            "message": "No demos with card position yet.",
+            "missing_position": no_pos,
+            **meta,
         }
 
-    keys = sorted(buckets.keys(), key=lambda k: (k[0] + k[1], k[0], k[1]))
-    labels = []
-    n_pub_list = []
-    n_priv_list = []
-    share = {t: [] for t in types}
-    steps = []
-    avg_pub_pts = []
-    avg_priv_pts = []
-    for key in keys:
-        b = buckets[key]
-        tot = sum(b["counts"].values())
-        if tot <= 0:
-            continue
-        n_pub, n_priv = key
-        labels.append(f"pub{n_pub} priv{n_priv}")
-        n_pub_list.append(n_pub)
-        n_priv_list.append(n_priv)
-        steps.append(tot)
+    turns = sorted({k[0] for k in cells})
+    counts: dict[str, list[list[int]]] = {t: [] for t in types}
+    totals: list[list[int]] = []
+    for tn in turns:
+        tot_row = []
+        type_rows = {t: [] for t in types}
+        for pos in positions:
+            c = cells.get((tn, pos)) or {t: 0 for t in types}
+            tot = sum(c.values())
+            tot_row.append(tot)
+            for t in types:
+                type_rows[t].append(int(c[t]))
+        totals.append(tot_row)
         for t in types:
-            share[t].append(round(b["counts"][t] / tot, 4))
-        avg_pub_pts.append(
-            round(b["pub_sum"] / b["pub_n"], 2) if b["pub_n"] else None
-        )
-        avg_priv_pts.append(
-            round(b["priv_sum"] / b["priv_n"], 2) if b["priv_n"] else None
-        )
+            counts[t].append(type_rows[t])
+
+    steps_classified = sum(sum(row) for row in totals)
 
     return {
-        "available": bool(labels),
+        "available": True,
+        "mode": "hand_2x2",
         "types": list(types),
-        "labels": labels,
-        "n_pub": n_pub_list,
-        "n_priv": n_priv_list,
-        "share": share,
-        "steps": steps,
-        "avg_pub_pts": avg_pub_pts,
-        "avg_priv_pts": avg_priv_pts,
-        "steps_classified": sum(steps),
-        "unknown_steps": unknown,
-        "missing_state_key": no_state,
+        "rounds": turns,  # human turn index
+        "positions": list(positions),
+        "position_labels": list(position_labels),
+        "position_roles": list(position_roles),
+        "grid": [[0, 1], [2, 3]],
+        "counts": counts,
+        "totals": totals,
+        "steps_classified": steps_classified,
+        "unknown_steps": unknown_action,
+        "missing_position": no_pos,
+        "boards": list(position_labels),
+        **meta,
     }
 
 

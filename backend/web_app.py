@@ -569,6 +569,25 @@ def make_move():
         if not game_action:
             return jsonify({'error': 'Invalid action'}), 400
 
+        # Tag which hand slot is acted on (never already public/face-up — illegal).
+        # private = privately_visible; hidden = face-down unknown.
+        target_pos = None
+        if game_action.get('type') == 'take_discard' or (
+            game_action.get('type') == 'draw_deck' and game_action.get('keep', True)
+        ):
+            target_pos = game_action.get('position')
+        elif game_action.get('type') == 'draw_deck':
+            target_pos = game_action.get('flip_position')
+        if target_pos is not None:
+            try:
+                tp = int(target_pos)
+                priv = bool(
+                    getattr(player, "privately_visible", [False] * 4)[tp]
+                ) and not bool(player.known[tp])
+                game_action["target_visibility"] = "private" if priv else "hidden"
+            except (TypeError, ValueError, IndexError):
+                pass
+
         _record_human_demo_step(game_session, game, player, game_action)
 
         original_agent = game.agents[0]

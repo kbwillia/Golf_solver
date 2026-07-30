@@ -30,7 +30,7 @@ When a `(state, action)` is read for the first time and soft prior is **on**:
    - strong low cards → positive prior  
    - junk high cards → negative prior  
    - ~5 pts/card → ~0
-4. Only for **round ≤ `soft_prior_max_round`** (default **2**). Later rounds stay 0 until learned.
+4. Only for **round ≤ `soft_prior_max_round`**. Later rounds stay 0 until learned.
 5. Learning / BC **overwrite** the value; this only biases the start and
    \(\max_{a'} Q(s',a')\) bootstrap into good/bad early hands.
 
@@ -38,10 +38,23 @@ When a `(state, action)` is read for the first time and soft prior is **on**:
 so credit assignment into good opening deals starts sooner. Within one state all
 actions share the same hand prior (action ranking still needs samples / shaping / BC).
 
+### Which rounds? (`soft_prior_max_round`)
+
+`round` in the state key is the **in-hole turn counter**, not “deal only.” After round 0,
+players have already acted and pub/priv cards change.
+
+| Setting | Meaning |
+|---------|---------|
+| **`0` (recommended for “initial cards”)** | Prior only on the opening state — visible cards ≈ the deal, before further play rewrites the board. |
+| **`1`** | Opening + first reply turn (still mostly deal-shaped). |
+| **`2`** | Loose early-game window: also seeds a couple of post-deal states. That is “current board looks strong/weak,” **not** pure initial-hand prior. |
+
+Default is **`0`**. Use `1`/`2` only if you want a wider early-board bias.
+
 | Param | Default | Role |
 |-------|---------|------|
 | `use_soft_prior` | `true` | Enable / disable |
-| `soft_prior_max_round` | `2` | Apply only for early rounds |
+| `soft_prior_max_round` | `0` | Max round for prior; **0** = deal-only (default) |
 | `soft_prior_scale` | `5.0` | Clip \(|Q_0|\) |
 
 UI: CPU-only checkbox + max round / scale fields (tooltips on `/rl`).
@@ -197,7 +210,7 @@ Historical note: appending every game to a huge `trajectory_train.csv` + full st
 | `chunk_size` | 16 |
 | `learning_rate` | 0.05 |
 | `use_soft_prior` | true |
-| `soft_prior_max_round` | 2 |
+| `soft_prior_max_round` | **0** (deal-only) |
 | `soft_prior_scale` | 5.0 |
 | `traj_flush_every` | 100 |
 | `q_checkpoint_every` | 50000 |

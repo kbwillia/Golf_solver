@@ -62,8 +62,15 @@ DEFAULT_PARAMS = {
     "offline_human_bc_every": 100,
     "offline_human_bc_batch": 32,
     "use_soft_prior": True,
-    "soft_prior_max_round": 2,
+    "soft_prior_max_round": 0,
     "soft_prior_scale": 5.0,
+    "use_discard_soft_prior": True,
+    "use_discard_hard_gate": True,
+    "discard_junk_min_pts": 8,
+    "discard_soft_scale": 5.0,
+    "use_pair_force_take": True,
+    "use_ban_junk_on_private": True,
+    "junk_private_max_pts": 3,
 }
 
 # Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
@@ -94,8 +101,15 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "offline_human_bc_every": 100,
         "offline_human_bc_batch": 32,
         "use_soft_prior": True,
-        "soft_prior_max_round": 2,
+        "soft_prior_max_round": 0,
         "soft_prior_scale": 5.0,
+        "use_discard_soft_prior": True,
+        "use_discard_hard_gate": True,
+        "discard_junk_min_pts": 8,
+        "discard_soft_scale": 5.0,
+        "use_pair_force_take": True,
+        "use_ban_junk_on_private": True,
+        "junk_private_max_pts": 3,
     },
     "gpu": {
         "num_workers": 8,
@@ -154,6 +168,13 @@ _PRESET_KEYS = (
     "use_soft_prior",
     "soft_prior_max_round",
     "soft_prior_scale",
+    "use_discard_soft_prior",
+    "use_discard_hard_gate",
+    "discard_junk_min_pts",
+    "discard_soft_scale",
+    "use_pair_force_take",
+    "use_ban_junk_on_private",
+    "junk_private_max_pts",
 )
 
 _launch_lock = None
@@ -252,8 +273,15 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     merged["offline_human_bc_every"] = max(0, int(merged.get("offline_human_bc_every") or 0))
     merged["offline_human_bc_batch"] = max(1, int(merged.get("offline_human_bc_batch") or 32))
     merged["use_soft_prior"] = bool(merged.get("use_soft_prior", True))
-    merged["soft_prior_max_round"] = max(0, int(merged.get("soft_prior_max_round") or 2))
+    merged["soft_prior_max_round"] = max(0, int(merged.get("soft_prior_max_round") or 0))
     merged["soft_prior_scale"] = float(merged.get("soft_prior_scale") or 5.0)
+    merged["use_discard_soft_prior"] = bool(merged.get("use_discard_soft_prior", True))
+    merged["use_discard_hard_gate"] = bool(merged.get("use_discard_hard_gate", True))
+    merged["discard_junk_min_pts"] = max(1, int(merged.get("discard_junk_min_pts") or 8))
+    merged["discard_soft_scale"] = float(merged.get("discard_soft_scale") or 5.0)
+    merged["use_pair_force_take"] = bool(merged.get("use_pair_force_take", True))
+    merged["use_ban_junk_on_private"] = bool(merged.get("use_ban_junk_on_private", True))
+    merged["junk_private_max_pts"] = max(0, int(merged.get("junk_private_max_pts") or 3))
 
     # Persist current form values into the active device's preset
     active = merged["train_device"]
@@ -414,6 +442,9 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
     env["PYTHONPATH"] = os.pathsep.join(
         [str(BACKEND_DIR), str(RL_DIR), env.get("PYTHONPATH", "")]
     )
+    # Windows consoles default to cp1252; train logs/prints may include unicode.
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
 
     log_f = open(LOCAL_LOG_PATH, "w", encoding="utf-8")
     creationflags = 0

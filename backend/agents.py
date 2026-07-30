@@ -297,8 +297,20 @@ DEFAULT_REWARD_SHAPING = {
 # Soft Q prior on first visit: map visible-hand golf strength → Q₀ ∈ [-scale, +scale]
 DEFAULT_SOFT_PRIOR = {
     "enabled": True,
-    "max_round": 2,   # only early rounds (0..max_round inclusive)
+    "max_round": 0,   # deal-only prior (0..max_round inclusive); use 1–2 for wider early bias
     "scale": 5.0,     # |Q₀| cap — matches terminal reward magnitude band
+}
+
+# Human-demo-derived action heuristics (CPU tabular). Soft priors seed Q₀;
+# hard gates filter legal actions outside bootstrap (teacher stays unmasked).
+DEFAULT_ACTION_HEURISTICS = {
+    "discard_soft_prior": True,   # first-visit Q bias on take_discard
+    "discard_hard_gate": True,    # forbid take of junk discard (unless pair)
+    "discard_junk_min_pts": 8,    # hard: ban take if pts >= this and not pair
+    "discard_soft_scale": 5.0,    # |bias| for soft discard prior
+    "pair_force_take": True,      # hard: if discard pairs known rank → only take
+    "ban_junk_on_private": True,  # hard last-turn: no 10/Q/K onto low private
+    "junk_private_max_pts": 3,    # "low" private card threshold (pts <= this)
 }
 
 
@@ -306,7 +318,7 @@ class QLearningAgent:
     """Q-learning agent that actually learns from experience"""
     def __init__(self, learning_rate=0.1, discount_factor=0.9, epsilon=0.2,
                  n_bootstrap_games=250, reward_shaping=None, exploration_beta=0.5,
-                 soft_prior=None):
+                 soft_prior=None, action_heuristics=None):
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
@@ -328,6 +340,9 @@ class QLearningAgent:
         self.soft_prior = dict(DEFAULT_SOFT_PRIOR)
         if soft_prior:
             self.soft_prior.update(soft_prior)
+        self.action_heuristics = dict(DEFAULT_ACTION_HEURISTICS)
+        if action_heuristics:
+            self.action_heuristics.update(action_heuristics)
 
     def get_state_key(self, player, game_state):
         # Separate public cards (flipped, visible to all) from private cards (known only to this player)
@@ -438,12 +453,13 @@ class QLearningAgent:
         return action_key in self.q_table[state_key]
 
     def get_q(self, state_key, action_key) -> float:
-        """Read Q(s,a); on first visit optionally seed a hand-strength soft prior."""
+        """Read Q(s,a); on first visit optionally seed soft priors."""
         if self.has_q(state_key, action_key):
             return float(self.q_table[state_key][action_key])
         prior = 0.0
         if (self.soft_prior or {}).get("enabled", True):
             prior = self._hand_strength_prior(state_key)
+        prior += self._discard_take_soft_prior(state_key, action_key)
         self.q_table[state_key][action_key] = prior
         return float(prior)
 
@@ -456,6 +472,123 @@ class QLearningAgent:
         drawn_rank = drawn_m.group(1) if drawn_m else 'none'
         hand_ranks = set(re.findall(r"'([A2-9JQK]|10)'", state_key))
         return discard_rank, drawn_rank, hand_ranks
+
+    @staticmethod
+    def _rank_pts(rank) -> int:
+        if not rank or rank == "none":
+            return 5
+        return int(_RANK_SCORE.get(str(rank), 5))
+
+    def _discard_take_soft_prior(self, state_key: str, action_key: str) -> float:
+        """First-visit bias on take_discard from human discard-gate stats.
+
+        discard ≤2 or pair → +scale; 3–4 → +0.3·scale; ≥7 non-pair → −scale.
+        """
+        ah = self.action_heuristics or {}
+        if not ah.get("discard_soft_prior", True):
+            return 0.0
+        if not (action_key or "").startswith("take_discard"):
+            return 0.0
+        discard_rank, _, hand_ranks = self._parse_state_ranks(state_key)
+        if not discard_rank or discard_rank == "none":
+            return 0.0
+        scale = float(ah.get("discard_soft_scale", 5.0) or 5.0)
+        is_pair = discard_rank in hand_ranks
+        pts = self._rank_pts(discard_rank)
+        if is_pair or pts <= 2:
+            return float(scale)
+        if pts <= 4:
+            return float(0.3 * scale)
+        if pts >= 7 and not is_pair:
+            return float(-scale)
+        return 0.0
+
+    @staticmethod
+    def _player_known_ranks(player) -> set:
+        ranks = set()
+        priv = getattr(player, "privately_visible", None) or [False] * 4
+        for i, card in enumerate(player.grid):
+            if not card:
+                continue
+            if player.known[i] or (i < len(priv) and priv[i]):
+                ranks.add(card.rank)
+        return ranks
+
+    def _is_last_turn(self, player, game_state) -> bool:
+        """True on final round or when only one non-public slot remains."""
+        max_r = int(getattr(game_state, "max_rounds", 4) or 4)
+        round_num = int(getattr(game_state, "round", 1) or 1)
+        avail = sum(1 for k in player.known if not k)
+        return round_num >= max_r or avail <= 1
+
+    def _incoming_rank_for_action(self, action, game_state):
+        """Rank being placed by take/keep, if known at decision time."""
+        if action.get("type") == "take_discard":
+            if game_state.discard_pile:
+                return game_state.discard_pile[-1].rank
+            return None
+        if action.get("type") == "draw_deck" and action.get("keep", True):
+            drawn = getattr(game_state, "drawn_card", None)
+            return drawn.rank if drawn else None
+        return None
+
+    def _plants_junk_on_low_private(self, action, player, game_state) -> bool:
+        """True if take/keep would put 10/Q/K onto a known low private card."""
+        ah = self.action_heuristics or {}
+        max_priv = int(ah.get("junk_private_max_pts", 3))
+        if action.get("type") == "draw_deck" and not action.get("keep", True):
+            return False
+        pos = action.get("position")
+        if pos is None:
+            return False
+        try:
+            pos = int(pos)
+        except (TypeError, ValueError):
+            return False
+        priv = getattr(player, "privately_visible", None) or [False] * 4
+        if pos >= len(player.grid) or not player.grid[pos]:
+            return False
+        if player.known[pos] or not (pos < len(priv) and priv[pos]):
+            return False  # only ban replacing still-private known lows
+        if self._rank_pts(player.grid[pos].rank) > max_priv:
+            return False
+        incoming = self._incoming_rank_for_action(action, game_state)
+        if incoming is None:
+            return False  # unknown draw — can't gate keep yet
+        return incoming in _HIGH_RANKS
+
+    def filter_heuristic_actions(self, actions, player, game_state):
+        """Apply hard human-demo gates. Never returns empty if `actions` was non-empty.
+
+        Used outside bootstrap so EV/human teachers are not remasked.
+        """
+        if not actions:
+            return actions
+        ah = self.action_heuristics or {}
+        discard = game_state.discard_pile[-1] if game_state.discard_pile else None
+        discard_rank = discard.rank if discard else None
+        known = self._player_known_ranks(player)
+        is_pair = bool(discard_rank and discard_rank in known)
+        junk_min = int(ah.get("discard_junk_min_pts", 8))
+
+        filtered = list(actions)
+
+        if ah.get("discard_hard_gate", True) and discard_rank and not is_pair:
+            if self._rank_pts(discard_rank) >= junk_min:
+                filtered = [a for a in filtered if a.get("type") != "take_discard"]
+
+        if ah.get("pair_force_take", True) and is_pair:
+            takes = [a for a in filtered if a.get("type") == "take_discard"]
+            if takes:
+                filtered = takes
+
+        if ah.get("ban_junk_on_private", True) and self._is_last_turn(player, game_state):
+            filtered = [
+                a for a in filtered
+                if not self._plants_junk_on_low_private(a, player, game_state)
+            ]
+
+        return filtered if filtered else list(actions)
 
     def shaped_step_reward(self, step):
         """
@@ -548,6 +681,10 @@ class QLearningAgent:
                 action_key = self.get_action_key(action)
                 self.behavioral_clone(state_key, action_key, target=1.0)
         else:
+            # Hard human-demo gates (discard junk / pair force / last-turn private)
+            legal_actions = self.filter_heuristic_actions(
+                legal_actions, player, game_state
+            )
             # Custom epsilon-greedy: 1/3 take_discard, 1/3 draw_deck_keep, 1/3 draw_deck_discard_flip
             if self.training_mode and random.random() < self.epsilon:
                 # Group legal actions by type
@@ -588,12 +725,14 @@ class QLearningAgent:
         if trajectory is not None:
             state_key = self.get_state_key(player, game_state)
             action_key = self.get_action_key(action)
+            # Legal keys after heuristic filter (Q phase) so max-Q bootstrap matches policy
+            traj_legal = legal_actions
             trajectory.append({
                 'state_key': state_key,
                 'action_key': action_key,
                 'action': action,
                 # Legal action keys at this state — needed for true max_{a'} Q(s', a')
-                'legal_action_keys': [self.get_action_key(a) for a in legal_actions],
+                'legal_action_keys': [self.get_action_key(a) for a in traj_legal],
                 'round': getattr(game_state, 'round', None)
             })
         return action

@@ -243,6 +243,7 @@ def _play_worker_game(payload: dict[str, Any]) -> dict[str, Any]:
         reward_shaping=payload["reward_shaping"],
         exploration_beta=float(payload.get("exploration_beta", 0.5) or 0.0),
         soft_prior=payload.get("soft_prior"),
+        action_heuristics=payload.get("action_heuristics"),
     )
     # Priority 7: load shared snapshot once per worker/chunk (cached by mtime)
     snap = payload.get("q_snapshot_path")
@@ -301,8 +302,15 @@ def train_qlearning_agent_parallel(
     offline_human_bc_every: int = 100,
     offline_human_bc_batch: int = 32,
     use_soft_prior: bool = True,
-    soft_prior_max_round: int = 2,
+    soft_prior_max_round: int = 0,
     soft_prior_scale: float = 5.0,
+    use_discard_soft_prior: bool = True,
+    use_discard_hard_gate: bool = True,
+    discard_junk_min_pts: int = 8,
+    discard_soft_scale: float = 5.0,
+    use_pair_force_take: bool = True,
+    use_ban_junk_on_private: bool = True,
+    junk_private_max_pts: int = 3,
 ) -> tuple[QLearningAgent, dict[str, Any]]:
     """
     Parallel CPU tabular Q-learning.
@@ -320,6 +328,7 @@ def train_qlearning_agent_parallel(
     - coverage_every_n_reports: full coverage scan cadence
     - offline_human_bc_*: batch BC from demos (not live state match)
     - use_soft_prior: first-visit hand-strength Q₀ (early rounds)
+    - discard / pair / private heuristics: human-demo gates (see qlearn.md)
     """
     cpu_n = os.cpu_count() or 4
     if num_workers is None or num_workers <= 0:
@@ -343,6 +352,15 @@ def train_qlearning_agent_parallel(
         "enabled": bool(use_soft_prior),
         "max_round": max(0, int(soft_prior_max_round)),
         "scale": float(soft_prior_scale),
+    }
+    action_heuristics_cfg = {
+        "discard_soft_prior": bool(use_discard_soft_prior),
+        "discard_hard_gate": bool(use_discard_hard_gate),
+        "discard_junk_min_pts": max(1, int(discard_junk_min_pts)),
+        "discard_soft_scale": float(discard_soft_scale),
+        "pair_force_take": bool(use_pair_force_take),
+        "ban_junk_on_private": bool(use_ban_junk_on_private),
+        "junk_private_max_pts": max(0, int(junk_private_max_pts)),
     }
 
     bootstrap_n = n_bootstrap_games if use_imitation_learning else 0
@@ -384,11 +402,19 @@ def train_qlearning_agent_parallel(
         )
     if soft_prior_cfg["enabled"]:
         print(
-            f"Soft prior: ON (rounds ≤ {soft_prior_cfg['max_round']}, "
-            f"scale=±{soft_prior_cfg['scale']})"
+            f"Soft prior: ON (rounds <= {soft_prior_cfg['max_round']}, "
+            f"scale=+/-{soft_prior_cfg['scale']})"
         )
     else:
         print("Soft prior: OFF")
+    print(
+        "Action heuristics: "
+        f"discard_soft={action_heuristics_cfg['discard_soft_prior']} "
+        f"discard_hard(>={action_heuristics_cfg['discard_junk_min_pts']}pt)="
+        f"{action_heuristics_cfg['discard_hard_gate']} "
+        f"pair_force={action_heuristics_cfg['pair_force_take']} "
+        f"ban_junk_priv={action_heuristics_cfg['ban_junk_on_private']}"
+    )
 
     try:
         from human_bootstrap import load_human_demo_policy
@@ -417,6 +443,7 @@ def train_qlearning_agent_parallel(
         reward_shaping=reward_shaping,
         exploration_beta=exploration_beta,
         soft_prior=soft_prior_cfg,
+        action_heuristics=action_heuristics_cfg,
     )
     agent.human_demo_policy = human_demo_policy
     agent.load_q_table_csv()
@@ -717,6 +744,7 @@ def train_qlearning_agent_parallel(
                         "human_demo_policy": human_payload,
                         "exploration_beta": exploration_beta,
                         "soft_prior": soft_prior_cfg,
+                        "action_heuristics": action_heuristics_cfg,
                         "seed": int(time.time() * 1000) % 1_000_000_007 + games_done + i,
                     })
 
@@ -827,6 +855,13 @@ def train_qlearning_agent_parallel(
             "use_soft_prior": soft_prior_cfg["enabled"],
             "soft_prior_max_round": soft_prior_cfg["max_round"],
             "soft_prior_scale": soft_prior_cfg["scale"],
+            "use_discard_soft_prior": action_heuristics_cfg["discard_soft_prior"],
+            "use_discard_hard_gate": action_heuristics_cfg["discard_hard_gate"],
+            "discard_junk_min_pts": action_heuristics_cfg["discard_junk_min_pts"],
+            "discard_soft_scale": action_heuristics_cfg["discard_soft_scale"],
+            "use_pair_force_take": action_heuristics_cfg["pair_force_take"],
+            "use_ban_junk_on_private": action_heuristics_cfg["ban_junk_on_private"],
+            "junk_private_max_pts": action_heuristics_cfg["junk_private_max_pts"],
         }, f, indent=2)
 
     # Archive locally + upload summary to Supabase (this machine is the DB gateway)
@@ -916,8 +951,15 @@ if __name__ == "__main__":
             offline_human_bc_every=int(p.get("offline_human_bc_every", 100)),
             offline_human_bc_batch=int(p.get("offline_human_bc_batch", 32)),
             use_soft_prior=bool(p.get("use_soft_prior", True)),
-            soft_prior_max_round=int(p.get("soft_prior_max_round", 2)),
+            soft_prior_max_round=int(p.get("soft_prior_max_round", 0)),
             soft_prior_scale=float(p.get("soft_prior_scale", 5.0)),
+            use_discard_soft_prior=bool(p.get("use_discard_soft_prior", True)),
+            use_discard_hard_gate=bool(p.get("use_discard_hard_gate", True)),
+            discard_junk_min_pts=int(p.get("discard_junk_min_pts", 8)),
+            discard_soft_scale=float(p.get("discard_soft_scale", 5.0)),
+            use_pair_force_take=bool(p.get("use_pair_force_take", True)),
+            use_ban_junk_on_private=bool(p.get("use_ban_junk_on_private", True)),
+            junk_private_max_pts=int(p.get("junk_private_max_pts", 3)),
         )
     finally:
         _clear_local_pid_file()

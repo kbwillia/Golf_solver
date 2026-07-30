@@ -6,7 +6,7 @@
     <title>RL Training — Golf Solver</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260728g">
+    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260729m">
 </head>
 <body class="rl-page">
     <div class="rl-shell">
@@ -75,8 +75,29 @@
                     <input type="checkbox" name="use_soft_prior" checked>
                     <span class="tip" data-tip="soft_prior">Soft Q prior (hand strength)</span>
                 </label>
-                <label class="rl-cpu-only"><span class="tip" data-tip="soft_prior">Prior max round</span> <input type="number" name="soft_prior_max_round" min="0" max="20" step="1" value="2"></label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="soft_prior">Prior max round</span> <input type="number" name="soft_prior_max_round" min="0" max="20" step="1" value="0"></label>
                 <label class="rl-cpu-only"><span class="tip" data-tip="soft_prior">Prior scale ±</span> <input type="number" name="soft_prior_scale" min="0" max="20" step="0.5" value="5"></label>
+
+                <p class="rl-params-section tip" data-tip="action_heuristics">Action heuristics (human demos)</p>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_discard_soft_prior" checked>
+                    <span class="tip" data-tip="action_heuristics">Discard soft prior (take Q₀)</span>
+                </label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_discard_hard_gate" checked>
+                    <span class="tip" data-tip="action_heuristics">Discard hard gate (ban junk take)</span>
+                </label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="action_heuristics">Junk take min pts</span> <input type="number" name="discard_junk_min_pts" min="5" max="10" step="1" value="8"></label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="action_heuristics">Discard soft scale ±</span> <input type="number" name="discard_soft_scale" min="0" max="20" step="0.5" value="5"></label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_pair_force_take" checked>
+                    <span class="tip" data-tip="action_heuristics">Pair force-take</span>
+                </label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_ban_junk_on_private" checked>
+                    <span class="tip" data-tip="action_heuristics">Ban junk on low private (last turn)</span>
+                </label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="action_heuristics">Low private max pts</span> <input type="number" name="junk_private_max_pts" min="0" max="6" step="1" value="3"></label>
 
                 <p class="rl-params-section tip" data-tip="reward_shaping">Reward shaping</p>
                 <label class="rl-check">
@@ -198,15 +219,28 @@
                         <div class="rl-chart-wrap rl-chart-wrap--human" id="humanHistWrap">
                             <canvas id="chartHumanHist"></canvas>
                         </div>
-                        <p class="rl-human-chart-label tip" data-tip="human_demos">Action mix by round</p>
+                        <p class="rl-human-chart-label tip" data-tip="human_demos">Action mix by human turn</p>
                         <p class="hint rl-human-action-hint" id="humanActionHint" hidden></p>
                         <div class="rl-chart-wrap rl-chart-wrap--human" id="humanActionWrap" hidden>
                             <canvas id="chartHumanActions"></canvas>
                         </div>
-                        <p class="rl-human-chart-label tip" data-tip="human_board">Action mix by board (pub / priv)</p>
+                        <p class="rl-human-chart-label tip" data-tip="human_board">Action mix by card slot (2×2)</p>
                         <p class="hint rl-human-action-hint" id="humanBoardHint" hidden></p>
-                        <div class="rl-chart-wrap rl-chart-wrap--human rl-chart-wrap--human-tall" id="humanBoardWrap" hidden>
-                            <canvas id="chartHumanBoard"></canvas>
+                        <div class="rl-human-handgrid-wrap" id="humanBoardWrap" hidden>
+                            <div class="rl-human-handgrid" id="humanBoardHeatmap"></div>
+                            <div class="rl-human-handgrid-legend" id="humanBoardLegend">
+                                <span><i class="rl-swatch rl-swatch--take"></i> take discard</span>
+                                <span><i class="rl-swatch rl-swatch--keep"></i> draw keep</span>
+                                <span><i class="rl-swatch rl-swatch--flip"></i> draw flip</span>
+                            </div>
+                        </div>
+                        <p class="rl-human-chart-label tip" data-tip="human_flips">Which card flipped (human turn)</p>
+                        <p class="hint rl-human-action-hint" id="humanFlipHint" hidden></p>
+                        <div class="rl-human-handgrid-wrap" id="humanFlipWrap" hidden>
+                            <div class="rl-human-handgrid" id="humanFlipGrid"></div>
+                            <div class="rl-human-handgrid-legend">
+                                <span><i class="rl-swatch rl-swatch--flip"></i> darker = more flips that round</span>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -279,6 +313,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260729c"></script>
+    <script src="/static/js/rl-training.js?v=20260729m"></script>
 </body>
 </html>

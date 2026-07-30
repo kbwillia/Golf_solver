@@ -938,20 +938,24 @@
       abr.rounds.length > 0 &&
       abr.share;
     if (actionWrap) actionWrap.hidden = !hasActions;
-    if (actionHint) {
-      if (hasActions && abr.overall_avg_per_hole) {
-        const o = abr.overall_avg_per_hole;
-        actionHint.hidden = false;
-        actionHint.textContent =
-          `Avg / hole: take ${fmt(o.take_discard, 2)} · keep ${fmt(o.draw_keep, 2)} · flip ${fmt(o.draw_flip, 2)}` +
-          (abr.holes_with_actions != null ? ` (${fmt(abr.holes_with_actions)} holes)` : "");
-      } else {
-        actionHint.hidden = true;
-      }
-    }
-    if (hasActions) {
-      const labels = abr.rounds.map((r) => "R" + String(r));
+    if (!hasActions) {
+      if (actionHint) actionHint.hidden = true;
+    } else {
+      const labels = abr.rounds.map((r) => "T" + String(r));
       const share = abr.share || {};
+      if (actionHint) {
+        actionHint.hidden = false;
+        const o = abr.overall_avg_per_hole || {};
+        const seat =
+          abr.holes_human_first != null
+            ? ` · seat: ${fmt(abr.holes_human_first)} first / ${fmt(abr.holes_human_second)} second`
+            : "";
+        actionHint.textContent =
+          `By human turn (T1 = first action on the hole). ` +
+          `Avg / hole: take ${fmt(o.take_discard, 2)} · keep ${fmt(o.draw_keep, 2)} · flip ${fmt(o.draw_flip, 2)}` +
+          (abr.holes_with_actions != null ? ` (${fmt(abr.holes_with_actions)} holes)` : "") +
+          seat;
+      }
       makeChart("chartHumanActions", {
         type: "bar",
         data: {
@@ -1001,7 +1005,11 @@
           scales: {
             x: {
               stacked: true,
-              title: { display: true, text: "Round", color: COLORS.muted },
+              title: {
+                display: true,
+                text: abr.axis_label || "Human turn",
+                color: COLORS.muted,
+              },
               ticks: { color: COLORS.muted },
               grid: { color: COLORS.grid },
             },
@@ -1027,17 +1035,24 @@
     const hasBoard =
       abb &&
       abb.available &&
-      Array.isArray(abb.labels) &&
-      abb.labels.length > 0 &&
-      abb.share;
+      abb.mode === "hand_2x2" &&
+      Array.isArray(abb.rounds) &&
+      abb.rounds.length > 0 &&
+      abb.counts;
     if (boardWrap) boardWrap.hidden = !hasBoard;
     if (boardHint) {
       if (hasBoard) {
         boardHint.hidden = false;
-        const miss = abb.missing_state_key ? `; ${fmt(abb.missing_state_key)} steps lacked state_key` : "";
+        const missParts = [];
+        if (abb.missing_position) missParts.push(`${fmt(abb.missing_position)} lacked position`);
+        const miss = missParts.length ? `; ${missParts.join(", ")}` : "";
         boardHint.textContent =
-          `pubN = face-up public cards, privM = privately known. Bars = action share; lines = avg card points (J=0 … K=10). ` +
-          `${fmt(abb.steps_classified)} steps${miss}.`;
+          `Human turns T1–T4 (1st…4th action on the hole — aligns first/second seat). ` +
+          `Bars = take/keep/flip mix per slot. ${fmt(abb.steps_classified)} steps` +
+          (abb.holes_human_second != null
+            ? ` · ${fmt(abb.holes_human_first)} 1st-seat / ${fmt(abb.holes_human_second)} 2nd-seat holes`
+            : "") +
+          `${miss}.`;
       } else {
         boardHint.hidden = true;
         if (abb && abb.message) {
@@ -1047,127 +1062,141 @@
       }
     }
     if (hasBoard) {
-      const share = abb.share || {};
-      const stepsArr = abb.steps || [];
-      makeChart("chartHumanBoard", {
-        type: "bar",
-        data: {
-          labels: abb.labels,
-          datasets: [
-            {
-              label: "take discard",
-              data: share.take_discard || [],
-              backgroundColor: "rgba(90, 158, 110, 0.85)",
-              stack: "mix",
-              borderWidth: 0,
-              yAxisID: "y",
-              order: 2,
-            },
-            {
-              label: "draw keep",
-              data: share.draw_keep || [],
-              backgroundColor: "rgba(212, 162, 76, 0.85)",
-              stack: "mix",
-              borderWidth: 0,
-              yAxisID: "y",
-              order: 2,
-            },
-            {
-              label: "draw flip",
-              data: share.draw_flip || [],
-              backgroundColor: "rgba(120, 150, 190, 0.85)",
-              stack: "mix",
-              borderWidth: 0,
-              yAxisID: "y",
-              order: 2,
-            },
-            {
-              type: "line",
-              label: "avg ↑ pts",
-              data: abb.avg_pub_pts || [],
-              borderColor: "rgba(230, 120, 100, 0.95)",
-              backgroundColor: "rgba(230, 120, 100, 0.2)",
-              borderWidth: 2,
-              pointRadius: 3,
-              tension: 0.2,
-              yAxisID: "yPts",
-              order: 1,
-            },
-            {
-              type: "line",
-              label: "avg priv pts",
-              data: abb.avg_priv_pts || [],
-              borderColor: "rgba(180, 140, 220, 0.95)",
-              backgroundColor: "rgba(180, 140, 220, 0.2)",
-              borderWidth: 2,
-              pointRadius: 3,
-              tension: 0.2,
-              yAxisID: "yPts",
-              order: 1,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          plugins: {
-            legend: {
-              display: true,
-              labels: { color: COLORS.muted, boxWidth: 10, font: { size: 10 } },
-            },
-            tooltip: {
-              callbacks: {
-                afterTitle: (items) => {
-                  const i = items && items[0] && items[0].dataIndex;
-                  if (i == null || !stepsArr[i]) return "";
-                  return `${stepsArr[i]} steps`;
-                },
-                label: (ctx) => {
-                  const v = Number(ctx.raw);
-                  if (ctx.dataset.yAxisID === "yPts") {
-                    return `${ctx.dataset.label}: ${Number.isFinite(v) ? v.toFixed(1) : "—"}`;
-                  }
-                  return `${ctx.dataset.label}: ${(v * 100).toFixed(1)}%`;
-                },
-              },
-            },
-          },
-          scales: {
-            x: {
-              stacked: true,
-              title: {
-                display: true,
-                text: "Board visibility (pub face-up · priv known)",
-                color: COLORS.muted,
-              },
-              ticks: { color: COLORS.muted, maxRotation: 45, minRotation: 0, font: { size: 10 } },
-              grid: { color: COLORS.grid },
-            },
-            y: {
-              stacked: true,
-              position: "left",
-              min: 0,
-              max: 1,
-              title: { display: true, text: "Action share", color: COLORS.muted },
-              ticks: {
-                color: COLORS.muted,
-                callback: (v) => `${Math.round(Number(v) * 100)}%`,
-              },
-              grid: { color: COLORS.grid },
-            },
-            yPts: {
-              position: "right",
-              min: 0,
-              max: 10,
-              title: { display: true, text: "Avg card pts", color: COLORS.muted },
-              ticks: { color: COLORS.muted, precision: 0 },
-              grid: { drawOnChartArea: false },
-            },
-          },
-        },
-      });
+      renderHumanHandGrid(abb);
     }
+
+    const flipWrap = document.getElementById("humanFlipWrap");
+    const flipHint = document.getElementById("humanFlipHint");
+    const flipCounts = hasBoard && abb.counts && abb.counts.draw_flip;
+    if (flipWrap) flipWrap.hidden = !flipCounts;
+    if (flipHint) {
+      if (flipCounts) {
+        flipHint.hidden = false;
+        const nFlip = (abb.rounds || []).reduce((acc, _, ri) => {
+          const row = abb.counts.draw_flip[ri] || [];
+          return acc + row.reduce((a, b) => a + (b || 0), 0);
+        }, 0);
+        flipHint.textContent =
+          `Draw-and-flip by human turn. Darker = larger share of that turn’s flips. ${fmt(nFlip)} flips` +
+          (abb.holes_human_second != null
+            ? ` · ${fmt(abb.holes_human_first)} 1st / ${fmt(abb.holes_human_second)} 2nd seat`
+            : "") +
+          `.`;
+      } else {
+        flipHint.hidden = true;
+      }
+    }
+    if (flipCounts) {
+      renderHumanFlipGrid(abb);
+    }
+  }
+
+  function renderHumanHandGrid(abb) {
+    const root = document.getElementById("humanBoardHeatmap");
+    if (!root || !abb) return;
+    const types = abb.types || ["take_discard", "draw_keep", "draw_flip"];
+    const rounds = abb.rounds || [];
+    const labels = abb.position_labels || ["top-L", "top-R", "bot-L", "bot-R"];
+    const grid = abb.grid || [[0, 1], [2, 3]];
+    const counts = abb.counts || {};
+    const totals = abb.totals || [];
+    const segClass = { take_discard: "is-take", draw_keep: "is-keep", draw_flip: "is-flip" };
+    const short = { take_discard: "take", draw_keep: "keep", draw_flip: "flip" };
+    const parts = [];
+    rounds.forEach((rn, ri) => {
+      parts.push(
+        `<div class="rl-human-round-col">` +
+          `<div class="rl-human-hand-board">` +
+          `<div class="rl-human-hand-row-tag is-public">public</div>` +
+          `<div class="rl-human-hand-2x2">`
+      );
+      grid.forEach((row) => {
+        row.forEach((pos) => {
+          const role = pos >= 2 ? "private" : "public";
+          const tot = (totals[ri] && totals[ri][pos]) || 0;
+          const segs = types
+            .map((t) => {
+              const v = (counts[t] && counts[t][ri] && counts[t][ri][pos]) || 0;
+              if (!v || !tot) return "";
+              const pct = Math.round((v / tot) * 1000) / 10;
+              const title =
+                `T${rn} · ${labels[pos]} (${role}) · ${t.replace(/_/g, " ")}: ${v}/${tot} (${pct}%)`;
+              return (
+                `<div class="rl-human-stack-seg ${segClass[t] || ""}" ` +
+                `style="flex:${v} 1 0" title="${title}">` +
+                (pct >= 28 ? `<span>${short[t] || ""}</span>` : "") +
+                `</div>`
+              );
+            })
+            .join("");
+          parts.push(
+            `<div class="rl-human-card is-${role}${tot ? "" : " is-empty"}" ` +
+              `title="T${rn} · ${labels[pos]} (${role}) · ${tot} actions">` +
+              `<div class="rl-human-card-corner">${labels[pos]}</div>` +
+              (tot
+                ? `<div class="rl-human-card-stack">${segs}</div>` +
+                  `<div class="rl-human-card-n">${tot}</div>`
+                : `<div class="rl-human-stack-empty">—</div>`) +
+              `</div>`
+          );
+        });
+      });
+      parts.push(
+        `</div>` +
+          `<div class="rl-human-hand-row-tag is-private">private</div>` +
+          `</div>` +
+          `<div class="rl-human-round-label">T${rn}</div>` +
+          `</div>`
+      );
+    });
+    root.innerHTML = parts.join("");
+  }
+
+  function renderHumanFlipGrid(abb) {
+    const root = document.getElementById("humanFlipGrid");
+    if (!root || !abb) return;
+    const rounds = abb.rounds || [];
+    const labels = abb.position_labels || ["top-L", "top-R", "bot-L", "bot-R"];
+    const grid = abb.grid || [[0, 1], [2, 3]];
+    const flipMat = (abb.counts && abb.counts.draw_flip) || [];
+    const parts = [];
+    rounds.forEach((rn, ri) => {
+      const row = flipMat[ri] || [0, 0, 0, 0];
+      const roundTot = row.reduce((a, b) => a + (Number(b) || 0), 0);
+      parts.push(
+        `<div class="rl-human-round-col">` +
+          `<div class="rl-human-hand-board">` +
+          `<div class="rl-human-hand-row-tag is-public">public</div>` +
+          `<div class="rl-human-hand-2x2">`
+      );
+      grid.forEach((gRow) => {
+        gRow.forEach((pos) => {
+          const role = pos >= 2 ? "private" : "public";
+          const v = Number(row[pos]) || 0;
+          const share = roundTot > 0 ? v / roundTot : 0;
+          const pct = Math.round(share * 100);
+          const title =
+            `T${rn} · ${labels[pos]} (${role}) flipped ${v}` +
+            (roundTot ? ` / ${roundTot} (${pct}% of round)` : "");
+          const alpha = v ? 0.22 + 0.78 * share : 0.06;
+          parts.push(
+            `<div class="rl-human-card rl-human-card--flip is-${role}${v ? "" : " is-empty"}" ` +
+              `style="background:rgba(90,117,153,${alpha.toFixed(3)})" title="${title}">` +
+              `<div class="rl-human-card-corner">${labels[pos]}</div>` +
+              (v ? `<div class="rl-human-card-n">${v} · ${pct}%</div>` : `<div class="rl-human-stack-empty">—</div>`) +
+              `</div>`
+          );
+        });
+      });
+      parts.push(
+        `</div>` +
+          `<div class="rl-human-hand-row-tag is-private">private</div>` +
+          `</div>` +
+          `<div class="rl-human-round-label">T${rn}</div>` +
+          `</div>`
+      );
+    });
+    root.innerHTML = parts.join("");
   }
 
   function renderAll(data) {
@@ -1297,8 +1326,15 @@
       use_imitation_learning: true,
       use_reward_shaping: true,
       use_soft_prior: true,
-      soft_prior_max_round: 2,
+      soft_prior_max_round: 0,
       soft_prior_scale: 5.0,
+      use_discard_soft_prior: true,
+      use_discard_hard_gate: true,
+      discard_junk_min_pts: 8,
+      discard_soft_scale: 5.0,
+      use_pair_force_take: true,
+      use_ban_junk_on_private: true,
+      junk_private_max_pts: 3,
       opponent_type: "ev_ai",
       n_step: 3,
       replay_per_game: 4,
@@ -1361,8 +1397,15 @@
       use_imitation_learning: checked("use_imitation_learning", true),
       use_reward_shaping: checked("use_reward_shaping", true),
       use_soft_prior: checked("use_soft_prior", true),
-      soft_prior_max_round: num("soft_prior_max_round", 2),
+      soft_prior_max_round: num("soft_prior_max_round", 0),
       soft_prior_scale: num("soft_prior_scale", 5.0),
+      use_discard_soft_prior: checked("use_discard_soft_prior", true),
+      use_discard_hard_gate: checked("use_discard_hard_gate", true),
+      discard_junk_min_pts: num("discard_junk_min_pts", 8),
+      discard_soft_scale: num("discard_soft_scale", 5.0),
+      use_pair_force_take: checked("use_pair_force_take", true),
+      use_ban_junk_on_private: checked("use_ban_junk_on_private", true),
+      junk_private_max_pts: num("junk_private_max_pts", 3),
       shape_step: num("shape_step", 0.05),
       shape_pair: num("shape_pair", 1.5),
       shape_high_keep: num("shape_high_keep", -0.8),
