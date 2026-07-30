@@ -1,0 +1,25 @@
+---
+description: CPU RL training must run detached so Flask/terminal restarts never kill it
+alwaysApply: true
+---
+
+# Detached CPU training
+
+Local CPU / tabular Q training must **never** be tied to an interactive Cursor terminal or the Flask process lifetime.
+
+## Prefer `/rl` Start
+
+- Start CPU training from the RL page (`POST /api/rl/control/start` with Device=CPU).
+- `rl_control._start_local` already spawns `parallel_train.py` **detached** (Windows: `DETACHED_PROCESS` + new process group; Unix: `start_new_session`), logs to `backend/RL/output/local_train.log`, pid in `local_train.pid`.
+- Restarting Flask or closing the web terminal must not interrupt an active CPU run. Stop only via `/rl` Stop (or `taskkill` on that pid).
+
+## If launching from a shell
+
+- Do **not** run `parallel_train.py` in the foreground of a terminal you may restart.
+- Use a detached spawn (same flags as `_start_local`) or `block_until_ms: 0` only after confirming the process is written to `local_train.pid` and will outlive the shell.
+- Never Ctrl+C a shell that is the training process itself.
+
+## Code changes while training
+
+- Safe: edit frontend, notebooks, docs, most backend modules Flask will reload.
+- Unsafe without Stop: replacing/rewriting files the live trainer has imported in-process (`parallel_train.py`, `agents.py` Q path, etc.) mid-run — the running process keeps the old code in memory; a Stop/Start is required to pick up trainer logic changes.

@@ -213,28 +213,67 @@ def archive_current_run(
     label: str | None = None,
     source: str = "local",
     force: bool = False,
+    partial: bool | None = None,
 ) -> dict[str, Any] | None:
     """
     Snapshot current output/ artifacts into runs/<run_id>/ and update the index.
     Returns the run meta dict, or None if nothing useful to archive.
+
+    partial=True marks a stopped/incomplete job. If None, inferred when
+    games_played < planned num_games.
     """
     stats = _load_json(RL_OUTPUT / "training_stats.json")
+    perf = _load_json(RL_OUTPUT / "train_perf.json") or {}
     params = (
         _load_json(RL_OUTPUT / "last_run_params.json")
         or _load_json(RL_OUTPUT / "ui_train_params.json")
         or {}
     )
+    # Prefer live train_perf config when last_run_params is stale (Stop mid-run)
+    perf_cfg = perf.get("config") if isinstance(perf.get("config"), dict) else {}
+    if perf_cfg:
+        params = {**params, **{k: v for k, v in perf_cfg.items() if v is not None}}
     if not stats and not (RL_OUTPUT / "qtable_train.csv").exists():
         return None
 
     scores = (stats or {}).get("scores") or []
     games = int((stats or {}).get("games_played") or len(scores) or 0)
+    # train_perf may be ahead of a crashed stats write
+    perf_last = perf.get("last") if isinstance(perf.get("last"), dict) else {}
+    try:
+        perf_games = int(perf_last.get("game") or 0)
+    except (TypeError, ValueError):
+        perf_games = 0
+    if perf_games > games:
+        games = perf_games
+        if stats is not None:
+            stats = {**stats, "games_played": games}
+
     if games <= 0 and not force:
         return None
+
+    planned = int(params.get("num_games") or perf_cfg.get("num_games") or 0)
+    if partial is None:
+        partial = bool(planned and games < planned)
+
+    # Fill wall-clock from perf when stats.total_time missing (killed process)
+    if stats is not None and not stats.get("total_time"):
+        try:
+            elapsed = float(perf_last.get("elapsed_sec") or 0)
+        except (TypeError, ValueError):
+            elapsed = 0.0
+        if elapsed > 0:
+            stats = {
+                **stats,
+                "total_time": elapsed,
+                "games_per_sec": games / elapsed if games else None,
+            }
 
     now = _now_est()
     stamp = now.strftime("%Y%m%d_%I%M%S%p").lower()
     g_tag = f"{games}g" if games else "run"
+    if partial:
+        g_tag = f"{g_tag}_partial"
     run_id = f"{stamp}_{g_tag}"
     if label:
         safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in label)[:40]
@@ -243,11 +282,18 @@ def archive_current_run(
     # Deduplicate: skip if same games_played + avg score already archived recently
     index = load_index()
     summary = _summarize_stats(stats, params)
+    summary["partial"] = bool(partial)
+    summary["status"] = "stopped" if partial else "completed"
+    if planned:
+        summary["num_games_planned"] = planned
+        summary["pct_of_planned"] = round(100.0 * games / planned, 1) if planned else None
+
     for existing in index[:5]:
         if (
             existing.get("summary", {}).get("games_played") == summary.get("games_played")
             and existing.get("summary", {}).get("avg_score") == summary.get("avg_score")
             and existing.get("summary", {}).get("final_states") == summary.get("final_states")
+            and bool(existing.get("summary", {}).get("partial")) == bool(partial)
             and not force
         ):
             return existing
@@ -269,12 +315,17 @@ def archive_current_run(
             shutil.copy2(src, run_dir / name)
             copied.append(name)
 
+    display = now.strftime("%m/%d/%Y %I:%M %p EST")
+    if partial:
+        display = f"{display} (partial)"
+
     meta = {
         "id": run_id,
         "label": label or run_id,
         "created_at": _iso(now),
-        "created_at_display": now.strftime("%m/%d/%Y %I:%M %p EST"),
+        "created_at_display": display,
         "source": source,
+        "partial": bool(partial),
         "params": params,
         "summary": summary,
         "files": copied,
@@ -299,6 +350,28 @@ def archive_current_run(
         print(f"Supabase RL upload skipped: {e}")
 
     return meta
+
+
+def maybe_archive_orphaned_partial(*, source: str = "orphan") -> dict[str, Any] | None:
+    """If live stats look like an unfinished run not yet indexed, archive as partial."""
+    stats = _load_json(RL_OUTPUT / "training_stats.json")
+    if not stats:
+        return None
+    games = int(stats.get("games_played") or 0)
+    if games <= 0:
+        return None
+    perf = _load_json(RL_OUTPUT / "train_perf.json") or {}
+    planned = int((perf.get("config") or {}).get("num_games") or 0)
+    if not planned:
+        params = _load_json(RL_OUTPUT / "ui_train_params.json") or {}
+        planned = int(params.get("num_games") or 0)
+    if planned and games >= planned:
+        return None  # looks complete — leave for normal archive path
+    # Already archived this games_played recently?
+    for existing in load_index()[:8]:
+        if existing.get("summary", {}).get("games_played") == games and existing.get("partial"):
+            return existing
+    return archive_current_run(source=source, partial=True, force=False)
 
 
 def get_run(run_id: str) -> dict[str, Any] | None:

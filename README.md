@@ -192,8 +192,9 @@ Human-demo **action heuristics** (on by default for CPU warm-up):
 
 1. **Discard take gate** — soft Q₀ bias on takes; hard ban taking junk discards (≥8 pts) unless they pair  
 2. **Pair force-take** — if discard matches a known rank, only take is legal (after bootstrap)  
-3. **Ban junk on low private** — last turn: no 10/Q/K onto a known low private card  
-4. **EV gap hard** — if \|draw EV − discard EV\| > threshold (default 3.0), only the better action type is legal  
+3. **Pair force-keep (deck)** — peek deck top; if it matches an unpaired known rank (and discard isn’t already a pair), only keep onto a non-matching slot is legal  
+4. **Ban junk on low private** — last turn: no 10/Q/K onto a known low private card  
+5. **EV gap hard** — if \|draw EV − discard EV\| > threshold (default 3.0), only the better action type is legal  
 
 Hard gates apply **after** the imitation/bootstrap phase so EV/human teachers stay free. Toggle them on the `/rl` params form.
 

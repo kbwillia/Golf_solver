@@ -620,6 +620,10 @@ def _run_stats_path(run_id: str) -> str:
     return os.path.join(RL_OUTPUT_DIR, "runs", run_id, "training_stats.json")
 
 
+def _run_perf_path(run_id: str) -> str:
+    return os.path.join(RL_OUTPUT_DIR, "runs", run_id, "train_perf.jsonl")
+
+
 def _run_params(run_id: str) -> dict[str, Any]:
     meta_path = os.path.join(RL_OUTPUT_DIR, "runs", run_id, "meta.json")
     if os.path.exists(meta_path):
@@ -629,6 +633,111 @@ def _run_params(run_id: str) -> dict[str, Any]:
         except (OSError, json.JSONDecodeError):
             pass
     return {}
+
+
+def _build_throughput_from_perf(
+    path: str,
+    *,
+    games_total: int | None = None,
+    max_points: int = 400,
+) -> dict[str, Any]:
+    """GPH (and GPM) vs games from train_perf.jsonl samples."""
+    if not path or not os.path.exists(path):
+        return {"available": False}
+
+    rows: list[dict[str, Any]] = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(row, dict) or row.get("game") is None:
+                    continue
+                rows.append(row)
+    except OSError:
+        return {"available": False}
+
+    if not rows:
+        return {"available": False}
+
+    gt = int(games_total) if games_total else None
+    if gt:
+        matched = [r for r in rows if int(r.get("games_total") or 0) == gt]
+        if matched:
+            rows = matched
+
+    # Contiguous segments (new run / restart resets game counter)
+    segments: list[list[dict[str, Any]]] = []
+    cur: list[dict[str, Any]] = []
+    prev_g: int | None = None
+    for r in rows:
+        try:
+            g = int(r["game"])
+        except (TypeError, ValueError):
+            continue
+        if prev_g is not None and g < prev_g:
+            if cur:
+                segments.append(cur)
+            cur = [r]
+        else:
+            cur.append(r)
+        prev_g = g
+    if cur:
+        segments.append(cur)
+
+    if not segments:
+        return {"available": False}
+
+    # Prefer segment whose last games_total matches hint; else longest
+    best = segments[0]
+    if gt:
+        keyed = [s for s in segments if int(s[-1].get("games_total") or 0) == gt]
+        best = max(keyed or segments, key=len)
+    else:
+        best = max(segments, key=len)
+
+    games: list[int] = []
+    gph_cum: list[float] = []
+    gph_inst: list[float] = []
+    gpm_cum: list[float] = []
+    gpm_inst: list[float] = []
+    for r in best:
+        try:
+            g = int(r["game"])
+            cum = float(r.get("cum_gps") or 0.0)
+            inst = float(r.get("inst_gps") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        games.append(g)
+        gph_cum.append(cum * 3600.0)
+        gph_inst.append(inst * 3600.0)
+        gpm_cum.append(cum * 60.0)
+        gpm_inst.append(inst * 60.0)
+
+    if len(games) < 2:
+        return {"available": False}
+
+    series = _downsample(
+        {
+            "games": games,
+            "gph_cum": gph_cum,
+            "gph_inst": gph_inst,
+            "gpm_cum": gpm_cum,
+            "gpm_inst": gpm_inst,
+        },
+        max_points=max_points,
+    )
+    return {
+        "available": True,
+        "n_samples": len(games),
+        "games_total": int(best[-1].get("games_total") or 0) or None,
+        "series": series,
+    }
 
 
 def build_compare_series(run_ids: list[str], max_points: int = 400) -> list[dict[str, Any]]:
@@ -646,14 +755,33 @@ def build_compare_series(run_ids: list[str], max_points: int = 400) -> list[dict
         meta_path = os.path.join(RL_OUTPUT_DIR, "runs", rid, "meta.json")
         label = rid
         created = None
+        planned = None
         if os.path.exists(meta_path):
             try:
                 with open(meta_path, encoding="utf-8") as f:
                     meta = json.load(f)
                 label = meta.get("created_at_display") or meta.get("label") or rid
                 created = meta.get("created_at")
+                summary_meta = meta.get("summary") or {}
+                planned = (
+                    params.get("num_games")
+                    or summary_meta.get("num_games_planned")
+                    or summary_meta.get("games_total")
+                )
             except (OSError, json.JSONDecodeError):
                 pass
+        if planned is None:
+            planned = params.get("num_games")
+        try:
+            planned_i = int(planned) if planned is not None else None
+        except (TypeError, ValueError):
+            planned_i = None
+        throughput = _cached_file_build(
+            _run_perf_path(rid),
+            _build_throughput_from_perf,
+            games_total=planned_i,
+            max_points=max_points,
+        )
         out.append(
             {
                 "id": rid,
@@ -669,6 +797,7 @@ def build_compare_series(run_ids: list[str], max_points: int = 400) -> list[dict
                     "qtable_states": learning["series"].get("qtable_states"),
                     "epsilon": learning["series"].get("epsilon"),
                 },
+                "throughput": throughput,
                 "bootstrap_games": learning.get("bootstrap_games"),
             }
         )
@@ -684,16 +813,16 @@ GLOSSARY = {
     "bootstrap": "Imitation phase: prefer recorded human (state→action) demos when the live state matches exactly or closely; otherwise copy EV. Seeds Q / replay before the agent plays on its own.",
     "human_demos": "Opt-in human play recorded from the game UI. Used during bootstrap when the state matches (exact / close); EV fills gaps. Charts use human turn order (not raw game.round) so second-seat holes aren’t shifted into a fake R5.",
     "human_board": "Columns are the human’s Nth action on the hole (T1–T4), so first-seat and second-seat holes line up. Each cell is take/keep/flip mix for that card slot. When the opponent goes first, the game counter shows R2–R5 for those same four human turns.",
-    "human_flips": "Draw-and-flip location by human turn (T1–T4). Darker = larger share of that turn’s flips. Aligns holes whether the human dealt first or second.",
+    "human_flips": "Draw-and-flip location by human turn (T1–T4). Darker = larger share of that turn’s flips. Use the score slider to keep only holes with final score ≤ N — cell % recomputes from that subset. Aligns holes whether the human dealt first or second.",
     "reward_shaping": "Dense per-step bonuses/penalties (pair, high keep, etc.) to speed early learning. For a true solve, turn shaping OFF so the agent optimizes only real golf outcomes — shaped rewards can bias the final policy.",
     "soft_prior": "On first visit to a (state, action) in early rounds, seed Q₀ from visible-hand strength instead of 0: low cards (A/2/J) → positive, high (10/Q/K) → negative, clipped to ±scale (default 5). Learning overwrites it; biases early TD targets and max-Q bootstrap. Applies only for round ≤ Prior max round.",
-    "action_heuristics": "Human-demo / EV gates for CPU Q. Soft discard prior biases take_discard Q₀ (good/pair +, junk −). Hard discard gate bans taking discard ≥ junk pts unless it pairs. Pair force-take: if discard matches a known rank, only take is legal. Ban junk on private: on last round / last slot, forbid placing 10/Q/K onto a known low private card. EV gap hard: if |draw_EV − discard_EV| > threshold, only the better action type stays legal. Hard gates apply after bootstrap only so EV/human teachers stay free.",
+    "action_heuristics": "Human-demo / EV gates for CPU Q. Soft discard prior biases take_discard Q₀ (good/pair +, junk −). Hard discard gate bans taking discard ≥ junk pts unless it pairs. Pair force-take: if discard matches a known rank, only take is legal. Pair force-keep (deck): peek deck top; if it matches an unpaired known rank (and discard is not already a pair), only keep onto a non-matching slot stays legal — no discard+flip. Ban junk on private: on last round / last slot, forbid placing 10/Q/K onto a known low private card. EV gap hard: if |draw_EV − discard_EV| > threshold, only the better action type stays legal. Hard gates apply after bootstrap only so EV/human teachers stay free.",
     "q_states": "Number of distinct game situations (state keys) stored in the Q-table.",
     "sa_pairs": "State-action pairs: how many (situation, move) combinations have a Q-value.",
-    "q_value": "Estimated quality of taking an action in a state. Higher Q means the agent currently prefers that action.",
+    "q_value": "Estimated quality of taking an action in a state. Higher Q means the agent currently prefers that action. The histogram is cumulative over the live qtable_train.csv (all training that wrote into that file), not a single run’s delta.",
     "avg_score": "Mean golf score (lower is better). EV agent baseline is typically around ~12.",
     "win_rate": "Fraction of games counted as wins: strictly lower score than the opponent, or a 0–0 tie (treated as a win).",
-    "games_per_hour": "Throughput: games completed per hour for that run (from games ÷ wall time). Hover Time or GPH for games/sec.",
+    "games_per_hour": "Throughput: games completed per hour. Run-history GPH is games ÷ wall time. The GPH chart uses train_perf samples: solid = cumulative so far, dashed = interval between samples.",
     "duration": "Wall-clock training time for the run. Hover a cell for games/sec when available.",
     "improvement": "Early-window average score minus late-window average. Positive means the agent’s scores got lower (better) over training.",
     "rolling_win_rate": "Win rate over a sliding window of recent games — smoother than overall win rate for spotting learning trends.",
@@ -714,6 +843,150 @@ GLOSSARY = {
     "cpu_total_games": "Sum of games_played across archived CPU tabular runs (plus the current stats file if not yet archived).",
     "cpu_sa_pairs": "Total state-action pairs currently stored in qtable_train.csv (the live CPU Q-table).",
 }
+
+
+def _build_cumulative_q_growth(
+    runs: list[dict],
+    live_stats: dict | None = None,
+    *,
+    max_points: int = 800,
+) -> dict[str, Any]:
+    """Stitch CPU run Q-table size curves onto a lifetime games axis.
+
+    X = cumulative games across archived CPU runs (+ live if not already archived).
+    Y = absolute Q-table states / SA pairs (table continues across runs).
+    """
+    cpu_runs: list[dict] = []
+    for r in sorted(runs or [], key=lambda x: x.get("created_at") or ""):
+        params = r.get("params") or {}
+        summary = r.get("summary") or {}
+        device = str(params.get("train_device") or summary.get("train_device") or "").lower()
+        mode = str(params.get("train_mode") or summary.get("train_mode") or "").lower()
+        is_cpu = device == "cpu" or mode in ("tabular", "tabular_parallel", "")
+        is_gpu = device == "gpu" or mode in ("dqn", "dqn_parallel")
+        if is_gpu and not is_cpu:
+            continue
+        if not (is_cpu or (not is_gpu and r.get("has_stats"))):
+            continue
+        if not r.get("has_stats") and not r.get("id"):
+            continue
+        cpu_runs.append(r)
+
+    games_out: list[int] = []
+    states_out: list[int] = []
+    entries_out: list[int] = []
+    offset = 0
+    archived_game_totals: list[int] = []
+
+    def _append_series(games: list, states: list, entries: list, games_played: int) -> None:
+        nonlocal offset
+        n = len(games) if games else 0
+        if n == 0 and games_played > 0:
+            # Summary-only: single end point
+            st = int(states[-1]) if states else 0
+            en = int(entries[-1]) if entries else 0
+            games_out.append(offset + int(games_played))
+            states_out.append(st)
+            entries_out.append(en)
+            offset += int(games_played)
+            return
+        for i in range(n):
+            try:
+                g = int(games[i])
+            except (TypeError, ValueError):
+                continue
+            st = int(states[i]) if i < len(states) and states[i] is not None else (
+                states_out[-1] if states_out else 0
+            )
+            en = int(entries[i]) if i < len(entries) and entries[i] is not None else (
+                entries_out[-1] if entries_out else 0
+            )
+            games_out.append(offset + g)
+            states_out.append(st)
+            entries_out.append(en)
+        played = int(games_played) if games_played else (int(games[-1]) if games else 0)
+        offset += max(0, played)
+
+    for r in cpu_runs:
+        rid = r.get("id")
+        if not rid:
+            continue
+        learning = _cached_file_build(
+            _run_stats_path(rid),
+            _build_from_stats,
+            max_points=300,
+            bootstrap_games=(r.get("params") or {}).get("n_bootstrap_games"),
+        )
+        summary = r.get("summary") or {}
+        played = int(summary.get("games_played") or 0)
+        if learning.get("available"):
+            ser = learning.get("series") or {}
+            _append_series(
+                ser.get("games") or [],
+                ser.get("qtable_states") or [],
+                ser.get("qtable_entries") or [],
+                played or (learning.get("summary") or {}).get("games_played") or 0,
+            )
+            archived_game_totals.append(played or int((ser.get("games") or [0])[-1] or 0))
+        elif played > 0:
+            _append_series(
+                [],
+                [int(summary.get("final_states") or 0)],
+                [int(summary.get("final_entries") or 0)],
+                played,
+            )
+            archived_game_totals.append(played)
+
+    # Append live stats if ahead of / not matching latest archive endpoint
+    if isinstance(live_stats, dict) and live_stats.get("available"):
+        ser = live_stats.get("series") or {}
+        live_summary = live_stats.get("summary") or {}
+        live_played = int(live_summary.get("games_played") or 0)
+        live_games = ser.get("games") or []
+        live_states = ser.get("qtable_states") or []
+        if live_games and live_states:
+            last_arch = archived_game_totals[-1] if archived_game_totals else None
+            # Skip if this live file is exactly the last archived run (same game count)
+            if last_arch is None or live_played != last_arch:
+                # Live games are per-run (restart at ~0); offset = sum of archives
+                live_offset_base = sum(archived_game_totals)
+                # Temporarily set offset for live append without double-counting prior
+                saved = offset
+                offset = live_offset_base
+                _append_series(
+                    live_games,
+                    live_states,
+                    ser.get("qtable_entries") or [],
+                    live_played or int(live_games[-1]),
+                )
+                # Keep offset as total lifetime games
+                offset = max(saved, live_offset_base + (live_played or int(live_games[-1])))
+
+    if len(games_out) < 2:
+        return {"available": False}
+
+    # Ensure origin so both axes can start at 0 meaningfully
+    if games_out[0] > 0 or states_out[0] > 0:
+        games_out.insert(0, 0)
+        states_out.insert(0, 0)
+        entries_out.insert(0, 0)
+
+    series = _downsample(
+        {
+            "games": games_out,
+            "qtable_states": states_out,
+            "qtable_entries": entries_out,
+        },
+        max_points=max_points,
+    )
+    return {
+        "available": True,
+        "cpu_runs": len(cpu_runs),
+        "total_games": games_out[-1] if games_out else 0,
+        "final_states": states_out[-1] if states_out else 0,
+        "final_entries": entries_out[-1] if entries_out else 0,
+        "series": series,
+    }
 
 
 def _cpu_cumulative(runs: list[dict], stats: dict, qhist: dict) -> dict[str, Any]:
@@ -907,10 +1180,34 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
     summary["cpu_total_games"] = cpu_cumulative.get("total_games")
     summary["cpu_runs"] = cpu_cumulative.get("cpu_runs")
 
+    q_growth = _build_cumulative_q_growth(
+        runs, stats if isinstance(stats, dict) else None, max_points=800
+    )
+
+    # Live / current-run throughput curve (GPH vs games)
+    live_games_total = None
+    if isinstance(stats, dict):
+        live_games_total = (stats.get("summary") or {}).get("games_total")
+    if live_games_total is None:
+        live_games_total = params.get("num_games") or (live.get("summary") or {}).get("games_total")
+    try:
+        live_gt = int(live_games_total) if live_games_total is not None else None
+    except (TypeError, ValueError):
+        live_gt = None
+    throughput_live = _cached_file_build(
+        _path("train_perf.jsonl"),
+        _build_throughput_from_perf,
+        games_total=live_gt,
+        max_points=400,
+    )
+    if isinstance(stats, dict) and stats.get("available"):
+        stats = {**stats, "throughput": throughput_live}
+
     files = {
         "training_stats": os.path.exists(_path("training_stats.json")),
         "trajectory": os.path.exists(_path("trajectory_train.csv")),
         "qtable": os.path.exists(_path("qtable_train.csv")),
+        "train_perf": os.path.exists(_path("train_perf.jsonl")),
         "live_progress": os.path.exists(live_path),
     }
 
@@ -923,8 +1220,9 @@ def build_training_viz_payload(compare_run_ids: list[str] | None = None) -> dict
         "actions": actions,
         "qvalues": {"available": False} if is_dqn or qhist.get("fast_path") else qhist,
         "cpu_cumulative": cpu_cumulative,
+        "q_growth_cumulative": q_growth,
         "human_demos": human_demos,
-        "api_build": "2026-07-28-cpu-human",
+        "api_build": "2026-07-30-qgrowth",
         "baselines": {
             "ev_avg_score": 12.0,
             "label": "EV agent baseline (~12 avg score)",

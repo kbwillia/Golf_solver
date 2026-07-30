@@ -83,6 +83,14 @@ Stops ε-explore from taking Kings ⅓ of the time.
 If the discard rank matches any known public/private card, **only** `take_discard`
 actions remain legal (when at least one exists).
 
+### 2b. Pair force-keep on deck draw (`use_pair_force_keep_draw`)
+
+Peeks the deck top (training decides before the card is popped). If that rank
+matches **exactly one** known card (an unpaired match — not already a pair on
+the board) **and** the discard is not already a pair opportunity, **only**
+`draw_deck` keep actions that place onto a *different* slot stay legal (never
+replace the matching card; never discard+flip).
+
 ### 3. Ban junk on low private (`use_ban_junk_on_private`)
 
 On **last turn** (`round >= max_rounds` or only one non-public slot left): forbid
@@ -109,6 +117,7 @@ can’t be undone by ε’s ⅓/⅓/⅓ type sampling.
 | `discard_junk_min_pts` | `8` | Hard gate threshold |
 | `discard_soft_scale` | `5.0` | Soft discard \|bias\| |
 | `use_pair_force_take` | `true` | Pair → only take legal |
+| `use_pair_force_keep_draw` | `true` | Deck peek pair → only keep legal |
 | `use_ban_junk_on_private` | `true` | Last-turn private protect |
 | `junk_private_max_pts` | `3` | “Low” private threshold |
 | `use_ev_gap_hard` | `true` | Force better type when EV gap big |
@@ -273,6 +282,7 @@ Historical note: appending every game to a huge `trajectory_train.csv` + full st
 | `use_discard_hard_gate` | true |
 | `discard_junk_min_pts` | 8 |
 | `use_pair_force_take` | true |
+| `use_pair_force_keep_draw` | true |
 | `use_ban_junk_on_private` | true |
 | `junk_private_max_pts` | 3 |
 | `use_ev_gap_hard` | true |

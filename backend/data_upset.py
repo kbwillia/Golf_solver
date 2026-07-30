@@ -608,6 +608,9 @@ def _human_action_by_board(rows: list) -> dict:
 
     X-axis = human's Nth action on the hole (T1..T4), not raw game.round.
     When the opponent deals first, game.round labels that as R2–R5; we still use T1–T4.
+
+    Also returns ``draw_flip_by_score``: exact hole-score → flip count matrix
+    (same shape as ``counts.draw_flip``) so the UI can filter with a ≤ score slider.
     """
     types = ("take_discard", "draw_keep", "draw_flip")
     positions = (0, 1, 2, 3)
@@ -619,10 +622,24 @@ def _human_action_by_board(rows: list) -> dict:
         "bot-R (starts private)",
     )
 
+    hole_score: dict[tuple, int] = {}
+    for r in rows:
+        if r.get("human_score") is None:
+            continue
+        hkey = (r.get("game_id") or "", r.get("hole_num"))
+        try:
+            hole_score[hkey] = int(r["human_score"])
+        except (TypeError, ValueError):
+            continue
+
     annotated, meta = _human_demo_steps_by_turn(rows)
     cells: dict[tuple[int, int], dict[str, int]] = {}
+    # score -> (turn, pos) -> flip count
+    flip_score_cells: dict[int, dict[tuple[int, int], int]] = {}
     unknown_action = 0
     no_pos = 0
+    flips_with_score = 0
+    flips_missing_score = 0
 
     for r in annotated:
         at = _classify_human_action(r.get("action"), r.get("action_key"))
@@ -640,6 +657,21 @@ def _human_action_by_board(rows: list) -> dict:
             cell = {t: 0 for t in types}
             cells[key] = cell
         cell[at] += 1
+
+        if at == "draw_flip":
+            hkey = (r.get("game_id") or "", r.get("hole_num"))
+            sc = hole_score.get(hkey)
+            if sc is None and r.get("human_score") is not None:
+                try:
+                    sc = int(r["human_score"])
+                except (TypeError, ValueError):
+                    sc = None
+            if sc is None:
+                flips_missing_score += 1
+            else:
+                flips_with_score += 1
+                bucket = flip_score_cells.setdefault(sc, {})
+                bucket[key] = int(bucket.get(key, 0)) + 1
 
     if not cells:
         return {
@@ -671,6 +703,14 @@ def _human_action_by_board(rows: list) -> dict:
 
     steps_classified = sum(sum(row) for row in totals)
 
+    draw_flip_by_score: dict[str, list[list[int]]] = {}
+    for sc, bucket in sorted(flip_score_cells.items()):
+        mat = []
+        for tn in turns:
+            mat.append([int(bucket.get((tn, pos), 0)) for pos in positions])
+        draw_flip_by_score[str(sc)] = mat
+
+    score_vals = sorted(flip_score_cells.keys())
     return {
         "available": True,
         "mode": "hand_2x2",
@@ -686,6 +726,11 @@ def _human_action_by_board(rows: list) -> dict:
         "unknown_steps": unknown_action,
         "missing_position": no_pos,
         "boards": list(position_labels),
+        "draw_flip_by_score": draw_flip_by_score,
+        "flip_score_min": score_vals[0] if score_vals else None,
+        "flip_score_max": score_vals[-1] if score_vals else None,
+        "flips_with_score": flips_with_score,
+        "flips_missing_score": flips_missing_score,
         **meta,
     }
 

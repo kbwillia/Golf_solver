@@ -69,6 +69,7 @@ DEFAULT_PARAMS = {
     "discard_junk_min_pts": 8,
     "discard_soft_scale": 5.0,
     "use_pair_force_take": True,
+    "use_pair_force_keep_draw": True,
     "use_ban_junk_on_private": True,
     "junk_private_max_pts": 3,
     "use_ev_gap_hard": True,
@@ -110,6 +111,7 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "discard_junk_min_pts": 8,
         "discard_soft_scale": 5.0,
         "use_pair_force_take": True,
+        "use_pair_force_keep_draw": True,
         "use_ban_junk_on_private": True,
         "junk_private_max_pts": 3,
         "use_ev_gap_hard": True,
@@ -177,6 +179,7 @@ _PRESET_KEYS = (
     "discard_junk_min_pts",
     "discard_soft_scale",
     "use_pair_force_take",
+    "use_pair_force_keep_draw",
     "use_ban_junk_on_private",
     "junk_private_max_pts",
     "use_ev_gap_hard",
@@ -286,6 +289,7 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     merged["discard_junk_min_pts"] = max(1, int(merged.get("discard_junk_min_pts") or 8))
     merged["discard_soft_scale"] = float(merged.get("discard_soft_scale") or 5.0)
     merged["use_pair_force_take"] = bool(merged.get("use_pair_force_take", True))
+    merged["use_pair_force_keep_draw"] = bool(merged.get("use_pair_force_keep_draw", True))
     merged["use_ban_junk_on_private"] = bool(merged.get("use_ban_junk_on_private", True))
     merged["junk_private_max_pts"] = max(0, int(merged.get("junk_private_max_pts") or 3))
     merged["use_ev_gap_hard"] = bool(merged.get("use_ev_gap_hard", True))
@@ -413,7 +417,18 @@ def _stop_local() -> dict[str, Any]:
             progress.write_text(json.dumps(data), encoding="utf-8")
     except Exception:
         pass
-    return {"ok": True, "stopped": True, "message": f"Stopped local training (pid {pid})"}
+    # Snapshot partial run into history (killed mid-job otherwise never archives)
+    archived = None
+    try:
+        from rl_runs import archive_current_run
+
+        archived = archive_current_run(source="local_cpu_stopped", partial=True, force=False)
+    except Exception as e:
+        archived = {"error": str(e)}
+    msg = f"Stopped local training (pid {pid})"
+    if isinstance(archived, dict) and archived.get("id"):
+        msg += f" · archived partial {archived.get('id')}"
+    return {"ok": True, "stopped": True, "message": msg, "archived": archived}
 
 
 def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
@@ -423,6 +438,14 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
             "error": "Local training already running. Stop it first.",
             "running": True,
         }
+
+    # If a previous job died without Stop, archive leftover stats as partial first
+    try:
+        from rl_runs import maybe_archive_orphaned_partial
+
+        maybe_archive_orphaned_partial(source="local_cpu_orphan")
+    except Exception as e:
+        print(f"Orphan partial archive skipped: {e}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     device = merged.get("train_device", "cpu")
@@ -455,21 +478,32 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
     env.setdefault("PYTHONUTF8", "1")
 
     log_f = open(LOCAL_LOG_PATH, "w", encoding="utf-8")
-    creationflags = 0
+    # Detach from Flask/console so restarting the web terminal does not kill training.
+    # Leave log_f open: the child inherits the handle (closing it can truncate Windows stdout).
+    popen_kw: dict[str, Any] = {
+        "args": [sys.executable, "-u", str(script)],
+        "cwd": str(RL_DIR),
+        "env": env,
+        "stdin": subprocess.DEVNULL,
+        "stdout": log_f,
+        "stderr": subprocess.STDOUT,
+    }
     if sys.platform == "win32":
-        # Keep training in the background — do not spawn a visible console window
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(
-            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
-        )
-
-    proc = subprocess.Popen(
-        [sys.executable, "-u", str(script)],
-        cwd=str(RL_DIR),
-        env=env,
-        stdout=log_f,
-        stderr=subprocess.STDOUT,
-        creationflags=creationflags,
-    )
+        detached = int(getattr(subprocess, "DETACHED_PROCESS", 0x00000008))
+        new_group = int(getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200))
+        breakaway = 0x01000000  # CREATE_BREAKAWAY_FROM_JOB
+        try:
+            proc = subprocess.Popen(
+                **popen_kw,
+                creationflags=detached | new_group | breakaway,
+            )
+        except OSError:
+            proc = subprocess.Popen(
+                **popen_kw,
+                creationflags=detached | new_group,
+            )
+    else:
+        proc = subprocess.Popen(**popen_kw, start_new_session=True)
     LOCAL_PID_PATH.write_text(str(proc.pid), encoding="utf-8")
     return {
         "ok": True,
@@ -478,7 +512,10 @@ def _start_local(merged: dict[str, Any]) -> dict[str, Any]:
         "local": True,
         "pid": proc.pid,
         "params": merged,
-        "message": f"Started {mode_msg} (pid {proc.pid}).",
+        "message": (
+            f"Started {mode_msg} (pid {proc.pid}, detached — survives Flask/terminal restart). "
+            f"Log: {LOCAL_LOG_PATH.name}"
+        ),
     }
 
 

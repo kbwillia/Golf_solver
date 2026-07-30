@@ -483,6 +483,77 @@ html.rl-page {
   background: rgba(245, 245, 240, 0.06);
 }
 
+.rl-human-score-filter {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr minmax(5rem, auto);
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+  margin: 0 0 0.55rem;
+  padding: 0.35rem 0.15rem 0.45rem;
+  border-bottom: 1px solid rgba(245, 245, 240, 0.08);
+}
+
+.rl-human-score-filter-label {
+  font-family: Arial, sans-serif;
+  font-size: 0.72rem;
+  color: rgba(245, 245, 240, 0.78);
+  white-space: nowrap;
+}
+
+.rl-human-score-filter-label strong {
+  color: #d4a24c;
+  font-weight: 600;
+}
+
+.rl-human-score-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(245, 245, 240, 0.18);
+  outline: none;
+  cursor: pointer;
+}
+
+.rl-human-score-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #7896be;
+  border: 2px solid rgba(20, 24, 28, 0.9);
+  cursor: pointer;
+}
+
+.rl-human-score-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #7896be;
+  border: 2px solid rgba(20, 24, 28, 0.9);
+  cursor: pointer;
+}
+
+.rl-human-score-filter-meta {
+  font-family: Arial, sans-serif;
+  font-size: 0.68rem;
+  color: rgba(245, 245, 240, 0.55);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .rl-human-score-filter {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  .rl-human-score-filter-meta {
+    text-align: left;
+  }
+}
+
 .rl-human-handgrid-legend {
   display: flex;
   flex-wrap: wrap;
@@ -738,6 +809,21 @@ html.rl-page {
   position: sticky;
   top: 0;
   background: rgba(26, 46, 26, 0.95);
+}
+.rl-run-partial td {
+  color: rgba(245, 245, 240, 0.72);
+}
+.rl-partial-tag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #1a2e1a;
+  background: rgba(212, 168, 75, 0.85);
+  border-radius: 2px;
+  vertical-align: middle;
 }
 
 .tip {

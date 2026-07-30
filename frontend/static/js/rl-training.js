@@ -21,6 +21,8 @@
   let selectedCompare = [];
   let lastPayload = null;
   let refreshAbort = null;
+  let lastFlipBoard = null;
+  let flipScoreMax = null;
 
   function fmt(n, digits = 0) {
     if (n == null || Number.isNaN(n)) return "—";
@@ -211,8 +213,11 @@
         entriesLabel.textContent = "SA pairs";
         entriesLabel.setAttribute("data-tip", "sa_pairs");
       }
-      if (growthTitle) growthTitle.textContent = "Q-table growth";
-      if (growthHint) growthHint.textContent = "";
+      if (growthTitle) growthTitle.textContent = "Q-table growth (cumulative)";
+      if (growthHint) {
+        growthHint.textContent =
+          "Lifetime CPU training: total games (all runs) vs total Q states / SA pairs. Both axes start at 0.";
+      }
     }
     // Empty-state hints when previewing GPU before a DQN run exists
     const lossHint = document.querySelector("#panelLoss .hint");
@@ -353,7 +358,7 @@
     if (!body) return;
     selectedCompare = (compareIds || []).slice(0, 4);
     if (!runs || !runs.length) {
-      body.innerHTML = `<tr><td colspan="11">No archived runs yet. Finish a job — CPU/GPU archive automatically.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="11">No archived runs yet. Finish or Stop a job — both archive into history.</td></tr>`;
       return;
     }
     body.innerHTML = runs
@@ -363,11 +368,16 @@
         const checked = selectedCompare.includes(r.id) ? "checked" : "";
         const disabled = !r.has_stats ? "disabled" : "";
         const device = (p.train_device || s.train_device || p.train_mode || "—").toString().toUpperCase();
-        return `<tr>
+        const partial = !!(r.partial || s.partial);
+        const when = r.created_at_display || r.label || r.id;
+        const gamesCell = partial
+          ? `${fmt(s.games_played)}${s.num_games_planned ? " / " + fmt(s.num_games_planned) : ""} <span class="rl-partial-tag" title="Stopped before planned games finished">partial</span>`
+          : fmt(s.games_played);
+        return `<tr class="${partial ? "rl-run-partial" : ""}">
           <td><input type="checkbox" class="run-check" data-id="${r.id}" ${checked} ${disabled}></td>
-          <td>${r.label || r.id}</td>
+          <td>${when}</td>
           <td>${device}</td>
-          <td>${fmt(s.games_played)}</td>
+          <td>${gamesCell}</td>
           <td title="${s.games_per_sec != null ? Number(s.games_per_sec).toFixed(1) + " games/s" : ""}">${fmtDuration(s.duration_sec)}</td>
           <td>${fmt(s.avg_score, 2)}</td>
           <td title="${s.games_per_sec != null ? Number(s.games_per_sec).toFixed(1) + " games/s" : ""}">${fmtGph(s)}</td>
@@ -441,6 +451,227 @@
         },
       },
       plugins: [evBaselinePlugin(baselines && baselines.ev_avg_score), bootstrapPlugin(compare[0] && compare[0].bootstrap_games)],
+    });
+  }
+
+  function _throughputPoints(tp, key) {
+    const s = tp && tp.series;
+    if (!s || !Array.isArray(s.games) || !s.games.length) return [];
+    const ys = s[key] || [];
+    return s.games.map((g, i) => ({
+      x: g,
+      y: ys[i] != null ? ys[i] : null,
+    }));
+  }
+
+  function renderThroughput(compare, learning) {
+    const hint = document.getElementById("throughputHint");
+    const datasets = [];
+    const runs = Array.isArray(compare) ? compare : [];
+    runs.forEach((run, i) => {
+      const tp = run.throughput;
+      if (!tp || !tp.available) return;
+      const color = COLORS.compare[i % COLORS.compare.length];
+      const label = run.label || run.id;
+      datasets.push({
+        label: `${label} · cum`,
+        data: _throughputPoints(tp, "gph_cum"),
+        borderColor: color,
+        backgroundColor: "transparent",
+        pointRadius: 0,
+        borderWidth: 2,
+        spanGaps: true,
+      });
+      datasets.push({
+        label: `${label} · interval`,
+        data: _throughputPoints(tp, "gph_inst"),
+        borderColor: color,
+        backgroundColor: "transparent",
+        pointRadius: 0,
+        borderWidth: 1.5,
+        borderDash: [5, 4],
+        spanGaps: true,
+      });
+    });
+
+    // Live / current run when not already covered by a selected archive
+    const liveTp = learning && learning.throughput;
+    if (liveTp && liveTp.available) {
+      const liveGames = (liveTp.series && liveTp.series.games) || [];
+      const lastLive = liveGames.length ? liveGames[liveGames.length - 1] : null;
+      const already =
+        lastLive != null &&
+        runs.some((r) => {
+          const g = (r.throughput && r.throughput.series && r.throughput.series.games) || [];
+          return g.length && g[g.length - 1] === lastLive;
+        });
+      if (!already) {
+        datasets.push({
+          label: "Live · cum",
+          data: _throughputPoints(liveTp, "gph_cum"),
+          borderColor: COLORS.cream,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 2,
+          spanGaps: true,
+        });
+        datasets.push({
+          label: "Live · interval",
+          data: _throughputPoints(liveTp, "gph_inst"),
+          borderColor: COLORS.cream,
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          spanGaps: true,
+        });
+      }
+    }
+
+    if (!datasets.length) {
+      if (hint) {
+        hint.textContent =
+          "No train_perf.jsonl yet for selected/live runs — GPH curves appear after a CPU run writes throughput samples.";
+      }
+      return;
+    }
+    if (hint) {
+      const nRuns = Math.max(1, Math.floor(datasets.length / 2));
+      hint.textContent = `GPH vs games for ${nRuns} run(s). Solid = cumulative; dashed = interval between samples.`;
+    }
+
+    makeChart("chartThroughput", {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: false,
+        interaction: { mode: "nearest", intersect: false, axis: "x" },
+        plugins: {
+          legend: {
+            labels: { color: COLORS.cream, boxWidth: 12, font: { family: "Arial", size: 11 } },
+          },
+          tooltip: {
+            bodyFont: { family: "Arial" },
+            titleFont: { family: "Arial" },
+            callbacks: {
+              label: (ctx) => {
+                const y = ctx.parsed.y;
+                if (y == null) return ctx.dataset.label;
+                const gpm = y / 60;
+                return `${ctx.dataset.label}: ${Math.round(y).toLocaleString()} GPH (${gpm.toFixed(1)} GPM)`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            title: { display: true, text: "Games", color: COLORS.muted },
+            ticks: { color: COLORS.muted, maxTicksLimit: 8 },
+            grid: { color: COLORS.grid },
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Games / hour", color: COLORS.muted },
+            ticks: { color: COLORS.muted },
+            grid: { color: COLORS.grid },
+          },
+        },
+      },
+    });
+  }
+
+  function renderQGrowth(learning, qGrowth, isDqnHint) {
+    const isDqn = !!isDqnHint;
+    const growth = qGrowth && qGrowth.available ? qGrowth : null;
+    const s = growth
+      ? growth.series || {}
+      : (learning && learning.series) || {};
+    const games = s.games || [];
+    const states = s.qtable_states || [];
+    if (!Array.isArray(states) || !states.length || !games.length) return;
+
+    const growthDatasets = [
+      {
+        label: isDqn && !growth ? "Network params" : "States",
+        data: games.map((g, i) => ({ x: g, y: states[i] })),
+        borderColor: COLORS.greenLight,
+        pointRadius: 0,
+        borderWidth: 2,
+        yAxisID: "y",
+      },
+    ];
+    const entries = s.qtable_entries || [];
+    if (!isDqn && Array.isArray(entries) && entries.length) {
+      growthDatasets.push({
+        label: "SA pairs",
+        data: games.map((g, i) => ({ x: g, y: entries[i] })),
+        borderColor: COLORS.amber,
+        pointRadius: 0,
+        borderWidth: 2,
+        yAxisID: "y1",
+      });
+    }
+
+    const hint = document.getElementById("growthHint");
+    if (hint && growth) {
+      hint.textContent =
+        `Lifetime across ${growth.cpu_runs || "?"} CPU run(s): total games vs total states. Both axes start at 0.`;
+    }
+
+    makeChart("chartGrowth", {
+      type: "line",
+      data: { datasets: growthDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: false,
+        interaction: { mode: "nearest", intersect: false, axis: "x" },
+        plugins: {
+          legend: {
+            labels: { color: COLORS.cream, boxWidth: 12, font: { family: "Arial", size: 11 } },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min: 0,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: growth ? "Total games (all CPU runs)" : "Games",
+              color: COLORS.muted,
+            },
+            ticks: { color: COLORS.muted, maxTicksLimit: 8 },
+            grid: { color: COLORS.grid },
+          },
+          y: {
+            position: "left",
+            min: 0,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: isDqn && !growth ? "Params" : "Total states",
+              color: COLORS.muted,
+            },
+            ticks: { color: COLORS.muted },
+            grid: { color: COLORS.grid },
+          },
+          y1: {
+            position: "right",
+            display: growthDatasets.length > 1,
+            min: 0,
+            beginAtZero: true,
+            title: { display: true, text: "SA pairs", color: COLORS.muted },
+            ticks: { color: COLORS.muted },
+            grid: { drawOnChartArea: false },
+          },
+        },
+      },
     });
   }
 
@@ -620,64 +851,6 @@
               ticks: { color: COLORS.muted },
               grid: { drawOnChartArea: false },
               beginAtZero: true,
-            },
-          },
-        },
-      });
-    }
-
-    if (Array.isArray(s.qtable_states) && s.qtable_states.length) {
-      const growthDatasets = [
-        {
-          label: isDqn ? "Network params" : "States",
-          data: s.qtable_states,
-          borderColor: COLORS.greenLight,
-          pointRadius: 0,
-          borderWidth: 2,
-          yAxisID: "y",
-        },
-      ];
-      if (!isDqn && Array.isArray(s.qtable_entries) && s.qtable_entries.length) {
-        growthDatasets.push({
-          label: "SA pairs",
-          data: s.qtable_entries,
-          borderColor: COLORS.amber,
-          pointRadius: 0,
-          borderWidth: 2,
-          yAxisID: "y1",
-        });
-      }
-      makeChart("chartGrowth", {
-        type: "line",
-        data: { labels: s.games, datasets: growthDatasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          interaction: { mode: "index", intersect: false },
-          plugins: {
-            legend: {
-              labels: { color: COLORS.cream, boxWidth: 12, font: { family: "Arial", size: 11 } },
-            },
-          },
-          scales: {
-            x: {
-              title: { display: true, text: "Games", color: COLORS.muted },
-              ticks: { color: COLORS.muted, maxTicksLimit: 8 },
-              grid: { color: COLORS.grid },
-            },
-            y: {
-              position: "left",
-              title: { display: true, text: isDqn ? "Params" : "States", color: COLORS.muted },
-              ticks: { color: COLORS.muted },
-              grid: { color: COLORS.grid },
-            },
-            y1: {
-              position: "right",
-              display: growthDatasets.length > 1,
-              title: { display: true, text: "SA pairs", color: COLORS.muted },
-              ticks: { color: COLORS.muted },
-              grid: { drawOnChartArea: false },
             },
           },
         },
@@ -1080,23 +1253,94 @@
     if (flipHint) {
       if (flipCounts) {
         flipHint.hidden = false;
-        const nFlip = (abb.rounds || []).reduce((acc, _, ri) => {
-          const row = abb.counts.draw_flip[ri] || [];
-          return acc + row.reduce((a, b) => a + (b || 0), 0);
-        }, 0);
         flipHint.textContent =
-          `Draw-and-flip by human turn. Darker = larger share of that turn’s flips. ${fmt(nFlip)} flips` +
+          `Draw-and-flip by human turn. Darker = larger share of that turn’s flips.` +
           (abb.holes_human_second != null
             ? ` · ${fmt(abb.holes_human_first)} 1st / ${fmt(abb.holes_human_second)} 2nd seat`
             : "") +
-          `.`;
+          `. Slide max score to see where good vs junk holes flipped.`;
       } else {
         flipHint.hidden = true;
       }
     }
     if (flipCounts) {
-      renderHumanFlipGrid(abb);
+      lastFlipBoard = abb;
+      setupHumanFlipScoreFilter(abb);
+      renderHumanFlipGrid(abb, flipScoreMax);
+    } else {
+      lastFlipBoard = null;
+      const filter = document.getElementById("humanFlipScoreFilter");
+      if (filter) filter.hidden = true;
     }
+  }
+
+  function flipMatrixForMaxScore(abb, maxScore) {
+    const byScore = (abb && abb.draw_flip_by_score) || null;
+    const rounds = (abb && abb.rounds) || [];
+    const nPos = ((abb && abb.positions) || [0, 1, 2, 3]).length;
+    if (!byScore || maxScore == null || !Number.isFinite(Number(maxScore))) {
+      return (abb && abb.counts && abb.counts.draw_flip) || [];
+    }
+    const cap = Number(maxScore);
+    const mat = rounds.map(() => Array.from({ length: nPos }, () => 0));
+    Object.keys(byScore).forEach((key) => {
+      const sc = Number(key);
+      if (!Number.isFinite(sc) || sc > cap) return;
+      const src = byScore[key] || [];
+      src.forEach((row, ri) => {
+        if (!mat[ri]) return;
+        (row || []).forEach((v, pos) => {
+          mat[ri][pos] = (mat[ri][pos] || 0) + (Number(v) || 0);
+        });
+      });
+    });
+    return mat;
+  }
+
+  function setupHumanFlipScoreFilter(abb) {
+    const filter = document.getElementById("humanFlipScoreFilter");
+    const slider = document.getElementById("humanFlipScoreMax");
+    const label = document.getElementById("humanFlipScoreMaxLabel");
+    const meta = document.getElementById("humanFlipScoreMeta");
+    if (!filter || !slider) return;
+
+    const hasScores =
+      abb.draw_flip_by_score &&
+      Object.keys(abb.draw_flip_by_score).length > 0 &&
+      abb.flip_score_min != null &&
+      abb.flip_score_max != null;
+
+    if (!hasScores) {
+      filter.hidden = true;
+      flipScoreMax = null;
+      return;
+    }
+
+    const lo = Number(abb.flip_score_min);
+    const hi = Number(abb.flip_score_max);
+    slider.min = String(lo);
+    slider.max = String(hi);
+    if (flipScoreMax == null || flipScoreMax < lo || flipScoreMax > hi) {
+      flipScoreMax = hi;
+    }
+    slider.value = String(flipScoreMax);
+    if (label) label.textContent = String(flipScoreMax);
+    if (meta) {
+      const nFlip = Number(abb.flips_with_score) || 0;
+      const miss = Number(abb.flips_missing_score) || 0;
+      meta.textContent =
+        `${fmt(nFlip)} scored flips` + (miss ? ` · ${fmt(miss)} unscored` : "");
+    }
+    filter.hidden = false;
+  }
+
+  function onHumanFlipScoreInput() {
+    const slider = document.getElementById("humanFlipScoreMax");
+    const label = document.getElementById("humanFlipScoreMaxLabel");
+    if (!slider || !lastFlipBoard) return;
+    flipScoreMax = Number(slider.value);
+    if (label) label.textContent = String(flipScoreMax);
+    renderHumanFlipGrid(lastFlipBoard, flipScoreMax);
   }
 
   function renderHumanHandGrid(abb) {
@@ -1160,17 +1404,19 @@
     root.innerHTML = parts.join("");
   }
 
-  function renderHumanFlipGrid(abb) {
+  function renderHumanFlipGrid(abb, maxScore) {
     const root = document.getElementById("humanFlipGrid");
     if (!root || !abb) return;
     const rounds = abb.rounds || [];
     const labels = abb.position_labels || ["top-L", "top-R", "bot-L", "bot-R"];
     const grid = abb.grid || [[0, 1], [2, 3]];
-    const flipMat = (abb.counts && abb.counts.draw_flip) || [];
+    const flipMat = flipMatrixForMaxScore(abb, maxScore);
     const parts = [];
+    let nFlip = 0;
     rounds.forEach((rn, ri) => {
       const row = flipMat[ri] || [0, 0, 0, 0];
       const roundTot = row.reduce((a, b) => a + (Number(b) || 0), 0);
+      nFlip += roundTot;
       parts.push(
         `<div class="rl-human-round-col">` +
           `<div class="rl-human-hand-board">` +
@@ -1182,16 +1428,23 @@
           const role = pos >= 2 ? "private" : "public";
           const v = Number(row[pos]) || 0;
           const share = roundTot > 0 ? v / roundTot : 0;
-          const pct = Math.round(share * 100);
+          const pctVal = Math.round(share * 100);
+          const scoreBit =
+            maxScore != null && Number.isFinite(Number(maxScore))
+              ? ` · holes ≤ ${Number(maxScore)}`
+              : "";
           const title =
             `T${rn} · ${labels[pos]} (${role}) flipped ${v}` +
-            (roundTot ? ` / ${roundTot} (${pct}% of round)` : "");
+            (roundTot ? ` / ${roundTot} (${pctVal}% of round)` : "") +
+            scoreBit;
           const alpha = v ? 0.22 + 0.78 * share : 0.06;
           parts.push(
             `<div class="rl-human-card rl-human-card--flip is-${role}${v ? "" : " is-empty"}" ` +
               `style="background:rgba(90,117,153,${alpha.toFixed(3)})" title="${title}">` +
               `<div class="rl-human-card-corner">${labels[pos]}</div>` +
-              (v ? `<div class="rl-human-card-n">${v} · ${pct}%</div>` : `<div class="rl-human-stack-empty">—</div>`) +
+              (v
+                ? `<div class="rl-human-card-n">${v} · ${pctVal}%</div>`
+                : `<div class="rl-human-stack-empty">—</div>`) +
               `</div>`
           );
         });
@@ -1205,6 +1458,14 @@
       );
     });
     root.innerHTML = parts.join("");
+
+    const meta = document.getElementById("humanFlipScoreMeta");
+    if (meta && maxScore != null && Number.isFinite(Number(maxScore))) {
+      const miss = Number(abb.flips_missing_score) || 0;
+      meta.textContent =
+        `${fmt(nFlip)} flips ≤ ${Number(maxScore)}` +
+        (miss ? ` · ${fmt(miss)} unscored` : "");
+    }
   }
 
   function renderAll(data) {
@@ -1229,8 +1490,16 @@
     );
     renderRunsTable(data.runs || [], data.compare_ids || selectedCompare);
     renderCompare(data.compare || [], data.baselines);
+    renderThroughput(data.compare || [], data.learning);
     renderHumanDemos(data.human_demos);
     renderLearning(data.learning, data.baselines);
+    renderQGrowth(
+      data.learning,
+      data.q_growth_cumulative,
+      isDqnMode(
+        (data.learning && data.learning.train_mode) || (data.summary && data.summary.train_mode)
+      )
+    );
     renderActions(data.actions);
     renderQvalues(data.qvalues, data.learning);
     setLiveStatus(
@@ -1341,6 +1610,7 @@
       discard_junk_min_pts: 8,
       discard_soft_scale: 5.0,
       use_pair_force_take: true,
+      use_pair_force_keep_draw: true,
       use_ban_junk_on_private: true,
       junk_private_max_pts: 3,
       use_ev_gap_hard: true,
@@ -1414,6 +1684,7 @@
       discard_junk_min_pts: num("discard_junk_min_pts", 8),
       discard_soft_scale: num("discard_soft_scale", 5.0),
       use_pair_force_take: checked("use_pair_force_take", true),
+      use_pair_force_keep_draw: checked("use_pair_force_keep_draw", true),
       use_ban_junk_on_private: checked("use_ban_junk_on_private", true),
       junk_private_max_pts: num("junk_private_max_pts", 3),
       use_ev_gap_hard: checked("use_ev_gap_hard", true),
@@ -1688,6 +1959,10 @@
     document.querySelectorAll(".rl-device-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchDevice(btn.getAttribute("data-device")));
     });
+    const flipScoreSlider = document.getElementById("humanFlipScoreMax");
+    if (flipScoreSlider) {
+      flipScoreSlider.addEventListener("input", onHumanFlipScoreInput);
+    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {

@@ -6,7 +6,7 @@
     <title>RL Training — Golf Solver</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b501b'/%3E%3Cpath d='M10 22 L16 8 L22 22 Z' fill='%23f5f5f0'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260729m">
+    <link rel="stylesheet" href="/static/css/rl-training.css?v=20260730d">
 </head>
 <body class="rl-page">
     <div class="rl-shell">
@@ -92,6 +92,10 @@
                 <label class="rl-check rl-cpu-only">
                     <input type="checkbox" name="use_pair_force_take" checked>
                     <span class="tip" data-tip="action_heuristics">Pair force-take</span>
+                </label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_pair_force_keep_draw" checked>
+                    <span class="tip" data-tip="action_heuristics">Pair force-keep (deck)</span>
                 </label>
                 <label class="rl-check rl-cpu-only">
                     <input type="checkbox" name="use_ban_junk_on_private" checked>
@@ -183,7 +187,7 @@
 
             <section class="rl-panel rl-panel--wide">
                 <h2>Run history</h2>
-                <p class="hint">Archived runs over time. Check rows to compare (up to 4). CPU and GPU jobs archive automatically when they finish.</p>
+                <p class="hint">Archived runs over time. Check rows to compare (up to 4). Finish <em>or Stop</em> archives automatically (stopped jobs show as partial).</p>
                 <div class="rl-runs-wrap">
                     <table class="rl-runs-table" id="rlRunsTable">
                         <thead>
@@ -242,6 +246,13 @@
                         <p class="rl-human-chart-label tip" data-tip="human_flips">Which card flipped (human turn)</p>
                         <p class="hint rl-human-action-hint" id="humanFlipHint" hidden></p>
                         <div class="rl-human-handgrid-wrap" id="humanFlipWrap" hidden>
+                            <div class="rl-human-score-filter" id="humanFlipScoreFilter" hidden>
+                                <label class="rl-human-score-filter-label" for="humanFlipScoreMax">
+                                    Holes scoring ≤ <strong id="humanFlipScoreMaxLabel">—</strong>
+                                </label>
+                                <input type="range" id="humanFlipScoreMax" class="rl-human-score-slider" min="0" max="20" value="20" step="1">
+                                <span class="rl-human-score-filter-meta" id="humanFlipScoreMeta"></span>
+                            </div>
                             <div class="rl-human-handgrid" id="humanFlipGrid"></div>
                             <div class="rl-human-handgrid-legend">
                                 <span><i class="rl-swatch rl-swatch--flip"></i> darker = more flips that round</span>
@@ -254,6 +265,12 @@
                     <h2>Compare runs <span class="tip" data-tip="score_ma">(score MA)</span></h2>
                     <p class="hint" id="compareHint">Select runs above. Includes <span class="tip" data-tip="ev_baseline">EV baseline</span>.</p>
                     <div class="rl-chart-wrap"><canvas id="chartCompare"></canvas></div>
+                </section>
+
+                <section class="rl-panel rl-panel--wide">
+                    <h2>Throughput <span class="tip" data-tip="games_per_hour">GPH</span></h2>
+                    <p class="hint" id="throughputHint">Games/hour vs games for selected runs (and the live run when available). Solid = cumulative; dashed = interval.</p>
+                    <div class="rl-chart-wrap"><canvas id="chartThroughput"></canvas></div>
                 </section>
 
                 <section class="rl-panel rl-panel--wide">
@@ -318,6 +335,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260730c"></script>
+    <script src="/static/js/rl-training.js?v=20260730g"></script>
 </body>
 </html>

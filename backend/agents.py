@@ -309,6 +309,7 @@ DEFAULT_ACTION_HEURISTICS = {
     "discard_junk_min_pts": 8,    # hard: ban take if pts >= this and not pair
     "discard_soft_scale": 5.0,    # |bias| for soft discard prior
     "pair_force_take": True,      # hard: if discard pairs known rank → only take
+    "pair_force_keep_draw": True, # hard: peek deck; if unpaired match → only keep (not flip)
     "ban_junk_on_private": True,  # hard last-turn: no 10/Q/K onto low private
     "junk_private_max_pts": 3,    # "low" private card threshold (pts <= this)
     "ev_gap_hard": True,          # if |draw_adv| > threshold, only better type
@@ -516,6 +517,29 @@ class QLearningAgent:
                 ranks.add(card.rank)
         return ranks
 
+    @staticmethod
+    def _player_known_rank_positions(player) -> dict:
+        """rank → indices known to the player (public or private peek)."""
+        out: dict = {}
+        priv = getattr(player, "privately_visible", None) or [False] * 4
+        for i, card in enumerate(player.grid):
+            if not card:
+                continue
+            if player.known[i] or (i < len(priv) and priv[i]):
+                out.setdefault(card.rank, []).append(i)
+        return out
+
+    @staticmethod
+    def _peek_deck_rank(game_state):
+        """Deck-top rank without requiring drawn_card (training decides before draw)."""
+        drawn = getattr(game_state, "drawn_card", None)
+        if drawn is not None:
+            return drawn.rank
+        deck = getattr(game_state, "deck", None)
+        if deck:
+            return deck[-1].rank
+        return None
+
     def _is_last_turn(self, player, game_state) -> bool:
         """True on final round or when only one non-public slot remains."""
         max_r = int(getattr(game_state, "max_rounds", 4) or 4)
@@ -603,6 +627,32 @@ class QLearningAgent:
                             filtered = preferred
                 except Exception:
                     pass
+
+        # Re-assert discard pair take after EV gap (pairing beats EV type preference)
+        if ah.get("pair_force_take", True) and is_pair:
+            takes = [a for a in filtered if a.get("type") == "take_discard"]
+            if takes:
+                filtered = takes
+
+        # Deck-draw pair (after EV gap so pairing beats EV-type preference):
+        # peek deck top; if it matches an *unpaired* known rank and discard is not
+        # already a pair, only keep onto a non-matching slot stays legal.
+        if ah.get("pair_force_keep_draw", True) and not is_pair:
+            drawn_rank = self._peek_deck_rank(game_state)
+            if drawn_rank:
+                rank_pos = self._player_known_rank_positions(player)
+                match_pos = rank_pos.get(drawn_rank) or []
+                if len(match_pos) == 1:
+                    match_set = set(match_pos)
+                    keeps = [
+                        a
+                        for a in filtered
+                        if a.get("type") == "draw_deck"
+                        and a.get("keep", True)
+                        and a.get("position") not in match_set
+                    ]
+                    if keeps:
+                        filtered = keeps
 
         if ah.get("ban_junk_on_private", True) and self._is_last_turn(player, game_state):
             filtered = [
