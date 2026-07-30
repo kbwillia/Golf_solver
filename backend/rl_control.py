@@ -71,6 +71,8 @@ DEFAULT_PARAMS = {
     "use_pair_force_take": True,
     "use_ban_junk_on_private": True,
     "junk_private_max_pts": 3,
+    "use_ev_gap_hard": True,
+    "ev_gap_threshold": 3.0,
 }
 
 # Device-specific training defaults (CPU tabular Q vs GPU neural DQN)
@@ -110,6 +112,8 @@ DEVICE_PRESETS: dict[str, dict[str, Any]] = {
         "use_pair_force_take": True,
         "use_ban_junk_on_private": True,
         "junk_private_max_pts": 3,
+        "use_ev_gap_hard": True,
+        "ev_gap_threshold": 3.0,
     },
     "gpu": {
         "num_workers": 8,
@@ -175,6 +179,8 @@ _PRESET_KEYS = (
     "use_pair_force_take",
     "use_ban_junk_on_private",
     "junk_private_max_pts",
+    "use_ev_gap_hard",
+    "ev_gap_threshold",
 )
 
 _launch_lock = None
@@ -282,6 +288,8 @@ def save_params(params: dict[str, Any]) -> dict[str, Any]:
     merged["use_pair_force_take"] = bool(merged.get("use_pair_force_take", True))
     merged["use_ban_junk_on_private"] = bool(merged.get("use_ban_junk_on_private", True))
     merged["junk_private_max_pts"] = max(0, int(merged.get("junk_private_max_pts") or 3))
+    merged["use_ev_gap_hard"] = bool(merged.get("use_ev_gap_hard", True))
+    merged["ev_gap_threshold"] = max(0.0, float(merged.get("ev_gap_threshold") or 3.0))
 
     # Persist current form values into the active device's preset
     active = merged["train_device"]

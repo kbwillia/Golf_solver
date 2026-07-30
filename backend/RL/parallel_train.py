@@ -311,6 +311,8 @@ def train_qlearning_agent_parallel(
     use_pair_force_take: bool = True,
     use_ban_junk_on_private: bool = True,
     junk_private_max_pts: int = 3,
+    use_ev_gap_hard: bool = True,
+    ev_gap_threshold: float = 3.0,
 ) -> tuple[QLearningAgent, dict[str, Any]]:
     """
     Parallel CPU tabular Q-learning.
@@ -361,6 +363,8 @@ def train_qlearning_agent_parallel(
         "pair_force_take": bool(use_pair_force_take),
         "ban_junk_on_private": bool(use_ban_junk_on_private),
         "junk_private_max_pts": max(0, int(junk_private_max_pts)),
+        "ev_gap_hard": bool(use_ev_gap_hard),
+        "ev_gap_threshold": float(ev_gap_threshold),
     }
 
     bootstrap_n = n_bootstrap_games if use_imitation_learning else 0
@@ -413,7 +417,9 @@ def train_qlearning_agent_parallel(
         f"discard_hard(>={action_heuristics_cfg['discard_junk_min_pts']}pt)="
         f"{action_heuristics_cfg['discard_hard_gate']} "
         f"pair_force={action_heuristics_cfg['pair_force_take']} "
-        f"ban_junk_priv={action_heuristics_cfg['ban_junk_on_private']}"
+        f"ban_junk_priv={action_heuristics_cfg['ban_junk_on_private']} "
+        f"ev_gap(>{action_heuristics_cfg['ev_gap_threshold']})="
+        f"{action_heuristics_cfg['ev_gap_hard']}"
     )
 
     try:
@@ -862,6 +868,8 @@ def train_qlearning_agent_parallel(
             "use_pair_force_take": action_heuristics_cfg["pair_force_take"],
             "use_ban_junk_on_private": action_heuristics_cfg["ban_junk_on_private"],
             "junk_private_max_pts": action_heuristics_cfg["junk_private_max_pts"],
+            "use_ev_gap_hard": action_heuristics_cfg["ev_gap_hard"],
+            "ev_gap_threshold": action_heuristics_cfg["ev_gap_threshold"],
         }, f, indent=2)
 
     # Archive locally + upload summary to Supabase (this machine is the DB gateway)
@@ -960,6 +968,8 @@ if __name__ == "__main__":
             use_pair_force_take=bool(p.get("use_pair_force_take", True)),
             use_ban_junk_on_private=bool(p.get("use_ban_junk_on_private", True)),
             junk_private_max_pts=int(p.get("junk_private_max_pts", 3)),
+            use_ev_gap_hard=bool(p.get("use_ev_gap_hard", True)),
+            ev_gap_threshold=float(p.get("ev_gap_threshold", 3.0)),
         )
     finally:
         _clear_local_pid_file()

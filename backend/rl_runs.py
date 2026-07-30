@@ -197,6 +197,7 @@ def _summarize_stats(stats: dict[str, Any] | None, params: dict[str, Any] | None
         else None,
         "duration_sec": duration_sec,
         "games_per_sec": games_per_sec,
+        "games_per_hour": (games_per_sec * 3600.0) if games_per_sec is not None else None,
         "num_games_planned": params.get("num_games"),
         "learning_rate": params.get("learning_rate"),
         "epsilon": params.get("epsilon"),

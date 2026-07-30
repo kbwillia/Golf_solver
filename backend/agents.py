@@ -311,6 +311,8 @@ DEFAULT_ACTION_HEURISTICS = {
     "pair_force_take": True,      # hard: if discard pairs known rank → only take
     "ban_junk_on_private": True,  # hard last-turn: no 10/Q/K onto low private
     "junk_private_max_pts": 3,    # "low" private card threshold (pts <= this)
+    "ev_gap_hard": True,          # if |draw_adv| > threshold, only better type
+    "ev_gap_threshold": 3.0,      # |draw_EV − discard_EV| to trigger (score pts)
 }
 
 
@@ -581,6 +583,26 @@ class QLearningAgent:
             takes = [a for a in filtered if a.get("type") == "take_discard"]
             if takes:
                 filtered = takes
+
+        # EV gap: when take vs draw expected score differs by > threshold, force better type.
+        # draw_advantage = draw_EV − discard_EV (both are score deltas; lower/more negative is better).
+        # advantage > +thr → discard clearly better; < −thr → draw clearly better.
+        if ah.get("ev_gap_hard", True) and game_state.discard_pile and game_state.deck:
+            thr = float(ah.get("ev_gap_threshold", 3.0) or 3.0)
+            if thr > 0:
+                try:
+                    ev = expected_value_draw_vs_discard(game_state, player)
+                    adv = float(ev.get("draw_advantage") or 0.0)
+                    if adv > thr:
+                        preferred = [a for a in filtered if a.get("type") == "take_discard"]
+                        if preferred:
+                            filtered = preferred
+                    elif adv < -thr:
+                        preferred = [a for a in filtered if a.get("type") == "draw_deck"]
+                        if preferred:
+                            filtered = preferred
+                except Exception:
+                    pass
 
         if ah.get("ban_junk_on_private", True) and self._is_last_turn(player, game_state):
             filtered = [

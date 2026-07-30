@@ -98,6 +98,11 @@
                     <span class="tip" data-tip="action_heuristics">Ban junk on low private (last turn)</span>
                 </label>
                 <label class="rl-cpu-only"><span class="tip" data-tip="action_heuristics">Low private max pts</span> <input type="number" name="junk_private_max_pts" min="0" max="6" step="1" value="3"></label>
+                <label class="rl-check rl-cpu-only">
+                    <input type="checkbox" name="use_ev_gap_hard" checked>
+                    <span class="tip" data-tip="action_heuristics">EV gap hard (take vs draw)</span>
+                </label>
+                <label class="rl-cpu-only"><span class="tip" data-tip="action_heuristics">EV gap threshold</span> <input type="number" name="ev_gap_threshold" min="0" max="10" step="0.1" value="3"></label>
 
                 <p class="rl-params-section tip" data-tip="reward_shaping">Reward shaping</p>
                 <label class="rl-check">
@@ -189,7 +194,7 @@
                                 <th>Games</th>
                                 <th><span class="tip" data-tip="duration">Time</span></th>
                                 <th><span class="tip" data-tip="avg_score">Avg</span></th>
-                                <th><span class="tip" data-tip="win_rate">Win%</span></th>
+                                <th><span class="tip" data-tip="games_per_hour">GPH</span></th>
                                 <th><span class="tip" data-tip="improvement">Δ</span></th>
                                 <th><span class="tip" data-tip="epsilon">ε</span></th>
                                 <th><span class="tip" data-tip="bootstrap">Boot</span></th>
@@ -313,6 +318,6 @@
     </div>
 
     <div class="rl-tooltip" id="rlTooltip" hidden></div>
-    <script src="/static/js/rl-training.js?v=20260729m"></script>
+    <script src="/static/js/rl-training.js?v=20260730c"></script>
 </body>
 </html>

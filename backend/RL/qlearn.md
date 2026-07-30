@@ -16,6 +16,7 @@ Live UI: `/rl` · params: `RL/output/ui_train_params.json` · artifacts under `R
    - **n-step Q-learning** with \(\max\) over **legal** actions
    - **trajectory replay** (losses prioritized)
    - **soft prior** on first visit to early-round `(s,a)` (hand-strength heuristic)
+   - **action heuristics** (discard gate / pair force / last-turn private) after bootstrap
 3. **I/O** — buffered trajectory CSV, downsampled stats, rare coverage scans,
    periodic Q checkpoints, optional perf telemetry (`train_perf.jsonl`).
 4. Q-table saved to `RL/output/qtable_train.csv` and archived with runs.
@@ -58,6 +59,62 @@ Default is **`0`**. Use `1`/`2` only if you want a wider early-board bias.
 | `soft_prior_scale` | `5.0` | Clip \(|Q_0|\) |
 
 UI: CPU-only checkbox + max round / scale fields (tooltips on `/rl`).
+
+## Action heuristics (human demos)
+
+Hard gates + a discard soft prior derived from recorded human play (~90% discard-gate
+agreement, ~85% pair-take). Implemented in `QLearningAgent.filter_heuristic_actions`
+and `_discard_take_soft_prior`.
+
+**Hard gates apply only after bootstrap** so EV / human teachers are not remasked.
+Soft discard prior seeds `take_discard` Q₀ on first visit in all phases.
+
+### 1. Discard take gate
+
+| Mode | Behavior |
+|------|----------|
+| **Soft** (`use_discard_soft_prior`) | On first visit to `take_discard_*`: discard ≤2 pts or pair → `+scale`; pts 3–4 → `+0.3·scale`; pts ≥7 and not pair → `−scale` |
+| **Hard** (`use_discard_hard_gate`) | Remove all `take_discard` if discard pts ≥ `discard_junk_min_pts` (default **8**) and discard is not a pair with a known rank |
+
+Stops ε-explore from taking Kings ⅓ of the time.
+
+### 2. Pair force-take (`use_pair_force_take`)
+
+If the discard rank matches any known public/private card, **only** `take_discard`
+actions remain legal (when at least one exists).
+
+### 3. Ban junk on low private (`use_ban_junk_on_private`)
+
+On **last turn** (`round >= max_rounds` or only one non-public slot left): forbid
+`take_discard` / known-card `keep` that would place **10/Q/K** onto a still-private
+card with pts ≤ `junk_private_max_pts` (default **3**). Unknown draws cannot be
+gated at choose-time (drawn not revealed yet).
+
+### 4. EV gap hard (`use_ev_gap_hard`)
+
+Uses `expected_value_draw_vs_discard` → `draw_advantage = draw_EV − discard_EV`
+(score deltas; more negative = better). After bootstrap:
+
+- `draw_advantage > +threshold` → only `take_discard` stays legal  
+- `draw_advantage < −threshold` → only `draw_deck` (keep/flip) stays legal  
+- otherwise → no extra filter  
+
+Default threshold **3.0** score points (UI: EV gap threshold). Clear EV decisions
+can’t be undone by ε’s ⅓/⅓/⅓ type sampling.
+
+| Param | Default | Role |
+|-------|---------|------|
+| `use_discard_soft_prior` | `true` | Soft Q₀ bias on takes |
+| `use_discard_hard_gate` | `true` | Ban junk takes (non-pair) |
+| `discard_junk_min_pts` | `8` | Hard gate threshold |
+| `discard_soft_scale` | `5.0` | Soft discard \|bias\| |
+| `use_pair_force_take` | `true` | Pair → only take legal |
+| `use_ban_junk_on_private` | `true` | Last-turn private protect |
+| `junk_private_max_pts` | `3` | “Low” private threshold |
+| `use_ev_gap_hard` | `true` | Force better type when EV gap big |
+| `ev_gap_threshold` | `3.0` | \|draw−discard\| EV gap to trigger |
+
+For an unbiased solve later: turn hard gates + soft discard prior **off** (same idea as shaping off).
 
 ## Priority 1 — True Q-learning bootstrap
 
@@ -184,8 +241,8 @@ Historical note: appending every game to a huge `trajectory_train.csv` + full st
 
 ## Suggested curriculum
 
-1. **Cover:** shaping ON, soft prior ON, modest bootstrap (5–15%), ε decaying (~150–250 steps), β > 0.
-2. **Solve:** shaping OFF, soft prior optional/off, little/no bootstrap, lower ε, β → 0.
+1. **Cover:** shaping ON, soft prior ON, action heuristics ON, modest bootstrap (5–15%), ε decaying (~150–250 steps), β > 0.
+2. **Solve:** shaping OFF, soft prior optional/off, heuristics OFF, little/no bootstrap, lower ε, β → 0.
 
 ## Key files
 
@@ -212,6 +269,14 @@ Historical note: appending every game to a huge `trajectory_train.csv` + full st
 | `use_soft_prior` | true |
 | `soft_prior_max_round` | **0** (deal-only) |
 | `soft_prior_scale` | 5.0 |
+| `use_discard_soft_prior` | true |
+| `use_discard_hard_gate` | true |
+| `discard_junk_min_pts` | 8 |
+| `use_pair_force_take` | true |
+| `use_ban_junk_on_private` | true |
+| `junk_private_max_pts` | 3 |
+| `use_ev_gap_hard` | true |
+| `ev_gap_threshold` | 3.0 |
 | `traj_flush_every` | 100 |
 | `q_checkpoint_every` | 50000 |
 

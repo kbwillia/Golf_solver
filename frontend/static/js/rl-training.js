@@ -340,6 +340,14 @@
     return `${h}h ${m % 60}m`;
   }
 
+  function fmtGph(summary) {
+    const s = summary || {};
+    let gph = s.games_per_hour;
+    if (gph == null && s.games_per_sec != null) gph = Number(s.games_per_sec) * 3600;
+    if (gph == null || Number.isNaN(Number(gph))) return "—";
+    return Math.round(Number(gph)).toLocaleString();
+  }
+
   function renderRunsTable(runs, compareIds) {
     const body = document.getElementById("rlRunsBody");
     if (!body) return;
@@ -362,7 +370,7 @@
           <td>${fmt(s.games_played)}</td>
           <td title="${s.games_per_sec != null ? Number(s.games_per_sec).toFixed(1) + " games/s" : ""}">${fmtDuration(s.duration_sec)}</td>
           <td>${fmt(s.avg_score, 2)}</td>
-          <td>${pct(s.win_rate)}</td>
+          <td title="${s.games_per_sec != null ? Number(s.games_per_sec).toFixed(1) + " games/s" : ""}">${fmtGph(s)}</td>
           <td>${s.improvement == null ? "—" : fmt(s.improvement, 2)}</td>
           <td>${p.epsilon != null ? Number(p.epsilon).toFixed(2) : "—"}</td>
           <td>${fmt(p.n_bootstrap_games)}</td>
@@ -1335,6 +1343,8 @@
       use_pair_force_take: true,
       use_ban_junk_on_private: true,
       junk_private_max_pts: 3,
+      use_ev_gap_hard: true,
+      ev_gap_threshold: 3.0,
       opponent_type: "ev_ai",
       n_step: 3,
       replay_per_game: 4,
@@ -1406,6 +1416,8 @@
       use_pair_force_take: checked("use_pair_force_take", true),
       use_ban_junk_on_private: checked("use_ban_junk_on_private", true),
       junk_private_max_pts: num("junk_private_max_pts", 3),
+      use_ev_gap_hard: checked("use_ev_gap_hard", true),
+      ev_gap_threshold: num("ev_gap_threshold", 3.0),
       shape_step: num("shape_step", 0.05),
       shape_pair: num("shape_pair", 1.5),
       shape_high_keep: num("shape_high_keep", -0.8),
